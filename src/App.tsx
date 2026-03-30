@@ -24,7 +24,11 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
-  updateProfile
+  updateProfile,
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
@@ -190,6 +194,9 @@ function ExonaApp() {
   const [displayName, setDisplayName] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
@@ -491,6 +498,43 @@ function ExonaApp() {
     } catch (e: any) {
       console.error('Sign In Error:', e);
       setAuthError(e.message || 'Invalid email or password.');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+    setAuthError(null);
+    try {
+      // Re-authenticate if it's a password user
+      if (user.providerData.some(p => p.providerId === 'password')) {
+        if (!deletePassword) {
+          setAuthError('Please enter your password to confirm deletion.');
+          setIsDeleting(false);
+          return;
+        }
+        const credential = EmailAuthProvider.credential(user.email!, deletePassword);
+        await reauthenticateWithCredential(user, credential);
+      }
+
+      // Delete user document from Firestore
+      await deleteDoc(doc(db, 'users', user.uid));
+      
+      // Delete user from Auth
+      await deleteUser(user);
+      
+      setIsDeleteModalOpen(false);
+      setDeletePassword('');
+      setView('login');
+    } catch (e: any) {
+      console.error('Delete Account Error:', e);
+      if (e.code === 'auth/requires-recent-login') {
+        setAuthError('Please sign out and sign in again to delete your account.');
+      } else {
+        setAuthError(e.message || 'Failed to delete account.');
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1046,6 +1090,23 @@ function ExonaApp() {
                     <p className="font-bold text-gray-900">{userDoc?.schoolId || 'EX-2024-001'}</p>
                   </div>
                 </div>
+
+                <div className="mt-12 pt-8 border-t border-gray-100">
+                  <h4 className="text-sm font-black text-red-600 uppercase tracking-widest mb-4">Danger Zone</h4>
+                  <p className="text-xs text-gray-500 mb-6 font-medium leading-relaxed">
+                    Once you delete your account, there is no going back. All your data will be permanently removed from Exona.
+                  </p>
+                  <button 
+                    onClick={() => {
+                      setAuthError(null);
+                      setIsDeleteModalOpen(true);
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all text-sm"
+                  >
+                    <AlertCircle size={18} />
+                    Delete My Account
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1197,6 +1258,67 @@ function ExonaApp() {
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       {/* Modals */}
       <AnimatePresence>
+        {isDeleteModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10"
+            >
+              <div className="h-16 w-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-6">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Delete Account?</h3>
+              <p className="text-gray-500 font-medium mb-8 leading-relaxed">
+                This action is permanent and cannot be undone. Are you absolutely sure you want to delete your Exona account?
+              </p>
+
+              {authError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  {authError}
+                </div>
+              )}
+
+              {user?.providerData.some(p => p.providerId === 'password') && (
+                <div className="mb-8">
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Enter Password to Confirm</label>
+                  <input 
+                    type="password" 
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    placeholder="Your password"
+                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 transition-all text-sm font-medium"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting}
+                  className="w-full py-4 bg-red-600 text-white rounded-2xl font-black shadow-xl shadow-red-100 hover:bg-red-700 disabled:opacity-50 transition-all"
+                >
+                  {isDeleting ? 'Deleting...' : 'Yes, Delete My Account'}
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDeleteModalOpen(false);
+                    setDeletePassword('');
+                    setAuthError(null);
+                  }}
+                  disabled={isDeleting}
+                  className="w-full py-4 bg-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-200 disabled:opacity-50 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {isPostModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

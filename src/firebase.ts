@@ -9,9 +9,12 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
-  updateProfile
+  updateProfile,
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, onSnapshot, addDoc, where, limit } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, onSnapshot, addDoc, where, limit, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -29,7 +32,11 @@ export {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendEmailVerification,
-  updateProfile
+  updateProfile,
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  deleteDoc
 };
 
 // Error Handling Spec for Firestore Operations
