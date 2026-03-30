@@ -327,20 +327,25 @@ function ExonaApp() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        const docData = await ensureUserDocument(currentUser);
-        setUserDoc(docData);
-        await seedInitialData();
-        setUser(currentUser);
-        if (view === 'login' || view === 'splash') setView('feed');
+        try {
+          const docData = await ensureUserDocument(currentUser);
+          setUserDoc(docData);
+          // Only seed if admin or if needed, but don't let it block login
+          seedInitialData().catch(err => console.warn('Seeding skipped:', err));
+          setUser(currentUser);
+          setView(prev => (prev === 'login' || prev === 'splash') ? 'feed' : prev);
+        } catch (error) {
+          console.error('Auth initialization error:', error);
+        }
       } else {
         setUser(null);
         setUserDoc(null);
-        if (view !== 'splash') setView('login');
+        setView(prev => prev !== 'splash' ? 'login' : prev);
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [view]);
+  }, []);
 
   useEffect(() => {
     if (view === 'splash') {
