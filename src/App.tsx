@@ -392,33 +392,75 @@ function ExonaApp() {
         );
       case 'schools':
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Select School</h2>
-              <button className="p-2 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-100 hover:scale-110 transition-transform">
-                <Plus size={20} />
-              </button>
+          <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
+            <div className="flex items-center gap-4 mb-10 bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm shadow-gray-100/50">
+              <div className="h-14 w-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                <Wallet size={28} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-gray-900 tracking-tight">Executive Finance</h2>
+                <p className="text-xs text-gray-400 font-medium tracking-wide">Revenue and projections</p>
+              </div>
             </div>
-            <div className="relative mb-6">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-              <input type="text" placeholder="Search schools..." className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-3xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
+
+            <div className="relative mb-10">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
+              <input 
+                type="text" 
+                placeholder="Search institutions..." 
+                className="w-full pl-16 pr-6 py-5 bg-white border border-gray-50 rounded-[2rem] shadow-xl shadow-gray-100/20 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-600 font-medium" 
+              />
             </div>
-            <div className="space-y-4">
+
+            <div className="space-y-6">
               {schools.map(school => (
-                <button 
+                <div 
                   key={school.id}
-                  onClick={() => { setSelectedSchool(school); setView('records'); }}
-                  className="w-full flex items-center justify-between p-6 bg-white rounded-3xl border border-gray-100 shadow-sm hover:border-blue-200 transition-all group"
+                  className="bg-white rounded-[3rem] p-8 border border-gray-50 shadow-xl shadow-gray-100/30 relative overflow-hidden group"
                 >
-                  <div className="flex items-center gap-4">
-                    <img src={school.logo} className="h-14 w-14 rounded-2xl object-cover border border-gray-50" />
-                    <div className="text-left">
-                      <h4 className="font-bold text-gray-900">{school.name}</h4>
-                      <p className="text-xs text-gray-400 font-medium">{school.description}</p>
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-5">
+                      <div className="relative">
+                        <div className={`h-20 w-20 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-lg ${
+                          school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-blue-600 shadow-blue-100'
+                        }`}>
+                          {school.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div className="absolute bottom-0 right-0 h-6 w-6 bg-white rounded-full border-4 border-white shadow-sm"></div>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-3">
+                          <h4 className="text-xl font-black text-gray-900 tracking-tight">{school.name}</h4>
+                          <div className="h-7 w-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-md shadow-blue-100">2</div>
+                        </div>
+                        <p className="text-sm text-gray-400 font-medium tracking-wide mt-1 line-clamp-1">{school.description}</p>
+                      </div>
                     </div>
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('records'); }}
+                      className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-all"
+                    >
+                      <ChevronRight size={24} />
+                    </button>
                   </div>
-                  <ChevronRight size={20} className="text-gray-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
-                </button>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('records'); }}
+                      className="flex items-center justify-center gap-3 py-4 bg-gray-50/50 rounded-2xl font-bold text-gray-900 hover:bg-gray-100 transition-all text-sm"
+                    >
+                      <BookOpen size={18} />
+                      Records
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                      className="flex items-center justify-center gap-3 py-4 bg-gray-50/50 rounded-2xl font-bold text-gray-900 hover:bg-gray-100 transition-all text-sm"
+                    >
+                      <Wallet size={18} />
+                      Finance
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -928,6 +970,36 @@ function ExonaApp() {
         <main className="flex-1 overflow-y-auto bg-gray-50/50">
           {renderView()}
         </main>
+
+        {/* Mobile Bottom Nav */}
+        <div className="lg:hidden bg-white border-t border-gray-100 px-6 py-4 flex items-center justify-between pb-8">
+          <button onClick={() => setView('feed')} className={`p-2 ${view === 'feed' ? 'text-blue-600' : 'text-gray-300'}`}>
+            <Home size={24} />
+          </button>
+          <button onClick={() => setView('schools')} className={`p-2 ${view === 'schools' ? 'text-blue-600' : 'text-gray-300'}`}>
+            <Search size={24} />
+          </button>
+          <button 
+            onClick={() => {
+              if (view === 'feed') setIsPostModalOpen(true);
+              else if (view === 'records') setIsRecordModalOpen(true);
+            }} 
+            className="h-12 w-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 border border-gray-100"
+          >
+            <Plus size={24} />
+          </button>
+          <button onClick={() => setView('schools')} className={`p-2 ${view === 'schools' ? 'text-blue-600' : 'text-gray-300'}`}>
+            <div className="grid grid-cols-2 gap-0.5">
+              <div className="h-2 w-2 rounded-sm bg-current"></div>
+              <div className="h-2 w-2 rounded-sm bg-current"></div>
+              <div className="h-2 w-2 rounded-sm bg-current"></div>
+              <div className="h-2 w-2 rounded-sm bg-current"></div>
+            </div>
+          </button>
+          <button onClick={() => setView('profile')} className={`p-2 ${view === 'profile' ? 'text-blue-600' : 'text-gray-300'}`}>
+            <UserIcon size={24} />
+          </button>
+        </div>
       </div>
     </div>
   );
