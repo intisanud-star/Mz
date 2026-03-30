@@ -8,7 +8,24 @@ import {
   Image as ImageIcon, Video as VideoIcon, Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, googleProvider, db, ensureUserDocument, seedInitialData, handleFirestoreError, OperationType, storage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from './firebase.ts';
+import { 
+  auth, 
+  googleProvider, 
+  db, 
+  ensureUserDocument, 
+  seedInitialData, 
+  handleFirestoreError, 
+  OperationType, 
+  storage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  uploadBytesResumable,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  updateProfile
+} from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 
@@ -167,6 +184,12 @@ const FeedPost = ({ post, onUserClick }: any) => {
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin'>('splash');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [verificationSent, setVerificationSent] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
@@ -331,6 +354,13 @@ function ExonaApp() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
+        // Check for email verification
+        if (!currentUser.emailVerified && currentUser.providerData.some(p => p.providerId === 'password')) {
+          setUser(currentUser);
+          setLoading(false);
+          return;
+        }
+
         try {
           const docData = await ensureUserDocument(currentUser);
           setUserDoc(docData);
@@ -346,6 +376,7 @@ function ExonaApp() {
       } else {
         setUser(null);
         setUserDoc(null);
+        setVerificationSent(false);
         // Allow guest to see feed by default
         setView(prev => prev !== 'splash' ? 'feed' : prev);
       }
@@ -421,12 +452,45 @@ function ExonaApp() {
     return () => { unsubRecords(); unsubFinance(); };
   }, [selectedSchool]);
 
-  const handleLogin = async () => {
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
     try { 
       await signInWithPopup(auth, googleProvider); 
-    } catch (e) { 
-      console.error('Login Error:', e);
-      alert('Failed to sign in. Please try again.');
+    } catch (e: any) { 
+      console.error('Google Login Error:', e);
+      setAuthError(e.message || 'Failed to sign in with Google.');
+    }
+  };
+
+  const handleEmailSignUp = async () => {
+    if (!email || !password || !displayName) {
+      setAuthError('Please fill in all fields.');
+      return;
+    }
+    setAuthError(null);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName });
+      await sendEmailVerification(userCredential.user);
+      setVerificationSent(true);
+      // The user is signed in but not verified. We'll handle this in the auth listener.
+    } catch (e: any) {
+      console.error('Sign Up Error:', e);
+      setAuthError(e.message || 'Failed to create account.');
+    }
+  };
+
+  const handleEmailSignIn = async () => {
+    if (!email || !password) {
+      setAuthError('Please enter email and password.');
+      return;
+    }
+    setAuthError(null);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (e: any) {
+      console.error('Sign In Error:', e);
+      setAuthError(e.message || 'Invalid email or password.');
     }
   };
 
@@ -1002,15 +1066,128 @@ function ExonaApp() {
   if (loading) return null;
 
   if (view === 'login') {
+    if (verificationSent || (user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password'))) {
+      return (
+        <div className="flex h-screen flex-col items-center justify-center bg-gray-50 p-6">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200 p-12 border border-gray-100 text-center">
+            <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl mb-10 mx-auto shadow-xl shadow-blue-100">Ex</div>
+            <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Verify your email</h2>
+            <p className="text-gray-500 font-medium mb-10">We've sent a verification link to <b>{user?.email || email}</b>. Please check your inbox and click the link to continue.</p>
+            <div className="space-y-4">
+              <button 
+                onClick={async () => {
+                  if (auth.currentUser) {
+                    await auth.currentUser.reload();
+                    if (auth.currentUser.emailVerified) {
+                      const docData = await ensureUserDocument(auth.currentUser);
+                      setUserDoc(docData);
+                      setUser(auth.currentUser);
+                      setView('feed');
+                    } else {
+                      setAuthError('Email not verified yet. Please check your inbox.');
+                    }
+                  }
+                }} 
+                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all"
+              >
+                I've Verified
+              </button>
+              <button 
+                onClick={() => {
+                  setVerificationSent(false);
+                  signOut(auth);
+                }} 
+                className="w-full py-5 bg-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-200 transition-all"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      );
+    }
+
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-gray-50 p-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200 p-12 border border-gray-100">
-          <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl mb-10 shadow-xl shadow-blue-100">Ex</div>
-          <h2 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">Welcome to Exona</h2>
-          <p className="text-gray-500 font-medium mb-10">Modernizing how schools operate and learn.</p>
-          <button onClick={handleLogin} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-3">
-            <LogIn size={24} /> Sign in with Google
+      <div className="flex h-screen flex-col items-center justify-center bg-gray-50 p-6 overflow-y-auto">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200 p-10 border border-gray-100 my-8">
+          <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl mb-8 shadow-xl shadow-blue-100">Ex</div>
+          <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">
+            {authMode === 'signin' ? 'Welcome Back' : 'Create Account'}
+          </h2>
+          <p className="text-gray-500 font-medium mb-8">
+            {authMode === 'signin' ? 'Modernizing how schools operate and learn.' : 'Join the modern school management platform.'}
+          </p>
+
+          {authError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-2">
+              <AlertCircle size={16} />
+              {authError}
+            </div>
+          )}
+
+          <div className="space-y-4 mb-8">
+            {authMode === 'signup' && (
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Full Name</label>
+                <input 
+                  type="text" 
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                />
+              </div>
+            )}
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Email Address</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@school.com"
+                className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Password</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+              />
+            </div>
+          </div>
+
+          <button 
+            onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
+            className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all mb-6"
+          >
+            {authMode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
+
+          <div className="relative mb-8">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+            <div className="relative flex justify-center text-[10px] uppercase font-black text-gray-400 tracking-widest"><span className="bg-white px-4">Or continue with</span></div>
+          </div>
+
+          <button onClick={handleGoogleSignIn} className="w-full py-4 bg-white border border-gray-100 text-gray-700 rounded-2xl font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-3 mb-8">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" /> Google
+          </button>
+
+          <p className="text-center text-sm text-gray-500 font-medium">
+            {authMode === 'signin' ? "Don't have an account?" : "Already have an account?"}{' '}
+            <button 
+              onClick={() => {
+                setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+                setAuthError(null);
+              }} 
+              className="text-blue-600 font-bold hover:underline"
+            >
+              {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
+            </button>
+          </p>
         </motion.div>
       </div>
     );
