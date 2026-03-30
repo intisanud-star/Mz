@@ -221,7 +221,8 @@ function ExonaApp() {
   };
 
   const handleCreateRecord = async () => {
-    if (!newRecord.studentName.trim() || !selectedSchool || !user) return;
+    if (!user) { setView('login'); return; }
+    if (!newRecord.studentName.trim() || !selectedSchool) return;
     const path = 'studentRecords';
     try {
       await addDoc(collection(db, path), {
@@ -252,7 +253,8 @@ function ExonaApp() {
   }, [selectedFile]);
 
   const handleCreatePost = async () => {
-    if (!newPostContent.trim() || !user) return;
+    if (!user) { setView('login'); return; }
+    if (!newPostContent.trim()) return;
     const path = 'posts';
     setIsUploading(true);
     setUploadProgress(0);
@@ -303,6 +305,7 @@ function ExonaApp() {
   };
 
   const handleAiSend = async () => {
+    if (!user) { setView('login'); return; }
     if (!aiInput.trim()) return;
     const userMsg = aiInput.trim();
     setAiMessages(prev => [...prev, { role: 'user', text: userMsg }]);
@@ -343,7 +346,8 @@ function ExonaApp() {
       } else {
         setUser(null);
         setUserDoc(null);
-        setView(prev => prev !== 'splash' ? 'login' : prev);
+        // Allow guest to see feed by default
+        setView(prev => prev !== 'splash' ? 'feed' : prev);
       }
       setLoading(false);
     });
@@ -359,31 +363,35 @@ function ExonaApp() {
 
   useEffect(() => {
     if (splashDone && !loading && view === 'splash') {
-      if (!user) setView('login');
-      else setView('feed');
+      // Always go to feed first, even if not logged in
+      setView('feed');
     }
   }, [splashDone, loading, user, view]);
 
   // Data listeners
   useEffect(() => {
-    if (!user) return;
-    
+    // Public data listeners (no user check)
     const unsubSchools = onSnapshot(collection(db, 'schools'), (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'schools');
+      // Only log if it's not a permission error for guest
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'schools');
+      }
     });
 
     const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('timestamp', 'desc')), (snap) => {
       setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'posts');
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'posts');
+      }
     });
 
     let unsubAllRecords = () => {};
     let unsubAllFinance = () => {};
 
-    if (userDoc?.role === 'admin') {
+    if (user && userDoc?.role === 'admin') {
       unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
         setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
       });
@@ -568,13 +576,29 @@ function ExonaApp() {
           <div className="max-w-2xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-black text-gray-900 tracking-tight">Horizon Feed</h2>
-              <button 
-                onClick={() => setIsPostModalOpen(true)}
-                className="p-2 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-100 hover:scale-110 transition-transform"
-              >
-                <Plus size={20} />
-              </button>
+              {user && (
+                <button 
+                  onClick={() => setIsPostModalOpen(true)}
+                  className="p-2 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-100 hover:scale-110 transition-transform"
+                >
+                  <Plus size={20} />
+                </button>
+              )}
             </div>
+            {!user && (
+              <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 mb-8 flex items-center justify-between gap-4">
+                <div>
+                  <h4 className="font-black text-blue-900 text-sm mb-1">Join the conversation</h4>
+                  <p className="text-xs text-blue-600 font-medium">Sign in to post updates and interact with your school community.</p>
+                </div>
+                <button 
+                  onClick={() => setView('login')}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all whitespace-nowrap"
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
             {posts.map(post => <FeedPost key={post.id} post={post} onUserClick={handleUserClick} />)}
           </div>
         );
@@ -705,6 +729,7 @@ function ExonaApp() {
           </div>
         );
       case 'records':
+        if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
           <div className="max-w-5xl mx-auto py-8 px-4">
@@ -781,6 +806,7 @@ function ExonaApp() {
           </div>
         );
       case 'finance':
+        if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
           <div className="max-w-5xl mx-auto py-8 px-4">
@@ -929,6 +955,7 @@ function ExonaApp() {
           </div>
         );
       case 'profile':
+        if (!user) { setView('login'); return null; }
         return (
           <div className="max-w-2xl mx-auto py-8 px-4">
             <h2 className="text-2xl font-black text-gray-900 mb-8 tracking-tight">My Profile</h2>
@@ -1230,15 +1257,21 @@ function ExonaApp() {
 
               <div className="space-y-1">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Account</p>
-                <SidebarItem icon={UserIcon} label="Profile" active={view === 'profile'} onClick={() => { setView('profile'); setSidebarOpen(false); }} />
+                <SidebarItem icon={UserIcon} label="Profile" active={view === 'profile'} onClick={() => { if (user) setView('profile'); else setView('login'); setSidebarOpen(false); }} />
                 <SidebarItem icon={Settings} label="Settings" />
               </div>
             </div>
 
             <div className="p-6 border-t border-gray-50">
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-50 rounded-xl transition-all">
-                <LogOut size={20} /> Logout
-              </button>
+              {user ? (
+                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-50 rounded-xl transition-all">
+                  <LogOut size={20} /> Logout
+                </button>
+              ) : (
+                <button onClick={() => { setView('login'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-blue-600 font-bold hover:bg-blue-50 rounded-xl transition-all">
+                  <LogIn size={20} /> Sign In
+                </button>
+              )}
             </div>
           </motion.aside>
         )}
@@ -1255,16 +1288,27 @@ function ExonaApp() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl relative">
-              <Bell size={20} />
-              <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
-            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200 overflow-hidden">
-              {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
+            <div className="flex items-center gap-4">
+              {user ? (
+                <>
+                  <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl relative">
+                    <Bell size={20} />
+                    <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
+                  </button>
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200 overflow-hidden">
+                    {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
+                  </div>
+                </>
+              ) : (
+                <button 
+                  onClick={() => setView('login')}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all text-sm"
+                >
+                  Sign In
+                </button>
+              )}
             </div>
-          </div>
-        </header>
+          </header>
 
         <main className="flex-1 overflow-y-auto bg-gray-50/50">
           {renderView()}
@@ -1280,6 +1324,7 @@ function ExonaApp() {
           </button>
           <button 
             onClick={() => {
+              if (!user) { setView('login'); return; }
               if (view === 'feed') setIsPostModalOpen(true);
               else if (view === 'records') setIsRecordModalOpen(true);
             }} 
@@ -1295,7 +1340,7 @@ function ExonaApp() {
               <div className="h-2 w-2 rounded-sm bg-current"></div>
             </div>
           </button>
-          <button onClick={() => setView('profile')} className={`p-2 ${view === 'profile' ? 'text-blue-600' : 'text-gray-300'}`}>
+          <button onClick={() => user ? setView('profile') : setView('login')} className={`p-2 ${view === 'profile' ? 'text-blue-600' : 'text-gray-300'}`}>
             <UserIcon size={24} />
           </button>
         </div>
