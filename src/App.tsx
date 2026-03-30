@@ -10,7 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, db, ensureUserDocument, seedInitialData, handleFirestoreError, OperationType, storage, ref, uploadBytes, getDownloadURL, uploadBytesResumable } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 
 /**
  * @license
@@ -166,7 +166,7 @@ const FeedPost = ({ post, onUserClick }: any) => {
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin'>('splash');
   const [user, setUser] = useState<User | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
@@ -177,12 +177,16 @@ function ExonaApp() {
   const [schools, setSchools] = useState<School[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [records, setRecords] = useState<StudentRecord[]>([]);
+  const [allRecords, setAllRecords] = useState<StudentRecord[]>([]);
+  const [allFinance, setAllFinance] = useState<any[]>([]);
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
   const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms'>('general');
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [aiInput, setAiInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '' });
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -190,6 +194,30 @@ function ExonaApp() {
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0 });
+
+  const handleCreateSchool = async () => {
+    if (!newSchool.name.trim() || !userDoc || userDoc.role !== 'admin') return;
+    const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-');
+    try {
+      await setDoc(doc(db, 'schools', schoolId), {
+        id: schoolId,
+        name: newSchool.name.trim(),
+        description: newSchool.description.trim() || 'Official feed for ' + newSchool.name,
+        logo: newSchool.logo.trim() || `https://picsum.photos/seed/${schoolId}/200`
+      });
+      await setDoc(doc(db, 'finance', schoolId), {
+        schoolId: schoolId,
+        institutionBalance: 0,
+        bankName: 'Exona Trust Bank',
+        accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
+        accountName: `${newSchool.name} General`
+      });
+      setNewSchool({ name: '', description: '', logo: '' });
+      setIsSchoolModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'schools');
+    }
+  };
 
   const handleCreateRecord = async () => {
     if (!newRecord.studentName.trim() || !selectedSchool || !user) return;
@@ -340,8 +368,20 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.LIST, 'posts');
     });
 
-    return () => { unsubSchools(); unsubPosts(); };
-  }, [user]);
+    let unsubAllRecords = () => {};
+    let unsubAllFinance = () => {};
+
+    if (userDoc?.role === 'admin') {
+      unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
+        setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+      });
+      unsubAllFinance = onSnapshot(collection(db, 'finance'), (snap) => {
+        setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+    }
+
+    return () => { unsubSchools(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); };
+  }, [user, userDoc]);
 
   useEffect(() => {
     if (!selectedSchool) return;
@@ -386,6 +426,131 @@ function ExonaApp() {
 
   const renderView = () => {
     switch (view) {
+      case 'admin':
+        if (userDoc?.role !== 'admin') { setView('feed'); return null; }
+        const totalRevenue = allFinance.reduce((acc, f) => acc + (f.institutionBalance || 0), 0);
+        const totalPaid = allRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
+        const totalBalance = allRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
+
+        return (
+          <div className="max-w-6xl mx-auto py-8 px-4 pb-24 lg:pb-8">
+            <div className="flex items-center justify-between mb-10">
+              <div>
+                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Admin Dashboard</h2>
+                <p className="text-sm text-gray-400 font-medium tracking-wide mt-1">Global system overview and management</p>
+              </div>
+              <button 
+                onClick={() => setIsSchoolModalOpen(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+              >
+                <Plus size={18} />
+                Add New School
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Schools</p>
+                <h3 className="text-2xl font-black text-gray-900">{schools.length}</h3>
+                <div className="mt-4 h-1 w-full bg-blue-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600 w-2/3"></div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Students</p>
+                <h3 className="text-2xl font-black text-gray-900">{allRecords.length}</h3>
+                <div className="mt-4 h-1 w-full bg-green-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-green-600 w-1/2"></div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Revenue</p>
+                <h3 className="text-2xl font-black text-gray-900">₦{totalRevenue.toLocaleString()}</h3>
+                <div className="mt-4 h-1 w-full bg-orange-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-orange-600 w-3/4"></div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Pending Balance</p>
+                <h3 className="text-2xl font-black text-red-600">₦{totalBalance.toLocaleString()}</h3>
+                <div className="mt-4 h-1 w-full bg-red-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-600 w-1/3"></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2">
+                <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+                    <h4 className="font-black text-gray-900">Registered Institutions</h4>
+                    <Search size={18} className="text-gray-400" />
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-gray-50/50">
+                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">School</th>
+                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Balance</th>
+                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {schools.map(school => {
+                          const schoolFin = allFinance.find(f => f.schoolId === school.id);
+                          return (
+                            <tr key={school.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-8 py-6">
+                                <div className="flex items-center gap-4">
+                                  <img src={school.logo} className="h-10 w-10 rounded-xl object-cover" />
+                                  <div>
+                                    <p className="font-bold text-gray-900 text-sm">{school.name}</p>
+                                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{school.id}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 font-black text-gray-900 text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</td>
+                              <td className="px-8 py-6">
+                                <button 
+                                  onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                                  className="text-blue-600 hover:underline text-xs font-black uppercase tracking-widest"
+                                >
+                                  Manage
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-1">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                  <h4 className="font-black text-gray-900 mb-6">System Activity</h4>
+                  <div className="space-y-6">
+                    {posts.slice(0, 5).map(post => (
+                      <div key={post.id} className="flex gap-4">
+                        <img src={post.authorPhoto} className="h-8 w-8 rounded-full" />
+                        <div>
+                          <p className="text-xs font-bold text-gray-900">
+                            {post.authorName} <span className="text-gray-400 font-medium">posted on feed</span>
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">2 minutes ago</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="w-full mt-8 py-3 bg-gray-50 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-all">
+                    View All Logs
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       case 'feed':
         return (
           <div className="max-w-2xl mx-auto py-8 px-4">
@@ -959,6 +1124,63 @@ function ExonaApp() {
             </motion.div>
           </motion.div>
         )}
+
+        {isSchoolModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-black text-gray-900">Add New School</h3>
+                <button onClick={() => setIsSchoolModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">School Name</label>
+                  <input 
+                    type="text" 
+                    value={newSchool.name}
+                    onChange={(e) => setNewSchool({...newSchool, name: e.target.value})}
+                    placeholder="e.g. Horizon International"
+                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Description</label>
+                  <textarea 
+                    value={newSchool.description}
+                    onChange={(e) => setNewSchool({...newSchool, description: e.target.value})}
+                    placeholder="Brief description of the school..."
+                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium resize-none h-24"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Logo URL (Optional)</label>
+                  <input 
+                    type="text" 
+                    value={newSchool.logo}
+                    onChange={(e) => setNewSchool({...newSchool, logo: e.target.value})}
+                    placeholder="https://..."
+                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end mt-8">
+                <button 
+                  onClick={handleCreateSchool}
+                  disabled={!newSchool.name.trim()}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                >
+                  Register School
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* Sidebar */}
@@ -986,6 +1208,9 @@ function ExonaApp() {
 
               <div className="space-y-1">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Management</p>
+                {userDoc?.role === 'admin' && (
+                  <SidebarItem icon={ShieldCheck} label="Admin Dashboard" active={view === 'admin'} onClick={() => { setView('admin'); setSidebarOpen(false); }} />
+                )}
                 <SidebarItem icon={BookOpen} label="School Records" active={view === 'records' || (view === 'schools' && !selectedSchool)} onClick={() => { setView('schools'); setSidebarOpen(false); }} />
                 <SidebarItem icon={Wallet} label="Finance Dashboard" active={view === 'finance'} onClick={() => { setView('schools'); setSidebarOpen(false); }} />
                 <SidebarItem icon={AlertCircle} label="Penalty Board" active={view === 'penalty'} onClick={() => { setView('penalty'); setSidebarOpen(false); }} />
