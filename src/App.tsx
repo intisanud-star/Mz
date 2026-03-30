@@ -27,6 +27,7 @@ interface School {
 
 interface Post {
   id: string;
+  authorUid: string;
   authorName: string;
   authorPhoto: string;
   content: string;
@@ -97,7 +98,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   </button>
 );
 
-const FeedPost = ({ post }: any) => {
+const FeedPost = ({ post, onUserClick }: any) => {
   const formatTime = (timestamp: any) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -113,7 +114,10 @@ const FeedPost = ({ post }: any) => {
   return (
     <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm mb-6">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+        <button 
+          onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
+        >
           {post.authorPhoto ? (
             <img src={post.authorPhoto} className="h-10 w-10 rounded-full border border-gray-100" referrerPolicy="no-referrer" />
           ) : (
@@ -128,7 +132,7 @@ const FeedPost = ({ post }: any) => {
             </div>
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{formatTime(post.timestamp)}</p>
           </div>
-        </div>
+        </button>
         <button className="text-gray-400 hover:text-gray-600"><ChevronDown size={18} /></button>
       </div>
       <p className="text-gray-700 text-sm leading-relaxed mb-6 whitespace-pre-wrap">{post.content}</p>
@@ -162,8 +166,10 @@ const FeedPost = ({ post }: any) => {
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile'>('splash');
   const [user, setUser] = useState<User | null>(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userDoc, setUserDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -373,6 +379,11 @@ function ExonaApp() {
     }
   };
 
+  const handleUserClick = (profile: { uid: string, name: string, photo: string }) => {
+    setSelectedUserProfile(profile);
+    setView('user-profile');
+  };
+
   const renderView = () => {
     switch (view) {
       case 'feed':
@@ -387,7 +398,58 @@ function ExonaApp() {
                 <Plus size={20} />
               </button>
             </div>
-            {posts.map(post => <FeedPost key={post.id} post={post} />)}
+            {posts.map(post => <FeedPost key={post.id} post={post} onUserClick={handleUserClick} />)}
+          </div>
+        );
+      case 'user-profile':
+        if (!selectedUserProfile) { setView('feed'); return null; }
+        const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
+        return (
+          <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
+            <button 
+              onClick={() => setView('feed')}
+              className="flex items-center gap-2 text-gray-500 font-bold mb-8 hover:text-blue-600 transition-colors"
+            >
+              <ChevronRight size={20} className="rotate-180" />
+              Back to Feed
+            </button>
+            
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden mb-8">
+              <div className="h-32 bg-gradient-to-r from-blue-600 to-blue-400"></div>
+              <div className="px-8 pb-8">
+                <div className="relative -mt-12 mb-6">
+                  <div className="h-24 w-24 rounded-3xl bg-white p-1 shadow-xl">
+                    <div className="h-full w-full rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black text-3xl overflow-hidden">
+                      {selectedUserProfile.photo ? <img src={selectedUserProfile.photo} referrerPolicy="no-referrer" /> : selectedUserProfile.name?.charAt(0)}
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-2xl font-black text-gray-900">{selectedUserProfile.name}</h3>
+                <p className="text-gray-500 font-medium mb-4">Horizon Member</p>
+                
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-xl font-black text-gray-900">{profilePosts.length}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Posts</p>
+                  </div>
+                  <div>
+                    <p className="text-xl font-black text-gray-900">{profilePosts.reduce((acc, p) => acc + p.likes, 0)}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total Likes</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h4 className="text-lg font-black text-gray-900 tracking-tight mb-4">Recent Activity</h4>
+              {profilePosts.length === 0 ? (
+                <div className="bg-white p-12 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
+                  <p className="text-gray-500 font-medium">No posts yet.</p>
+                </div>
+              ) : (
+                profilePosts.map(post => <FeedPost key={post.id} post={post} onUserClick={handleUserClick} />)
+              )}
+            </div>
           </div>
         );
       case 'schools':
