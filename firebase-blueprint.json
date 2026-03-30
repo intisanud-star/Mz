@@ -17,16 +17,17 @@
     },
     "schools": {
       "title": "School",
-      "description": "An educational institution on the platform.",
+      "description": "An educational institution or place on the platform.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "logo": { "type": "string" },
         "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["school", "place"] },
         "officialFeedId": { "type": "string" }
       },
-      "required": ["id", "name"]
+      "required": ["id", "name", "type"]
     },
     "posts": {
       "title": "Post",
@@ -41,12 +42,36 @@
         "mediaUrl": { "type": "string", "format": "uri" },
         "mediaType": { "type": "string", "enum": ["image", "video"] },
         "likes": { "type": "number" },
-        "comments": { "type": "number" },
+        "likedBy": { "type": "array", "items": { "type": "string" } },
+        "commentsCount": { "type": "number" },
+        "reshares": { "type": "number" },
+        "resharedFrom": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "authorName": { "type": "string" },
+            "content": { "type": "string" }
+          }
+        },
         "timestamp": { "type": "string", "format": "date-time" },
         "schoolId": { "type": "string" },
         "isOfficial": { "type": "boolean" }
       },
       "required": ["authorUid", "content", "timestamp"]
+    },
+    "comments": {
+      "title": "Comment",
+      "description": "A comment on a post.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "text", "timestamp"]
     },
     "studentRecords": {
       "title": "Student Record",
@@ -83,6 +108,7 @@
     "/users/{userId}": { "schema": "users", "description": "User profiles" },
     "/schools/{schoolId}": { "schema": "schools", "description": "School details" },
     "/posts/{postId}": { "schema": "posts", "description": "Feed posts" },
+    "/posts/{postId}/comments/{commentId}": { "schema": "comments", "description": "Comments on a post" },
     "/studentRecords/{recordId}": { "schema": "studentRecords", "description": "Student records" },
     "/finance/{schoolId}": { "schema": "finance", "description": "School financial data" }
   }

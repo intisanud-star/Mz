@@ -29,6 +29,21 @@ service cloud.firestore {
       return isAuthenticated() && (hasRole('teacher') || isAdmin());
     }
 
+    function isValidPost(data) {
+      return data.authorUid is string &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 10000;
+    }
+
+    function isValidComment(data) {
+      return data.authorUid is string &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 2000;
+    }
+
+    function isValidSchool(data) {
+      return data.name is string && data.name.size() > 0 &&
+             data.type in ['school', 'place'];
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -41,13 +56,24 @@ service cloud.firestore {
 
     match /schools/{schoolId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() && isValidSchool(request.resource.data);
     }
 
     match /posts/{postId} {
       allow read: if true;
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated() && (request.auth.uid == resource.data.authorUid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.authorUid && isValidPost(request.resource.data)) || 
+        isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount', 'reshares'])
+      );
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.authorUid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated() && request.resource.data.authorUid == request.auth.uid && isValidComment(request.resource.data);
+        allow delete: if isAuthenticated() && (request.auth.uid == resource.data.authorUid || isAdmin());
+      }
     }
 
     match /studentRecords/{recordId} {

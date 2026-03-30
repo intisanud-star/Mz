@@ -93,11 +93,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export async function ensureUserDocument(user: User) {
   const userRef = doc(db, 'users', user.uid);
+  const isAdminEmail = user.email === 'musstaphamusa@gmail.com';
+  
   try {
     const userSnap = await getDoc(userRef);
     if (!userSnap.exists()) {
-      const isAdminEmail = user.email === 'musstaphamusa@gmail.com';
-      await setDoc(userRef, {
+      const data = {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
@@ -105,9 +106,18 @@ export async function ensureUserDocument(user: User) {
         role: isAdminEmail ? 'admin' : 'student',
         schoolId: isAdminEmail ? 'EX-ADMIN' : 'EX-2024-001',
         createdAt: serverTimestamp(),
-      });
+      };
+      await setDoc(userRef, data);
+      return data;
+    } else {
+      const data = userSnap.data();
+      // If it's the admin email but the role is NOT admin, fix it.
+      if (isAdminEmail && data.role !== 'admin') {
+        await setDoc(userRef, { role: 'admin', schoolId: 'EX-ADMIN' }, { merge: true });
+        return { ...data, role: 'admin', schoolId: 'EX-ADMIN' };
+      }
+      return data;
     }
-    return userSnap.exists() ? userSnap.data() : { role: user.email === 'musstaphamusa@gmail.com' ? 'admin' : 'student' };
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
   }
@@ -136,19 +146,6 @@ export async function seedInitialData() {
           accountName: `${school.name} General`
         });
       }
-
-      // Add some initial posts
-      const postsRef = collection(db, 'posts');
-      await addDoc(postsRef, {
-        authorUid: 'system',
-        authorName: 'Mustapha mz',
-        authorPhoto: 'https://picsum.photos/seed/mustapha/200',
-        content: 'Welcome to Exon — where advancing schooling starts. As the CEO of Exona, I present a smart educational app designed to modernize how schools operate and learn.',
-        likes: 9,
-        comments: 2,
-        timestamp: serverTimestamp(),
-        isOfficial: true
-      });
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);

@@ -4,7 +4,7 @@ import {
   BookOpen, Calendar, Bell, Search, Menu, X, 
   Home, Users, MessageSquare, Wallet, Settings, 
   AlertCircle, Cpu, ChevronDown, ChevronRight,
-  Heart, MessageCircle, Share2, Plus, Filter,
+  Heart, MessageCircle, Share2, Plus, Filter, Send,
   Image as ImageIcon, Video as VideoIcon, Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -44,6 +44,7 @@ interface School {
   name: string;
   logo: string;
   description: string;
+  type: 'school' | 'place';
 }
 
 interface Post {
@@ -55,7 +56,14 @@ interface Post {
   mediaUrl?: string;
   mediaType?: 'image' | 'video';
   likes: number;
-  comments: number;
+  likedBy?: string[];
+  commentsCount?: number;
+  reshares?: number;
+  resharedFrom?: {
+    id: string;
+    authorName: string;
+    content: string;
+  };
   timestamp: any;
   isOfficial?: boolean;
 }
@@ -119,7 +127,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   </button>
 );
 
-const FeedPost = ({ post, onUserClick }: any) => {
+const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, currentUserId }: any) => {
   const formatTime = (timestamp: any) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -131,6 +139,8 @@ const FeedPost = ({ post, onUserClick }: any) => {
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return date.toLocaleDateString();
   };
+
+  const isLiked = post.likedBy?.includes(currentUserId);
 
   return (
     <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm mb-6">
@@ -168,17 +178,41 @@ const FeedPost = ({ post, onUserClick }: any) => {
         </div>
       )}
 
+      {post.resharedFrom && (
+        <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-100 border-l-4 border-l-blue-600">
+          <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-2">Reshared from {post.resharedFrom.authorName}</p>
+          <p className="text-xs text-gray-600 line-clamp-3">{post.resharedFrom.content}</p>
+        </div>
+      )}
+
       <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
-        <button className="flex items-center gap-2 text-gray-500 hover:text-red-500 transition-colors">
-          <Heart size={18} className={post.likes > 0 ? 'fill-red-500 text-red-500' : ''} />
-          <span className="text-xs font-bold">{post.likes}</span>
+        <button 
+          onClick={() => onLike?.(post.id, post.likedBy || [])}
+          className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+        >
+          <Heart size={18} className={isLiked ? 'fill-red-500' : ''} />
+          <span className="text-xs font-bold">{post.likes || 0}</span>
         </button>
-        <button className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition-colors">
+        <button 
+          onClick={() => onComment?.(post)}
+          className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition-colors"
+        >
           <MessageCircle size={18} />
-          <span className="text-xs font-bold">{post.comments}</span>
+          <span className="text-xs font-bold">{post.commentsCount || 0}</span>
         </button>
-        <button className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition-colors">
+        <button 
+          onClick={() => onReshare?.(post)}
+          className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition-colors"
+        >
           <Share2 size={18} />
+          <span className="text-xs font-bold">{post.reshares || 0}</span>
+        </button>
+        <button 
+          onClick={() => onForward?.(post)}
+          className="flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors ml-auto"
+        >
+          <Plus size={18} className="rotate-45" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Forward</span>
         </button>
       </div>
     </div>
@@ -217,33 +251,52 @@ function ExonaApp() {
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
-  const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '' });
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
+  const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '', type: 'school' as 'school' | 'place' });
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [postComments, setPostComments] = useState<any[]>([]);
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0 });
 
   const handleCreateSchool = async () => {
     if (!newSchool.name.trim() || !userDoc || userDoc.role !== 'admin') return;
-    const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-');
     try {
-      await setDoc(doc(db, 'schools', schoolId), {
-        id: schoolId,
-        name: newSchool.name.trim(),
-        description: newSchool.description.trim() || 'Official feed for ' + newSchool.name,
-        logo: newSchool.logo.trim() || `https://picsum.photos/seed/${schoolId}/200`
-      });
-      await setDoc(doc(db, 'finance', schoolId), {
-        schoolId: schoolId,
-        institutionBalance: 0,
-        bankName: 'Exona Trust Bank',
-        accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
-        accountName: `${newSchool.name} General`
-      });
-      setNewSchool({ name: '', description: '', logo: '' });
+      if (editingSchool) {
+        await setDoc(doc(db, 'schools', editingSchool.id), {
+          ...editingSchool,
+          name: newSchool.name.trim(),
+          description: newSchool.description.trim(),
+          logo: newSchool.logo.trim(),
+          type: newSchool.type
+        }, { merge: true });
+      } else {
+        const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-');
+        await setDoc(doc(db, 'schools', schoolId), {
+          id: schoolId,
+          name: newSchool.name.trim(),
+          description: newSchool.description.trim() || 'Official feed for ' + newSchool.name,
+          logo: newSchool.logo.trim() || `https://picsum.photos/seed/${schoolId}/200`,
+          type: newSchool.type
+        });
+        await setDoc(doc(db, 'finance', schoolId), {
+          schoolId: schoolId,
+          institutionBalance: 0,
+          bankName: 'Exona Trust Bank',
+          accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
+          accountName: `${newSchool.name} General`
+        });
+      }
+      setNewSchool({ name: '', description: '', logo: '', type: 'school' });
+      setEditingSchool(null);
       setIsSchoolModalOpen(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'schools');
@@ -319,9 +372,11 @@ function ExonaApp() {
         mediaUrl: mediaUrl || null,
         mediaType: mediaType || null,
         likes: 0,
-        comments: 0,
+        likedBy: [],
+        commentsCount: 0,
+        reshares: 0,
         timestamp: serverTimestamp(),
-        isOfficial: false
+        isOfficial: userDoc?.role === 'admin'
       });
       setNewPostContent('');
       setSelectedFile(null);
@@ -333,6 +388,98 @@ function ExonaApp() {
       setIsUploading(false);
     }
   };
+
+  const handleLikePost = async (postId: string, likedBy: string[]) => {
+    if (!user) { setView('login'); return; }
+    const isLiked = likedBy.includes(user.uid);
+    const newLikedBy = isLiked ? likedBy.filter(id => id !== user.uid) : [...likedBy, user.uid];
+    try {
+      await setDoc(doc(db, 'posts', postId), { 
+        likedBy: newLikedBy, 
+        likes: newLikedBy.length 
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
+    }
+  };
+
+  const handleResharePost = async (post: Post) => {
+    if (!user) { setView('login'); return; }
+    try {
+      await addDoc(collection(db, 'posts'), {
+        authorUid: user.uid,
+        authorName: user.displayName,
+        authorPhoto: user.photoURL,
+        content: `Reshared: ${post.content.slice(0, 50)}...`,
+        resharedFrom: {
+          id: post.id,
+          authorName: post.authorName,
+          content: post.content
+        },
+        likes: 0,
+        likedBy: [],
+        commentsCount: 0,
+        reshares: 0,
+        timestamp: serverTimestamp(),
+        isOfficial: false
+      });
+      // Increment reshare count on original post
+      await setDoc(doc(db, 'posts', post.id), { 
+        reshares: (post.reshares || 0) + 1 
+      }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'posts');
+    }
+  };
+
+  const handleForwardPost = async (post: Post) => {
+    const shareData = {
+      title: 'Exona Post',
+      text: `${post.authorName}: ${post.content}`,
+      url: window.location.href
+    };
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.error('Share failed:', err);
+      }
+    } else {
+      navigator.clipboard.writeText(`${post.authorName}: ${post.content}\n\nShared via Exona`);
+      alert('Post content copied to clipboard!');
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!user || !activePostForComments || !commentText.trim()) return;
+    try {
+      await addDoc(collection(db, `posts/${activePostForComments.id}/comments`), {
+        authorUid: user.uid,
+        authorName: user.displayName,
+        authorPhoto: user.photoURL,
+        text: commentText.trim(),
+        timestamp: serverTimestamp()
+      });
+      // Increment comment count on post
+      await setDoc(doc(db, 'posts', activePostForComments.id), { 
+        commentsCount: (activePostForComments.commentsCount || 0) + 1 
+      }, { merge: true });
+      setCommentText('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, `posts/${activePostForComments.id}/comments`);
+    }
+  };
+
+  useEffect(() => {
+    if (!activePostForComments) {
+      setPostComments([]);
+      return;
+    }
+    const q = query(collection(db, `posts/${activePostForComments.id}/comments`), orderBy('timestamp', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+      setPostComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+  }, [activePostForComments]);
 
   const handleAiSend = async () => {
     if (!user) { setView('login'); return; }
@@ -359,7 +506,8 @@ function ExonaApp() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    let userUnsubscribe: (() => void) | null = null;
+    const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         // Check for email verification
         if (!currentUser.emailVerified && currentUser.providerData.some(p => p.providerId === 'password')) {
@@ -369,10 +517,16 @@ function ExonaApp() {
         }
 
         try {
-          const docData = await ensureUserDocument(currentUser);
-          setUserDoc(docData);
-          // Only seed if admin or if needed, but don't let it block login
-          seedInitialData().catch(err => console.warn('Seeding skipped:', err));
+          // Ensure doc exists and role is correct
+          await ensureUserDocument(currentUser);
+          
+          // Listen real-time to user document
+          userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+            if (docSnap.exists()) {
+              setUserDoc(docSnap.data());
+            }
+          });
+
           setUser(currentUser);
           // Only transition if we are already at the login screen. 
           // If we are at 'splash', let the splash timer handle the transition.
@@ -381,6 +535,7 @@ function ExonaApp() {
           console.error('Auth initialization error:', error);
         }
       } else {
+        if (userUnsubscribe) userUnsubscribe();
         setUser(null);
         setUserDoc(null);
         setVerificationSent(false);
@@ -389,7 +544,10 @@ function ExonaApp() {
       }
       setLoading(false);
     });
-    return () => unsubscribe();
+    return () => {
+      authUnsubscribe();
+      if (userUnsubscribe) userUnsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -707,7 +865,18 @@ function ExonaApp() {
                 </button>
               </div>
             )}
-            {posts.map(post => <FeedPost key={post.id} post={post} onUserClick={handleUserClick} />)}
+            {posts.map(post => (
+              <FeedPost 
+                key={post.id} 
+                post={post} 
+                onUserClick={handleUserClick}
+                onLike={handleLikePost}
+                onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                onReshare={handleResharePost}
+                onForward={handleForwardPost}
+                currentUserId={user?.uid}
+              />
+            ))}
           </div>
         );
       case 'user-profile':
@@ -756,7 +925,18 @@ function ExonaApp() {
                   <p className="text-gray-500 font-medium">No posts yet.</p>
                 </div>
               ) : (
-                profilePosts.map(post => <FeedPost key={post.id} post={post} onUserClick={handleUserClick} />)
+                profilePosts.map(post => (
+                  <FeedPost 
+                    key={post.id} 
+                    post={post} 
+                    onUserClick={handleUserClick}
+                    onLike={handleLikePost}
+                    onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                    onReshare={handleResharePost}
+                    onForward={handleForwardPost}
+                    currentUserId={user?.uid}
+                  />
+                ))
               )}
             </div>
           </div>
@@ -764,14 +944,24 @@ function ExonaApp() {
       case 'schools':
         return (
           <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
-            <div className="flex items-center gap-4 mb-10 bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm shadow-gray-100/50">
-              <div className="h-14 w-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
-                <Wallet size={28} />
+            <div className="flex items-center justify-between mb-10 bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm shadow-gray-100/50">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
+                  <Wallet size={28} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-gray-900 tracking-tight">Executive Finance</h2>
+                  <p className="text-xs text-gray-400 font-medium tracking-wide">Revenue and projections</p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-black text-gray-900 tracking-tight">Executive Finance</h2>
-                <p className="text-xs text-gray-400 font-medium tracking-wide">Revenue and projections</p>
-              </div>
+              {userDoc?.role === 'admin' && (
+                <button 
+                  onClick={() => setIsSchoolModalOpen(true)}
+                  className="h-12 w-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                >
+                  <Plus size={24} />
+                </button>
+              )}
             </div>
 
             <div className="relative mb-10">
@@ -779,12 +969,33 @@ function ExonaApp() {
               <input 
                 type="text" 
                 placeholder="Search institutions..." 
+                value={schoolSearch}
+                onChange={(e) => setSchoolSearch(e.target.value)}
                 className="w-full pl-16 pr-6 py-5 bg-white border border-gray-50 rounded-[2rem] shadow-xl shadow-gray-100/20 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-600 font-medium" 
               />
             </div>
 
+            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+              {['all', 'school', 'place'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setSchoolFilter(f as any)}
+                  className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                    schoolFilter === f 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
+                      : 'bg-white text-gray-400 border border-gray-100'
+                  }`}
+                >
+                  {f === 'all' ? 'All Institutions' : f === 'school' ? 'Schools' : 'Places'}
+                </button>
+              ))}
+            </div>
+
             <div className="space-y-6">
-              {schools.map(school => (
+              {schools
+                .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
+                .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
+                .map(school => (
                 <div 
                   key={school.id}
                   className="bg-white rounded-[3rem] p-8 border border-gray-50 shadow-xl shadow-gray-100/30 relative overflow-hidden group"
@@ -807,12 +1018,26 @@ function ExonaApp() {
                         <p className="text-sm text-gray-400 font-medium tracking-wide mt-1 line-clamp-1">{school.description}</p>
                       </div>
                     </div>
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-all"
-                    >
-                      <ChevronRight size={24} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {userDoc?.role === 'admin' && (
+                        <button 
+                          onClick={() => {
+                            setEditingSchool(school);
+                            setNewSchool({ name: school.name, description: school.description, logo: school.logo });
+                            setIsSchoolModalOpen(true);
+                          }}
+                          className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all"
+                        >
+                          <Settings size={20} />
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => { setSelectedSchool(school); setView('records'); }}
+                        className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-all"
+                      >
+                        <ChevronRight size={24} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -1117,9 +1342,45 @@ function ExonaApp() {
 
   if (view === 'splash') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-white text-gray-900 overflow-hidden">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="flex h-48 w-48 items-center justify-center rounded-full bg-blue-600 text-7xl font-black text-white shadow-2xl shadow-blue-200">Ex</motion.div>
-        <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mt-8 text-2xl text-gray-600 font-medium">Exona Master</motion.p>
+      <div className="flex h-screen flex-col items-center justify-center bg-[#000] text-white overflow-hidden relative">
+        {/* Subtle background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 blur-[150px] rounded-full"></div>
+        </div>
+        
+        <motion.div 
+          initial={{ scale: 0.9, opacity: 0 }} 
+          animate={{ scale: 1, opacity: 1 }} 
+          transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+          className="relative z-10 flex flex-col items-center"
+        >
+          <motion.h1 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.2, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+            className="text-4xl font-light tracking-[0.25em] uppercase text-white/90"
+          >
+            Exona
+          </motion.h1>
+          
+          <div className="relative mt-10 w-48 h-[1px] bg-white/10 overflow-hidden rounded-full">
+            <motion.div 
+              initial={{ x: '-100%' }} 
+              animate={{ x: '100%' }} 
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500 to-transparent"
+            />
+          </div>
+          
+          <motion.p 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 0.3 }} 
+            transition={{ delay: 1.5, duration: 1 }}
+            className="mt-8 text-[9px] font-black uppercase tracking-[0.5em] text-white"
+          >
+            Mastering Education
+          </motion.p>
+        </motion.div>
       </div>
     );
   }
@@ -1473,12 +1734,30 @@ function ExonaApp() {
               className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-8"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black text-gray-900">Add New School</h3>
-                <button onClick={() => setIsSchoolModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+                <h3 className="text-xl font-black text-gray-900">{editingSchool ? 'Edit Institution' : 'Add New Institution'}</h3>
+                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="text-gray-400 hover:text-gray-600"><X /></button>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">School Name</label>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Type</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {['school', 'place'].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setNewSchool({ ...newSchool, type: t as any })}
+                        className={`py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                          newSchool.type === t 
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
+                            : 'bg-gray-50 text-gray-400 border border-transparent'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Institution Name</label>
                   <input 
                     type="text" 
                     value={newSchool.name}
@@ -1513,8 +1792,75 @@ function ExonaApp() {
                   disabled={!newSchool.name.trim()}
                   className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
                 >
-                  Register School
+                  {editingSchool ? 'Update' : 'Register'}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isCommentModalOpen && activePostForComments && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[80vh]"
+            >
+              <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+                <h3 className="text-xl font-black text-gray-900">Comments</h3>
+                <button onClick={() => setIsCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                {postComments.length === 0 ? (
+                  <div className="text-center py-12">
+                    <MessageCircle size={48} className="mx-auto text-gray-100 mb-4" />
+                    <p className="text-gray-400 font-medium">No comments yet. Be the first to reply!</p>
+                  </div>
+                ) : (
+                  postComments.map(comment => (
+                    <div key={comment.id} className="flex gap-4">
+                      {comment.authorPhoto ? (
+                        <img src={comment.authorPhoto} className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-[10px]">
+                          {comment.authorName?.charAt(0)}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="bg-gray-50 rounded-2xl p-4">
+                          <p className="text-xs font-black text-gray-900 mb-1">{comment.authorName}</p>
+                          <p className="text-sm text-gray-600 leading-relaxed">{comment.text}</p>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 ml-2">
+                          {comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="p-8 border-t border-gray-50 bg-gray-50/50">
+                <div className="flex gap-4">
+                  <input 
+                    type="text" 
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Write a comment..."
+                    className="flex-1 px-6 py-4 bg-white rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                  />
+                  <button 
+                    onClick={handleAddComment}
+                    disabled={!commentText.trim()}
+                    className="h-14 w-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                  >
+                    <Send size={20} />
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -1546,6 +1892,12 @@ function ExonaApp() {
 
               <div className="space-y-1">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Management</p>
+                {user?.email === 'musstaphamusa@gmail.com' && !userDoc && (
+                  <p className="px-4 text-[10px] font-bold text-red-500 mb-2">DEBUG: userDoc is null</p>
+                )}
+                {user?.email === 'musstaphamusa@gmail.com' && userDoc && userDoc.role !== 'admin' && (
+                  <p className="px-4 text-[10px] font-bold text-red-500 mb-2">DEBUG: role is {userDoc.role}</p>
+                )}
                 {userDoc?.role === 'admin' && (
                   <SidebarItem icon={ShieldCheck} label="Admin Dashboard" active={view === 'admin'} onClick={() => { setView('admin'); setSidebarOpen(false); }} />
                 )}
