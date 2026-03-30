@@ -66,6 +66,7 @@ interface Post {
   };
   timestamp: any;
   isOfficial?: boolean;
+  schoolId?: string;
 }
 
 interface StudentRecord {
@@ -221,7 +222,7 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -376,7 +377,8 @@ function ExonaApp() {
         commentsCount: 0,
         reshares: 0,
         timestamp: serverTimestamp(),
-        isOfficial: userDoc?.role === 'admin'
+        isOfficial: userDoc?.role === 'admin',
+        schoolId: userDoc?.schoolId || 'EX-2024-001'
       });
       setNewPostContent('');
       setSelectedFile(null);
@@ -879,6 +881,55 @@ function ExonaApp() {
             ))}
           </div>
         );
+      case 'school-feed':
+        if (!selectedSchool) { setView('schools'); return null; }
+        const schoolPosts = posts.filter(p => p.schoolId === selectedSchool.id);
+        return (
+          <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
+            <button 
+              onClick={() => setView('schools')}
+              className="flex items-center gap-2 text-gray-500 font-bold mb-8 hover:text-blue-600 transition-colors"
+            >
+              <ChevronRight size={20} className="rotate-180" />
+              Back to Institutions
+            </button>
+            
+            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden mb-8 p-8 flex items-center gap-6">
+              <div className={`h-20 w-20 rounded-3xl flex items-center justify-center text-white font-black text-2xl shadow-lg ${
+                selectedSchool.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-blue-600 shadow-blue-100'
+              }`}>
+                {selectedSchool.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight">{selectedSchool.name}</h2>
+                <p className="text-sm text-gray-400 font-medium tracking-wide mt-1">{selectedSchool.description}</p>
+              </div>
+            </div>
+
+            {schoolPosts.length === 0 && (
+              <div className="bg-white rounded-[2.5rem] p-12 text-center border border-gray-100">
+                <div className="h-20 w-20 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <ImageIcon size={40} />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-2">No posts yet</h3>
+                <p className="text-gray-500 text-sm font-medium">Be the first to share an update from this institution!</p>
+              </div>
+            )}
+
+            {schoolPosts.map(post => (
+              <FeedPost 
+                key={post.id} 
+                post={post} 
+                onUserClick={handleUserClick}
+                onLike={handleLikePost}
+                onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                onReshare={handleResharePost}
+                onForward={handleForwardPost}
+                currentUserId={user?.uid}
+              />
+            ))}
+          </div>
+        );
       case 'user-profile':
         if (!selectedUserProfile) { setView('feed'); return null; }
         const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
@@ -1001,7 +1052,10 @@ function ExonaApp() {
                   className="bg-white rounded-[3rem] p-8 border border-gray-50 shadow-xl shadow-gray-100/30 relative overflow-hidden group"
                 >
                   <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-5">
+                    <div 
+                      className="flex items-center gap-5 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                    >
                       <div className="relative">
                         <div className={`h-20 w-20 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-lg ${
                           school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-blue-600 shadow-blue-100'
@@ -1032,7 +1086,7 @@ function ExonaApp() {
                         </button>
                       )}
                       <button 
-                        onClick={() => { setSelectedSchool(school); setView('records'); }}
+                        onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                         className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-all"
                       >
                         <ChevronRight size={24} />
@@ -1892,12 +1946,6 @@ function ExonaApp() {
 
               <div className="space-y-1">
                 <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Management</p>
-                {user?.email === 'musstaphamusa@gmail.com' && !userDoc && (
-                  <p className="px-4 text-[10px] font-bold text-red-500 mb-2">DEBUG: userDoc is null</p>
-                )}
-                {user?.email === 'musstaphamusa@gmail.com' && userDoc && userDoc.role !== 'admin' && (
-                  <p className="px-4 text-[10px] font-bold text-red-500 mb-2">DEBUG: role is {userDoc.role}</p>
-                )}
                 {userDoc?.role === 'admin' && (
                   <SidebarItem icon={ShieldCheck} label="Admin Dashboard" active={view === 'admin'} onClick={() => { setView('admin'); setSidebarOpen(false); }} />
                 )}
