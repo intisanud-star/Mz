@@ -172,6 +172,7 @@ function ExonaApp() {
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userDoc, setUserDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [splashDone, setSplashDone] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
@@ -333,7 +334,9 @@ function ExonaApp() {
           // Only seed if admin or if needed, but don't let it block login
           seedInitialData().catch(err => console.warn('Seeding skipped:', err));
           setUser(currentUser);
-          setView(prev => (prev === 'login' || prev === 'splash') ? 'feed' : prev);
+          // Only transition if we are already at the login screen. 
+          // If we are at 'splash', let the splash timer handle the transition.
+          setView(prev => (prev === 'login') ? 'feed' : prev);
         } catch (error) {
           console.error('Auth initialization error:', error);
         }
@@ -348,14 +351,18 @@ function ExonaApp() {
   }, []);
 
   useEffect(() => {
-    if (view === 'splash') {
-      const timer = setTimeout(() => {
-        if (!user) setView('login');
-        else setView('feed');
-      }, 3000);
-      return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      setSplashDone(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (splashDone && !loading && view === 'splash') {
+      if (!user) setView('login');
+      else setView('feed');
     }
-  }, [view, user]);
+  }, [splashDone, loading, user, view]);
 
   // Data listeners
   useEffect(() => {
@@ -956,8 +963,6 @@ function ExonaApp() {
     }
   };
 
-  if (loading) return null;
-
   if (view === 'splash') {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-white text-gray-900 overflow-hidden">
@@ -966,6 +971,8 @@ function ExonaApp() {
       </div>
     );
   }
+
+  if (loading) return null;
 
   if (view === 'login') {
     return (
