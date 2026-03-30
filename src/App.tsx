@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Component, ErrorInfo, ReactNode } from 'react';
 import { 
-  GraduationCap, ShieldCheck, LogOut, User as UserIcon, 
+  GraduationCap, ShieldCheck, LogOut, LogIn, User as UserIcon, 
   BookOpen, Calendar, Bell, Search, Menu, X, 
   Home, Users, MessageSquare, Wallet, Settings, 
   AlertCircle, Cpu, ChevronDown, ChevronRight,
@@ -970,7 +970,7 @@ function ExonaApp() {
           <h2 className="text-4xl font-black text-gray-900 mb-4 tracking-tight">Welcome to Exona</h2>
           <p className="text-gray-500 font-medium mb-10">Modernizing how schools operate and learn.</p>
           <button onClick={handleLogin} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-3">
-            <GraduationCap size={24} /> Sign in with School Account
+            <LogIn size={24} /> Sign in with Google
           </button>
         </motion.div>
       </div>
