@@ -5,7 +5,8 @@ import {
   Home, Users, MessageSquare, Wallet, Settings, 
   AlertCircle, Cpu, ChevronDown, ChevronRight,
   Heart, MessageCircle, Share2, Plus, Filter, Send,
-  Image as ImageIcon, Video as VideoIcon, Paperclip
+  Image as ImageIcon, Video as VideoIcon, Paperclip,
+  MoreVertical, Trash2, Edit2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -128,7 +129,8 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   </button>
 );
 
-const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, currentUserId }: any) => {
+const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId }: any) => {
+  const [showMenu, setShowMenu] = useState(false);
   const formatTime = (timestamp: any) => {
     if (!timestamp) return 'Just now';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -165,7 +167,51 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
             <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{formatTime(post.timestamp)}</p>
           </div>
         </button>
-        <button className="text-gray-400 hover:text-gray-600"><ChevronDown size={18} /></button>
+        <div className="relative">
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-50 transition-all"
+          >
+            <MoreVertical size={18} />
+          </button>
+          
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 z-10 overflow-hidden"
+              >
+                {post.authorUid === currentUserId && (
+                  <>
+                    <button 
+                      onClick={() => { onEdit?.(post); setShowMenu(false); }}
+                      className="w-full px-6 py-4 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                    >
+                      <Edit2 size={16} className="text-blue-600" />
+                      Edit Post
+                    </button>
+                    <button 
+                      onClick={() => { onDelete?.(post); setShowMenu(false); }}
+                      className="w-full px-6 py-4 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"
+                    >
+                      <Trash2 size={16} />
+                      Delete Post
+                    </button>
+                  </>
+                )}
+                <button 
+                  onClick={() => setShowMenu(false)}
+                  className="w-full px-6 py-4 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                >
+                  <Bell size={16} />
+                  Mute Thread
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
       <p className="text-gray-700 text-sm leading-relaxed mb-6 whitespace-pre-wrap">{post.content}</p>
       
@@ -251,6 +297,9 @@ function ExonaApp() {
   const [aiInput, setAiInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
+  const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [schoolSearch, setSchoolSearch] = useState('');
@@ -343,8 +392,8 @@ function ExonaApp() {
     setIsUploading(true);
     setUploadProgress(0);
     try {
-      let mediaUrl = '';
-      let mediaType: 'image' | 'video' | undefined = undefined;
+      let mediaUrl = editingPost?.mediaUrl || '';
+      let mediaType: 'image' | 'video' | undefined = editingPost?.mediaType;
 
       if (selectedFile) {
         mediaType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
@@ -365,29 +414,63 @@ function ExonaApp() {
         mediaUrl = await getDownloadURL(fileRef);
       }
 
-      await addDoc(collection(db, path), {
-        authorUid: user.uid,
-        authorName: user.displayName || 'Anonymous',
-        authorPhoto: user.photoURL || '',
-        content: newPostContent.trim(),
-        mediaUrl: mediaUrl || null,
-        mediaType: mediaType || null,
-        likes: 0,
-        likedBy: [],
-        commentsCount: 0,
-        reshares: 0,
-        timestamp: serverTimestamp(),
-        isOfficial: userDoc?.role === 'admin',
-        schoolId: userDoc?.schoolId || 'EX-2024-001'
-      });
+      if (editingPost) {
+        await setDoc(doc(db, 'posts', editingPost.id), {
+          content: newPostContent.trim(),
+          mediaUrl: mediaUrl || null,
+          mediaType: mediaType || null,
+          timestamp: serverTimestamp(), // Update timestamp to show it was edited
+        }, { merge: true });
+      } else {
+        await addDoc(collection(db, path), {
+          authorUid: user.uid,
+          authorName: user.displayName || 'Anonymous',
+          authorPhoto: user.photoURL || '',
+          content: newPostContent.trim(),
+          mediaUrl: mediaUrl || null,
+          mediaType: mediaType || null,
+          likes: 0,
+          likedBy: [],
+          commentsCount: 0,
+          reshares: 0,
+          timestamp: serverTimestamp(),
+          isOfficial: userDoc?.role === 'admin',
+          schoolId: (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon'
+        });
+      }
       setNewPostContent('');
       setSelectedFile(null);
       setUploadProgress(0);
       setIsPostModalOpen(false);
+      setEditingPost(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+      handleFirestoreError(error, editingPost ? OperationType.UPDATE : OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setNewPostContent(post.content);
+    // Note: We don't set selectedFile here because we use the existing mediaUrl if no new file is selected
+    setPreviewUrl(post.mediaUrl || null);
+    setIsPostModalOpen(true);
+  };
+
+  const onDeletePostClick = (post: Post) => {
+    setPostToDelete(post);
+    setIsDeletePostModalOpen(true);
+  };
+
+  const handleDeletePost = async () => {
+    if (!user || !postToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'posts', postToDelete.id));
+      setIsDeletePostModalOpen(false);
+      setPostToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'posts');
     }
   };
 
@@ -846,13 +929,42 @@ function ExonaApp() {
               <h2 className="text-2xl font-black text-gray-900 tracking-tight">Horizon Feed</h2>
               {user && (
                 <button 
-                  onClick={() => setIsPostModalOpen(true)}
+                  onClick={() => {
+                    setEditingPost(null);
+                    setNewPostContent('');
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                    setIsPostModalOpen(true);
+                  }}
                   className="p-2 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-100 hover:scale-110 transition-transform"
                 >
                   <Plus size={20} />
                 </button>
               )}
             </div>
+
+            {user && (
+              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-6 mb-8 flex items-center gap-4">
+                <img 
+                  src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
+                  className="h-12 w-12 rounded-2xl bg-blue-100 object-cover" 
+                  referrerPolicy="no-referrer"
+                />
+                <button 
+                  onClick={() => {
+                    setEditingPost(null);
+                    setNewPostContent('');
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                    setIsPostModalOpen(true);
+                  }}
+                  className="flex-1 text-left px-6 py-4 bg-gray-50 rounded-2xl text-gray-400 font-medium hover:bg-gray-100 transition-all"
+                >
+                  What's on your mind, {user.displayName?.split(' ')[0] || 'friend'}?
+                </button>
+              </div>
+            )}
+
             {!user && (
               <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 mb-8 flex items-center justify-between gap-4">
                 <div>
@@ -867,7 +979,7 @@ function ExonaApp() {
                 </button>
               </div>
             )}
-            {posts.map(post => (
+            {posts.filter(p => p.schoolId === 'horizon' || !p.schoolId).map(post => (
               <FeedPost 
                 key={post.id} 
                 post={post} 
@@ -876,6 +988,8 @@ function ExonaApp() {
                 onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                 onReshare={handleResharePost}
                 onForward={handleForwardPost}
+                onEdit={handleEditPost}
+                onDelete={onDeletePostClick}
                 currentUserId={user?.uid}
               />
             ))}
@@ -906,6 +1020,28 @@ function ExonaApp() {
               </div>
             </div>
 
+            {user && (
+              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-6 mb-8 flex items-center gap-4">
+                <img 
+                  src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
+                  className="h-12 w-12 rounded-2xl bg-blue-100 object-cover" 
+                  referrerPolicy="no-referrer"
+                />
+                <button 
+                  onClick={() => {
+                    setEditingPost(null);
+                    setNewPostContent('');
+                    setSelectedFile(null);
+                    setPreviewUrl(null);
+                    setIsPostModalOpen(true);
+                  }}
+                  className="flex-1 text-left px-6 py-4 bg-gray-50 rounded-2xl text-gray-400 font-medium hover:bg-gray-100 transition-all"
+                >
+                  Post an update to {selectedSchool.name}...
+                </button>
+              </div>
+            )}
+
             {schoolPosts.length === 0 && (
               <div className="bg-white rounded-[2.5rem] p-12 text-center border border-gray-100">
                 <div className="h-20 w-20 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -925,6 +1061,8 @@ function ExonaApp() {
                 onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                 onReshare={handleResharePost}
                 onForward={handleForwardPost}
+                onEdit={handleEditPost}
+                onDelete={onDeletePostClick}
                 currentUserId={user?.uid}
               />
             ))}
@@ -985,6 +1123,8 @@ function ExonaApp() {
                     onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                     onReshare={handleResharePost}
                     onForward={handleForwardPost}
+                    onEdit={handleEditPost}
+                    onDelete={onDeletePostClick}
                     currentUserId={user?.uid}
                   />
                 ))
@@ -1644,7 +1784,7 @@ function ExonaApp() {
               className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-8"
             >
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black text-gray-900">Create New Post</h3>
+                <h3 className="text-xl font-black text-gray-900">{editingPost ? 'Edit Post' : 'Create New Post'}</h3>
                 <button onClick={() => setIsPostModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
               </div>
               <textarea 
@@ -1701,9 +1841,45 @@ function ExonaApp() {
                   {isUploading ? (
                     <>
                       <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                      Uploading...
+                      {editingPost ? 'Saving...' : 'Uploading...'}
                     </>
-                  ) : 'Post to Horizon'}
+                  ) : (editingPost ? 'Save Changes' : 'Post to Horizon')}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isDeletePostModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl p-8 text-center"
+            >
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trash2 size={40} />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2">Delete Post?</h3>
+              <p className="text-gray-500 text-sm font-medium mb-8">This action cannot be undone. Are you sure you want to remove this post?</p>
+              
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handleDeletePost}
+                  className="w-full py-4 bg-red-600 text-white rounded-2xl font-black shadow-xl shadow-red-100 hover:bg-red-700 transition-all"
+                >
+                  Yes, Delete Post
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDeletePostModalOpen(false);
+                    setPostToDelete(null);
+                  }}
+                  className="w-full py-4 bg-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                >
+                  Cancel
                 </button>
               </div>
             </motion.div>
