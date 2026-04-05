@@ -2,114 +2,57 @@
   "entities": {
     "users": {
       "title": "User",
-      "description": "A student, admin, or teacher user in the Exona platform.",
+      "description": "A user in the Exona platform.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
         "photoURL": { "type": "string" },
-        "role": { "type": "string", "enum": ["student", "admin", "teacher"] },
-        "schoolId": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
     },
-    "schools": {
-      "title": "School",
-      "description": "An educational institution or place on the platform.",
+    "places": {
+      "title": "Place",
+      "description": "A school, business, or community space created by a user.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "logo": { "type": "string" },
+        "category": { "type": "string", "enum": ["School", "Business", "Community", "Personal", "Other"] },
         "description": { "type": "string" },
-        "type": { "type": "string", "enum": ["school", "place"] },
-        "officialFeedId": { "type": "string" }
-      },
-      "required": ["id", "name", "type"]
-    },
-    "posts": {
-      "title": "Post",
-      "description": "A social feed post from a user or school.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "authorUid": { "type": "string" },
-        "authorName": { "type": "string" },
-        "authorPhoto": { "type": "string" },
-        "content": { "type": "string" },
-        "mediaUrl": { "type": "string", "format": "uri" },
-        "mediaType": { "type": "string", "enum": ["image", "video"] },
-        "likes": { "type": "number" },
-        "likedBy": { "type": "array", "items": { "type": "string" } },
-        "commentsCount": { "type": "number" },
-        "reshares": { "type": "number" },
-        "resharedFrom": {
-          "type": "object",
-          "properties": {
-            "id": { "type": "string" },
-            "authorName": { "type": "string" },
-            "content": { "type": "string" }
-          }
-        },
+        "logo": { "type": "string" },
+        "creatorUid": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "schoolId": { "type": "string" },
         "isOfficial": { "type": "boolean" }
       },
-      "required": ["authorUid", "content", "timestamp"]
+      "required": ["name", "category", "creatorUid", "timestamp"]
     },
-    "comments": {
-      "title": "Comment",
-      "description": "A comment on a post.",
+    "records": {
+      "title": "Record",
+      "description": "A general record (student, customer, or personal) with privacy settings.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "authorUid": { "type": "string" },
-        "authorName": { "type": "string" },
-        "authorPhoto": { "type": "string" },
-        "text": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["authorUid", "text", "timestamp"]
-    },
-    "studentRecords": {
-      "title": "Student Record",
-      "description": "Academic or administrative record for a student.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "schoolId": { "type": "string" },
-        "studentName": { "type": "string" },
+        "subjectName": { "type": "string", "description": "Name of the person or entity the record is about." },
         "category": { "type": "string" },
-        "addedBy": { "type": "string" },
-        "paid": { "type": "number" },
+        "amountPaid": { "type": "number" },
         "balance": { "type": "number" },
-        "type": { "type": "string", "enum": ["general", "books", "uniforms"] },
+        "type": { "type": "string", "enum": ["general", "books", "uniforms", "services", "products"] },
+        "visibility": { "type": "string", "enum": ["public", "private", "shared"] },
+        "sharedWith": { "type": "array", "items": { "type": "string" } },
+        "placeId": { "type": "string" },
+        "creatorUid": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["schoolId", "studentName", "type"]
-    },
-    "finance": {
-      "title": "School Finance",
-      "description": "Financial overview for a school.",
-      "type": "object",
-      "properties": {
-        "schoolId": { "type": "string" },
-        "institutionBalance": { "type": "number" },
-        "bankName": { "type": "string" },
-        "accountNumber": { "type": "string" },
-        "accountName": { "type": "string" }
-      },
-      "required": ["schoolId", "institutionBalance"]
+      "required": ["subjectName", "category", "visibility", "creatorUid", "timestamp"]
     }
   },
   "firestore": {
     "/users/{userId}": { "schema": "users", "description": "User profiles" },
-    "/schools/{schoolId}": { "schema": "schools", "description": "School details" },
-    "/posts/{postId}": { "schema": "posts", "description": "Feed posts" },
-    "/posts/{postId}/comments/{commentId}": { "schema": "comments", "description": "Comments on a post" },
-    "/studentRecords/{recordId}": { "schema": "studentRecords", "description": "Student records" },
-    "/finance/{schoolId}": { "schema": "finance", "description": "School financial data" }
+    "/places/{placeId}": { "schema": "places", "description": "User-created places/institutions" },
+    "/records/{recordId}": { "schema": "records", "description": "General records linked to places" }
   }
 }

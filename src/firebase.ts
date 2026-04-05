@@ -103,51 +103,20 @@ export async function ensureUserDocument(user: User) {
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: isAdminEmail ? 'admin' : 'student',
-        schoolId: isAdminEmail ? 'EX-ADMIN' : 'EX-2024-001',
+        role: isAdminEmail ? 'admin' : 'user',
         createdAt: serverTimestamp(),
       };
       await setDoc(userRef, data);
       return data;
     } else {
       const data = userSnap.data();
-      // If it's the admin email but the role is NOT admin, fix it.
       if (isAdminEmail && data.role !== 'admin') {
-        await setDoc(userRef, { role: 'admin', schoolId: 'EX-ADMIN' }, { merge: true });
-        return { ...data, role: 'admin', schoolId: 'EX-ADMIN' };
+        await setDoc(userRef, { role: 'admin' }, { merge: true });
+        return { ...data, role: 'admin' };
       }
       return data;
     }
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
-  }
-}
-
-// Seeding helper for demo
-export async function seedInitialData() {
-  const path = 'schools/twins-academy';
-  try {
-    const schoolsSnap = await getDoc(doc(db, 'schools', 'twins-academy'));
-    
-    if (!schoolsSnap.exists()) {
-      const schools = [
-        { id: 'twins-academy', name: 'Twins Academy', description: 'Official feed for Twins Academy', logo: 'https://picsum.photos/seed/twins/200' },
-        { id: 'darul-furqan', name: 'Darul Furqan', description: 'Official feed for Darul Furqan', logo: 'https://picsum.photos/seed/darul/200' },
-        { id: 'city-capital', name: 'City Capital School', description: 'Official feed for City Capital School', logo: 'https://picsum.photos/seed/city/200' }
-      ];
-
-      for (const school of schools) {
-        await setDoc(doc(db, 'schools', school.id), school);
-        await setDoc(doc(db, 'finance', school.id), {
-          schoolId: school.id,
-          institutionBalance: 50000,
-          bankName: 'Exona Trust Bank',
-          accountNumber: '0022334455',
-          accountName: `${school.name} General`
-        });
-      }
-    }
-  } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, path);
   }
 }

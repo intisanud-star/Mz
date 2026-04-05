@@ -6,7 +6,10 @@ import {
   AlertCircle, Cpu, ChevronDown, ChevronRight,
   Heart, MessageCircle, Share2, Plus, Filter, Send,
   Image as ImageIcon, Video as VideoIcon, Paperclip,
-  MoreVertical, Trash2, Edit2
+  MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
+  MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
+  BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown,
+  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -14,7 +17,6 @@ import {
   googleProvider, 
   db, 
   ensureUserDocument, 
-  seedInitialData, 
   handleFirestoreError, 
   OperationType, 
   storage, 
@@ -40,12 +42,15 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
  */
 
 // --- TYPES ---
-interface School {
+interface Place {
   id: string;
   name: string;
+  category: 'School' | 'Business' | 'Community' | 'Personal' | 'Other';
   logo: string;
   description: string;
-  type: 'school' | 'place';
+  creatorUid: string;
+  timestamp: any;
+  isOfficial?: boolean;
 }
 
 interface Post {
@@ -57,27 +62,55 @@ interface Post {
   mediaUrl?: string;
   mediaType?: 'image' | 'video';
   likes: number;
-  likedBy?: string[];
-  commentsCount?: number;
-  reshares?: number;
+  likedBy: string[];
+  commentsCount: number;
+  reshares: number;
+  timestamp: any;
+  isOfficial?: boolean;
+  schoolId?: string;
   resharedFrom?: {
     id: string;
     authorName: string;
     content: string;
   };
+}
+
+interface School {
+  id: string;
+  name: string;
+  description: string;
+  logo: string;
+  type: 'school' | 'place';
+  creatorUid: string;
   timestamp: any;
-  isOfficial?: boolean;
-  schoolId?: string;
 }
 
 interface StudentRecord {
   id: string;
-  studentName: string;
+  subjectName: string;
   category: string;
-  addedBy: string;
-  paid: number;
+  amountPaid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms';
+  type: 'general' | 'books' | 'uniforms' | 'services' | 'products';
+  visibility: 'public' | 'private' | 'shared';
+  sharedWith?: string[];
+  schoolId?: string;
+  creatorUid: string;
+  timestamp: any;
+}
+
+interface Record {
+  id: string;
+  subjectName: string;
+  category: string;
+  amountPaid: number;
+  balance: number;
+  type: 'general' | 'books' | 'uniforms' | 'services' | 'products';
+  visibility: 'public' | 'private' | 'shared';
+  sharedWith?: string[];
+  placeId?: string;
+  creatorUid: string;
+  timestamp: any;
 }
 
 interface SchoolFinance {
@@ -99,12 +132,25 @@ class ErrorBoundary extends Component<any, any> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-red-50 p-6 text-center">
-          <div className="max-w-md bg-white p-8 rounded-3xl shadow-xl border border-red-100">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
-            <pre className="text-xs bg-gray-100 p-4 rounded-xl overflow-auto max-h-40 text-left mb-6">{this.state.error?.message}</pre>
-            <button onClick={() => window.location.reload()} className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-all">Refresh App</button>
-          </div>
+        <div className="flex min-h-screen flex-col items-center justify-center bg-paper p-6 text-center">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md bg-white p-12 rounded-[3rem] premium-shadow border border-gray-100"
+          >
+            <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+              <AlertTriangle size={32} />
+            </div>
+            <h1 className="text-2xl font-serif italic text-ink mb-4 tracking-tight">System Interruption</h1>
+            <p className="text-muted text-sm font-medium mb-8 leading-relaxed">An unexpected error has occurred within the Exona core. Our engineers have been notified.</p>
+            <pre className="text-[10px] font-mono bg-gray-50 p-6 rounded-2xl overflow-auto max-h-40 text-left mb-10 text-muted border border-gray-100">{this.state.error?.message}</pre>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 transition-all active:scale-[0.98]"
+            >
+              Restart Core
+            </button>
+          </motion.div>
         </div>
       );
     }
@@ -112,65 +158,90 @@ class ErrorBoundary extends Component<any, any> {
   }
 }
 
+// --- UTILS ---
+const formatTime = (timestamp: any) => {
+  if (!timestamp) return 'Just now';
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
 // --- COMPONENTS ---
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   <button 
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
-      active ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'text-gray-500 hover:bg-gray-100'
+    className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-500 group relative overflow-hidden ${
+      active 
+        ? 'bg-ink text-white shadow-2xl shadow-ink/10' 
+        : 'text-muted hover:bg-gray-50 hover:text-ink'
     }`}
   >
-    <div className="flex items-center gap-3">
-      <Icon size={20} />
-      <span className="font-medium text-sm">{label}</span>
+    {active && (
+      <motion.div 
+        layoutId="sidebar-active-bg"
+        className="absolute inset-0 bg-ink"
+        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+      />
+    )}
+    <div className="flex items-center gap-4 relative z-10">
+      <Icon size={20} className={`${active ? 'text-white' : 'text-muted group-hover:text-ink'} transition-colors duration-300`} />
+      <span className="font-bold text-[13px] tracking-tight">{label}</span>
     </div>
-    {badge && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${active ? 'bg-white/20' : 'bg-blue-100 text-blue-600'}`}>{badge}</span>}
+    {badge && (
+      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full relative z-10 ${
+        active ? 'bg-white/20 text-white' : 'bg-accent/10 text-accent'
+      }`}>
+        {badge}
+      </span>
+    )}
   </button>
 );
 
 const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId }: any) => {
   const [showMenu, setShowMenu] = useState(false);
-  const formatTime = (timestamp: any) => {
-    if (!timestamp) return 'Just now';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    const now = new Date();
-    const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return date.toLocaleDateString();
-  };
-
   const isLiked = post.likedBy?.includes(currentUserId);
 
   return (
-    <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm mb-6">
-      <div className="flex items-center justify-between mb-4">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="bg-white rounded-[2rem] p-8 premium-shadow border border-gray-100 mb-8 group transition-all hover:border-accent/20"
+    >
+      <div className="flex items-center justify-between mb-6">
         <button 
           onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity text-left"
+          className="flex items-center gap-4 hover:opacity-80 transition-opacity text-left"
         >
-          {post.authorPhoto ? (
-            <img src={post.authorPhoto} className="h-10 w-10 rounded-full border border-gray-100" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-              {post.authorName?.charAt(0)}
-            </div>
-          )}
+          <div className="relative">
+            {post.authorPhoto ? (
+              <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover border border-gray-100" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="h-12 w-12 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold text-sm">
+                {post.authorName?.charAt(0)}
+              </div>
+            )}
+            {post.isOfficial && (
+              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
+                <ShieldCheck size={14} className="text-accent fill-accent/10" />
+              </div>
+            )}
+          </div>
           <div>
-            <div className="flex items-center gap-1">
-              <h4 className="font-bold text-gray-900 text-sm">{post.authorName}</h4>
-              {post.isOfficial && <ShieldCheck size={14} className="text-blue-600 fill-blue-600/10" />}
-            </div>
-            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">{formatTime(post.timestamp)}</p>
+            <h4 className="font-bold text-ink text-[15px] tracking-tight">{post.authorName}</h4>
+            <p className="text-[10px] text-muted font-bold uppercase tracking-[0.15em] mt-0.5">{formatTime(post.timestamp)}</p>
           </div>
         </button>
         <div className="relative">
           <button 
             onClick={() => setShowMenu(!showMenu)}
-            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-50 transition-all"
+            className="text-muted hover:text-ink p-2.5 rounded-xl hover:bg-gray-50 transition-all"
           >
             <MoreVertical size={18} />
           </button>
@@ -178,32 +249,33 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
           <AnimatePresence>
             {showMenu && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: -10 }}
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 z-10 overflow-hidden"
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                className="absolute right-0 mt-3 w-56 bg-white rounded-[1.5rem] premium-shadow border border-gray-100 z-50 overflow-hidden py-3"
               >
                 {post.authorUid === currentUserId && (
                   <>
                     <button 
                       onClick={() => { onEdit?.(post); setShowMenu(false); }}
-                      className="w-full px-6 py-4 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                      className="w-full px-6 py-4 text-left text-[11px] font-bold uppercase tracking-widest text-ink hover:bg-gray-50 flex items-center gap-4 transition-colors"
                     >
-                      <Edit2 size={16} className="text-blue-600" />
-                      Edit Post
+                      <Edit2 size={16} className="text-accent" />
+                      Edit Broadcast
                     </button>
                     <button 
                       onClick={() => { onDelete?.(post); setShowMenu(false); }}
-                      className="w-full px-6 py-4 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-3"
+                      className="w-full px-6 py-4 text-left text-[11px] font-bold uppercase tracking-widest text-red-600 hover:bg-red-50 flex items-center gap-4 transition-colors"
                     >
                       <Trash2 size={16} />
-                      Delete Post
+                      Retract
                     </button>
+                    <div className="h-px bg-gray-50 my-3 mx-6" />
                   </>
                 )}
                 <button 
                   onClick={() => setShowMenu(false)}
-                  className="w-full px-6 py-4 text-left text-sm font-bold text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+                  className="w-full px-6 py-4 text-left text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-gray-50 flex items-center gap-4 transition-colors"
                 >
                   <Bell size={16} />
                   Mute Thread
@@ -213,56 +285,59 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
           </AnimatePresence>
         </div>
       </div>
-      <p className="text-gray-700 text-sm leading-relaxed mb-6 whitespace-pre-wrap">{post.content}</p>
+      
+      <p className="text-ink/80 text-[15px] leading-[1.6] mb-8 whitespace-pre-wrap font-medium tracking-tight">
+        {post.content}
+      </p>
       
       {post.mediaUrl && (
-        <div className="mb-6 rounded-2xl overflow-hidden border border-gray-100">
+        <div className="mb-8 rounded-[1.5rem] overflow-hidden border border-gray-100 bg-gray-50">
           {post.mediaType === 'image' ? (
-            <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[400px]" referrerPolicy="no-referrer" />
+            <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[500px] transition-transform duration-700 hover:scale-105" referrerPolicy="no-referrer" />
           ) : (
-            <video src={post.mediaUrl} controls className="w-full h-auto max-h-[400px]" />
+            <video src={post.mediaUrl} controls className="w-full h-auto max-h-[500px]" />
           )}
         </div>
       )}
 
       {post.resharedFrom && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-100 border-l-4 border-l-blue-600">
-          <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest mb-2">Reshared from {post.resharedFrom.authorName}</p>
-          <p className="text-xs text-gray-600 line-clamp-3">{post.resharedFrom.content}</p>
+        <div className="mb-8 p-8 bg-gray-50/50 rounded-[2rem] border border-gray-100 border-l-[4px] border-l-accent">
+          <p className="text-[10px] text-accent font-bold uppercase tracking-[0.25em] mb-4">Reshared from {post.resharedFrom.authorName}</p>
+          <p className="text-[14px] text-muted leading-relaxed italic font-serif">"{post.resharedFrom.content}"</p>
         </div>
       )}
 
-      <div className="flex items-center gap-6 pt-4 border-t border-gray-50">
+      <div className="flex items-center gap-8 pt-6 border-t border-gray-50">
         <button 
           onClick={() => onLike?.(post.id, post.likedBy || [])}
-          className={`flex items-center gap-2 transition-colors ${isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'}`}
+          className={`flex items-center gap-2.5 transition-all duration-300 ${isLiked ? 'text-red-500 scale-110' : 'text-muted hover:text-red-500 hover:scale-110'}`}
         >
-          <Heart size={18} className={isLiked ? 'fill-red-500' : ''} />
-          <span className="text-xs font-bold">{post.likes || 0}</span>
+          <Heart size={20} className={isLiked ? 'fill-red-500' : ''} />
+          <span className="text-[13px] font-bold tracking-tight">{post.likes || 0}</span>
         </button>
         <button 
           onClick={() => onComment?.(post)}
-          className="flex items-center gap-2 text-gray-500 hover:text-blue-500 transition-colors"
+          className="flex items-center gap-2.5 text-muted hover:text-accent hover:scale-110 transition-all duration-300"
         >
-          <MessageCircle size={18} />
-          <span className="text-xs font-bold">{post.commentsCount || 0}</span>
+          <MessageCircle size={20} />
+          <span className="text-[13px] font-bold tracking-tight">{post.commentsCount || 0}</span>
         </button>
         <button 
           onClick={() => onReshare?.(post)}
-          className="flex items-center gap-2 text-gray-500 hover:text-green-500 transition-colors"
+          className="flex items-center gap-2.5 text-muted hover:text-green-600 hover:scale-110 transition-all duration-300"
         >
-          <Share2 size={18} />
-          <span className="text-xs font-bold">{post.reshares || 0}</span>
+          <Share2 size={20} />
+          <span className="text-[13px] font-bold tracking-tight">{post.reshares || 0}</span>
         </button>
         <button 
           onClick={() => onForward?.(post)}
-          className="flex items-center gap-2 text-gray-500 hover:text-orange-500 transition-colors ml-auto"
+          className="flex items-center gap-2 text-muted hover:text-ink transition-colors ml-auto group/forward"
         >
-          <Plus size={18} className="rotate-45" />
-          <span className="text-[10px] font-black uppercase tracking-widest">Forward</span>
+          <Plus size={18} className="rotate-45 group-hover/forward:rotate-0 transition-transform duration-500" />
+          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Forward</span>
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -282,17 +357,18 @@ function ExonaApp() {
   const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userDoc, setUserDoc] = useState<any>(null);
+  const [selectedUserProfileDoc, setSelectedUserProfileDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
-  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [records, setRecords] = useState<StudentRecord[]>([]);
-  const [allRecords, setAllRecords] = useState<StudentRecord[]>([]);
+  const [records, setRecords] = useState<Record[]>([]);
+  const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
-  const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms'>('general');
+  const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
   const [aiInput, setAiInput] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
@@ -300,11 +376,11 @@ function ExonaApp() {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
-  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
-  const [editingSchool, setEditingSchool] = useState<School | null>(null);
-  const [schoolSearch, setSchoolSearch] = useState('');
-  const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
-  const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '', type: 'school' as 'school' | 'place' });
+  const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
+  const [editingPlace, setEditingPlace] = useState<Place | null>(null);
+  const [placeSearch, setPlaceSearch] = useState('');
+  const [placeFilter, setPlaceFilter] = useState<'all' | 'School' | 'Business' | 'Community' | 'Personal'>('all');
+  const [newPlace, setNewPlace] = useState({ name: '', description: '', logo: '', category: 'School' as Place['category'] });
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -315,28 +391,54 @@ function ExonaApp() {
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
   const [postComments, setPostComments] = useState<any[]>([]);
-  const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0 });
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [schoolSearch, setSchoolSearch] = useState('');
+  const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
+  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
+  const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '', type: 'school' as School['type'] });
+  const [newRecord, setNewRecord] = useState({ subjectName: '', category: '', amountPaid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
 
   const handleCreateSchool = async () => {
-    if (!newSchool.name.trim() || !userDoc || userDoc.role !== 'admin') return;
+    if (!newSchool.name.trim() || !user) return;
+    setIsUploading(true);
     try {
+      let logoUrl = newSchool.logo.trim() || `https://picsum.photos/seed/${newSchool.name.toLowerCase().replace(/\s+/g, '-')}/200`;
+      
+      if (selectedFile) {
+        const fileRef = ref(storage, `schools/${user.uid}/${Date.now()}_${selectedFile.name}`);
+        const uploadTask = uploadBytesResumable(fileRef, selectedFile);
+        await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed', (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          }, (error) => reject(error), () => resolve(null));
+        });
+        logoUrl = await getDownloadURL(fileRef);
+      }
+
       if (editingSchool) {
         await setDoc(doc(db, 'schools', editingSchool.id), {
           ...editingSchool,
           name: newSchool.name.trim(),
           description: newSchool.description.trim(),
-          logo: newSchool.logo.trim(),
+          logo: logoUrl,
           type: newSchool.type
         }, { merge: true });
       } else {
-        const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-');
+        const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
         await setDoc(doc(db, 'schools', schoolId), {
           id: schoolId,
           name: newSchool.name.trim(),
-          description: newSchool.description.trim() || 'Official feed for ' + newSchool.name,
-          logo: newSchool.logo.trim() || `https://picsum.photos/seed/${schoolId}/200`,
-          type: newSchool.type
+          description: newSchool.description.trim() || `Official space for ${newSchool.name}`,
+          logo: logoUrl,
+          type: newSchool.type,
+          creatorUid: user.uid,
+          timestamp: serverTimestamp()
         });
+        
+        // Initialize finance for the school
         await setDoc(doc(db, 'finance', schoolId), {
           schoolId: schoolId,
           institutionBalance: 0,
@@ -348,27 +450,92 @@ function ExonaApp() {
       setNewSchool({ name: '', description: '', logo: '', type: 'school' });
       setEditingSchool(null);
       setIsSchoolModalOpen(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'schools');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCreatePlace = async () => {
+    if (!newPlace.name.trim() || !user) return;
+    setIsUploading(true);
+    try {
+      let logoUrl = newPlace.logo.trim() || `https://picsum.photos/seed/${newPlace.name.toLowerCase().replace(/\s+/g, '-')}/200`;
+      
+      if (selectedFile) {
+        const fileRef = ref(storage, `places/${user.uid}/${Date.now()}_${selectedFile.name}`);
+        const uploadTask = uploadBytesResumable(fileRef, selectedFile);
+        await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed', (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          }, (error) => reject(error), () => resolve(null));
+        });
+        logoUrl = await getDownloadURL(fileRef);
+      }
+
+      if (editingPlace) {
+        await setDoc(doc(db, 'places', editingPlace.id), {
+          ...editingPlace,
+          name: newPlace.name.trim(),
+          description: newPlace.description.trim(),
+          logo: logoUrl,
+          category: newPlace.category
+        }, { merge: true });
+      } else {
+        const placeId = newPlace.name.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
+        await setDoc(doc(db, 'places', placeId), {
+          id: placeId,
+          name: newPlace.name.trim(),
+          description: newPlace.description.trim() || `Official space for ${newPlace.name}`,
+          logo: logoUrl,
+          category: newPlace.category,
+          creatorUid: user.uid,
+          timestamp: serverTimestamp()
+        });
+        
+        // Initialize finance for the place
+        await setDoc(doc(db, 'finance', placeId), {
+          placeId: placeId,
+          institutionBalance: 0,
+          bankName: 'Exona Trust Bank',
+          accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
+          accountName: `${newPlace.name} General`
+        });
+      }
+      setNewPlace({ name: '', description: '', logo: '', category: 'School' });
+      setEditingPlace(null);
+      setIsPlaceModalOpen(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'places');
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleCreateRecord = async () => {
     if (!user) { setView('login'); return; }
-    if (!newRecord.studentName.trim() || !selectedSchool) return;
-    const path = 'studentRecords';
+    if (!newRecord.subjectName.trim() || !selectedPlace) return;
+    const path = 'records';
     try {
       await addDoc(collection(db, path), {
-        schoolId: selectedSchool.id,
-        studentName: newRecord.studentName.trim(),
+        placeId: selectedPlace.id,
+        subjectName: newRecord.subjectName.trim(),
         category: newRecord.category.trim() || 'General',
-        addedBy: user.displayName || 'Admin',
-        paid: Number(newRecord.paid),
+        creatorUid: user.uid,
+        amountPaid: Number(newRecord.amountPaid),
         balance: Number(newRecord.balance),
         type: recordTab,
+        visibility: newRecord.visibility,
+        sharedWith: newRecord.sharedWith.split(',').map(e => e.trim()).filter(e => e),
         timestamp: serverTimestamp()
       });
-      setNewRecord({ studentName: '', category: '', paid: 0, balance: 0 });
+      setNewRecord({ subjectName: '', category: '', amountPaid: 0, balance: 0, visibility: 'private', sharedWith: '' });
       setIsRecordModalOpen(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, path);
@@ -376,10 +543,7 @@ function ExonaApp() {
   };
 
   useEffect(() => {
-    if (!selectedFile) {
-      setPreviewUrl(null);
-      return;
-    }
+    if (!selectedFile) return;
     const url = URL.createObjectURL(selectedFile);
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
@@ -394,6 +558,12 @@ function ExonaApp() {
     try {
       let mediaUrl = editingPost?.mediaUrl || '';
       let mediaType: 'image' | 'video' | undefined = editingPost?.mediaType;
+
+      // If previewUrl is null, it means the user removed the media
+      if (!previewUrl) {
+        mediaUrl = '';
+        mediaType = undefined;
+      }
 
       if (selectedFile) {
         mediaType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
@@ -440,6 +610,7 @@ function ExonaApp() {
       }
       setNewPostContent('');
       setSelectedFile(null);
+      setPreviewUrl(null);
       setUploadProgress(0);
       setIsPostModalOpen(false);
       setEditingPost(null);
@@ -455,6 +626,14 @@ function ExonaApp() {
     setNewPostContent(post.content);
     // Note: We don't set selectedFile here because we use the existing mediaUrl if no new file is selected
     setPreviewUrl(post.mediaUrl || null);
+    setIsPostModalOpen(true);
+  };
+
+  const openNewPostModal = () => {
+    setEditingPost(null);
+    setNewPostContent('');
+    setSelectedFile(null);
+    setPreviewUrl(null);
     setIsPostModalOpen(true);
   };
 
@@ -790,9 +969,76 @@ function ExonaApp() {
     }
   };
 
-  const handleUserClick = (profile: { uid: string, name: string, photo: string }) => {
+  const handleUserClick = async (profile: { uid: string, name: string, photo: string }) => {
     setSelectedUserProfile(profile);
+    setSelectedUserProfileDoc(null); // Reset while loading
     setView('user-profile');
+    
+    try {
+      const docSnap = await getDoc(doc(db, 'users', profile.uid));
+      if (docSnap.exists()) {
+        setSelectedUserProfileDoc(docSnap.data());
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  const handleFollowUser = async (targetUid: string) => {
+    if (!user || !userDoc) { setView('login'); return; }
+    if (user.uid === targetUid) return;
+
+    try {
+      const currentUserRef = doc(db, 'users', user.uid);
+      const targetUserRef = doc(db, 'users', targetUid);
+
+      const currentFollowing = userDoc.following || [];
+      if (currentFollowing.includes(targetUid)) return;
+
+      const newFollowing = [...currentFollowing, targetUid];
+      await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
+      setUserDoc({ ...userDoc, following: newFollowing });
+
+      const targetDoc = await getDoc(targetUserRef);
+      if (targetDoc.exists()) {
+        const targetData = targetDoc.data();
+        const targetFollowers = targetData.followers || [];
+        const newTargetFollowers = [...targetFollowers, user.uid];
+        await setDoc(targetUserRef, { followers: newTargetFollowers }, { merge: true });
+        if (selectedUserProfile?.uid === targetUid) {
+          setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
+        }
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'users');
+    }
+  };
+
+  const handleUnfollowUser = async (targetUid: string) => {
+    if (!user || !userDoc) { setView('login'); return; }
+
+    try {
+      const currentUserRef = doc(db, 'users', user.uid);
+      const targetUserRef = doc(db, 'users', targetUid);
+
+      const currentFollowing = userDoc.following || [];
+      const newFollowing = currentFollowing.filter((id: string) => id !== targetUid);
+      await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
+      setUserDoc({ ...userDoc, following: newFollowing });
+
+      const targetDoc = await getDoc(targetUserRef);
+      if (targetDoc.exists()) {
+        const targetData = targetDoc.data();
+        const targetFollowers = targetData.followers || [];
+        const newTargetFollowers = targetFollowers.filter((id: string) => id !== user.uid);
+        await setDoc(targetUserRef, { followers: newTargetFollowers }, { merge: true });
+        if (selectedUserProfile?.uid === targetUid) {
+          setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
+        }
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'users');
+    }
   };
 
   const renderView = () => {
@@ -804,87 +1050,110 @@ function ExonaApp() {
         const totalBalance = allRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
 
         return (
-          <div className="max-w-6xl mx-auto py-8 px-4 pb-24 lg:pb-8">
-            <div className="flex items-center justify-between mb-10">
+          <div className="max-w-6xl mx-auto py-12 px-8 pb-32 lg:pb-12">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
               <div>
-                <h2 className="text-3xl font-black text-gray-900 tracking-tight">Admin Dashboard</h2>
-                <p className="text-sm text-gray-400 font-medium tracking-wide mt-1">Global system overview and management</p>
+                <motion.h2 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
+                >
+                  Admin Terminal
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-muted text-[11px] font-bold uppercase tracking-[0.4em]"
+                >
+                  Global system oversight & management
+                </motion.p>
               </div>
-              <button 
+              <motion.button 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setIsSchoolModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                className="flex items-center gap-3 px-10 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 transition-all"
               >
-                <Plus size={18} />
-                Add New School
-              </button>
+                <Plus size={20} />
+                Register Institution
+              </motion.button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Schools</p>
-                <h3 className="text-2xl font-black text-gray-900">{schools.length}</h3>
-                <div className="mt-4 h-1 w-full bg-blue-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 w-2/3"></div>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Students</p>
-                <h3 className="text-2xl font-black text-gray-900">{allRecords.length}</h3>
-                <div className="mt-4 h-1 w-full bg-green-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-600 w-1/2"></div>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Total Revenue</p>
-                <h3 className="text-2xl font-black text-gray-900">₦{totalRevenue.toLocaleString()}</h3>
-                <div className="mt-4 h-1 w-full bg-orange-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-600 w-3/4"></div>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Pending Balance</p>
-                <h3 className="text-2xl font-black text-red-600">₦{totalBalance.toLocaleString()}</h3>
-                <div className="mt-4 h-1 w-full bg-red-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-600 w-1/3"></div>
-                </div>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+              {[
+                { label: 'Total Schools', value: schools.length, color: 'accent' },
+                { label: 'Total Students', value: allRecords.length, color: 'green-600' },
+                { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'ink' },
+                { label: 'Pending Balance', value: `₦${totalBalance.toLocaleString()}`, color: 'red-600' }
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.1 }}
+                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 premium-shadow group hover:border-accent/20 transition-all"
+                >
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">{stat.label}</p>
+                  <h3 className={`text-3xl font-serif italic text-${stat.color}`}>{stat.value}</h3>
+                  <div className="mt-8 h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: '60%' }}
+                      transition={{ delay: 0.5 + i * 0.1, duration: 1 }}
+                      className={`h-full bg-${stat.color}`}
+                    />
+                  </div>
+                </motion.div>
+              ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-                  <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-                    <h4 className="font-black text-gray-900">Registered Institutions</h4>
-                    <Search size={18} className="text-gray-400" />
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden"
+                >
+                  <div className="p-10 border-b border-gray-50 flex items-center justify-between">
+                    <h4 className="font-serif italic text-2xl text-ink tracking-tight">Registered Institutions</h4>
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-muted">
+                      <Search size={20} />
+                    </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-gray-50/50">
-                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">School</th>
-                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Balance</th>
-                          <th className="px-8 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                          <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">School</th>
+                          <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Balance</th>
+                          <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
                         {schools.map(school => {
                           const schoolFin = allFinance.find(f => f.schoolId === school.id);
                           return (
-                            <tr key={school.id} className="hover:bg-gray-50/50 transition-colors">
-                              <td className="px-8 py-6">
-                                <div className="flex items-center gap-4">
-                                  <img src={school.logo} className="h-10 w-10 rounded-xl object-cover" />
+                            <tr key={school.id} className="hover:bg-gray-50/50 transition-colors group">
+                              <td className="px-10 py-8">
+                                <div className="flex items-center gap-6">
+                                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                                    <img src={school.logo} className="h-full w-full object-cover" />
+                                  </div>
                                   <div>
-                                    <p className="font-bold text-gray-900 text-sm">{school.name}</p>
-                                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-widest">{school.id}</p>
+                                    <p className="font-bold text-ink text-[15px] tracking-tight">{school.name}</p>
+                                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">{school.id}</p>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-8 py-6 font-black text-gray-900 text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</td>
-                              <td className="px-8 py-6">
+                              <td className="px-10 py-8 font-mono font-bold text-ink text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</td>
+                              <td className="px-10 py-8">
                                 <button 
                                   onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                                  className="text-blue-600 hover:underline text-xs font-black uppercase tracking-widest"
+                                  className="px-6 py-2.5 bg-gray-50 text-muted rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-ink hover:text-white transition-all shadow-sm"
                                 >
                                   Manage
                                 </button>
@@ -895,104 +1164,133 @@ function ExonaApp() {
                       </tbody>
                     </table>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               <div className="lg:col-span-1">
-                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                  <h4 className="font-black text-gray-900 mb-6">System Activity</h4>
-                  <div className="space-y-6">
-                    {posts.slice(0, 5).map(post => (
-                      <div key={post.id} className="flex gap-4">
-                        <img src={post.authorPhoto} className="h-8 w-8 rounded-full" />
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="bg-white p-10 rounded-[3rem] border border-gray-100 premium-shadow"
+                >
+                  <h4 className="font-serif italic text-2xl text-ink tracking-tight mb-10">System Activity</h4>
+                  <div className="space-y-10">
+                    {posts.slice(0, 5).map((post, i) => (
+                      <div key={post.id} className="flex gap-6 relative">
+                        {i < 4 && <div className="absolute left-6 top-10 bottom-[-2.5rem] w-px bg-gray-100"></div>}
+                        <div className="relative">
+                          <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover shadow-sm border border-gray-100" />
+                          <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+                            <div className="h-2 w-2 bg-accent rounded-full"></div>
+                          </div>
+                        </div>
                         <div>
-                          <p className="text-xs font-bold text-gray-900">
-                            {post.authorName} <span className="text-gray-400 font-medium">posted on feed</span>
+                          <p className="text-[13px] font-bold text-ink leading-snug">
+                            {post.authorName} <span className="text-muted font-medium">broadcasted an update</span>
                           </p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">2 minutes ago</p>
+                          <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                            <Clock size={10} />
+                            {formatTime(post.timestamp)}
+                          </p>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <button className="w-full mt-8 py-3 bg-gray-50 text-gray-500 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-gray-100 transition-all">
-                    View All Logs
+                  <button className="w-full mt-12 py-5 bg-gray-50 text-muted rounded-[1.5rem] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100">
+                    View Audit Logs
                   </button>
-                </div>
+                </motion.div>
               </div>
             </div>
           </div>
         );
       case 'feed':
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Horizon Feed</h2>
-              {user && (
-                <button 
-                  onClick={() => {
-                    setEditingPost(null);
-                    setNewPostContent('');
-                    setSelectedFile(null);
-                    setPreviewUrl(null);
-                    setIsPostModalOpen(true);
-                  }}
-                  className="p-2 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-100 hover:scale-110 transition-transform"
-                >
-                  <Plus size={20} />
-                </button>
-              )}
+          <div className="max-w-3xl mx-auto py-12 px-6">
+            <div className="flex flex-col mb-12">
+              <motion.h2 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+              >
+                Horizon Feed
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-muted text-[13px] font-bold uppercase tracking-[0.2em]"
+              >
+                The heartbeat of your community
+              </motion.p>
             </div>
 
             {user && (
-              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-6 mb-8 flex items-center gap-4">
-                <img 
-                  src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                  className="h-12 w-12 rounded-2xl bg-blue-100 object-cover" 
-                  referrerPolicy="no-referrer"
-                />
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-[2rem] premium-shadow p-8 mb-12 flex items-center gap-6 border border-gray-100"
+              >
+                <div className="relative">
+                  <img 
+                    src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
+                    className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 border-2 border-white rounded-full"></div>
+                </div>
                 <button 
-                  onClick={() => {
-                    setEditingPost(null);
-                    setNewPostContent('');
-                    setSelectedFile(null);
-                    setPreviewUrl(null);
-                    setIsPostModalOpen(true);
-                  }}
-                  className="flex-1 text-left px-6 py-4 bg-gray-50 rounded-2xl text-gray-400 font-medium hover:bg-gray-100 transition-all"
+                  onClick={openNewPostModal}
+                  className="flex-1 text-left px-8 py-4.5 bg-gray-50 rounded-2xl text-muted font-semibold hover:bg-gray-100 hover:text-ink transition-all text-sm border border-transparent hover:border-gray-200"
                 >
-                  What's on your mind, {user.displayName?.split(' ')[0] || 'friend'}?
+                  Share something with the community, {user.displayName?.split(' ')[0]}...
                 </button>
-              </div>
+                <button 
+                  onClick={openNewPostModal}
+                  className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+                >
+                  <Plus size={24} />
+                </button>
+              </motion.div>
             )}
 
             {!user && (
-              <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 mb-8 flex items-center justify-between gap-4">
-                <div>
-                  <h4 className="font-black text-blue-900 text-sm mb-1">Join the conversation</h4>
-                  <p className="text-xs text-blue-600 font-medium">Sign in to post updates and interact with your school community.</p>
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-accent/5 border border-accent/10 rounded-[2rem] p-10 mb-12 flex flex-col md:flex-row items-center justify-between gap-8"
+              >
+                <div className="text-center md:text-left">
+                  <h4 className="font-bold text-ink text-lg mb-2">Join the Exona Community</h4>
+                  <p className="text-sm text-muted font-medium max-w-sm">Sign in to share updates, interact with peers, and stay connected with your school.</p>
                 </div>
                 <button 
                   onClick={() => setView('login')}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all whitespace-nowrap"
+                  className="px-10 py-4 bg-accent text-white rounded-2xl font-bold text-sm shadow-xl shadow-accent/20 hover:bg-accent/90 transition-all whitespace-nowrap"
                 >
-                  Sign In
+                  Get Started
                 </button>
-              </div>
+              </motion.div>
             )}
-            {posts.filter(p => p.schoolId === 'horizon' || !p.schoolId).map(post => (
-              <FeedPost 
-                key={post.id} 
-                post={post} 
-                onUserClick={handleUserClick}
-                onLike={handleLikePost}
-                onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                onReshare={handleResharePost}
-                onForward={handleForwardPost}
-                onEdit={handleEditPost}
-                onDelete={onDeletePostClick}
-                currentUserId={user?.uid}
-              />
-            ))}
+
+            <div className="space-y-2">
+              {posts.filter(p => p.schoolId === 'horizon' || !p.schoolId).map((post, idx) => (
+                <FeedPost 
+                  key={post.id} 
+                  post={post} 
+                  onUserClick={handleUserClick}
+                  onLike={handleLikePost}
+                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                  onReshare={handleResharePost}
+                  onForward={handleForwardPost}
+                  onEdit={handleEditPost}
+                  onDelete={onDeletePostClick}
+                  currentUserId={user?.uid}
+                />
+              ))}
+            </div>
           </div>
         );
       case 'school-feed':
@@ -1002,40 +1300,34 @@ function ExonaApp() {
           <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
             <button 
               onClick={() => setView('schools')}
-              className="flex items-center gap-2 text-gray-500 font-bold mb-8 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 text-muted font-bold mb-8 hover:text-accent transition-colors"
             >
               <ChevronRight size={20} className="rotate-180" />
               Back to Institutions
             </button>
             
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden mb-8 p-8 flex items-center gap-6">
-              <div className={`h-20 w-20 rounded-3xl flex items-center justify-center text-white font-black text-2xl shadow-lg ${
-                selectedSchool.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-blue-600 shadow-blue-100'
+            <div className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden mb-12 p-10 flex items-center gap-8">
+              <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl ${
+                selectedSchool.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20'
               }`}>
                 {selectedSchool.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
               <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">{selectedSchool.name}</h2>
-                <p className="text-sm text-gray-400 font-medium tracking-wide mt-1">{selectedSchool.description}</p>
+                <h2 className="text-3xl font-serif italic text-ink tracking-tight mb-2">{selectedSchool.name}</h2>
+                <p className="text-sm text-muted font-medium tracking-wide leading-relaxed">{selectedSchool.description}</p>
               </div>
             </div>
 
             {user && (
-              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-6 mb-8 flex items-center gap-4">
+              <div className="bg-white rounded-[2rem] border border-gray-100 premium-shadow p-8 mb-12 flex items-center gap-6">
                 <img 
                   src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                  className="h-12 w-12 rounded-2xl bg-blue-100 object-cover" 
+                  className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
                   referrerPolicy="no-referrer"
                 />
                 <button 
-                  onClick={() => {
-                    setEditingPost(null);
-                    setNewPostContent('');
-                    setSelectedFile(null);
-                    setPreviewUrl(null);
-                    setIsPostModalOpen(true);
-                  }}
-                  className="flex-1 text-left px-6 py-4 bg-gray-50 rounded-2xl text-gray-400 font-medium hover:bg-gray-100 transition-all"
+                  onClick={openNewPostModal}
+                  className="flex-1 text-left px-8 py-4.5 bg-gray-50 rounded-2xl text-muted font-semibold hover:bg-gray-100 transition-all text-sm"
                 >
                   Post an update to {selectedSchool.name}...
                 </button>
@@ -1043,12 +1335,12 @@ function ExonaApp() {
             )}
 
             {schoolPosts.length === 0 && (
-              <div className="bg-white rounded-[2.5rem] p-12 text-center border border-gray-100">
-                <div className="h-20 w-20 bg-gray-50 text-gray-300 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <ImageIcon size={40} />
+              <div className="bg-white rounded-[3rem] p-20 text-center border border-gray-100 premium-shadow">
+                <div className="h-24 w-24 bg-gray-50 text-muted/30 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                  <ImageIcon size={48} />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 mb-2">No posts yet</h3>
-                <p className="text-gray-500 text-sm font-medium">Be the first to share an update from this institution!</p>
+                <h3 className="text-2xl font-serif italic text-ink mb-3">No Broadcasts Yet</h3>
+                <p className="text-muted text-sm font-medium">Be the first to share an update from this institution!</p>
               </div>
             )}
 
@@ -1075,43 +1367,84 @@ function ExonaApp() {
           <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
             <button 
               onClick={() => setView('feed')}
-              className="flex items-center gap-2 text-gray-500 font-bold mb-8 hover:text-blue-600 transition-colors"
+              className="flex items-center gap-2 text-muted font-bold mb-8 hover:text-accent transition-colors"
             >
               <ChevronRight size={20} className="rotate-180" />
               Back to Feed
             </button>
             
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden mb-8">
-              <div className="h-32 bg-gradient-to-r from-blue-600 to-blue-400"></div>
-              <div className="px-8 pb-8">
-                <div className="relative -mt-12 mb-6">
-                  <div className="h-24 w-24 rounded-3xl bg-white p-1 shadow-xl">
-                    <div className="h-full w-full rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black text-3xl overflow-hidden">
-                      {selectedUserProfile.photo ? <img src={selectedUserProfile.photo} referrerPolicy="no-referrer" /> : selectedUserProfile.name?.charAt(0)}
+            <div className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden mb-12">
+              <div className="h-40 bg-ink relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-50"></div>
+              </div>
+              <div className="px-10 pb-10">
+                <div className="relative -mt-16 mb-8">
+                  <div className="h-32 w-32 rounded-[2.5rem] bg-white p-1.5 shadow-2xl">
+                    <div className="h-full w-full rounded-[2rem] bg-accent/5 flex items-center justify-center text-accent font-serif italic text-4xl overflow-hidden border border-accent/10">
+                      {selectedUserProfile.photo ? <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : selectedUserProfile.name?.charAt(0)}
                     </div>
                   </div>
                 </div>
-                <h3 className="text-2xl font-black text-gray-900">{selectedUserProfile.name}</h3>
-                <p className="text-gray-500 font-medium mb-4">Horizon Member</p>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-3xl font-serif italic text-ink tracking-tight">{selectedUserProfile.name}</h3>
+                  {user && user.uid !== selectedUserProfile.uid && (
+                    <button 
+                      onClick={() => {
+                        const isFollowing = userDoc?.following?.includes(selectedUserProfile.uid);
+                        if (isFollowing) {
+                          handleUnfollowUser(selectedUserProfile.uid);
+                        } else {
+                          handleFollowUser(selectedUserProfile.uid);
+                        }
+                      }}
+                      className={`px-8 py-3.5 rounded-2xl font-bold text-[11px] uppercase tracking-widest transition-all flex items-center gap-3 ${
+                        userDoc?.following?.includes(selectedUserProfile.uid)
+                        ? 'bg-gray-100 text-muted hover:bg-gray-200'
+                        : 'bg-accent text-white shadow-xl shadow-accent/20 hover:bg-accent/90'
+                      }`}
+                    >
+                      {userDoc?.following?.includes(selectedUserProfile.uid) ? (
+                        <>
+                          <UserMinus size={16} />
+                          Unfollow
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus size={16} />
+                          Follow
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                <p className="text-muted font-bold text-[10px] uppercase tracking-[0.25em] mb-8">Horizon Member</p>
                 
-                <div className="flex gap-6">
+                <div className="flex gap-10">
                   <div>
-                    <p className="text-xl font-black text-gray-900">{profilePosts.length}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Posts</p>
+                    <p className="text-2xl font-serif italic text-ink">{profilePosts.length}</p>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Posts</p>
                   </div>
                   <div>
-                    <p className="text-xl font-black text-gray-900">{profilePosts.reduce((acc, p) => acc + p.likes, 0)}</p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Total Likes</p>
+                    <p className="text-2xl font-serif italic text-ink">{selectedUserProfileDoc?.followers?.length || 0}</p>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Followers</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-serif italic text-ink">{selectedUserProfileDoc?.following?.length || 0}</p>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Following</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-serif italic text-ink">{profilePosts.reduce((acc, p) => acc + p.likes, 0)}</p>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Total Likes</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6">
-              <h4 className="text-lg font-black text-gray-900 tracking-tight mb-4">Recent Activity</h4>
+            <div className="space-y-8">
+              <h4 className="text-xl font-serif italic text-ink tracking-tight mb-6">Recent Activity</h4>
               {profilePosts.length === 0 ? (
-                <div className="bg-white p-12 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
-                  <p className="text-gray-500 font-medium">No posts yet.</p>
+                <div className="bg-white p-20 rounded-[3rem] border border-gray-100 premium-shadow text-center">
+                  <p className="text-muted font-medium">No broadcasts yet.</p>
                 </div>
               ) : (
                 profilePosts.map(post => (
@@ -1134,47 +1467,47 @@ function ExonaApp() {
         );
       case 'schools':
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
-            <div className="flex items-center justify-between mb-10 bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm shadow-gray-100/50">
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600">
-                  <Wallet size={28} />
+          <div className="max-w-3xl mx-auto py-12 px-6 pb-24 lg:pb-12">
+            <div className="flex items-center justify-between mb-12 bg-white p-8 rounded-[3rem] border border-gray-100 premium-shadow">
+              <div className="flex items-center gap-6">
+                <div className="h-16 w-16 bg-accent/5 rounded-[1.5rem] flex items-center justify-center text-accent shadow-sm border border-accent/10">
+                  <Wallet size={32} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-gray-900 tracking-tight">Executive Finance</h2>
-                  <p className="text-xs text-gray-400 font-medium tracking-wide">Revenue and projections</p>
+                  <h2 className="text-2xl font-serif italic text-ink tracking-tight">Executive Finance</h2>
+                  <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">Revenue and projections</p>
                 </div>
               </div>
               {userDoc?.role === 'admin' && (
                 <button 
                   onClick={() => setIsSchoolModalOpen(true)}
-                  className="h-12 w-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                  className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-ink/10 hover:scale-105 transition-transform"
                 >
-                  <Plus size={24} />
+                  <Plus size={28} />
                 </button>
               )}
             </div>
 
-            <div className="relative mb-10">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300" size={20} />
+            <div className="relative mb-12 group">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={20} />
               <input 
                 type="text" 
                 placeholder="Search institutions..." 
                 value={schoolSearch}
                 onChange={(e) => setSchoolSearch(e.target.value)}
-                className="w-full pl-16 pr-6 py-5 bg-white border border-gray-50 rounded-[2rem] shadow-xl shadow-gray-100/20 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-gray-600 font-medium" 
+                className="w-full pl-16 pr-8 py-5 bg-white border border-gray-100 rounded-[2rem] premium-shadow focus:ring-2 focus:ring-accent/5 outline-none transition-all text-ink font-medium placeholder:text-gray-300" 
               />
             </div>
 
-            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
               {['all', 'school', 'place'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setSchoolFilter(f as any)}
-                  className={`px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                  className={`px-8 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
                     schoolFilter === f 
-                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
-                      : 'bg-white text-gray-400 border border-gray-100'
+                      ? 'bg-ink text-white shadow-2xl shadow-ink/10' 
+                      : 'bg-white text-muted border border-gray-100 hover:bg-gray-50'
                   }`}
                 >
                   {f === 'all' ? 'All Institutions' : f === 'school' ? 'Schools' : 'Places'}
@@ -1182,69 +1515,71 @@ function ExonaApp() {
               ))}
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-8">
               {schools
                 .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
                 .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
                 .map(school => (
                 <div 
                   key={school.id}
-                  className="bg-white rounded-[3rem] p-8 border border-gray-50 shadow-xl shadow-gray-100/30 relative overflow-hidden group"
+                  className="bg-white rounded-[3rem] p-10 border border-gray-100 premium-shadow relative overflow-hidden group hover:border-accent/20 transition-all"
                 >
-                  <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center justify-between mb-10">
                     <div 
-                      className="flex items-center gap-5 cursor-pointer hover:opacity-80 transition-opacity"
+                      className="flex items-center gap-6 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                     >
                       <div className="relative">
-                        <div className={`h-20 w-20 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-lg ${
-                          school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-blue-600 shadow-blue-100'
+                        <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl ${
+                          school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20'
                         }`}>
                           {school.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                         </div>
-                        <div className="absolute bottom-0 right-0 h-6 w-6 bg-white rounded-full border-4 border-white shadow-sm"></div>
+                        <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-white rounded-full border-4 border-white shadow-sm flex items-center justify-center">
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        </div>
                       </div>
                       <div>
-                        <div className="flex items-center gap-3">
-                          <h4 className="text-xl font-black text-gray-900 tracking-tight">{school.name}</h4>
-                          <div className="h-7 w-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-[10px] font-black shadow-md shadow-blue-100">2</div>
+                        <div className="flex items-center gap-4">
+                          <h4 className="text-2xl font-serif italic text-ink tracking-tight">{school.name}</h4>
+                          <div className="h-8 w-8 bg-accent text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-xl shadow-accent/20">2</div>
                         </div>
-                        <p className="text-sm text-gray-400 font-medium tracking-wide mt-1 line-clamp-1">{school.description}</p>
+                        <p className="text-sm text-muted font-medium tracking-wide mt-1 line-clamp-1">{school.description}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       {userDoc?.role === 'admin' && (
                         <button 
                           onClick={() => {
                             setEditingSchool(school);
-                            setNewSchool({ name: school.name, description: school.description, logo: school.logo });
+                            setNewSchool({ name: school.name, description: school.description, logo: school.logo, type: school.type });
                             setIsSchoolModalOpen(true);
                           }}
-                          className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 transition-all"
+                          className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-muted hover:text-accent hover:bg-accent/5 transition-all"
                         >
-                          <Settings size={20} />
+                          <Settings size={22} />
                         </button>
                       )}
                       <button 
                         onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                        className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-all"
+                        className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-ink hover:bg-ink hover:text-white transition-all shadow-sm"
                       >
-                        <ChevronRight size={24} />
+                        <ChevronRight size={28} />
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-6">
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex items-center justify-center gap-3 py-4 bg-gray-50/50 rounded-2xl font-bold text-gray-900 hover:bg-gray-100 transition-all text-sm"
+                      className="flex items-center justify-center gap-4 py-5 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[11px] uppercase tracking-widest shadow-sm"
                     >
                       <BookOpen size={18} />
                       Records
                     </button>
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex items-center justify-center gap-3 py-4 bg-gray-50/50 rounded-2xl font-bold text-gray-900 hover:bg-gray-100 transition-all text-sm"
+                      className="flex items-center justify-center gap-4 py-5 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[11px] uppercase tracking-widest shadow-sm"
                     >
                       <Wallet size={18} />
                       Finance
@@ -1259,71 +1594,98 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="max-w-5xl mx-auto py-8 px-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-                  <BookOpen size={24} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-black text-gray-900 tracking-tight">{selectedSchool.name} Records</h2>
-                  <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Official student records</p>
-                </div>
+          <div className="max-w-6xl mx-auto py-12 px-8">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+              <div>
+                <motion.h2 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+                >
+                  {selectedSchool.name} Records
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+                >
+                  Official Student Information System
+                </motion.p>
               </div>
-              <button 
+              <motion.button 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => setIsRecordModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all"
+                className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
               >
-                <Plus size={18} />
+                <Plus size={20} />
                 Add Student Record
-              </button>
+              </motion.button>
             </div>
 
-            <div className="flex gap-2 mb-8 bg-white p-1.5 rounded-2xl border border-gray-100 shadow-sm w-fit">
+            <div className="flex gap-3 mb-10 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 w-fit">
               {(['general', 'books', 'uniforms'] as const).map(tab => (
                 <button 
                   key={tab}
                   onClick={() => setRecordTab(tab)}
-                  className={`px-6 py-2 rounded-xl text-sm font-bold capitalize transition-all ${recordTab === tab ? 'bg-blue-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                  className={`px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${recordTab === tab ? 'bg-white text-ink shadow-sm border border-gray-100' : 'text-muted hover:text-ink'}`}
                 >
                   {tab}
                 </button>
               ))}
             </div>
 
-            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[2.5rem] premium-shadow border border-gray-100 overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Student & Details</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Category</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Added By</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Paid</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Balance</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Actions</th>
+                    <tr className="bg-gray-50/50 border-b border-gray-100">
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Student & Details</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Category</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Added By</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Paid</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Balance</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {records.filter(r => r.type === recordTab).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-20 text-center">
-                          <div className="flex flex-col items-center gap-4 opacity-20">
-                            <Filter size={48} />
-                            <p className="font-bold">No records found for this category</p>
+                        <td colSpan={6} className="px-8 py-32 text-center">
+                          <div className="flex flex-col items-center gap-6 opacity-20">
+                            <Filter size={64} strokeWidth={1} />
+                            <p className="font-serif italic text-xl">No records found for this category</p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      records.filter(r => r.type === recordTab).map(record => (
-                        <tr key={record.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-6 py-4 font-bold text-gray-900 text-sm">{record.studentName}</td>
-                          <td className="px-6 py-4 text-sm text-gray-500">{record.category}</td>
-                          <td className="px-6 py-4 text-sm text-gray-500">{record.addedBy}</td>
-                          <td className="px-6 py-4 font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
-                          <td className="px-6 py-4 font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
-                          <td className="px-6 py-4"><button className="text-blue-600 hover:underline text-xs font-bold">Edit</button></td>
-                        </tr>
+                      records.filter(r => r.type === recordTab).map((record, idx) => (
+                        <motion.tr 
+                          key={record.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className="hover:bg-gray-50/50 transition-colors group"
+                        >
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
+                                {record.studentName.charAt(0)}
+                              </div>
+                              <span className="font-semibold text-ink text-sm">{record.studentName}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.category}</td>
+                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.addedBy}</td>
+                          <td className="px-8 py-6 font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
+                          <td className="px-8 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
+                          <td className="px-8 py-6">
+                            <button className="text-muted hover:text-ink transition-colors"><MoreHorizontal size={20} /></button>
+                          </td>
+                        </motion.tr>
                       ))
                     )}
                   </tbody>
@@ -1336,198 +1698,307 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="max-w-5xl mx-auto py-8 px-4">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-12 w-12 bg-blue-100 rounded-2xl flex items-center justify-center text-blue-600">
-                <Wallet size={24} />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">{selectedSchool.name} Finance</h2>
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Official institutional financial management</p>
-              </div>
+          <div className="max-w-6xl mx-auto py-12 px-8">
+            <div className="flex flex-col mb-12">
+              <motion.h2 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+              >
+                {selectedSchool.name} Finance
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+              >
+                Institutional Financial Terminal
+              </motion.p>
             </div>
 
-            <div className="bg-blue-600 rounded-[2.5rem] p-10 text-white shadow-2xl shadow-blue-200 mb-8 relative overflow-hidden">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-ink rounded-[3rem] p-12 text-white shadow-2xl shadow-ink/20 mb-12 relative overflow-hidden group"
+            >
               <div className="relative z-10">
-                <p className="text-blue-100 text-xs font-bold uppercase tracking-[0.2em] mb-2">Institution Balance</p>
-                <h3 className="text-5xl font-black tracking-tight mb-6">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
-                <div className="flex items-center gap-2 text-blue-100 text-[10px] font-medium bg-white/10 w-fit px-3 py-1.5 rounded-full backdrop-blur-sm">
-                  <AlertCircle size={12} />
-                  Balance is updated in real-time after verified payments.
+                <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.3em] mb-4">Institution Balance</p>
+                <h3 className="text-7xl font-mono font-medium tracking-tighter mb-8">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
+                <div className="flex items-center gap-3 text-white/60 text-[10px] font-bold uppercase tracking-widest bg-white/5 w-fit px-5 py-2.5 rounded-2xl backdrop-blur-md border border-white/10">
+                  <ShieldCheck size={14} className="text-green-400" />
+                  Verified & Encrypted
                 </div>
               </div>
-              <div className="absolute -right-10 -bottom-10 opacity-10">
-                <Wallet size={200} />
+              <div className="absolute -right-20 -bottom-20 opacity-5 group-hover:scale-110 transition-transform duration-1000">
+                <Wallet size={400} strokeWidth={1} />
               </div>
-            </div>
+              <div className="absolute top-0 right-0 p-12">
+                <div className="h-16 w-16 rounded-full border border-white/10 flex items-center justify-center">
+                  <ArrowUpRight size={32} className="text-white/20" />
+                </div>
+              </div>
+            </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-6">
-                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-                      <ShieldCheck size={20} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+              <div className="lg:col-span-1 space-y-8">
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-white p-10 rounded-[2.5rem] premium-shadow border border-gray-100"
+                >
+                  <div className="flex items-center gap-4 mb-8">
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink">
+                      <CreditCard size={24} />
                     </div>
-                    <h4 className="font-bold text-gray-900">Official Bank Account</h4>
+                    <h4 className="font-serif italic text-xl text-ink">Bank Details</h4>
                   </div>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Bank Name</p>
-                      <p className="font-bold text-gray-900 text-sm">{finance?.bankName || '---'}</p>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-2">Bank Name</p>
+                      <p className="font-bold text-ink text-sm">{finance?.bankName || '---'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Account Number</p>
-                      <p className="font-bold text-gray-900 text-sm tracking-widest">{finance?.accountNumber || '---'}</p>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-2">Account Number</p>
+                      <p className="font-mono font-bold text-ink text-lg tracking-widest">{finance?.accountNumber || '---'}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Account Name</p>
-                      <p className="font-bold text-gray-900 text-sm">{finance?.accountName || '---'}</p>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-2">Account Name</p>
+                      <p className="font-bold text-ink text-sm">{finance?.accountName || '---'}</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </div>
 
               <div className="lg:col-span-2">
-                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm h-full">
-                  <h4 className="font-bold text-gray-900 mb-6">Payment History</h4>
-                  <div className="flex flex-col items-center justify-center py-20 opacity-20">
-                    <MessageSquare size={48} />
-                    <p className="font-bold mt-4">No transaction history found.</p>
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="bg-white p-10 rounded-[2.5rem] premium-shadow border border-gray-100 h-full"
+                >
+                  <div className="flex items-center justify-between mb-10">
+                    <h4 className="font-serif italic text-xl text-ink">Transaction History</h4>
+                    <button className="p-3 bg-gray-50 rounded-xl text-muted hover:text-ink transition-all"><Filter size={18} /></button>
                   </div>
-                </div>
+                  <div className="flex flex-col items-center justify-center py-24 opacity-20">
+                    <MessageSquare size={64} strokeWidth={1} />
+                    <p className="font-serif italic text-xl mt-6">No transaction history found</p>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </div>
         );
       case 'ai':
         return (
-          <div className="flex flex-col h-full max-w-4xl mx-auto py-8 px-4">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-12 w-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-100">
-                <Cpu size={24} />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Exona AI</h2>
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Your intelligent school assistant</p>
-              </div>
+          <div className="flex flex-col h-full max-w-5xl mx-auto py-12 px-8">
+            <div className="flex flex-col mb-12">
+              <motion.h2 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+              >
+                Exona AI
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+              >
+                Intelligent Institutional Intelligence
+              </motion.p>
             </div>
 
-            <div className="flex-1 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex-1 bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden flex flex-col"
+            >
+              <div className="flex-1 overflow-y-auto p-10 space-y-8">
                 {aiMessages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-30">
-                    <Cpu size={64} className="mb-4" />
-                    <h3 className="text-xl font-bold">How can I help you today?</h3>
-                    <p className="text-sm">Ask me about student records, school fees, or anything else about Exona.</p>
+                  <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-20">
+                    <Cpu size={80} strokeWidth={1} className="mb-8" />
+                    <h3 className="font-serif italic text-2xl text-ink mb-4">How can I assist you?</h3>
+                    <p className="text-sm font-medium max-w-sm">Inquire about student records, financial status, or institutional policies. I am here to provide precision data.</p>
                   </div>
                 )}
                 {aiMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium ${
-                      msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-gray-100 text-gray-800 rounded-tl-none'
+                  <motion.div 
+                    key={i} 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`max-w-[75%] p-6 rounded-[2rem] text-sm font-medium leading-relaxed ${
+                      msg.role === 'user' ? 'bg-ink text-white rounded-tr-none' : 'bg-gray-50 text-ink rounded-tl-none border border-gray-100'
                     }`}>
                       {msg.text}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
                 {isAiTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-gray-100 p-4 rounded-2xl rounded-tl-none flex gap-1">
-                      <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-                      <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="h-1.5 w-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                    <div className="bg-gray-50 p-6 rounded-[2rem] rounded-tl-none flex gap-1.5 border border-gray-100">
+                      <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce"></span>
+                      <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                      <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.4s]"></span>
                     </div>
                   </div>
                 )}
               </div>
-              <div className="p-4 border-t border-gray-50 flex gap-2">
+              <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex gap-4">
                 <input 
                   type="text" 
                   value={aiInput}
                   onChange={(e) => setAiInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
-                  placeholder="Ask Exona AI..." 
-                  className="flex-1 px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                  placeholder="Inquire with Exona AI..." 
+                  className="flex-1 px-8 py-5 bg-white rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 transition-all text-sm font-semibold premium-shadow border border-gray-100"
                 />
                 <button 
                   onClick={handleAiSend}
                   disabled={!aiInput.trim() || isAiTyping}
-                  className="p-4 bg-blue-600 text-white rounded-2xl shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                  className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center shadow-xl shadow-ink/10 hover:scale-105 transition-transform disabled:opacity-50"
                 >
-                  <Plus size={20} className="rotate-45" />
+                  <Send size={24} />
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
         );
       case 'penalty':
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-12 w-12 bg-red-100 rounded-2xl flex items-center justify-center text-red-600">
-                <AlertCircle size={24} />
-              </div>
-              <div>
-                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Penalty Board</h2>
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Disciplinary records and notices</p>
-              </div>
+          <div className="max-w-4xl mx-auto py-12 px-8">
+            <div className="flex flex-col mb-12">
+              <motion.h2 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+              >
+                Penalty Board
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+              >
+                Disciplinary Records & Notices
+              </motion.p>
             </div>
-            <div className="bg-white p-12 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
-              <div className="h-20 w-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ShieldCheck size={40} />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white p-16 rounded-[3rem] premium-shadow border border-gray-100 text-center"
+            >
+              <div className="h-24 w-24 bg-green-50 text-green-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-sm">
+                <ShieldCheck size={48} strokeWidth={1.5} />
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">Clean Record</h3>
-              <p className="text-gray-500 text-sm font-medium">You have no active penalties or disciplinary notices. Keep it up!</p>
-            </div>
+              <h3 className="font-serif italic text-3xl text-ink mb-4">Exemplary Record</h3>
+              <p className="text-muted text-sm font-medium max-w-sm mx-auto leading-relaxed">
+                You have no active penalties or disciplinary notices. Your commitment to institutional standards is noted and appreciated.
+              </p>
+            </motion.div>
           </div>
         );
       case 'profile':
         if (!user) { setView('login'); return null; }
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4">
-            <h2 className="text-2xl font-black text-gray-900 mb-8 tracking-tight">My Profile</h2>
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-              <div className="h-32 bg-gradient-to-r from-blue-600 to-blue-400"></div>
-              <div className="px-8 pb-8">
-                <div className="relative -mt-12 mb-6">
-                  <div className="h-24 w-24 rounded-3xl bg-white p-1 shadow-xl">
-                    <div className="h-full w-full rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black text-3xl overflow-hidden">
-                      {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
+          <div className="max-w-4xl mx-auto py-12 px-8">
+            <div className="flex flex-col mb-12">
+              <motion.h2 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+              >
+                Institutional Profile
+              </motion.h2>
+              <motion.p 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+              >
+                Personal Identity & Credentials
+              </motion.p>
+            </div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden"
+            >
+              <div className="h-48 bg-ink relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent"></div>
+                <div className="absolute inset-0 overflow-hidden opacity-10">
+                  <div className="absolute top-0 right-0 h-64 w-64 bg-white blur-3xl rounded-full -mr-32 -mt-32"></div>
+                </div>
+              </div>
+              <div className="px-12 pb-12">
+                <div className="relative -mt-20 mb-8">
+                  <div className="h-40 w-40 rounded-[2.5rem] bg-white p-2 shadow-2xl">
+                    <div className="h-full w-full rounded-[2rem] bg-gray-50 flex items-center justify-center text-ink font-serif italic text-6xl overflow-hidden border border-gray-100">
+                      {user?.photoURL ? <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
                     </div>
                   </div>
                 </div>
-                <h3 className="text-2xl font-black text-gray-900">{user?.displayName}</h3>
-                <p className="text-gray-500 font-medium mb-8">{user?.email}</p>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Role</p>
-                    <p className="font-bold text-gray-900 capitalize">{userDoc?.role || 'Student'}</p>
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                  <div>
+                    <h3 className="text-4xl font-serif italic text-ink mb-2">{user?.displayName}</h3>
+                    <p className="text-muted font-bold text-sm tracking-wide">{user?.email}</p>
                   </div>
-                  <div className="p-4 bg-gray-50 rounded-2xl">
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">School ID</p>
-                    <p className="font-bold text-gray-900">{userDoc?.schoolId || 'EX-2024-001'}</p>
+                  <div className="flex gap-3">
+                    <button className="px-8 py-3.5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all">Edit Profile</button>
                   </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
+                  {[
+                    { label: 'Institutional Role', value: userDoc?.role || 'Student', icon: ShieldCheck },
+                    { label: 'Identification ID', value: userDoc?.schoolId || 'EX-2024-001', icon: Fingerprint },
+                    { label: 'Account Status', value: 'Verified', icon: BadgeCheck }
+                  ].map((item, i) => (
+                    <div key={i} className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
+                      <div className="flex items-center gap-3 mb-3 text-muted">
+                        <item.icon size={16} />
+                        <p className="text-[10px] font-bold uppercase tracking-widest">{item.label}</p>
+                      </div>
+                      <p className="font-bold text-ink text-lg">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="mt-12 pt-8 border-t border-gray-100">
-                  <h4 className="text-sm font-black text-red-600 uppercase tracking-widest mb-4">Danger Zone</h4>
-                  <p className="text-xs text-gray-500 mb-6 font-medium leading-relaxed">
-                    Once you delete your account, there is no going back. All your data will be permanently removed from Exona.
-                  </p>
-                  <button 
-                    onClick={() => {
-                      setAuthError(null);
-                      setIsDeleteModalOpen(true);
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-all text-sm"
-                  >
-                    <AlertCircle size={18} />
-                    Delete My Account
-                  </button>
+                <div className="mt-16 pt-12 border-t border-gray-100">
+                  <div className="flex items-center gap-3 mb-6">
+                    <AlertTriangle size={20} className="text-red-500" />
+                    <h4 className="text-xs font-bold text-red-600 uppercase tracking-[0.3em]">Security Protocol</h4>
+                  </div>
+                  <div className="bg-red-50/50 rounded-3xl p-8 border border-red-100/50">
+                    <p className="text-sm text-red-900/60 mb-8 font-medium leading-relaxed max-w-2xl">
+                      Account termination is an irreversible procedure. All institutional records, financial history, and community interactions associated with this identity will be permanently purged from the Exona mainframe.
+                    </p>
+                    <button 
+                      onClick={() => {
+                        setAuthError(null);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all text-xs uppercase tracking-widest shadow-xl shadow-red-100"
+                    >
+                      Terminate Account
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         );
       default: return null;
@@ -1536,44 +2007,52 @@ function ExonaApp() {
 
   if (view === 'splash') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-[#000] text-white overflow-hidden relative">
-        {/* Subtle background glow */}
+      <div className="flex h-screen flex-col items-center justify-center bg-ink text-white overflow-hidden relative">
+        {/* Immersive background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 blur-[150px] rounded-full"></div>
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-accent/10 blur-[120px] rounded-full animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/5 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
         </div>
         
         <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }} 
-          animate={{ scale: 1, opacity: 1 }} 
-          transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          transition={{ duration: 2 }}
           className="relative z-10 flex flex-col items-center"
         >
-          <motion.h1 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
-            transition={{ delay: 0.2, duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-            className="text-4xl font-light tracking-[0.25em] uppercase text-white/90"
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+            className="flex flex-col items-center"
           >
-            Exona
-          </motion.h1>
+            <h1 className="text-7xl font-serif italic tracking-tighter text-white mb-2">Exona</h1>
+            <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent mb-8"></div>
+          </motion.div>
           
-          <div className="relative mt-10 w-48 h-[1px] bg-white/10 overflow-hidden rounded-full">
-            <motion.div 
-              initial={{ x: '-100%' }} 
-              animate={{ x: '100%' }} 
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500 to-transparent"
-            />
-          </div>
-          
-          <motion.p 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 0.3 }} 
-            transition={{ delay: 1.5, duration: 1 }}
-            className="mt-8 text-[9px] font-black uppercase tracking-[0.5em] text-white"
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8, duration: 1 }}
+            className="flex flex-col items-center"
           >
-            Mastering Education
-          </motion.p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.6em] text-white/40 mb-12">Mastering Education</p>
+            
+            <div className="flex items-center gap-3">
+              <div className="h-1 w-1 bg-white/20 rounded-full animate-bounce"></div>
+              <div className="h-1 w-1 bg-white/40 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="h-1 w-1 bg-white/20 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.2 }}
+          transition={{ delay: 2, duration: 1 }}
+          className="absolute bottom-12 text-[9px] font-mono tracking-widest uppercase"
+        >
+          System Initializing v4.0.2
         </motion.div>
       </div>
     );
@@ -1584,11 +2063,18 @@ function ExonaApp() {
   if (view === 'login') {
     if (verificationSent || (user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password'))) {
       return (
-        <div className="flex h-screen flex-col items-center justify-center bg-gray-50 p-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200 p-12 border border-gray-100 text-center">
-            <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl mb-10 mx-auto shadow-xl shadow-blue-100">Ex</div>
-            <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Verify your email</h2>
-            <p className="text-gray-500 font-medium mb-10">We've sent a verification link to <b>{user?.email || email}</b>. Please check your inbox and click the link to continue.</p>
+        <div className="flex h-screen flex-col items-center justify-center bg-paper p-6 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02)_0%,transparent_50%)]"></div>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center relative z-10"
+          >
+            <div className="h-20 w-20 bg-ink text-white rounded-[2rem] flex items-center justify-center font-serif italic text-4xl mb-10 mx-auto shadow-2xl shadow-ink/20">Ex</div>
+            <h2 className="text-4xl font-serif italic text-ink mb-4 tracking-tight">Verify Identity</h2>
+            <p className="text-muted font-medium mb-10 leading-relaxed">
+              An authentication link has been dispatched to <span className="text-ink font-bold">{user?.email || email}</span>. Please authorize via your inbox to proceed.
+            </p>
             <div className="space-y-4">
               <button 
                 onClick={async () => {
@@ -1600,22 +2086,22 @@ function ExonaApp() {
                       setUser(auth.currentUser);
                       setView('feed');
                     } else {
-                      setAuthError('Email not verified yet. Please check your inbox.');
+                      setAuthError('Identity not yet verified. Please check your secure inbox.');
                     }
                   }
                 }} 
-                className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all"
+                className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
               >
-                I've Verified
+                Confirm Verification
               </button>
               <button 
                 onClick={() => {
                   setVerificationSent(false);
                   signOut(auth);
                 }} 
-                className="w-full py-5 bg-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                className="w-full py-5 bg-gray-50 text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100"
               >
-                Back to Sign In
+                Return to Portal
               </button>
             </div>
           </motion.div>
@@ -1624,86 +2110,116 @@ function ExonaApp() {
     }
 
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-gray-50 p-6 overflow-y-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl shadow-gray-200 p-10 border border-gray-100 my-8">
-          <div className="h-16 w-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-3xl mb-8 shadow-xl shadow-blue-100">Ex</div>
-          <h2 className="text-3xl font-black text-gray-900 mb-2 tracking-tight">
-            {authMode === 'signin' ? 'Welcome Back' : 'Create Account'}
-          </h2>
-          <p className="text-gray-500 font-medium mb-8">
-            {authMode === 'signin' ? 'Modernizing how schools operate and learn.' : 'Join the modern school management platform.'}
-          </p>
+      <div className="flex h-screen flex-col items-center justify-center bg-paper p-6 overflow-y-auto relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02)_0%,transparent_50%)]"></div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="w-full max-w-md bg-white rounded-[3.5rem] premium-shadow p-12 md:p-16 border border-gray-100 my-8 relative overflow-hidden z-10"
+        >
+          <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
+            <ShieldCheck size={200} strokeWidth={1} />
+          </div>
+          
+          <div className="h-20 w-20 bg-ink text-white rounded-[2rem] flex items-center justify-center font-serif italic text-4xl mb-12 shadow-2xl shadow-ink/20">Ex</div>
+          
+          <div className="mb-12">
+            <h2 className="text-5xl font-serif italic text-ink mb-4 tracking-tight leading-tight">
+              {authMode === 'signin' ? 'Institutional Access' : 'Establish Identity'}
+            </h2>
+            <p className="text-muted font-medium text-sm leading-relaxed max-w-[280px]">
+              {authMode === 'signin' ? 'Enter the Exona mainframe to manage your academic and social presence.' : 'Join the next generation of institutional management and community.'}
+            </p>
+          </div>
 
           {authError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-2">
-              <AlertCircle size={16} />
+            <motion.div 
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="mb-8 p-5 bg-red-50 border border-red-100 rounded-3xl text-red-600 text-[11px] font-bold flex items-center gap-3"
+            >
+              <AlertCircle size={18} />
               {authError}
-            </div>
+            </motion.div>
           )}
 
-          <div className="space-y-4 mb-8">
+          <div className="space-y-6 mb-10">
             {authMode === 'signup' && (
-              <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Full Name</label>
+              <div className="group">
+                <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Full Name</label>
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                  placeholder="Alexander Pierce"
+                  className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
                 />
               </div>
             )}
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Email Address</label>
+            <div className="group">
+              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Credential Email</label>
               <input 
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@school.com"
-                className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                placeholder="name@institution.edu"
+                className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
               />
             </div>
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Password</label>
+            <div className="group">
+              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Security Key</label>
               <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                placeholder="••••••••••••"
+                className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
               />
             </div>
           </div>
 
           <button 
             onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
-            className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all mb-6"
+            className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all mb-8 active:scale-[0.98]"
           >
-            {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+            {authMode === 'signin' ? 'Authorize Access' : 'Initialize Account'}
           </button>
 
-          <div className="relative mb-8">
+          <div className="relative mb-10">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-[10px] uppercase font-black text-gray-400 tracking-widest"><span className="bg-white px-4">Or continue with</span></div>
+            <div className="relative flex justify-center text-[9px] uppercase font-bold text-muted tracking-[0.4em]"><span className="bg-white px-6">Third-Party Gateway</span></div>
           </div>
 
-          <button onClick={handleGoogleSignIn} className="w-full py-4 bg-white border border-gray-100 text-gray-700 rounded-2xl font-bold shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-3 mb-8">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" /> Google
+          <button 
+            onClick={handleGoogleSignIn} 
+            className="w-full py-5 bg-white border border-gray-100 text-ink rounded-[2rem] font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-4 mb-10 active:scale-[0.98]"
+          >
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" />
+            Continue with Google
           </button>
 
-          <p className="text-center text-sm text-gray-500 font-medium">
-            {authMode === 'signin' ? "Don't have an account?" : "Already have an account?"}{' '}
+          <p className="text-center text-[11px] text-muted font-bold uppercase tracking-widest">
+            {authMode === 'signin' ? "New to the mainframe?" : "Already registered?"}{' '}
             <button 
               onClick={() => {
                 setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
                 setAuthError(null);
               }} 
-              className="text-blue-600 font-bold hover:underline"
+              className="text-ink hover:underline underline-offset-4 decoration-ink/20"
             >
-              {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
+              {authMode === 'signin' ? 'Create Identity' : 'Sign In'}
             </button>
           </p>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1 }}
+          className="mt-12 text-[10px] font-mono text-muted uppercase tracking-[0.5em] text-center"
+        >
+          Secure Institutional Network • v4.0.2
         </motion.div>
       </div>
     );
@@ -1716,47 +2232,51 @@ function ExonaApp() {
         {isDeleteModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-6"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[2.5rem] shadow-2xl p-10"
+              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100"
             >
-              <div className="h-16 w-16 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 mb-6">
-                <AlertCircle size={32} />
+              <div className="h-20 w-20 bg-red-50 rounded-[1.5rem] flex items-center justify-center text-red-600 mb-8 shadow-xl shadow-red-100">
+                <AlertTriangle size={32} />
               </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-2 tracking-tight">Delete Account?</h3>
-              <p className="text-gray-500 font-medium mb-8 leading-relaxed">
-                This action is permanent and cannot be undone. Are you absolutely sure you want to delete your Exona account?
+              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Terminate Identity?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">
+                This protocol is permanent and cannot be reversed. Are you absolutely certain you wish to purge your Exona identity from the mainframe?
               </p>
 
               {authError && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs font-bold flex items-center gap-2">
-                  <AlertCircle size={16} />
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="mb-8 p-5 bg-red-50 border border-red-100 rounded-3xl text-red-600 text-[11px] font-bold flex items-center gap-3"
+                >
+                  <AlertCircle size={18} />
                   {authError}
-                </div>
+                </motion.div>
               )}
 
               {user?.providerData.some(p => p.providerId === 'password') && (
-                <div className="mb-8">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-2">Enter Password to Confirm</label>
+                <div className="mb-10">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Security Key Confirmation</label>
                   <input 
                     type="password" 
                     value={deletePassword}
                     onChange={(e) => setDeletePassword(e.target.value)}
-                    placeholder="Your password"
-                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-red-500 transition-all text-sm font-medium"
+                    placeholder="Enter key to authorize"
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-red-500/10 focus:bg-white border border-transparent focus:border-red-100 transition-all text-sm font-medium"
                   />
                 </div>
               )}
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <button 
                   onClick={handleDeleteAccount}
                   disabled={isDeleting}
-                  className="w-full py-4 bg-red-600 text-white rounded-2xl font-black shadow-xl shadow-red-100 hover:bg-red-700 disabled:opacity-50 transition-all"
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
-                  {isDeleting ? 'Deleting...' : 'Yes, Delete My Account'}
+                  {isDeleting ? 'Purging...' : 'Confirm Termination'}
                 </button>
                 <button 
                   onClick={() => {
@@ -1765,9 +2285,9 @@ function ExonaApp() {
                     setAuthError(null);
                   }}
                   disabled={isDeleting}
-                  className="w-full py-4 bg-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-200 disabled:opacity-50 transition-all"
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 disabled:opacity-50 transition-all border border-gray-100"
                 >
-                  Cancel
+                  Abort Protocol
                 </button>
               </div>
             </motion.div>
@@ -1777,73 +2297,88 @@ function ExonaApp() {
         {isPostModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 bg-ink/20 backdrop-blur-md z-[100] flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-8"
+              className="w-full max-w-2xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black text-gray-900">{editingPost ? 'Edit Post' : 'Create New Post'}</h3>
-                <button onClick={() => setIsPostModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">{editingPost ? 'Refine Broadcast' : 'Initialize Broadcast'}</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Horizon Network Transmission</p>
+                </div>
+                <button 
+                  onClick={() => setIsPostModalOpen(false)} 
+                  className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"
+                >
+                  <X size={20} />
+                </button>
               </div>
+              
               <textarea 
                 value={newPostContent}
                 onChange={(e) => setNewPostContent(e.target.value)}
                 placeholder="What's happening in your school?"
-                className="w-full h-40 p-6 bg-gray-50 rounded-3xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium resize-none mb-4"
+                className="w-full h-56 p-8 bg-gray-50 rounded-[2.5rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-lg font-medium resize-none mb-6 placeholder:text-gray-300 leading-relaxed"
               />
 
-              {selectedFile && previewUrl && (
-                <div className="mb-4 bg-gray-50 rounded-3xl overflow-hidden border border-gray-100 relative group">
-                  {selectedFile.type.startsWith('image/') ? (
-                    <img src={previewUrl} className="w-full h-48 object-cover" />
+              {previewUrl && (
+                <div className="mb-8 bg-gray-50 rounded-[2.5rem] overflow-hidden border border-gray-100 relative group premium-shadow">
+                  {/* Try to determine media type from selectedFile or editingPost */}
+                  {(selectedFile?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedFile)) ? (
+                    <img src={previewUrl} className="w-full h-64 object-cover" />
                   ) : (
-                    <video src={previewUrl} className="w-full h-48 object-cover" />
+                    <video src={previewUrl} className="w-full h-64 object-cover" />
                   )}
                   <button 
-                    onClick={() => setSelectedFile(null)} 
-                    className="absolute top-4 right-4 h-10 w-10 bg-white/80 backdrop-blur-md text-gray-900 rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all"
+                    onClick={() => { setSelectedFile(null); setPreviewUrl(null); }} 
+                    className="absolute top-6 right-6 h-12 w-12 bg-white/90 backdrop-blur-md text-ink rounded-2xl flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90"
                   >
                     <X size={20} />
                   </button>
                   {isUploading && (
-                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-8">
-                      <div className="w-full bg-white/20 h-2 rounded-full overflow-hidden mb-2">
+                    <div className="absolute inset-0 bg-ink/60 backdrop-blur-sm flex flex-col items-center justify-center p-12">
+                      <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden mb-4 max-w-xs">
                         <motion.div 
                           initial={{ width: 0 }}
                           animate={{ width: `${uploadProgress}%` }}
                           className="h-full bg-white"
                         />
                       </div>
-                      <p className="text-white text-xs font-black uppercase tracking-widest">{Math.round(uploadProgress)}% Uploaded</p>
+                      <p className="text-white text-[10px] font-bold uppercase tracking-[0.4em]">{Math.round(uploadProgress)}% Transmission Complete</p>
                     </div>
                   )}
                 </div>
               )}
 
               <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  <label className="p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 cursor-pointer transition-all">
-                    <ImageIcon size={20} />
+                <div className="flex gap-3">
+                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90">
+                    <ImageIcon size={22} />
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
                   </label>
-                  <label className="p-3 bg-gray-50 text-gray-500 rounded-xl hover:bg-gray-100 cursor-pointer transition-all">
-                    <VideoIcon size={20} />
+                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90">
+                    <VideoIcon size={22} />
                     <input type="file" accept="video/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
                   </label>
                 </div>
                 <button 
                   onClick={handleCreatePost}
                   disabled={!newPostContent.trim() || isUploading}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-2"
+                  className="px-12 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] shadow-2xl shadow-ink/20 hover:bg-ink/90 disabled:opacity-50 transition-all flex items-center gap-3 active:scale-[0.98]"
                 >
                   {isUploading ? (
                     <>
                       <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                      {editingPost ? 'Saving...' : 'Uploading...'}
+                      {editingPost ? 'Synchronizing...' : 'Transmitting...'}
                     </>
-                  ) : (editingPost ? 'Save Changes' : 'Post to Horizon')}
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      {editingPost ? 'Update Broadcast' : 'Post to Horizon'}
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -1853,33 +2388,33 @@ function ExonaApp() {
         {isDeletePostModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-sm bg-white rounded-[2.5rem] shadow-2xl p-8 text-center"
+              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
             >
-              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Trash2 size={40} />
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+                <Trash2 size={32} />
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">Delete Post?</h3>
-              <p className="text-gray-500 text-sm font-medium mb-8">This action cannot be undone. Are you sure you want to remove this post?</p>
+              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Retract Broadcast?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove the transmission from the Horizon network. Are you sure?</p>
               
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4">
                 <button 
                   onClick={handleDeletePost}
-                  className="w-full py-4 bg-red-600 text-white rounded-2xl font-black shadow-xl shadow-red-100 hover:bg-red-700 transition-all"
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 transition-all active:scale-[0.98]"
                 >
-                  Yes, Delete Post
+                  Confirm Retraction
                 </button>
                 <button 
                   onClick={() => {
                     setIsDeletePostModalOpen(false);
                     setPostToDelete(null);
                   }}
-                  className="w-full py-4 bg-gray-100 text-gray-900 rounded-2xl font-black hover:bg-gray-200 transition-all"
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100"
                 >
-                  Cancel
+                  Abort
                 </button>
               </div>
             </motion.div>
@@ -1889,65 +2424,70 @@ function ExonaApp() {
         {isRecordModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-8"
+              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black text-gray-900">Add {recordTab} Record</h3>
-                <button onClick={() => setIsRecordModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
-              </div>
-              <div className="space-y-4">
+              <div className="flex items-center justify-between mb-10">
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Student Name</label>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">Add {recordTab} Record</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
+                </div>
+                <button onClick={() => setIsRecordModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-6">
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Student Name</label>
                   <input 
                     type="text" 
                     value={newRecord.studentName}
                     onChange={(e) => setNewRecord({...newRecord, studentName: e.target.value})}
-                    placeholder="Full Name"
-                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                    placeholder="Full Legal Name"
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Category/Class</label>
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Category/Class</label>
                   <input 
                     type="text" 
                     value={newRecord.category}
                     onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
                     placeholder="e.g. JSS1, SS3"
-                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Paid (₦)</label>
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="group">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Paid (₦)</label>
                     <input 
                       type="number" 
                       value={newRecord.paid}
                       onChange={(e) => setNewRecord({...newRecord, paid: Number(e.target.value)})}
-                      className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                      className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                     />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Balance (₦)</label>
+                  <div className="group">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Balance (₦)</label>
                     <input 
                       type="number" 
                       value={newRecord.balance}
                       onChange={(e) => setNewRecord({...newRecord, balance: Number(e.target.value)})}
-                      className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                      className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                     />
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end mt-8">
+              <div className="flex justify-end mt-12">
                 <button 
                   onClick={handleCreateRecord}
                   disabled={!newRecord.studentName.trim()}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
-                  Save Record
+                  Synchronize Record
                 </button>
               </div>
             </motion.div>
@@ -1957,28 +2497,33 @@ function ExonaApp() {
         {isSchoolModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl p-8"
+              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-black text-gray-900">{editingSchool ? 'Edit Institution' : 'Add New Institution'}</h3>
-                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="text-gray-400 hover:text-gray-600"><X /></button>
-              </div>
-              <div className="space-y-4">
+              <div className="flex items-center justify-between mb-10">
                 <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Type</label>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Register Institution'}</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Global Network Expansion</p>
+                </div>
+                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Classification</label>
                   <div className="grid grid-cols-2 gap-4">
                     {['school', 'place'].map((t) => (
                       <button
                         key={t}
                         onClick={() => setNewSchool({ ...newSchool, type: t as any })}
-                        className={`py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                        className={`py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                           newSchool.type === t 
-                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
-                            : 'bg-gray-50 text-gray-400 border border-transparent'
+                            ? 'bg-ink text-white shadow-xl shadow-ink/10' 
+                            : 'bg-gray-50 text-muted border border-transparent hover:bg-gray-100'
                         }`}
                       >
                         {t}
@@ -1986,43 +2531,43 @@ function ExonaApp() {
                     ))}
                   </div>
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Institution Name</label>
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Institution Name</label>
                   <input 
                     type="text" 
                     value={newSchool.name}
                     onChange={(e) => setNewSchool({...newSchool, name: e.target.value})}
                     placeholder="e.g. Horizon International"
-                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Description</label>
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Description</label>
                   <textarea 
                     value={newSchool.description}
                     onChange={(e) => setNewSchool({...newSchool, description: e.target.value})}
-                    placeholder="Brief description of the school..."
-                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium resize-none h-24"
+                    placeholder="Brief institutional overview..."
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium resize-none h-32 leading-relaxed"
                   />
                 </div>
-                <div>
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Logo URL (Optional)</label>
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Visual Identity URL</label>
                   <input 
                     type="text" 
                     value={newSchool.logo}
                     onChange={(e) => setNewSchool({...newSchool, logo: e.target.value})}
                     placeholder="https://..."
-                    className="w-full px-6 py-4 bg-gray-50 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                   />
                 </div>
               </div>
-              <div className="flex justify-end mt-8">
+              <div className="flex justify-end mt-12">
                 <button 
                   onClick={handleCreateSchool}
                   disabled={!newSchool.name.trim()}
-                  className="px-8 py-3 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
-                  {editingSchool ? 'Update' : 'Register'}
+                  {editingSchool ? 'Synchronize Updates' : 'Authorize Registration'}
                 </button>
               </div>
             </motion.div>
@@ -2032,63 +2577,84 @@ function ExonaApp() {
         {isCommentModalOpen && activePostForComments && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[80vh]"
+              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow flex flex-col max-h-[85vh] border border-gray-100"
             >
-              <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-                <h3 className="text-xl font-black text-gray-900">Comments</h3>
-                <button onClick={() => setIsCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X /></button>
+              <div className="p-10 border-b border-gray-50 flex items-center justify-between">
+                <div>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">Broadcast Replies</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Community Interactions</p>
+                </div>
+                <button onClick={() => setIsCommentModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
               </div>
               
-              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+              <div className="flex-1 overflow-y-auto p-10 space-y-10">
                 {postComments.length === 0 ? (
-                  <div className="text-center py-12">
-                    <MessageCircle size={48} className="mx-auto text-gray-100 mb-4" />
-                    <p className="text-gray-400 font-medium">No comments yet. Be the first to reply!</p>
+                  <div className="text-center py-20 opacity-20">
+                    <MessageCircle size={64} strokeWidth={1} className="mx-auto mb-6" />
+                    <p className="font-serif italic text-xl">No replies yet. Start the conversation.</p>
                   </div>
                 ) : (
                   postComments.map(comment => (
-                    <div key={comment.id} className="flex gap-4">
-                      {comment.authorPhoto ? (
-                        <img src={comment.authorPhoto} className="h-8 w-8 rounded-full" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-[10px]">
-                          {comment.authorName?.charAt(0)}
+                    <div key={comment.id} className="flex gap-6 group">
+                      <div className="relative">
+                        {comment.authorPhoto ? (
+                          <img src={comment.authorPhoto} className="h-14 w-14 rounded-2xl object-cover shadow-sm border border-gray-100" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-serif italic text-2xl border border-accent/10">
+                            {comment.authorName?.charAt(0)}
+                          </div>
+                        )}
+                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                         </div>
-                      )}
+                      </div>
                       <div className="flex-1">
-                        <div className="bg-gray-50 rounded-2xl p-4">
-                          <p className="text-xs font-black text-gray-900 mb-1">{comment.authorName}</p>
-                          <p className="text-sm text-gray-600 leading-relaxed">{comment.text}</p>
+                        <div className="bg-gray-50/50 rounded-[2rem] p-8 border border-gray-100 group-hover:bg-white group-hover:premium-shadow transition-all duration-500">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-[15px] font-bold text-ink tracking-tight">{comment.authorName}</p>
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                              {comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                            </p>
+                          </div>
+                          <p className="text-[14px] text-ink/70 leading-relaxed font-medium">{comment.text}</p>
                         </div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 ml-2">
-                          {comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
-                        </p>
+                        <div className="flex items-center gap-6 mt-4 ml-6">
+                          <button className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors">Approve</button>
+                          <button className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors">Reply</button>
+                        </div>
                       </div>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="p-8 border-t border-gray-50 bg-gray-50/50">
-                <div className="flex gap-4">
-                  <input 
-                    type="text" 
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Write a comment..."
-                    className="flex-1 px-6 py-4 bg-white rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-medium"
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                  />
+              <div className="p-10 border-t border-gray-100 bg-white">
+                <div className="flex gap-5 items-center">
+                  <div className="flex-1 relative group">
+                    <input 
+                      type="text" 
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      placeholder="Share your perspective..."
+                      className="w-full pl-10 pr-20 py-6 bg-gray-50 rounded-[2rem] border border-transparent outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-100 transition-all text-[15px] font-medium placeholder:text-gray-300"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                    />
+                    <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                      <button className="p-2 text-muted hover:text-accent transition-colors"><Smile size={20} /></button>
+                    </div>
+                  </div>
                   <button 
                     onClick={handleAddComment}
                     disabled={!commentText.trim()}
-                    className="h-14 w-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all"
+                    className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90"
                   >
-                    <Send size={20} />
+                    <Send size={24} />
                   </button>
                 </div>
               </div>
@@ -2101,50 +2667,64 @@ function ExonaApp() {
       <AnimatePresence>
         {(sidebarOpen || window.innerWidth >= 1024) && (
           <motion.aside 
-            initial={{ x: -300 }} animate={{ x: 0 }} exit={{ x: -300 }}
-            className="fixed lg:static inset-y-0 left-0 w-72 bg-white border-r border-gray-100 z-50 flex flex-col"
+            initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }}
+            className="fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-gray-100 z-50 flex flex-col premium-shadow lg:shadow-none"
           >
-            <div className="p-8 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black">Ex</div>
-                <span className="font-black text-xl tracking-tight">Exona</span>
+            <div className="p-10 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 bg-ink rounded-2xl flex items-center justify-center text-white font-serif italic text-2xl shadow-2xl shadow-ink/20">H</div>
+                <div>
+                  <h1 className="text-2xl font-serif italic text-ink tracking-tighter leading-none">Horizon</h1>
+                  <p className="text-[9px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Intelligence</p>
+                </div>
               </div>
-              <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-400"><X /></button>
+              <button onClick={() => setSidebarOpen(false)} className="lg:hidden h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"><X size={20} /></button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 space-y-8 pb-8">
-              <div className="space-y-1">
-                <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Main Menu</p>
-                <SidebarItem icon={Home} label="Horizon Feed" active={view === 'feed'} onClick={() => { setView('feed'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Users} label="Friends" badge="12" />
-                <SidebarItem icon={Cpu} label="Exona AI" active={view === 'ai'} onClick={() => { setView('ai'); setSidebarOpen(false); }} />
+            <div className="flex-1 overflow-y-auto px-6 space-y-12 pb-10">
+              <div className="space-y-2">
+                <p className="px-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">Horizon Network</p>
+                <SidebarItem icon={LayoutGrid} label="Main Feed" active={view === 'feed'} onClick={() => { setView('feed'); setSidebarOpen(false); }} />
+                <SidebarItem icon={GraduationCap} label="Institutions" active={view === 'schools' || (view === 'schools' && !selectedSchool)} onClick={() => { setView('schools'); setSidebarOpen(false); }} />
+                <SidebarItem icon={Database} label="Data Records" active={view === 'records'} onClick={() => { setView('records'); setSidebarOpen(false); }} />
+                <SidebarItem icon={Sparkles} label="Horizon AI" active={view === 'ai'} onClick={() => { setView('ai'); setSidebarOpen(false); }} />
               </div>
 
-              <div className="space-y-1">
-                <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Management</p>
+              <div className="space-y-2">
+                <p className="px-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">Governance</p>
                 {userDoc?.role === 'admin' && (
-                  <SidebarItem icon={ShieldCheck} label="Admin Dashboard" active={view === 'admin'} onClick={() => { setView('admin'); setSidebarOpen(false); }} />
+                  <SidebarItem icon={Shield} label="Admin Terminal" active={view === 'admin'} onClick={() => { setView('admin'); setSidebarOpen(false); }} />
                 )}
-                <SidebarItem icon={BookOpen} label="School Records" active={view === 'records' || (view === 'schools' && !selectedSchool)} onClick={() => { setView('schools'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Wallet} label="Finance Dashboard" active={view === 'finance'} onClick={() => { setView('schools'); setSidebarOpen(false); }} />
-                <SidebarItem icon={AlertCircle} label="Penalty Board" active={view === 'penalty'} onClick={() => { setView('penalty'); setSidebarOpen(false); }} />
+                <SidebarItem icon={CreditCard} label="Finance Hub" active={view === 'finance'} onClick={() => { setView('finance'); setSidebarOpen(false); }} />
+                <SidebarItem icon={Fingerprint} label="Security Board" active={view === 'penalty'} onClick={() => { setView('penalty'); setSidebarOpen(false); }} />
               </div>
 
-              <div className="space-y-1">
-                <p className="px-4 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Account</p>
-                <SidebarItem icon={UserIcon} label="Profile" active={view === 'profile'} onClick={() => { if (user) setView('profile'); else setView('login'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Settings} label="Settings" />
+              <div className="space-y-2">
+                <p className="px-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">Identity</p>
+                <SidebarItem icon={UserIcon} label="My Profile" active={view === 'profile'} onClick={() => { if (user) setView('profile'); else setView('login'); setSidebarOpen(false); }} />
+                <SidebarItem icon={Settings} label="System Settings" />
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-50">
+            <div className="p-8 border-t border-gray-50 bg-gray-50/30">
               {user ? (
-                <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 text-red-500 font-bold hover:bg-red-50 rounded-xl transition-all">
-                  <LogOut size={20} /> Logout
-                </button>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4 px-4">
+                    <img src={user?.photoURL || ''} className="h-10 w-10 rounded-xl object-cover shadow-sm border border-gray-100" />
+                    <div className="overflow-hidden">
+                      <p className="text-[13px] font-bold text-ink truncate tracking-tight">{userDoc?.name}</p>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest truncate">{userDoc?.role}</p>
+                    </div>
+                  </div>
+                  <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 py-4 text-red-500 font-bold hover:bg-red-50 rounded-2xl transition-all duration-300 border border-transparent hover:border-red-100">
+                    <LogOut size={16} /> 
+                    <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Terminate Session</span>
+                  </button>
+                </div>
               ) : (
-                <button onClick={() => { setView('login'); setSidebarOpen(false); }} className="w-full flex items-center gap-3 px-4 py-3 text-blue-600 font-bold hover:bg-blue-50 rounded-xl transition-all">
-                  <LogIn size={20} /> Sign In
+                <button onClick={() => { setView('login'); setSidebarOpen(false); }} className="w-full flex items-center justify-center gap-3 py-4 bg-ink text-white rounded-2xl font-bold transition-all duration-300 shadow-2xl shadow-ink/10">
+                  <LogIn size={16} /> 
+                  <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Authorize Access</span>
                 </button>
               )}
             </div>
@@ -2153,70 +2733,83 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-gray-500"><Menu /></button>
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-              <input type="text" placeholder="Search Exona..." className="pl-10 pr-4 py-2 bg-gray-50 border-none rounded-xl text-sm outline-none w-64 focus:ring-2 focus:ring-blue-500 transition-all" />
+      <div className="flex-1 flex flex-col overflow-hidden bg-paper">
+        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-10 flex items-center justify-between sticky top-0 z-40">
+          <div className="flex items-center gap-8">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden h-12 w-12 bg-gray-50 text-ink rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"><Menu size={24} /></button>
+            <div className="relative hidden md:block group">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search the network..." 
+                className="pl-14 pr-8 py-4 bg-gray-50/50 border border-transparent rounded-[1.5rem] text-[14px] font-medium outline-none w-96 focus:ring-4 focus:ring-ink/5 focus:bg-white focus:border-gray-100 transition-all placeholder:text-gray-300" 
+              />
             </div>
           </div>
 
-            <div className="flex items-center gap-4">
-              {user ? (
-                <>
-                  <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-xl relative">
-                    <Bell size={20} />
-                    <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
-                  </button>
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold border border-blue-200 overflow-hidden">
-                    {user?.photoURL ? <img src={user.photoURL} referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
-                  </div>
-                </>
-              ) : (
-                <button 
-                  onClick={() => setView('login')}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all text-sm"
-                >
-                  Sign In
+          <div className="flex items-center gap-8">
+            {user ? (
+              <>
+                <button className="h-12 w-12 bg-gray-50 text-muted hover:text-ink rounded-2xl flex items-center justify-center relative transition-all border border-gray-100 active:scale-90">
+                  <Bell size={22} />
+                  <span className="absolute top-3 right-3 h-2.5 w-2.5 bg-accent rounded-full border-2 border-white"></span>
                 </button>
-              )}
-            </div>
-          </header>
+                <button 
+                  onClick={() => setView('profile')}
+                  className="flex items-center gap-4 p-1.5 pr-6 bg-gray-50 rounded-[1.5rem] hover:bg-gray-100 transition-all border border-gray-100 group active:scale-[0.98]"
+                >
+                  <div className="h-11 w-11 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold border border-accent/10 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
+                    {user?.photoURL ? <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <p className="text-[13px] font-bold text-ink leading-none">{userDoc?.name?.split(' ')[0]}</p>
+                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-1.5">Operator</p>
+                  </div>
+                </button>
+              </>
+            ) : (
+              <button 
+                onClick={() => setView('login')}
+                className="px-7 py-2.5 bg-ink text-white rounded-2xl font-bold hover:bg-ink/90 transition-all text-[13px] shadow-xl shadow-ink/10"
+              >
+                Sign In
+              </button>
+            )}
+          </div>
+        </header>
 
-        <main className="flex-1 overflow-y-auto bg-gray-50/50">
+        <main className="flex-1 overflow-y-auto bg-paper">
           {renderView()}
         </main>
 
         {/* Mobile Bottom Nav */}
-        <div className="lg:hidden bg-white border-t border-gray-100 px-6 py-4 flex items-center justify-between pb-8">
-          <button onClick={() => setView('feed')} className={`p-2 ${view === 'feed' ? 'text-blue-600' : 'text-gray-300'}`}>
-            <Home size={24} />
+        <div className="lg:hidden bg-white/80 backdrop-blur-xl border-t border-gray-100 px-8 py-6 flex items-center justify-between pb-10 z-40">
+          <button onClick={() => setView('feed')} className={`p-4 rounded-2xl transition-all relative ${view === 'feed' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
+            <LayoutGrid size={24} strokeWidth={view === 'feed' ? 2.5 : 2} />
+            {view === 'feed' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
           </button>
-          <button onClick={() => setView('schools')} className={`p-2 ${view === 'schools' ? 'text-blue-600' : 'text-gray-300'}`}>
-            <Search size={24} />
+          <button onClick={() => setView('schools')} className={`p-4 rounded-2xl transition-all relative ${view === 'schools' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
+            <GraduationCap size={24} strokeWidth={view === 'schools' ? 2.5 : 2} />
+            {view === 'schools' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
           </button>
           <button 
             onClick={() => {
               if (!user) { setView('login'); return; }
-              if (view === 'feed') setIsPostModalOpen(true);
+              if (view === 'feed') openNewPostModal();
               else if (view === 'records') setIsRecordModalOpen(true);
+              else openNewPostModal();
             }} 
-            className="h-12 w-12 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 border border-gray-100"
+            className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-ink/20 active:scale-90 transition-all"
           >
-            <Plus size={24} />
+            <Plus size={28} />
           </button>
-          <button onClick={() => setView('schools')} className={`p-2 ${view === 'schools' ? 'text-blue-600' : 'text-gray-300'}`}>
-            <div className="grid grid-cols-2 gap-0.5">
-              <div className="h-2 w-2 rounded-sm bg-current"></div>
-              <div className="h-2 w-2 rounded-sm bg-current"></div>
-              <div className="h-2 w-2 rounded-sm bg-current"></div>
-              <div className="h-2 w-2 rounded-sm bg-current"></div>
-            </div>
+          <button onClick={() => setView('ai')} className={`p-4 rounded-2xl transition-all relative ${view === 'ai' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
+            <Sparkles size={24} strokeWidth={view === 'ai' ? 2.5 : 2} />
+            {view === 'ai' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
           </button>
-          <button onClick={() => user ? setView('profile') : setView('login')} className={`p-2 ${view === 'profile' ? 'text-blue-600' : 'text-gray-300'}`}>
-            <UserIcon size={24} />
+          <button onClick={() => user ? setView('profile') : setView('login')} className={`p-4 rounded-2xl transition-all relative ${view === 'profile' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
+            <UserIcon size={24} strokeWidth={view === 'profile' ? 2.5 : 2} />
+            {view === 'profile' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
           </button>
         </div>
       </div>
