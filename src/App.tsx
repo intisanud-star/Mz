@@ -403,6 +403,10 @@ function ExonaApp() {
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [isDeleteSchoolModalOpen, setIsDeleteSchoolModalOpen] = useState(false);
+  const [schoolToDelete, setSchoolToDelete] = useState<string | null>(null);
+  const [isDeletePlaceModalOpen, setIsDeletePlaceModalOpen] = useState(false);
+  const [placeToDelete, setPlaceToDelete] = useState<string | null>(null);
   const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const [placeSearch, setPlaceSearch] = useState('');
@@ -559,6 +563,20 @@ function ExonaApp() {
     }
   };
 
+  const handleDeleteSchool = async () => {
+    if (!user || !schoolToDelete) return;
+    setIsUploading(true);
+    try {
+      await deleteDoc(doc(db, 'schools', schoolToDelete));
+      setIsDeleteSchoolModalOpen(false);
+      setSchoolToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `schools/${schoolToDelete}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleCreatePlace = async () => {
     console.log('handleCreatePlace started', { newPlace, user: user?.uid, editingPlace: editingPlace?.id });
     if (!newPlace.name.trim() || !user) {
@@ -636,6 +654,20 @@ function ExonaApp() {
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
+    }
+  };
+
+  const handleDeletePlace = async () => {
+    if (!user || !placeToDelete) return;
+    setIsUploading(true);
+    try {
+      await deleteDoc(doc(db, 'places', placeToDelete));
+      setIsDeletePlaceModalOpen(false);
+      setPlaceToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `places/${placeToDelete}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -1367,12 +1399,24 @@ function ExonaApp() {
                               </td>
                               <td className="px-10 py-8 font-mono font-bold text-ink text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</td>
                               <td className="px-10 py-8">
-                                <button 
-                                  onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                                  className="px-6 py-2.5 bg-gray-50 text-muted rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-ink hover:text-white transition-all shadow-sm"
-                                >
-                                  Manage
-                                </button>
+                                <div className="flex items-center gap-3">
+                                  <button 
+                                    onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                                    className="px-6 py-2.5 bg-gray-50 text-muted rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-ink hover:text-white transition-all shadow-sm"
+                                  >
+                                    Manage
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      setSchoolToDelete(school.id);
+                                      setIsDeleteSchoolModalOpen(true);
+                                    }}
+                                    className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                    title="Delete Institution"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1773,22 +1817,34 @@ function ExonaApp() {
                     </div>
                     <div className="flex items-center gap-3">
                       {userDoc?.role === 'admin' && (
-                        <button 
-                          onClick={() => {
-                            setEditingSchool(school);
-                            setNewSchool({ 
-                              name: school.name, 
-                              description: school.description, 
-                              logo: school.logo, 
-                              type: school.type,
-                              educationalLevels: school.educationalLevels || []
-                            });
-                            setIsSchoolModalOpen(true);
-                          }}
-                          className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-muted hover:text-accent hover:bg-accent/5 transition-all"
-                        >
-                          <Settings size={22} />
-                        </button>
+                        <>
+                          <button 
+                            onClick={() => {
+                              setEditingSchool(school);
+                              setNewSchool({ 
+                                name: school.name, 
+                                description: school.description, 
+                                logo: school.logo, 
+                                type: school.type,
+                                educationalLevels: school.educationalLevels || []
+                              });
+                              setIsSchoolModalOpen(true);
+                            }}
+                            className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-muted hover:text-accent hover:bg-accent/5 transition-all"
+                          >
+                            <Settings size={22} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSchoolToDelete(school.id);
+                              setIsDeleteSchoolModalOpen(true);
+                            }}
+                            className="h-14 w-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                            title="Delete Institution"
+                          >
+                            <Trash2 size={22} />
+                          </button>
+                        </>
                       )}
                       <button 
                         onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
@@ -2959,6 +3015,90 @@ function ExonaApp() {
                     setIsDeleteRecordModalOpen(false);
                     setRecordToDelete(null);
                   }}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
+                >
+                  Abort
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isDeleteSchoolModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+            >
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Institution?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove this institution and all its associated data from the system. Are you sure?</p>
+              
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={handleDeleteSchool}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Erasing...
+                    </>
+                  ) : (
+                    'Confirm Deletion'
+                  )}
+                </button>
+                <button 
+                  onClick={() => { setIsDeleteSchoolModalOpen(false); setSchoolToDelete(null); }}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
+                >
+                  Abort
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isDeletePlaceModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+            >
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Place?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove this place from the system. Are you sure?</p>
+              
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={handleDeletePlace}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Erasing...
+                    </>
+                  ) : (
+                    'Confirm Deletion'
+                  )}
+                </button>
+                <button 
+                  onClick={() => { setIsDeletePlaceModalOpen(false); setPlaceToDelete(null); }}
                   disabled={isUploading}
                   className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
                 >
