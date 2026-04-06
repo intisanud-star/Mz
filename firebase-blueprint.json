@@ -30,29 +30,30 @@
       },
       "required": ["name", "category", "creatorUid", "timestamp"]
     },
-    "records": {
-      "title": "Record",
-      "description": "A general record (student, customer, or personal) with privacy settings.",
+    "studentRecords": {
+      "title": "Student Record",
+      "description": "A record for a student (fees, books, etc.) with privacy settings.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "subjectName": { "type": "string", "description": "Name of the person or entity the record is about." },
+        "studentName": { "type": "string", "description": "Name of the student." },
         "category": { "type": "string" },
-        "amountPaid": { "type": "number" },
+        "paid": { "type": "number" },
         "balance": { "type": "number" },
         "type": { "type": "string", "enum": ["general", "books", "uniforms", "services", "products"] },
         "visibility": { "type": "string", "enum": ["public", "private", "shared"] },
         "sharedWith": { "type": "array", "items": { "type": "string" } },
-        "placeId": { "type": "string" },
+        "schoolId": { "type": "string" },
         "creatorUid": { "type": "string" },
+        "addedBy": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["subjectName", "category", "visibility", "creatorUid", "timestamp"]
+      "required": ["studentName", "category", "visibility", "creatorUid", "timestamp"]
     }
   },
   "firestore": {
     "/users/{userId}": { "schema": "users", "description": "User profiles" },
     "/places/{placeId}": { "schema": "places", "description": "User-created places/institutions" },
-    "/records/{recordId}": { "schema": "records", "description": "General records linked to places" }
+    "/studentRecords/{recordId}": { "schema": "studentRecords", "description": "Student records linked to schools" }
   }
 }

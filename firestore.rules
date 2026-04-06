@@ -28,9 +28,21 @@ service cloud.firestore {
     }
 
     function isValidRecord(data) {
-      return data.title is string && data.title.size() > 0 &&
-             data.businessType is string &&
+      return data.studentName is string && data.studentName.size() > 0 &&
+             data.category is string &&
              data.visibility in ['public', 'private', 'shared'] &&
+             data.creatorUid == request.auth.uid &&
+             data.paid is number &&
+             data.balance is number;
+    }
+
+    function isValidPost(data) {
+      return data.content is string && data.content.size() > 0 &&
+             data.authorUid == request.auth.uid;
+    }
+
+    function isValidSchool(data) {
+      return data.name is string && data.name.size() > 0 &&
              data.creatorUid == request.auth.uid;
     }
 
@@ -44,11 +56,36 @@ service cloud.firestore {
       allow update: if isOwner(userId) || isAdmin();
     }
 
-    match /records/{recordId} {
+    match /schools/{schoolId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && isValidPost(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isAuthenticated();
+        allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      }
+    }
+
+    match /studentRecords/{recordId} {
       allow read: if isAuthenticated() && canReadRecord(resource.data);
       allow create: if isAuthenticated() && isValidRecord(request.resource.data);
       allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin()) && isValidRecord(request.resource.data);
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+    }
+
+    match /finance/{schoolId} {
+      allow read: if isAuthenticated() && (resource.data.schoolId == schoolId || isAdmin());
+      allow write: if isAdmin();
     }
   }
 }

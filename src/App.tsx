@@ -87,29 +87,31 @@ interface School {
 
 interface StudentRecord {
   id: string;
-  subjectName: string;
+  studentName: string;
   category: string;
-  amountPaid: number;
+  paid: number;
   balance: number;
   type: 'general' | 'books' | 'uniforms' | 'services' | 'products';
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   schoolId?: string;
   creatorUid: string;
+  addedBy: string;
   timestamp: any;
 }
 
 interface Record {
   id: string;
-  subjectName: string;
+  studentName: string;
   category: string;
-  amountPaid: number;
+  paid: number;
   balance: number;
   type: 'general' | 'books' | 'uniforms' | 'services' | 'products';
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   placeId?: string;
   creatorUid: string;
+  addedBy: string;
   timestamp: any;
 }
 
@@ -387,6 +389,7 @@ function ExonaApp() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<StudentRecord | null>(null);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -398,7 +401,7 @@ function ExonaApp() {
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '', type: 'school' as School['type'] });
-  const [newRecord, setNewRecord] = useState({ subjectName: '', category: '', amountPaid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+  const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
 
   const handleCreateSchool = async () => {
     if (!newSchool.name.trim() || !user) return;
@@ -519,26 +522,70 @@ function ExonaApp() {
   };
 
   const handleCreateRecord = async () => {
+    console.log('handleCreateRecord started', { user: !!user, studentName: newRecord.studentName, selectedSchool: !!selectedSchool });
     if (!user) { setView('login'); return; }
-    if (!newRecord.subjectName.trim() || !selectedPlace) return;
-    const path = 'records';
+    if (!newRecord.studentName.trim() || !selectedSchool) {
+      console.warn('handleCreateRecord: missing required fields', { studentName: newRecord.studentName, selectedSchool: !!selectedSchool });
+      return;
+    }
+    const path = 'studentRecords';
     try {
-      await addDoc(collection(db, path), {
-        placeId: selectedPlace.id,
-        subjectName: newRecord.subjectName.trim(),
-        category: newRecord.category.trim() || 'General',
-        creatorUid: user.uid,
-        amountPaid: Number(newRecord.amountPaid),
-        balance: Number(newRecord.balance),
-        type: recordTab,
-        visibility: newRecord.visibility,
-        sharedWith: newRecord.sharedWith.split(',').map(e => e.trim()).filter(e => e),
-        timestamp: serverTimestamp()
-      });
-      setNewRecord({ subjectName: '', category: '', amountPaid: 0, balance: 0, visibility: 'private', sharedWith: '' });
+      if (editingRecord) {
+        console.log('Updating record', editingRecord.id);
+        await setDoc(doc(db, path, editingRecord.id), {
+          studentName: newRecord.studentName.trim(),
+          category: newRecord.category.trim() || 'General',
+          paid: Number(newRecord.paid),
+          balance: Number(newRecord.balance),
+          visibility: newRecord.visibility,
+          sharedWith: newRecord.sharedWith.split(',').map(e => e.trim()).filter(e => e),
+        }, { merge: true });
+      } else {
+        console.log('Adding new record');
+        await addDoc(collection(db, path), {
+          schoolId: selectedSchool.id,
+          studentName: newRecord.studentName.trim(),
+          category: newRecord.category.trim() || 'General',
+          creatorUid: user.uid,
+          addedBy: user.displayName || 'Anonymous',
+          paid: Number(newRecord.paid),
+          balance: Number(newRecord.balance),
+          type: recordTab,
+          visibility: newRecord.visibility,
+          sharedWith: newRecord.sharedWith.split(',').map(e => e.trim()).filter(e => e),
+          timestamp: serverTimestamp()
+        });
+      }
+      console.log('Record operation successful');
+      setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private', sharedWith: '' });
       setIsRecordModalOpen(false);
+      setEditingRecord(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, path);
+      console.error('Record operation failed', error);
+      handleFirestoreError(error, editingRecord ? OperationType.UPDATE : OperationType.CREATE, path);
+    }
+  };
+
+  const handleEditRecord = (record: StudentRecord) => {
+    setEditingRecord(record);
+    setNewRecord({
+      studentName: record.studentName,
+      category: record.category,
+      paid: record.paid,
+      balance: record.balance,
+      visibility: record.visibility,
+      sharedWith: record.sharedWith?.join(', ') || ''
+    });
+    setIsRecordModalOpen(true);
+  };
+
+  const handleDeleteRecord = async (recordId: string) => {
+    if (!user) return;
+    if (!window.confirm('Are you sure you want to delete this record?')) return;
+    try {
+      await deleteDoc(doc(db, 'studentRecords', recordId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `studentRecords/${recordId}`);
     }
   };
 
@@ -550,6 +597,7 @@ function ExonaApp() {
   }, [selectedFile]);
 
   const handleCreatePost = async () => {
+    console.log('handleCreatePost started', { user: !!user, content: !!newPostContent.trim() });
     if (!user) { setView('login'); return; }
     if (!newPostContent.trim()) return;
     const path = 'posts';
@@ -559,13 +607,13 @@ function ExonaApp() {
       let mediaUrl = editingPost?.mediaUrl || '';
       let mediaType: 'image' | 'video' | undefined = editingPost?.mediaType;
 
-      // If previewUrl is null, it means the user removed the media
       if (!previewUrl) {
         mediaUrl = '';
         mediaType = undefined;
       }
 
       if (selectedFile) {
+        console.log('Uploading media', selectedFile.name);
         mediaType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
         const fileRef = ref(storage, `posts/${user.uid}/${Date.now()}_${selectedFile.name}`);
         const uploadTask = uploadBytesResumable(fileRef, selectedFile);
@@ -576,22 +624,28 @@ function ExonaApp() {
               const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
               setUploadProgress(progress);
             }, 
-            (error) => reject(error), 
+            (error) => {
+              console.error('Upload failed', error);
+              reject(error);
+            }, 
             () => resolve(null)
           );
         });
         
         mediaUrl = await getDownloadURL(fileRef);
+        console.log('Media upload successful', mediaUrl);
       }
 
       if (editingPost) {
+        console.log('Updating post', editingPost.id);
         await setDoc(doc(db, 'posts', editingPost.id), {
           content: newPostContent.trim(),
           mediaUrl: mediaUrl || null,
           mediaType: mediaType || null,
-          timestamp: serverTimestamp(), // Update timestamp to show it was edited
+          timestamp: serverTimestamp(),
         }, { merge: true });
       } else {
+        console.log('Adding new post');
         await addDoc(collection(db, path), {
           authorUid: user.uid,
           authorName: user.displayName || 'Anonymous',
@@ -608,6 +662,7 @@ function ExonaApp() {
           schoolId: (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon'
         });
       }
+      console.log('Post operation successful');
       setNewPostContent('');
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -615,6 +670,7 @@ function ExonaApp() {
       setIsPostModalOpen(false);
       setEditingPost(null);
     } catch (error) {
+      console.error('Post operation failed', error);
       handleFirestoreError(error, editingPost ? OperationType.UPDATE : OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
@@ -866,10 +922,15 @@ function ExonaApp() {
   useEffect(() => {
     if (!selectedSchool) return;
     
-    const unsubRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
-      setRecords(snap.docs.filter(d => d.data().schoolId === selectedSchool.id).map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+    const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
+    const unsubRecords = onSnapshot(q, (snap) => {
+      setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
     }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'studentRecords');
+      console.error('Error fetching student records:', error);
+      // Only show error if it's not a permission error (which might happen if some records are private)
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'studentRecords');
+      }
     });
 
     const unsubFinance = onSnapshot(doc(db, 'finance', selectedSchool.id), (snap) => {
@@ -1683,7 +1744,27 @@ function ExonaApp() {
                           <td className="px-8 py-6 font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
                           <td className="px-8 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
                           <td className="px-8 py-6">
-                            <button className="text-muted hover:text-ink transition-colors"><MoreHorizontal size={20} /></button>
+                            <div className="flex items-center gap-2">
+                              {record.creatorUid === user?.uid && (
+                                <>
+                                  <button 
+                                    onClick={() => handleEditRecord(record)}
+                                    className="p-2 text-muted hover:text-accent hover:bg-accent/5 rounded-xl transition-all"
+                                    title="Edit Record"
+                                  >
+                                    <Edit2 size={18} />
+                                  </button>
+                                  <button 
+                                    onClick={() => handleDeleteRecord(record.id)}
+                                    className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                    title="Delete Record"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </>
+                              )}
+                              <button className="p-2 text-muted hover:text-ink hover:bg-gray-50 rounded-xl transition-all"><MoreHorizontal size={18} /></button>
+                            </div>
                           </td>
                         </motion.tr>
                       ))
@@ -2432,7 +2513,7 @@ function ExonaApp() {
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">Add {recordTab} Record</h3>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">{editingRecord ? `Edit ${recordTab} Record` : `Add ${recordTab} Record`}</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
                 <button onClick={() => setIsRecordModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
@@ -2487,7 +2568,7 @@ function ExonaApp() {
                   disabled={!newRecord.studentName.trim()}
                   className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
-                  Synchronize Record
+                  {editingRecord ? 'Update Record' : 'Synchronize Record'}
                 </button>
               </div>
             </motion.div>
