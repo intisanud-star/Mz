@@ -387,6 +387,8 @@ function ExonaApp() {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
+  const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const [placeSearch, setPlaceSearch] = useState('');
@@ -622,6 +624,7 @@ function ExonaApp() {
       console.warn('handleCreateRecord: missing required fields', { studentName: newRecord.studentName, selectedSchool: !!selectedSchool });
       return;
     }
+    setIsUploading(true);
     const path = 'studentRecords';
     try {
       if (editingRecord) {
@@ -657,6 +660,8 @@ function ExonaApp() {
     } catch (error) {
       console.error('Record operation failed', error);
       handleFirestoreError(error, editingRecord ? OperationType.UPDATE : OperationType.CREATE, path);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -673,13 +678,17 @@ function ExonaApp() {
     setIsRecordModalOpen(true);
   };
 
-  const handleDeleteRecord = async (recordId: string) => {
-    if (!user) return;
-    if (!window.confirm('Are you sure you want to delete this record?')) return;
+  const handleDeleteRecord = async () => {
+    if (!user || !recordToDelete) return;
+    setIsUploading(true);
     try {
-      await deleteDoc(doc(db, 'studentRecords', recordId));
+      await deleteDoc(doc(db, 'studentRecords', recordToDelete));
+      setIsDeleteRecordModalOpen(false);
+      setRecordToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `studentRecords/${recordId}`);
+      handleFirestoreError(error, OperationType.DELETE, `studentRecords/${recordToDelete}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -1847,7 +1856,7 @@ function ExonaApp() {
                           <td className="px-8 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-2">
-                              {record.creatorUid === user?.uid && (
+                              {(record.creatorUid === user?.uid || userDoc?.role === 'admin') && (
                                 <>
                                   <button 
                                     onClick={() => handleEditRecord(record)}
@@ -1857,7 +1866,10 @@ function ExonaApp() {
                                     <Edit2 size={18} />
                                   </button>
                                   <button 
-                                    onClick={() => handleDeleteRecord(record.id)}
+                                    onClick={() => {
+                                      setRecordToDelete(record.id);
+                                      setIsDeleteRecordModalOpen(true);
+                                    }}
                                     className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                                     title="Delete Record"
                                   >
@@ -2685,10 +2697,62 @@ function ExonaApp() {
               <div className="flex justify-end mt-12">
                 <button 
                   onClick={handleCreateRecord}
-                  disabled={!newRecord.studentName.trim()}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                  disabled={!newRecord.studentName.trim() || isUploading}
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
-                  {editingRecord ? 'Update Record' : 'Synchronize Record'}
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      {editingRecord ? 'Synchronizing...' : 'Authorizing...'}
+                    </>
+                  ) : (
+                    editingRecord ? 'Update Record' : 'Synchronize Record'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isDeleteRecordModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+            >
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Record?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove the student information from the institutional database. Are you sure?</p>
+              
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={handleDeleteRecord}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Erasing...
+                    </>
+                  ) : (
+                    'Confirm Erasure'
+                  )}
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDeleteRecordModalOpen(false);
+                    setRecordToDelete(null);
+                  }}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
+                >
+                  Abort
                 </button>
               </div>
             </motion.div>
