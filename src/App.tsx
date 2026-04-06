@@ -4,7 +4,7 @@ import {
   BookOpen, Calendar, Bell, Search, Menu, X, 
   Home, Users, MessageSquare, Wallet, Settings, 
   AlertCircle, Cpu, ChevronDown, ChevronRight,
-  Heart, MessageCircle, Share2, Plus, Filter, Send,
+  Heart, MessageCircle, Share2, Plus, Filter, Send, Repeat, PlusSquare,
   Image as ImageIcon, Video as VideoIcon, Paperclip,
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
@@ -195,6 +195,20 @@ const formatTime = (timestamp: any) => {
 
 // --- COMPONENTS ---
 
+  const NavIcon = ({ icon: Icon, active, onClick, label }: { icon: any, active: boolean, onClick: () => void, label: string }) => (
+    <button 
+      onClick={onClick}
+      className={`p-4 rounded-2xl transition-all relative group ${active ? 'text-ink' : 'text-muted hover:text-ink hover:bg-gray-50'}`}
+      title={label}
+    >
+      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+      {active && <motion.div layoutId="nav-pill" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-6 bg-ink rounded-full" />}
+      <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-ink text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap uppercase tracking-widest">
+        {label}
+      </span>
+    </button>
+  );
+
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   <button 
     onClick={onClick}
@@ -231,133 +245,133 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
-      className="bg-white rounded-[2rem] p-8 premium-shadow border border-gray-100 mb-8 group transition-all hover:border-accent/20"
+      className="py-6 border-b border-gray-100 flex gap-4"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col items-center gap-2">
         <button 
           onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-          className="flex items-center gap-4 hover:opacity-80 transition-opacity text-left"
+          className="hover:opacity-80 transition-opacity"
         >
-          <div className="relative">
-            {post.authorPhoto ? (
-              <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover border border-gray-100" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="h-12 w-12 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold text-sm">
-                {post.authorName?.charAt(0)}
-              </div>
-            )}
-            {post.isOfficial && (
-              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5">
-                <ShieldCheck size={14} className="text-accent fill-accent/10" />
-              </div>
-            )}
-          </div>
-          <div>
-            <h4 className="font-bold text-ink text-[15px] tracking-tight">{post.authorName}</h4>
-            <p className="text-[10px] text-muted font-bold uppercase tracking-[0.15em] mt-0.5">{formatTime(post.timestamp)}</p>
-          </div>
-        </button>
-        <div className="relative">
-          <button 
-            onClick={() => setShowMenu(!showMenu)}
-            className="text-muted hover:text-ink p-2.5 rounded-xl hover:bg-gray-50 transition-all"
-          >
-            <MoreVertical size={18} />
-          </button>
-          
-          <AnimatePresence>
-            {showMenu && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                className="absolute right-0 mt-3 w-56 bg-white rounded-[1.5rem] premium-shadow border border-gray-100 z-50 overflow-hidden py-3"
-              >
-                {post.authorUid === currentUserId && (
-                  <>
-                    <button 
-                      onClick={() => { onEdit?.(post); setShowMenu(false); }}
-                      className="w-full px-6 py-4 text-left text-[11px] font-bold uppercase tracking-widest text-ink hover:bg-gray-50 flex items-center gap-4 transition-colors"
-                    >
-                      <Edit2 size={16} className="text-accent" />
-                      Edit Broadcast
-                    </button>
-                    <button 
-                      onClick={() => { onDelete?.(post); setShowMenu(false); }}
-                      className="w-full px-6 py-4 text-left text-[11px] font-bold uppercase tracking-widest text-red-600 hover:bg-red-50 flex items-center gap-4 transition-colors"
-                    >
-                      <Trash2 size={16} />
-                      Retract
-                    </button>
-                    <div className="h-px bg-gray-50 my-3 mx-6" />
-                  </>
-                )}
-                <button 
-                  onClick={() => setShowMenu(false)}
-                  className="w-full px-6 py-4 text-left text-[11px] font-bold uppercase tracking-widest text-muted hover:bg-gray-50 flex items-center gap-4 transition-colors"
-                >
-                  <Bell size={16} />
-                  Mute Thread
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-      
-      <p className="text-ink/80 text-[15px] leading-[1.6] mb-8 whitespace-pre-wrap font-medium tracking-tight">
-        {post.content}
-      </p>
-      
-      {post.mediaUrl && (
-        <div className="mb-8 rounded-[1.5rem] overflow-hidden border border-gray-100 bg-gray-50">
-          {post.mediaType === 'image' ? (
-            <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[500px] transition-transform duration-700 hover:scale-105" referrerPolicy="no-referrer" />
+          {post.authorPhoto ? (
+            <img src={post.authorPhoto} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
           ) : (
-            <video src={post.mediaUrl} controls className="w-full h-auto max-h-[500px]" />
+            <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
+              {post.authorName?.charAt(0)}
+            </div>
           )}
-        </div>
-      )}
+        </button>
+        <div className="w-0.5 flex-1 bg-gray-100 rounded-full" />
+      </div>
 
-      {post.resharedFrom && (
-        <div className="mb-8 p-8 bg-gray-50/50 rounded-[2rem] border border-gray-100 border-l-[4px] border-l-accent">
-          <p className="text-[10px] text-accent font-bold uppercase tracking-[0.25em] mb-4">Reshared from {post.resharedFrom.authorName}</p>
-          <p className="text-[14px] text-muted leading-relaxed italic font-serif">"{post.resharedFrom.content}"</p>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <h4 className="font-bold text-ink text-[14px] hover:underline cursor-pointer" onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}>
+              {post.authorName}
+            </h4>
+            {post.isOfficial && <ShieldCheck size={14} className="text-blue-500 fill-blue-500/10" />}
+            <span className="text-muted text-[13px]">{formatTime(post.timestamp)}</span>
+          </div>
+          <div className="relative">
+            <button 
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-muted hover:text-ink p-1 rounded-full hover:bg-gray-100 transition-all"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden py-2"
+                >
+                  {post.authorUid === currentUserId && (
+                    <>
+                      <button 
+                        onClick={() => { onEdit?.(post); setShowMenu(false); }}
+                        className="w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-gray-50 flex items-center gap-3"
+                      >
+                        <Edit2 size={16} />
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => { onDelete?.(post); setShowMenu(false); }}
+                        className="w-full px-4 py-2.5 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3"
+                      >
+                        <Trash2 size={16} />
+                        Delete
+                      </button>
+                    </>
+                  )}
+                  <button 
+                    onClick={() => setShowMenu(false)}
+                    className="w-full px-4 py-2.5 text-left text-[13px] font-semibold text-muted hover:bg-gray-50 flex items-center gap-3"
+                  >
+                    <Bell size={16} />
+                    Mute
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
-      )}
 
-      <div className="flex items-center gap-8 pt-6 border-t border-gray-50">
-        <button 
-          onClick={() => onLike?.(post.id, post.likedBy || [])}
-          className={`flex items-center gap-2.5 transition-all duration-300 ${isLiked ? 'text-red-500 scale-110' : 'text-muted hover:text-red-500 hover:scale-110'}`}
-        >
-          <Heart size={20} className={isLiked ? 'fill-red-500' : ''} />
-          <span className="text-[13px] font-bold tracking-tight">{post.likes || 0}</span>
-        </button>
-        <button 
-          onClick={() => onComment?.(post)}
-          className="flex items-center gap-2.5 text-muted hover:text-accent hover:scale-110 transition-all duration-300"
-        >
-          <MessageCircle size={20} />
-          <span className="text-[13px] font-bold tracking-tight">{post.commentsCount || 0}</span>
-        </button>
-        <button 
-          onClick={() => onReshare?.(post)}
-          className="flex items-center gap-2.5 text-muted hover:text-green-600 hover:scale-110 transition-all duration-300"
-        >
-          <Share2 size={20} />
-          <span className="text-[13px] font-bold tracking-tight">{post.reshares || 0}</span>
-        </button>
-        <button 
-          onClick={() => onForward?.(post)}
-          className="flex items-center gap-2 text-muted hover:text-ink transition-colors ml-auto group/forward"
-        >
-          <Plus size={18} className="rotate-45 group-hover/forward:rotate-0 transition-transform duration-500" />
-          <span className="text-[10px] font-extrabold uppercase tracking-[0.2em]">Forward</span>
-        </button>
+        <p className="text-ink text-[14px] leading-normal mb-3 whitespace-pre-wrap">
+          {post.content}
+        </p>
+
+        {post.mediaUrl && (
+          <div className="mb-3 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 max-w-md">
+            {post.mediaType === 'image' ? (
+              <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[400px]" referrerPolicy="no-referrer" />
+            ) : (
+              <video src={post.mediaUrl} controls className="w-full h-auto max-h-[400px]" />
+            )}
+          </div>
+        )}
+
+        {post.resharedFrom && (
+          <div className="mb-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <p className="text-[12px] font-bold text-ink mb-1">{post.resharedFrom.authorName}</p>
+            <p className="text-[13px] text-muted leading-snug">{post.resharedFrom.content}</p>
+          </div>
+        )}
+
+        <div className="flex items-center gap-5 mt-2">
+          <button 
+            onClick={() => onLike?.(post.id, post.likedBy || [])}
+            className={`flex items-center gap-1.5 transition-colors ${isLiked ? 'text-red-500' : 'text-ink hover:text-red-500'}`}
+          >
+            <Heart size={20} className={isLiked ? 'fill-red-500' : ''} />
+            {post.likes > 0 && <span className="text-[13px] font-medium">{post.likes}</span>}
+          </button>
+          <button 
+            onClick={() => onComment?.(post)}
+            className="flex items-center gap-1.5 text-ink hover:text-blue-500 transition-colors"
+          >
+            <MessageCircle size={20} />
+            {post.commentsCount > 0 && <span className="text-[13px] font-medium">{post.commentsCount}</span>}
+          </button>
+          <button 
+            onClick={() => onReshare?.(post)}
+            className="flex items-center gap-1.5 text-ink hover:text-green-600 transition-colors"
+          >
+            <Repeat size={20} />
+            {post.reshares > 0 && <span className="text-[13px] font-medium">{post.reshares}</span>}
+          </button>
+          <button 
+            onClick={() => onForward?.(post)}
+            className="text-ink hover:text-blue-500 transition-colors"
+          >
+            <Send size={20} />
+          </button>
+        </div>
       </div>
     </motion.div>
   );
@@ -1474,81 +1488,37 @@ function ExonaApp() {
         );
       case 'feed':
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-6">
-            <div className="flex flex-col mb-12">
-              <motion.h2 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
-              >
-                Horizon Feed
-              </motion.h2>
-              <motion.p 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-muted text-[13px] font-bold uppercase tracking-[0.2em]"
-              >
-                The heartbeat of your community
-              </motion.p>
-            </div>
-
+          <div className="w-full max-w-xl mx-auto py-4 px-4">
             {user && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white rounded-[2rem] premium-shadow p-8 mb-12 flex items-center gap-6 border border-gray-100"
-              >
-                <div className="relative">
+              <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
+                <div className="flex flex-col items-center gap-2">
                   {user.photoURL ? (
-                    <img 
-                      src={user.photoURL} 
-                      className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
-                      referrerPolicy="no-referrer"
-                    />
+                    <img src={user.photoURL} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold text-lg border border-accent/10">
+                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
                       {user.displayName?.charAt(0)}
                     </div>
                   )}
-                  <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 border-2 border-white rounded-full"></div>
+                  <div className="w-0.5 h-8 bg-gray-100 rounded-full" />
+                </div>
+                <div className="flex-1">
+                  <button 
+                    onClick={openNewPostModal}
+                    className="w-full text-left py-2 text-muted font-medium text-[14px]"
+                  >
+                    What's new?
+                  </button>
                 </div>
                 <button 
                   onClick={openNewPostModal}
-                  className="flex-1 text-left px-8 py-4.5 bg-gray-50 rounded-2xl text-muted font-semibold hover:bg-gray-100 hover:text-ink transition-all text-sm border border-transparent hover:border-gray-200"
+                  className="px-4 py-1.5 bg-gray-100 text-ink rounded-full font-bold text-[13px] hover:bg-gray-200 transition-colors"
                 >
-                  Share something with the community, {user.displayName?.split(' ')[0]}...
+                  Post
                 </button>
-                <button 
-                  onClick={openNewPostModal}
-                  className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
-                >
-                  <Plus size={24} />
-                </button>
-              </motion.div>
+              </div>
             )}
 
-            {!user && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-accent/5 border border-accent/10 rounded-[2rem] p-10 mb-12 flex flex-col md:flex-row items-center justify-between gap-8"
-              >
-                <div className="text-center md:text-left">
-                  <h4 className="font-bold text-ink text-lg mb-2">Join the Exona Community</h4>
-                  <p className="text-sm text-muted font-medium max-w-sm">Sign in to share updates, interact with peers, and stay connected with your school.</p>
-                </div>
-                <button 
-                  onClick={() => setView('login')}
-                  className="px-10 py-4 bg-accent text-white rounded-2xl font-bold text-sm shadow-xl shadow-accent/20 hover:bg-accent/90 transition-all whitespace-nowrap"
-                >
-                  Get Started
-                </button>
-              </motion.div>
-            )}
-
-            <div className="space-y-2">
+            <div className="divide-y divide-gray-100">
               {posts.filter(p => p.schoolId === 'horizon' || !p.schoolId).map((post, idx) => (
                 <FeedPost 
                   key={post.id} 
@@ -1570,334 +1540,240 @@ function ExonaApp() {
         if (!selectedSchool) { setView('schools'); return null; }
         const schoolPosts = posts.filter(p => p.schoolId === selectedSchool.id);
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-8 px-4 pb-24 lg:pb-8">
-            <button 
-              onClick={() => setView('schools')}
-              className="flex items-center gap-2 text-muted font-bold mb-8 hover:text-accent transition-colors"
-            >
-              <ChevronRight size={20} className="rotate-180" />
-              Back to Institutions
-            </button>
-            
-            <div className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden mb-12 p-10 flex items-center gap-8">
-              <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl overflow-hidden ${
-                selectedSchool.logo ? 'bg-white' : (selectedSchool.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20')
-              }`}>
-                {selectedSchool.logo ? (
+          <div className="w-full max-w-xl mx-auto py-4 px-4">
+            <div className="flex items-center gap-4 mb-8">
+              <button onClick={() => setView('schools')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                <ChevronRight size={20} className="rotate-180" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100">
                   <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  selectedSchool.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-                )}
-              </div>
-              <div>
-                <h2 className="text-3xl font-serif italic text-ink tracking-tight mb-2">{selectedSchool.name}</h2>
-                <p className="text-sm text-muted font-medium tracking-wide leading-relaxed">{selectedSchool.description}</p>
+                </div>
+                <h2 className="font-bold text-ink text-lg">{selectedSchool.name}</h2>
               </div>
             </div>
 
             {user && (
-              <div className="bg-white rounded-[2rem] border border-gray-100 premium-shadow p-8 mb-12 flex items-center gap-6">
-                {user.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold text-lg border border-accent/10">
-                    {user.displayName?.charAt(0)}
-                  </div>
-                )}
-                <button 
-                  onClick={openNewPostModal}
-                  className="flex-1 text-left px-8 py-4.5 bg-gray-50 rounded-2xl text-muted font-semibold hover:bg-gray-100 transition-all text-sm"
-                >
-                  Post an update to {selectedSchool.name}...
-                </button>
-              </div>
-            )}
-
-            {schoolPosts.length === 0 && (
-              <div className="bg-white rounded-[3rem] p-20 text-center border border-gray-100 premium-shadow">
-                <div className="h-24 w-24 bg-gray-50 text-muted/30 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
-                  <ImageIcon size={48} />
+              <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
+                <div className="flex flex-col items-center gap-2">
+                  {user.photoURL ? (
+                    <img src={user.photoURL} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
+                      {user.displayName?.charAt(0)}
+                    </div>
+                  )}
+                  <div className="w-0.5 h-8 bg-gray-100 rounded-full" />
                 </div>
-                <h3 className="text-2xl font-serif italic text-ink mb-3">No Broadcasts Yet</h3>
-                <p className="text-muted text-sm font-medium">Be the first to share an update from this institution!</p>
+                <div className="flex-1">
+                  <button 
+                    onClick={openNewPostModal}
+                    className="w-full text-left py-2 text-muted font-medium text-[14px]"
+                  >
+                    Post to {selectedSchool.name}...
+                  </button>
+                </div>
               </div>
             )}
 
-            {schoolPosts.map(post => (
-              <FeedPost 
-                key={post.id} 
-                post={post} 
-                onUserClick={handleUserClick}
-                onLike={handleLikePost}
-                onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                onReshare={handleResharePost}
-                onForward={handleForwardPost}
-                onEdit={handleEditPost}
-                onDelete={onDeletePostClick}
-                currentUserId={user?.uid}
-              />
-            ))}
+            <div className="divide-y divide-gray-100">
+              {schoolPosts.map(post => (
+                <FeedPost 
+                  key={post.id} 
+                  post={post} 
+                  onUserClick={handleUserClick}
+                  onLike={handleLikePost}
+                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                  onReshare={handleResharePost}
+                  onForward={handleForwardPost}
+                  onEdit={handleEditPost}
+                  onDelete={onDeletePostClick}
+                  currentUserId={user?.uid}
+                />
+              ))}
+            </div>
           </div>
         );
       case 'user-profile':
         if (!selectedUserProfile) { setView('feed'); return null; }
         const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-8 px-4 pb-24 lg:pb-8">
-            <button 
-              onClick={() => setView('feed')}
-              className="flex items-center gap-2 text-muted font-bold mb-8 hover:text-accent transition-colors"
-            >
-              <ChevronRight size={20} className="rotate-180" />
-              Back to Feed
-            </button>
-            
-            <div className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden mb-12">
-              <div className="h-40 bg-ink relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-50"></div>
+          <div className="w-full max-w-xl mx-auto py-8 px-4">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
+                <div className="flex items-center gap-2">
+                  <p className="text-ink text-[14px]">{selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '')}</p>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">threads.net</span>
+                </div>
               </div>
-              <div className="px-10 pb-10">
-                <div className="relative -mt-16 mb-8">
-                  <div className="h-32 w-32 rounded-[2.5rem] bg-white p-1.5 shadow-2xl">
-                    <div className="h-full w-full rounded-[2rem] bg-accent/5 flex items-center justify-center text-accent font-serif italic text-4xl overflow-hidden border border-accent/10">
-                      {selectedUserProfile.photo ? <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : selectedUserProfile.name?.charAt(0)}
-                    </div>
+              <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
+                {selectedUserProfile.photo ? (
+                  <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="h-full w-full bg-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
+                    {selectedUserProfile.name?.charAt(0)}
                   </div>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-3xl font-serif italic text-ink tracking-tight">{selectedUserProfile.name}</h3>
-                  {user && user.uid !== selectedUserProfile.uid && (
-                    <button 
-                      onClick={() => {
-                        const isFollowing = userDoc?.following?.includes(selectedUserProfile.uid);
-                        if (isFollowing) {
-                          handleUnfollowUser(selectedUserProfile.uid);
-                        } else {
-                          handleFollowUser(selectedUserProfile.uid);
-                        }
-                      }}
-                      className={`px-8 py-3.5 rounded-2xl font-bold text-[11px] uppercase tracking-widest transition-all flex items-center gap-3 ${
-                        userDoc?.following?.includes(selectedUserProfile.uid)
-                        ? 'bg-gray-100 text-muted hover:bg-gray-200'
-                        : 'bg-accent text-white shadow-xl shadow-accent/20 hover:bg-accent/90'
-                      }`}
-                    >
-                      {userDoc?.following?.includes(selectedUserProfile.uid) ? (
-                        <>
-                          <UserMinus size={16} />
-                          Unfollow
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus size={16} />
-                          Follow
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-                <p className="text-muted font-bold text-[10px] uppercase tracking-[0.25em] mb-8">Horizon Member</p>
-                
-                <div className="flex gap-10">
-                  <div>
-                    <p className="text-2xl font-serif italic text-ink">{profilePosts.length}</p>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Posts</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-serif italic text-ink">{selectedUserProfileDoc?.followers?.length || 0}</p>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Followers</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-serif italic text-ink">{selectedUserProfileDoc?.following?.length || 0}</p>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Following</p>
-                  </div>
-                  <div>
-                    <p className="text-2xl font-serif italic text-ink">{profilePosts.reduce((acc, p) => acc + p.likes, 0)}</p>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Total Likes</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
-            <div className="space-y-8">
-              <h4 className="text-xl font-serif italic text-ink tracking-tight mb-6">Recent Activity</h4>
-              {profilePosts.length === 0 ? (
-                <div className="bg-white p-20 rounded-[3rem] border border-gray-100 premium-shadow text-center">
-                  <p className="text-muted font-medium">No broadcasts yet.</p>
-                </div>
-              ) : (
-                profilePosts.map(post => (
-                  <FeedPost 
-                    key={post.id} 
-                    post={post} 
-                    onUserClick={handleUserClick}
-                    onLike={handleLikePost}
-                    onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                    onReshare={handleResharePost}
-                    onForward={handleForwardPost}
-                    onEdit={handleEditPost}
-                    onDelete={onDeletePostClick}
-                    currentUserId={user?.uid}
-                  />
-                ))
+            <p className="text-ink text-[14px] mb-6 whitespace-pre-wrap">
+              {selectedUserProfileDoc?.bio || "No bio yet."}
+            </p>
+
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-gray-200" />
+                ))}
+              </div>
+              <p className="text-muted text-[14px] hover:underline cursor-pointer">
+                {selectedUserProfileDoc?.followers?.length || 0} followers
+              </p>
+            </div>
+
+            <div className="flex gap-3 mb-10">
+              {user && user.uid !== selectedUserProfile.uid && (
+                <button 
+                  onClick={() => {
+                    const isFollowing = userDoc?.following?.includes(selectedUserProfile.uid);
+                    if (isFollowing) {
+                      handleUnfollowUser(selectedUserProfile.uid);
+                    } else {
+                      handleFollowUser(selectedUserProfile.uid);
+                    }
+                  }}
+                  className={`flex-1 py-2 rounded-xl font-bold text-[14px] transition-all ${
+                    userDoc?.following?.includes(selectedUserProfile.uid)
+                    ? 'bg-white text-ink border border-gray-200 hover:bg-gray-50'
+                    : 'bg-ink text-white hover:bg-ink/90'
+                  }`}
+                >
+                  {userDoc?.following?.includes(selectedUserProfile.uid) ? 'Following' : 'Follow'}
+                </button>
               )}
+              <button className="flex-1 py-2 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors">
+                Mention
+              </button>
+            </div>
+
+            <div className="flex border-b border-gray-100 mb-4">
+              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Threads</button>
+              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Replies</button>
+              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {profilePosts.map(post => (
+                <FeedPost 
+                  key={post.id} 
+                  post={post} 
+                  onUserClick={handleUserClick}
+                  onLike={handleLikePost}
+                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                  onReshare={handleResharePost}
+                  onForward={handleForwardPost}
+                  onEdit={handleEditPost}
+                  onDelete={onDeletePostClick}
+                  currentUserId={user?.uid}
+                />
+              ))}
             </div>
           </div>
         );
       case 'schools':
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-6 pb-24 lg:pb-12">
-            <div className="flex items-center justify-between mb-12 bg-white p-8 rounded-[3rem] border border-gray-100 premium-shadow">
-              <div className="flex items-center gap-6">
-                <div className="h-16 w-16 bg-accent/5 rounded-[1.5rem] flex items-center justify-center text-accent shadow-sm border border-accent/10">
-                  <Wallet size={32} />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-serif italic text-ink tracking-tight">Executive Finance</h2>
-                  <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">Revenue and projections</p>
-                </div>
-              </div>
+          <div className="w-full max-w-xl mx-auto py-8 px-4">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-ink tracking-tight">Institutions</h2>
               {userDoc?.role === 'admin' && (
                 <button 
                   onClick={() => setIsSchoolModalOpen(true)}
-                  className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-ink/10 hover:scale-105 transition-transform"
+                  className="h-10 w-10 bg-ink text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform"
                 >
-                  <Plus size={28} />
+                  <Plus size={20} />
                 </button>
               )}
             </div>
 
-            <div className="relative mb-12 group">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={20} />
+            <div className="relative mb-8 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
               <input 
                 type="text" 
                 placeholder="Search institutions..." 
                 value={schoolSearch}
                 onChange={(e) => setSchoolSearch(e.target.value)}
-                className="w-full pl-16 pr-8 py-5 bg-white border border-gray-100 rounded-[2rem] premium-shadow focus:ring-2 focus:ring-accent/5 outline-none transition-all text-ink font-medium placeholder:text-gray-300" 
+                className="w-full pl-12 pr-4 py-3 bg-gray-100 border-none rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400" 
               />
             </div>
 
-            <div className="flex items-center gap-3 mb-10 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
               {['all', 'school', 'place'].map((f) => (
                 <button
                   key={f}
                   onClick={() => setSchoolFilter(f as any)}
-                  className={`px-8 py-3 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
+                  className={`px-6 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
                     schoolFilter === f 
-                      ? 'bg-ink text-white shadow-2xl shadow-ink/10' 
-                      : 'bg-white text-muted border border-gray-100 hover:bg-gray-50'
+                      ? 'bg-ink text-white' 
+                      : 'bg-white text-muted border border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  {f === 'all' ? 'All Institutions' : f === 'school' ? 'Schools' : 'Places'}
+                  {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
                 </button>
               ))}
             </div>
 
-            <div className="space-y-8">
+            <div className="divide-y divide-gray-100">
               {schools
                 .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
                 .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
                 .map(school => (
                 <div 
                   key={school.id}
-                  className="bg-white rounded-[3rem] p-10 border border-gray-100 premium-shadow relative overflow-hidden group hover:border-accent/20 transition-all"
+                  className="py-4 flex items-center justify-between group"
                 >
-                  <div className="flex items-center justify-between mb-10">
-                    <div 
-                      className="flex items-center gap-6 cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    >
-                      <div className="relative">
-                        <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl overflow-hidden ${
-                          school.logo ? 'bg-white' : (school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20')
-                        }`}>
-                          {school.logo ? (
-                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            school.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-                          )}
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-white rounded-full border-4 border-white shadow-sm flex items-center justify-center">
-                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-4">
-                          <h4 className="text-2xl font-serif italic text-ink tracking-tight">{school.name}</h4>
-                          <div className="h-8 w-8 bg-accent text-white rounded-full flex items-center justify-center text-[10px] font-bold shadow-xl shadow-accent/20">2</div>
-                        </div>
-                        <p className="text-sm text-muted font-medium tracking-wide mt-1 line-clamp-1">{school.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {userDoc?.role === 'admin' && (
-                        <>
-                          <button 
-                            onClick={() => {
-                              setEditingSchool(school);
-                              setNewSchool({ 
-                                name: school.name, 
-                                description: school.description, 
-                                logo: school.logo, 
-                                type: school.type,
-                                educationalLevels: school.educationalLevels || []
-                              });
-                              setIsSchoolModalOpen(true);
-                            }}
-                            className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-muted hover:text-accent hover:bg-accent/5 transition-all"
-                          >
-                            <Settings size={22} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setSchoolToDelete(school.id);
-                              setIsDeleteSchoolModalOpen(true);
-                            }}
-                            className="h-14 w-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600 hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                            title="Delete Institution"
-                          >
-                            <Trash2 size={22} />
-                          </button>
-                        </>
+                  <div 
+                    className="flex items-center gap-4 cursor-pointer flex-1"
+                    onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                  >
+                    <div className={`h-14 w-14 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 ${
+                      school.logo ? 'bg-white' : 'bg-gray-200'
+                    }`}>
+                      {school.logo ? (
+                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-ink">{school.name.charAt(0)}</span>
                       )}
-                      <button 
-                        onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                        className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-ink hover:bg-ink hover:text-white transition-all shadow-sm"
-                      >
-                        <ChevronRight size={28} />
-                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1">
+                        <h4 className="text-[15px] font-bold text-ink truncate">{school.name}</h4>
+                        <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
+                      </div>
+                      <p className="text-[14px] text-muted truncate">{school.description}</p>
+                      <p className="text-[12px] text-muted mt-1">1.2k followers</p>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-4 mt-6">
+                  
+                  <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex flex-col items-center justify-center gap-2 py-4 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-sm"
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                      className="px-6 py-1.5 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors"
                     >
-                      <BookOpen size={16} />
-                      Records
+                      Visit
                     </button>
-                    {school.type === 'school' && (
+                    {userDoc?.role === 'admin' && (
                       <button 
-                        onClick={() => { setSelectedSchool(school); setView('attendance'); }}
-                        className="flex flex-col items-center justify-center gap-2 py-4 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-sm"
+                        onClick={() => {
+                          setSchoolToDelete(school.id);
+                          setIsDeleteSchoolModalOpen(true);
+                        }}
+                        className="p-2 text-muted hover:text-red-600 transition-colors"
                       >
-                        <Users size={16} />
-                        Attendance
+                        <Trash2 size={18} />
                       </button>
                     )}
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex flex-col items-center justify-center gap-2 py-4 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-sm"
-                    >
-                      <Wallet size={16} />
-                      Finance
-                    </button>
                   </div>
                 </div>
               ))}
@@ -1908,13 +1784,13 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
+          <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
-              <div>
+              <div className="text-center md:text-left">
                 <motion.h2 
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
                 >
                   {selectedSchool.name} Records
                 </motion.h2>
@@ -1957,21 +1833,21 @@ function ExonaApp() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Student & Details</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Category</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Added By</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Paid</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Balance</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Actions</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Student & Details</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Added By</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Balance</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {records.filter(r => r.type === recordTab).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-8 py-32 text-center">
+                        <td colSpan={6} className="px-6 py-24 text-center">
                           <div className="flex flex-col items-center gap-6 opacity-20">
-                            <Filter size={64} strokeWidth={1} />
-                            <p className="font-serif italic text-xl">No records found for this category</p>
+                            <Filter size={48} strokeWidth={1} />
+                            <p className="font-serif italic text-lg">No records found</p>
                           </div>
                         </td>
                       </tr>
@@ -1984,51 +1860,47 @@ function ExonaApp() {
                           transition={{ delay: idx * 0.05 }}
                           className="hover:bg-gray-50/50 transition-colors group"
                         >
-                          <td className="px-8 py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-lg bg-accent/5 flex items-center justify-center text-accent font-bold text-[10px]">
                                 {record.studentName.charAt(0)}
                               </div>
-                              <span className="font-semibold text-ink text-sm">{record.studentName}</span>
+                              <span className="font-semibold text-ink text-xs">{record.studentName}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6 text-sm font-medium text-muted">
-                            <div className="flex flex-wrap gap-2">
+                          <td className="px-6 py-4 text-[11px] font-medium text-muted">
+                            <div className="flex flex-wrap gap-1.5">
                               {record.category.split(',').map(c => c.trim()).filter(c => c).map((cat, i) => (
-                                <span key={i} className="px-3 py-1 bg-accent/5 text-accent rounded-lg text-[9px] font-bold uppercase tracking-wider border border-accent/10 flex items-center gap-1">
-                                  <div className="h-1 w-1 bg-accent rounded-full"></div>
+                                <span key={i} className="px-2 py-0.5 bg-accent/5 text-accent rounded-md text-[8px] font-bold uppercase tracking-wider border border-accent/10 flex items-center gap-1">
                                   {cat}
                                 </span>
                               ))}
                             </div>
                           </td>
-                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.addedBy}</td>
-                          <td className="px-8 py-6 font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
-                          <td className="px-8 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
-                          <td className="px-8 py-6">
-                            <div className="flex items-center gap-2">
+                          <td className="px-6 py-4 text-[11px] font-medium text-muted">{record.addedBy}</td>
+                          <td className="px-6 py-4 font-mono font-bold text-green-600 text-xs">₦{record.paid.toLocaleString()}</td>
+                          <td className="px-6 py-4 font-mono font-bold text-red-600 text-xs">₦{record.balance.toLocaleString()}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1">
                               {(record.creatorUid === user?.uid || userDoc?.role === 'admin') && (
                                 <>
                                   <button 
                                     onClick={() => handleEditRecord(record)}
-                                    className="p-2 text-muted hover:text-accent hover:bg-accent/5 rounded-xl transition-all"
-                                    title="Edit Record"
+                                    className="p-1.5 text-muted hover:text-accent hover:bg-accent/5 rounded-lg transition-all"
                                   >
-                                    <Edit2 size={18} />
+                                    <Edit2 size={14} />
                                   </button>
                                   <button 
                                     onClick={() => {
                                       setRecordToDelete(record.id);
                                       setIsDeleteRecordModalOpen(true);
                                     }}
-                                    className="p-2 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                    title="Delete Record"
+                                    className="p-1.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                   >
-                                    <Trash2 size={18} />
+                                    <Trash2 size={14} />
                                   </button>
                                 </>
                               )}
-                              <button className="p-2 text-muted hover:text-ink hover:bg-gray-50 rounded-xl transition-all"><MoreHorizontal size={18} /></button>
                             </div>
                           </td>
                         </motion.tr>
@@ -2044,12 +1916,12 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
-            <div className="flex flex-col mb-12">
+          <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
+            <div className="flex flex-col mb-12 items-center text-center">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+                className="text-5xl font-serif italic text-ink tracking-tight mb-2"
               >
                 {selectedSchool.name} Finance
               </motion.h2>
@@ -2142,13 +2014,13 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
+          <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
-              <div className="flex flex-col">
+              <div className="flex flex-col text-center md:text-left">
                 <motion.h2 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
                 >
                   {selectedSchool.name} Attendance
                 </motion.h2>
@@ -2179,19 +2051,19 @@ function ExonaApp() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Teacher Name</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Status</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Date</th>
-                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Teacher Name</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {attendance.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-8 py-32 text-center">
+                        <td colSpan={4} className="px-6 py-24 text-center">
                           <div className="flex flex-col items-center gap-6 opacity-20">
-                            <Users size={64} strokeWidth={1} />
-                            <p className="font-serif italic text-xl">No attendance records found</p>
+                            <Users size={48} strokeWidth={1} />
+                            <p className="font-serif italic text-lg">No records found</p>
                           </div>
                         </td>
                       </tr>
@@ -2204,16 +2076,16 @@ function ExonaApp() {
                           transition={{ delay: idx * 0.05 }}
                           className="hover:bg-gray-50/50 transition-colors group"
                         >
-                          <td className="px-8 py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-lg bg-accent/5 flex items-center justify-center text-accent font-bold text-[10px]">
                                 {record.teacherName.charAt(0)}
                               </div>
-                              <span className="font-semibold text-ink text-sm">{record.teacherName}</span>
+                              <span className="font-semibold text-ink text-xs">{record.teacherName}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
-                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest border ${
                               record.status === 'present' ? 'bg-green-50 text-green-600 border-green-100' :
                               record.status === 'absent' ? 'bg-red-50 text-red-600 border-red-100' :
                               'bg-orange-50 text-orange-600 border-orange-100'
@@ -2221,8 +2093,8 @@ function ExonaApp() {
                               {record.status}
                             </span>
                           </td>
-                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.date}</td>
-                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.addedBy}</td>
+                          <td className="px-6 py-4 text-[11px] font-medium text-muted">{record.date}</td>
+                          <td className="px-6 py-4 text-[11px] font-medium text-muted">{record.addedBy}</td>
                         </motion.tr>
                       ))
                     )}
@@ -2234,8 +2106,8 @@ function ExonaApp() {
         );
       case 'ai':
         return (
-          <div className="flex flex-col h-full w-full max-w-[1600px] mx-auto py-12 px-8">
-            <div className="flex flex-col mb-12">
+          <div className="flex flex-col h-full w-full max-w-4xl mx-auto py-12 px-8">
+            <div className="flex flex-col mb-12 items-center text-center">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -2313,8 +2185,8 @@ function ExonaApp() {
         );
       case 'penalty':
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
-            <div className="flex flex-col mb-12">
+          <div className="w-full max-w-4xl mx-auto py-12 px-8">
+            <div className="flex flex-col mb-12 items-center text-center">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -2351,112 +2223,70 @@ function ExonaApp() {
       case 'profile':
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
-            <div className="flex flex-col mb-12">
-              <motion.h2 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
-              >
-                Institutional Profile
-              </motion.h2>
-              <motion.p 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-              >
-                Personal Identity & Credentials
-              </motion.p>
+          <div className="w-full max-w-xl mx-auto py-8 px-4">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
+                <div className="flex items-center gap-2">
+                  <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">threads.net</span>
+                </div>
+              </div>
+              <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
+                {user.photoURL ? (
+                  <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="h-full w-full bg-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
+                    {user.displayName?.charAt(0)}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden"
-            >
-              <div className="h-48 bg-ink relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent"></div>
-                <div className="absolute inset-0 overflow-hidden opacity-10">
-                  <div className="absolute top-0 right-0 h-64 w-64 bg-white blur-3xl rounded-full -mr-32 -mt-32"></div>
-                </div>
-              </div>
-              <div className="px-12 pb-12">
-                <div className="relative -mt-20 mb-8">
-                  <div className="h-40 w-40 rounded-[2.5rem] bg-white p-2 shadow-2xl relative group/avatar">
-                    <div className="h-full w-full rounded-[2rem] bg-gray-50 flex items-center justify-center text-ink font-serif italic text-6xl overflow-hidden border border-gray-100">
-                      {user?.photoURL ? <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
-                    </div>
-                    <label className="absolute inset-0 flex items-center justify-center bg-ink/60 opacity-0 group-hover/avatar:opacity-100 transition-all rounded-[2rem] cursor-pointer backdrop-blur-sm">
-                      <div className="flex flex-col items-center gap-2">
-                        <Upload size={24} className="text-white" />
-                        <span className="text-[8px] font-bold uppercase tracking-widest text-white">Update</span>
-                      </div>
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={handleUpdateProfilePicture}
-                        disabled={isUploadingProfile}
-                      />
-                    </label>
-                    {isUploadingProfile && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-ink/40 backdrop-blur-sm rounded-[2rem]">
-                        <div className="h-12 w-12 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-                  <div>
-                    <h3 className="text-4xl font-serif italic text-ink mb-2">{user?.displayName}</h3>
-                    <p className="text-muted font-bold text-sm tracking-wide">{user?.email}</p>
-                  </div>
-                  <div className="flex gap-3">
-                    <button className="px-8 py-3.5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all">Edit Profile</button>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-                  {[
-                    { label: 'Institutional Role', value: userDoc?.role || 'Student', icon: ShieldCheck },
-                    { label: 'Identification ID', value: userDoc?.schoolId || 'EX-2024-001', icon: Fingerprint },
-                    { label: 'Account Status', value: 'Verified', icon: BadgeCheck }
-                  ].map((item, i) => (
-                    <div key={i} className="p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                      <div className="flex items-center gap-3 mb-3 text-muted">
-                        <item.icon size={16} />
-                        <p className="text-[10px] font-bold uppercase tracking-widest">{item.label}</p>
-                      </div>
-                      <p className="font-bold text-ink text-lg">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
+            <p className="text-ink text-[14px] mb-6 whitespace-pre-wrap">
+              {userDoc?.bio || "No bio yet."}
+            </p>
 
-                <div className="mt-16 pt-12 border-t border-gray-100">
-                  <div className="flex items-center gap-3 mb-6">
-                    <AlertTriangle size={20} className="text-red-500" />
-                    <h4 className="text-xs font-bold text-red-600 uppercase tracking-[0.3em]">Security Protocol</h4>
-                  </div>
-                  <div className="bg-red-50/50 rounded-3xl p-8 border border-red-100/50">
-                    <p className="text-sm text-red-900/60 mb-8 font-medium leading-relaxed max-w-2xl">
-                      Account termination is an irreversible procedure. All institutional records, financial history, and community interactions associated with this identity will be permanently purged from the Exona mainframe.
-                    </p>
-                    <button 
-                      onClick={() => {
-                        setAuthError(null);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      className="px-8 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all text-xs uppercase tracking-widest shadow-xl shadow-red-100"
-                    >
-                      Terminate Account
-                    </button>
-                  </div>
-                </div>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="flex -space-x-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-gray-200" />
+                ))}
               </div>
-            </motion.div>
+              <p className="text-muted text-[14px] hover:underline cursor-pointer">1.2k followers</p>
+            </div>
+
+            <div className="flex gap-3 mb-10">
+              <button className="flex-1 py-2 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors">
+                Edit profile
+              </button>
+              <button className="flex-1 py-2 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors">
+                Share profile
+              </button>
+            </div>
+
+            <div className="flex border-b border-gray-100 mb-4">
+              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Threads</button>
+              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Replies</button>
+              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {posts.filter(p => p.authorUid === user.uid).map(post => (
+                <FeedPost 
+                  key={post.id} 
+                  post={post} 
+                  onUserClick={handleUserClick}
+                  onLike={handleLikePost}
+                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                  onReshare={handleResharePost}
+                  onForward={handleForwardPost}
+                  onEdit={handleEditPost}
+                  onDelete={onDeletePostClick}
+                  currentUserId={user?.uid}
+                />
+              ))}
+            </div>
           </div>
         );
       default: return null;
@@ -2684,7 +2514,7 @@ function ExonaApp() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       {/* Modals */}
       <AnimatePresence>
         {isDeleteModalOpen && (
@@ -3435,159 +3265,61 @@ function ExonaApp() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <AnimatePresence>
-        {(sidebarOpen || window.innerWidth >= 1024) && (
-          <motion.aside 
-            initial={{ x: -320 }} animate={{ x: 0 }} exit={{ x: -320 }}
-            className="fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-gray-100 z-50 flex flex-col premium-shadow lg:shadow-none"
-          >
-            <div className="p-10 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 bg-ink rounded-2xl flex items-center justify-center text-white font-serif italic text-2xl shadow-2xl shadow-ink/20">H</div>
-                <div>
-                  <h1 className="text-2xl font-serif italic text-ink tracking-tighter leading-none">Horizon</h1>
-                  <p className="text-[9px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Intelligence</p>
-                </div>
-              </div>
-              <button onClick={() => setSidebarOpen(false)} className="lg:hidden h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"><X size={20} /></button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 space-y-12 pb-10">
-              <div className="space-y-2">
-                <p className="px-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">Horizon Network</p>
-                <SidebarItem icon={LayoutGrid} label="Main Feed" active={view === 'feed'} onClick={() => { setView('feed'); setSidebarOpen(false); }} />
-                <SidebarItem icon={GraduationCap} label="Institutions" active={view === 'schools' || (view === 'schools' && !selectedSchool)} onClick={() => { setView('schools'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Database} label="Data Records" active={view === 'records'} onClick={() => { setView('records'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Sparkles} label="Horizon AI" active={view === 'ai'} onClick={() => { setView('ai'); setSidebarOpen(false); }} />
-              </div>
-
-              <div className="space-y-2">
-                <p className="px-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">Governance</p>
-                {userDoc?.role === 'admin' && (
-                  <SidebarItem icon={Shield} label="Admin Terminal" active={view === 'admin'} onClick={() => { setView('admin'); setSidebarOpen(false); }} />
-                )}
-                <SidebarItem icon={CreditCard} label="Finance Hub" active={view === 'finance'} onClick={() => { setView('finance'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Fingerprint} label="Security Board" active={view === 'penalty'} onClick={() => { setView('penalty'); setSidebarOpen(false); }} />
-              </div>
-
-              <div className="space-y-2">
-                <p className="px-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">Identity</p>
-                <SidebarItem icon={UserIcon} label="My Profile" active={view === 'profile'} onClick={() => { if (user) setView('profile'); else setView('login'); setSidebarOpen(false); }} />
-                <SidebarItem icon={Settings} label="System Settings" />
-              </div>
-            </div>
-
-            <div className="p-8 border-t border-gray-50 bg-gray-50/30">
-              {user ? (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-4 px-4">
-                    <img src={user?.photoURL || ''} className="h-10 w-10 rounded-xl object-cover shadow-sm border border-gray-100" />
-                    <div className="overflow-hidden">
-                      <p className="text-[13px] font-bold text-ink truncate tracking-tight">{userDoc?.name}</p>
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest truncate">{userDoc?.role}</p>
-                    </div>
-                  </div>
-                  <button onClick={handleLogout} className="w-full flex items-center justify-center gap-3 py-4 text-red-500 font-bold hover:bg-red-50 rounded-2xl transition-all duration-300 border border-transparent hover:border-red-100">
-                    <LogOut size={16} /> 
-                    <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Terminate Session</span>
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => { setView('login'); setSidebarOpen(false); }} className="w-full flex items-center justify-center gap-3 py-4 bg-ink text-white rounded-2xl font-bold transition-all duration-300 shadow-2xl shadow-ink/10">
-                  <LogIn size={16} /> 
-                  <span className="text-[11px] font-bold uppercase tracking-[0.2em]">Authorize Access</span>
-                </button>
-              )}
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
-
-      {/* Main Area */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-paper">
-        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-8 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-8">
-            <button onClick={() => setSidebarOpen(true)} className="lg:hidden h-12 w-12 bg-gray-50 text-ink rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"><Menu size={24} /></button>
-            <div className="relative hidden md:block group">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search the network..." 
-                className="pl-14 pr-8 py-4 bg-gray-50/50 border border-transparent rounded-[1.5rem] text-[14px] font-medium outline-none w-96 focus:ring-4 focus:ring-ink/5 focus:bg-white focus:border-gray-100 transition-all placeholder:text-gray-300" 
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-8">
-            {user ? (
-              <>
-                <button className="h-12 w-12 bg-gray-50 text-muted hover:text-ink rounded-2xl flex items-center justify-center relative transition-all border border-gray-100 active:scale-90">
-                  <Bell size={22} />
-                  <span className="absolute top-3 right-3 h-2.5 w-2.5 bg-accent rounded-full border-2 border-white"></span>
-                </button>
-                <button 
-                  onClick={() => setView('profile')}
-                  className="flex items-center gap-4 p-1.5 pr-6 bg-gray-50 rounded-[1.5rem] hover:bg-gray-100 transition-all border border-gray-100 group active:scale-[0.98]"
-                >
-                  <div className="h-11 w-11 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold border border-accent/10 overflow-hidden shadow-sm group-hover:scale-105 transition-transform">
-                    {user?.photoURL ? <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <p className="text-[13px] font-bold text-ink leading-none">{userDoc?.name?.split(' ')[0]}</p>
-                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-1.5">Operator</p>
-                  </div>
-                </button>
-              </>
-            ) : (
-              <button 
-                onClick={() => setView('login')}
-                className="px-7 py-2.5 bg-ink text-white rounded-2xl font-bold hover:bg-ink/90 transition-all text-[13px] shadow-xl shadow-ink/10"
-              >
-                Sign In
-              </button>
-            )}
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-y-auto bg-paper">
-          {renderView()}
-        </main>
-
-        {/* Mobile Bottom Nav */}
-        <div className="lg:hidden bg-white/80 backdrop-blur-xl border-t border-gray-100 px-8 py-6 flex items-center justify-between pb-10 z-40">
-          <button onClick={() => setView('feed')} className={`p-4 rounded-2xl transition-all relative ${view === 'feed' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
-            <LayoutGrid size={24} strokeWidth={view === 'feed' ? 2.5 : 2} />
-            {view === 'feed' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
-          </button>
-          <button onClick={() => setView('schools')} className={`p-4 rounded-2xl transition-all relative ${view === 'schools' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
-            <GraduationCap size={24} strokeWidth={view === 'schools' ? 2.5 : 2} />
-            {view === 'schools' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
-          </button>
-          <button 
-            onClick={() => {
-              if (!user) { setView('login'); return; }
-              if (view === 'feed') openNewPostModal();
-              else if (view === 'records') setIsRecordModalOpen(true);
-              else openNewPostModal();
-            }} 
-            className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-ink/20 active:scale-90 transition-all"
-          >
-            <Plus size={28} />
-          </button>
-          <button onClick={() => setView('ai')} className={`p-4 rounded-2xl transition-all relative ${view === 'ai' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
-            <Sparkles size={24} strokeWidth={view === 'ai' ? 2.5 : 2} />
-            {view === 'ai' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
-          </button>
-          <button onClick={() => user ? setView('profile') : setView('login')} className={`p-4 rounded-2xl transition-all relative ${view === 'profile' ? 'text-accent' : 'text-muted hover:bg-gray-50'}`}>
-            <UserIcon size={24} strokeWidth={view === 'profile' ? 2.5 : 2} />
-            {view === 'profile' && <motion.div layoutId="mobile-dot" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-accent rounded-full" />}
+      {/* Top Navigation (Threads Style) */}
+      <header className="h-16 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 flex items-center justify-between sticky top-0 z-40">
+        <div className="flex items-center w-1/3">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors">
+            <Menu size={24} />
           </button>
         </div>
+
+        <div className="flex items-center justify-center w-1/3">
+          <div className="cursor-pointer" onClick={() => setView('feed')}>
+            <svg viewBox="0 0 24 24" className="h-8 w-8 fill-ink">
+              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm1-13h-2v2h2V7zm0 4h-2v6h2v-6z" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end w-1/3 gap-4">
+          <button onClick={() => setView('schools')} className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors">
+            <Search size={24} />
+          </button>
+        </div>
+      </header>
+
+      {/* Main Area */}
+      <main className="flex-1 overflow-y-auto bg-paper">
+        {renderView()}
+      </main>
+
+      {/* Bottom Nav (Threads Style) */}
+      <div className="bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-4 flex items-center justify-between sticky bottom-0 z-40">
+        <button onClick={() => setView('feed')} className={`p-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
+          <Home size={28} strokeWidth={view === 'feed' ? 2.5 : 2} />
+        </button>
+        <button onClick={() => setView('schools')} className={`p-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
+          <Search size={28} strokeWidth={view === 'schools' ? 2.5 : 2} />
+        </button>
+        <button 
+          onClick={() => {
+            if (!user) { setView('login'); return; }
+            openNewPostModal();
+          }} 
+          className="p-2 text-muted hover:text-ink transition-all"
+        >
+          <PlusSquare size={28} />
+        </button>
+        <button onClick={() => setView('penalty')} className={`p-2 transition-all ${view === 'penalty' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
+          <Heart size={28} strokeWidth={view === 'penalty' ? 2.5 : 2} />
+        </button>
+        <button onClick={() => user ? setView('profile') : setView('login')} className={`p-2 transition-all ${view === 'profile' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
+          <UserIcon size={28} strokeWidth={view === 'profile' ? 2.5 : 2} />
+        </button>
       </div>
-    </div>
-  );
-}
+      </div>
+    );
+  }
 
 export default function App() {
   return (
