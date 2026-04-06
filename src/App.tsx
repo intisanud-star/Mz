@@ -75,6 +75,16 @@ interface Post {
   };
 }
 
+interface TeacherAttendance {
+  id: string;
+  teacherName: string;
+  schoolId: string;
+  status: 'present' | 'absent' | 'late';
+  date: string;
+  timestamp: any;
+  addedBy: string;
+}
+
 interface School {
   id: string;
   name: string;
@@ -355,7 +365,7 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -388,6 +398,9 @@ function ExonaApp() {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
+  const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
@@ -669,6 +682,28 @@ function ExonaApp() {
     } catch (error) {
       console.error('Record operation failed', error);
       handleFirestoreError(error, editingRecord ? OperationType.UPDATE : OperationType.CREATE, path);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleCreateAttendance = async () => {
+    if (!user || !selectedSchool || !newAttendance.teacherName.trim()) return;
+    setIsUploading(true);
+    const path = 'teacherAttendance';
+    try {
+      await addDoc(collection(db, path), {
+        schoolId: selectedSchool.id,
+        teacherName: newAttendance.teacherName.trim(),
+        status: newAttendance.status,
+        date: new Date().toISOString().split('T')[0],
+        addedBy: user.displayName || 'Anonymous',
+        timestamp: serverTimestamp()
+      });
+      setNewAttendance({ teacherName: '', status: 'present' });
+      setIsAttendanceModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
     }
@@ -1051,7 +1086,15 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, `finance/${selectedSchool.id}`);
     });
 
-    return () => { unsubRecords(); unsubFinance(); };
+    const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
+      setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
+      }
+    });
+
+    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); };
   }, [selectedSchool]);
 
   const handleGoogleSignIn = async () => {
@@ -1756,19 +1799,28 @@ function ExonaApp() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-6">
+                  <div className="grid grid-cols-3 gap-4 mt-6">
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex items-center justify-center gap-4 py-5 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[11px] uppercase tracking-widest shadow-sm"
+                      className="flex flex-col items-center justify-center gap-2 py-4 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-sm"
                     >
-                      <BookOpen size={18} />
+                      <BookOpen size={16} />
                       Records
                     </button>
+                    {school.type === 'school' && (
+                      <button 
+                        onClick={() => { setSelectedSchool(school); setView('attendance'); }}
+                        className="flex flex-col items-center justify-center gap-2 py-4 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-sm"
+                      >
+                        <Users size={16} />
+                        Attendance
+                      </button>
+                    )}
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex items-center justify-center gap-4 py-5 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[11px] uppercase tracking-widest shadow-sm"
+                      className="flex flex-col items-center justify-center gap-2 py-4 bg-gray-50 rounded-2xl font-bold text-ink hover:bg-accent hover:text-white transition-all text-[9px] uppercase tracking-widest shadow-sm"
                     >
-                      <Wallet size={18} />
+                      <Wallet size={16} />
                       Finance
                     </button>
                   </div>
@@ -2007,6 +2059,100 @@ function ExonaApp() {
                     <p className="font-serif italic text-xl mt-6">No transaction history found</p>
                   </div>
                 </motion.div>
+              </div>
+            </div>
+          </div>
+        );
+      case 'attendance':
+        if (!user) { setView('login'); return null; }
+        if (!selectedSchool) { setView('schools'); return null; }
+        return (
+          <div className="max-w-6xl mx-auto py-12 px-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
+              <div className="flex flex-col">
+                <motion.h2 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-4xl font-serif italic text-ink tracking-tight mb-2"
+                >
+                  {selectedSchool.name} Attendance
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+                >
+                  Teacher Presence Log
+                </motion.p>
+              </div>
+              <motion.button 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsAttendanceModalOpen(true)}
+                className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
+              >
+                <Plus size={20} />
+                Record Attendance
+              </motion.button>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] premium-shadow border border-gray-100 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 border-b border-gray-100">
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Teacher Name</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Status</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Date</th>
+                      <th className="px-8 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {attendance.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-8 py-32 text-center">
+                          <div className="flex flex-col items-center gap-6 opacity-20">
+                            <Users size={64} strokeWidth={1} />
+                            <p className="font-serif italic text-xl">No attendance records found</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      attendance.map((record, idx) => (
+                        <motion.tr 
+                          key={record.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className="hover:bg-gray-50/50 transition-colors group"
+                        >
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
+                                {record.teacherName.charAt(0)}
+                              </div>
+                              <span className="font-semibold text-ink text-sm">{record.teacherName}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border ${
+                              record.status === 'present' ? 'bg-green-50 text-green-600 border-green-100' :
+                              record.status === 'absent' ? 'bg-red-50 text-red-600 border-red-100' :
+                              'bg-orange-50 text-orange-600 border-orange-100'
+                            }`}>
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.date}</td>
+                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.addedBy}</td>
+                        </motion.tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -2969,6 +3115,74 @@ function ExonaApp() {
                   <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-2 text-center">{Math.round(uploadProgress)}% Transmission Complete</p>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isAttendanceModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">Record Attendance</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Presence Log</p>
+                </div>
+                <button onClick={() => setIsAttendanceModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="space-y-8">
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Teacher Name</label>
+                  <input 
+                    type="text" 
+                    value={newAttendance.teacherName}
+                    onChange={(e) => setNewAttendance({...newAttendance, teacherName: e.target.value})}
+                    placeholder="Full Legal Name"
+                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Presence Status</label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {(['present', 'absent', 'late'] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setNewAttendance({ ...newAttendance, status: s })}
+                        className={`py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                          newAttendance.status === s 
+                            ? 'bg-ink text-white border-ink shadow-xl shadow-ink/10' 
+                            : 'bg-gray-50 text-muted border-transparent hover:bg-gray-100'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end mt-12">
+                <button 
+                  onClick={handleCreateAttendance}
+                  disabled={!newAttendance.teacherName.trim() || isUploading}
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Recording...
+                    </>
+                  ) : (
+                    'Authorize Presence'
+                  )}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
