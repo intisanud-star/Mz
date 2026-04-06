@@ -115,6 +115,15 @@ interface Record {
   timestamp: any;
 }
 
+interface UserDoc {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  role?: 'admin' | 'user';
+  schoolId?: string;
+}
+
 interface SchoolFinance {
   institutionBalance: number;
   bankName: string;
@@ -358,7 +367,7 @@ function ExonaApp() {
   const [user, setUser] = useState<User | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
-  const [userDoc, setUserDoc] = useState<any>(null);
+  const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const [selectedUserProfileDoc, setSelectedUserProfileDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
@@ -402,6 +411,49 @@ function ExonaApp() {
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '', type: 'school' as School['type'] });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+
+  const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+
+  const handleUpdateProfilePicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setIsUploadingProfile(true);
+    try {
+      const fileRef = ref(storage, `users/${user.uid}/profile_${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(fileRef, file);
+      
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          }, 
+          (error) => reject(error), 
+          () => resolve(null)
+        );
+      });
+
+      const photoURL = await getDownloadURL(fileRef);
+      
+      // Update Firebase Auth profile
+      await updateProfile(user, { photoURL });
+      
+      // Update Firestore user document
+      await setDoc(doc(db, 'users', user.uid), { photoURL }, { merge: true });
+      
+      // Refresh userDoc state
+      const updatedDoc = await getDoc(doc(db, 'users', user.uid));
+      if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
+      
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+    } finally {
+      setIsUploadingProfile(false);
+      setUploadProgress(0);
+    }
+  };
 
   const handleCreateSchool = async () => {
     if (!newSchool.name.trim() || !user) return;
@@ -1368,10 +1420,14 @@ function ExonaApp() {
             </button>
             
             <div className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden mb-12 p-10 flex items-center gap-8">
-              <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl ${
-                selectedSchool.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20'
+              <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl overflow-hidden ${
+                selectedSchool.logo ? 'bg-white' : (selectedSchool.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20')
               }`}>
-                {selectedSchool.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                {selectedSchool.logo ? (
+                  <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  selectedSchool.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                )}
               </div>
               <div>
                 <h2 className="text-3xl font-serif italic text-ink tracking-tight mb-2">{selectedSchool.name}</h2>
@@ -1591,10 +1647,14 @@ function ExonaApp() {
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                     >
                       <div className="relative">
-                        <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl ${
-                          school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20'
+                        <div className={`h-24 w-24 rounded-[2rem] flex items-center justify-center text-white font-serif italic text-3xl shadow-2xl overflow-hidden ${
+                          school.logo ? 'bg-white' : (school.name.toLowerCase().includes('darul') ? 'bg-orange-600 shadow-orange-100' : 'bg-accent shadow-accent/20')
                         }`}>
-                          {school.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          {school.logo ? (
+                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            school.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                          )}
                         </div>
                         <div className="absolute -bottom-1 -right-1 h-6 w-6 bg-white rounded-full border-4 border-white shadow-sm flex items-center justify-center">
                           <div className="h-2 w-2 bg-green-500 rounded-full"></div>
@@ -2025,10 +2085,28 @@ function ExonaApp() {
               </div>
               <div className="px-12 pb-12">
                 <div className="relative -mt-20 mb-8">
-                  <div className="h-40 w-40 rounded-[2.5rem] bg-white p-2 shadow-2xl">
+                  <div className="h-40 w-40 rounded-[2.5rem] bg-white p-2 shadow-2xl relative group/avatar">
                     <div className="h-full w-full rounded-[2rem] bg-gray-50 flex items-center justify-center text-ink font-serif italic text-6xl overflow-hidden border border-gray-100">
                       {user?.photoURL ? <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : user?.displayName?.charAt(0)}
                     </div>
+                    <label className="absolute inset-0 flex items-center justify-center bg-ink/60 opacity-0 group-hover/avatar:opacity-100 transition-all rounded-[2rem] cursor-pointer backdrop-blur-sm">
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload size={24} className="text-white" />
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-white">Update</span>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleUpdateProfilePicture}
+                        disabled={isUploadingProfile}
+                      />
+                    </label>
+                    {isUploadingProfile && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-ink/40 backdrop-blur-sm rounded-[2rem]">
+                        <div className="h-12 w-12 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -2632,14 +2710,35 @@ function ExonaApp() {
                   />
                 </div>
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Visual Identity URL</label>
-                  <input 
-                    type="text" 
-                    value={newSchool.logo}
-                    onChange={(e) => setNewSchool({...newSchool, logo: e.target.value})}
-                    placeholder="https://..."
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
-                  />
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Visual Identity</label>
+                  <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-100 transition-all">
+                    <div className="h-20 w-20 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-gray-100 shadow-sm">
+                      {previewUrl || newSchool.logo ? (
+                        <img src={previewUrl || newSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <ImageIcon size={24} className="text-muted/30" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <label className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-xl text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100">
+                        <Upload size={14} />
+                        Upload Logo
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setSelectedFile(file);
+                              setPreviewUrl(URL.createObjectURL(file));
+                            }
+                          }}
+                        />
+                      </label>
+                      <p className="text-[9px] text-muted mt-2 ml-1 font-medium">Recommended: 400x400px PNG/JPG</p>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end mt-12">
