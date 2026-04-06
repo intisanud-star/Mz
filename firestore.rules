@@ -46,6 +46,13 @@ service cloud.firestore {
              data.creatorUid == request.auth.uid;
     }
 
+    function isValidAttendance(data) {
+      return data.teacherName is string && data.teacherName.size() > 0 &&
+             data.schoolId is string &&
+             data.status in ['present', 'absent', 'late'] &&
+             data.date is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -61,6 +68,19 @@ service cloud.firestore {
       allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
       allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
       allow delete: if isAdmin();
+    }
+
+    match /places/{placeId} {
+      allow read: if true; // Publicly readable
+      allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
+      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /teacherAttendance/{attendanceId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidAttendance(request.resource.data);
+      allow update, delete: if isAdmin();
     }
 
     match /posts/{postId} {

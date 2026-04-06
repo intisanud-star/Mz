@@ -49,11 +49,43 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["studentName", "category", "visibility", "creatorUid", "timestamp"]
+    },
+    "teacherAttendance": {
+      "title": "Teacher Attendance",
+      "description": "A record of teacher attendance for a specific school.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "status": { "type": "string", "enum": ["present", "absent", "late"] },
+        "date": { "type": "string", "format": "date" },
+        "addedBy": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["teacherName", "schoolId", "status", "date", "timestamp"]
+    },
+    "finance": {
+      "title": "School Finance",
+      "description": "Financial details for a school or institution.",
+      "type": "object",
+      "properties": {
+        "schoolId": { "type": "string" },
+        "placeId": { "type": "string" },
+        "institutionBalance": { "type": "number" },
+        "bankName": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "accountName": { "type": "string" }
+      },
+      "required": ["institutionBalance"]
     }
   },
   "firestore": {
     "/users/{userId}": { "schema": "users", "description": "User profiles" },
     "/places/{placeId}": { "schema": "places", "description": "User-created places/institutions" },
-    "/studentRecords/{recordId}": { "schema": "studentRecords", "description": "Student records linked to schools" }
+    "/schools/{schoolId}": { "schema": "places", "description": "User-created schools" },
+    "/studentRecords/{recordId}": { "schema": "studentRecords", "description": "Student records linked to schools" },
+    "/teacherAttendance/{attendanceId}": { "schema": "teacherAttendance", "description": "Teacher attendance logs" },
+    "/finance/{institutionId}": { "schema": "finance", "description": "Financial data for institutions" }
   }
 }

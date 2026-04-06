@@ -720,10 +720,15 @@ function ExonaApp() {
   };
 
   const handleCreateAttendance = async () => {
-    if (!user || !selectedSchool || !newAttendance.teacherName.trim()) return;
+    console.log('handleCreateAttendance started', { user: !!user, selectedSchool: !!selectedSchool, teacherName: newAttendance.teacherName });
+    if (!user || !selectedSchool || !newAttendance.teacherName.trim()) {
+      console.warn('handleCreateAttendance aborted: missing required fields', { user: !!user, selectedSchool: !!selectedSchool, teacherName: newAttendance.teacherName });
+      return;
+    }
     setIsUploading(true);
     const path = 'teacherAttendance';
     try {
+      console.log('Adding attendance record to:', path);
       await addDoc(collection(db, path), {
         schoolId: selectedSchool.id,
         teacherName: newAttendance.teacherName.trim(),
@@ -732,9 +737,11 @@ function ExonaApp() {
         addedBy: user.displayName || 'Anonymous',
         timestamp: serverTimestamp()
       });
+      console.log('Attendance record added successfully');
       setNewAttendance({ teacherName: '', status: 'present' });
       setIsAttendanceModalOpen(false);
     } catch (error) {
+      console.error('Attendance operation failed', error);
       handleFirestoreError(error, OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
