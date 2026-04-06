@@ -9,7 +9,8 @@ import {
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown,
-  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield
+  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
+  ClipboardList, CheckCircle2, XCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -440,6 +441,8 @@ function ExonaApp() {
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schoolSearch, setSchoolSearch] = useState('');
+  const [recordSearch, setRecordSearch] = useState('');
+  const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
@@ -1312,7 +1315,7 @@ function ExonaApp() {
 
   const renderView = () => {
     switch (view) {
-      case 'admin':
+      case 'admin': {
         if (userDoc?.role !== 'admin') { setView('feed'); return null; }
         const totalRevenue = allFinance.reduce((acc, f) => acc + (f.institutionBalance || 0), 0);
         const totalPaid = allRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
@@ -1409,8 +1412,12 @@ function ExonaApp() {
                             <tr key={school.id} className="hover:bg-gray-50/50 transition-colors group">
                               <td className="px-10 py-8">
                                 <div className="flex items-center gap-6">
-                                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                                    <img src={school.logo} className="h-full w-full object-cover" />
+                                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 flex items-center justify-center">
+                                    {school.logo ? (
+                                      <img src={school.logo} className="h-full w-full object-cover" />
+                                    ) : (
+                                      <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                                    )}
                                   </div>
                                   <div>
                                     <p className="font-bold text-ink text-[15px] tracking-tight">{school.name}</p>
@@ -1461,7 +1468,13 @@ function ExonaApp() {
                       <div key={post.id} className="flex gap-6 relative">
                         {i < 4 && <div className="absolute left-6 top-10 bottom-[-2.5rem] w-px bg-gray-100"></div>}
                         <div className="relative">
-                          <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover shadow-sm border border-gray-100" />
+                          {post.authorPhoto ? (
+                            <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover shadow-sm border border-gray-100" />
+                          ) : (
+                            <div className="h-12 w-12 rounded-2xl bg-gray-100 flex items-center justify-center text-ink font-bold text-xs border border-gray-100">
+                              {post.authorName?.charAt(0)}
+                            </div>
+                          )}
                           <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center shadow-sm">
                             <div className="h-2 w-2 bg-accent rounded-full"></div>
                           </div>
@@ -1486,7 +1499,8 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'feed':
+      }
+      case 'feed': {
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
             {user && (
@@ -1536,7 +1550,8 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'school-feed':
+      }
+      case 'school-feed': {
         if (!selectedSchool) { setView('schools'); return null; }
         const schoolPosts = posts.filter(p => p.schoolId === selectedSchool.id);
         return (
@@ -1546,8 +1561,12 @@ function ExonaApp() {
                 <ChevronRight size={20} className="rotate-180" />
               </button>
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100">
-                  <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                  {selectedSchool.logo ? (
+                    <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-muted text-[10px] font-bold">{selectedSchool.name.charAt(0)}</span>
+                  )}
                 </div>
                 <h2 className="font-bold text-ink text-lg">{selectedSchool.name}</h2>
               </div>
@@ -1594,7 +1613,8 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'user-profile':
+      }
+      case 'user-profile': {
         if (!selectedUserProfile) { setView('feed'); return null; }
         const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
         return (
@@ -1682,7 +1702,8 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'schools':
+      }
+      case 'schools': {
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-8">
@@ -1780,9 +1801,16 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'records':
+      }
+      case 'records': {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
+        const filteredRecords = records
+          .filter(r => r.type === recordTab)
+          .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()));
+        const totalPaid = filteredRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
+        const totalBalance = filteredRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
+
         return (
           <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
@@ -1803,17 +1831,53 @@ function ExonaApp() {
                   Official Student Information System
                 </motion.p>
               </div>
-              <motion.button 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsRecordModalOpen(true)}
-                className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-              >
-                <Plus size={20} />
-                Add Student Record
-              </motion.button>
+              <div className="flex flex-wrap items-center justify-center md:justify-end gap-4">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Search students..." 
+                    value={recordSearch}
+                    onChange={(e) => setRecordSearch(e.target.value)}
+                    className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
+                  />
+                </div>
+                <motion.button 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsRecordModalOpen(true)}
+                  className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
+                >
+                  <Plus size={20} />
+                  Add Student Record
+                </motion.button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {[
+                { label: 'Total Students', value: filteredRecords.length, icon: Users, color: 'text-ink', bg: 'bg-gray-50' },
+                { label: 'Total Paid', value: `₦${totalPaid.toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50/30' },
+                { label: 'Total Balance', value: `₦${totalBalance.toLocaleString()}`, icon: Wallet, color: 'text-red-600', bg: 'bg-red-50/30' }
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 premium-shadow flex items-center gap-6 group hover:border-accent/20 transition-all"
+                >
+                  <div className={`h-16 w-16 rounded-[1.5rem] ${stat.bg} flex items-center justify-center text-ink group-hover:scale-110 transition-transform`}>
+                    <stat.icon size={28} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                    <p className={`text-3xl font-serif italic ${stat.color}`}>{stat.value}</p>
+                  </div>
+                </motion.div>
+              ))}
             </div>
 
             <div className="flex gap-3 mb-10 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 w-fit">
@@ -1828,31 +1892,34 @@ function ExonaApp() {
               ))}
             </div>
 
-            <div className="bg-white rounded-[2.5rem] premium-shadow border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Student & Details</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Added By</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Balance</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Actions</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Student & Details</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Category</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Added By</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Paid</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Balance</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {records.filter(r => r.type === recordTab).length === 0 ? (
+                    {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-24 text-center">
+                        <td colSpan={6} className="px-6 py-32 text-center">
                           <div className="flex flex-col items-center gap-6 opacity-20">
-                            <Filter size={48} strokeWidth={1} />
-                            <p className="font-serif italic text-lg">No records found</p>
+                            <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
+                              <Filter size={48} strokeWidth={1} />
+                            </div>
+                            <p className="font-serif italic text-2xl">No records found</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest">Try adjusting your search or filters</p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      records.filter(r => r.type === recordTab).map((record, idx) => (
+                      filteredRecords.map((record, idx) => (
                         <motion.tr 
                           key={record.id}
                           initial={{ opacity: 0 }}
@@ -1860,44 +1927,44 @@ function ExonaApp() {
                           transition={{ delay: idx * 0.05 }}
                           className="hover:bg-gray-50/50 transition-colors group"
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-lg bg-accent/5 flex items-center justify-center text-accent font-bold text-[10px]">
+                          <td className="px-10 py-6">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
                                 {record.studentName.charAt(0)}
                               </div>
-                              <span className="font-semibold text-ink text-xs">{record.studentName}</span>
+                              <span className="font-bold text-ink text-sm">{record.studentName}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-[11px] font-medium text-muted">
-                            <div className="flex flex-wrap gap-1.5">
+                          <td className="px-10 py-6">
+                            <div className="flex flex-wrap gap-2">
                               {record.category.split(',').map(c => c.trim()).filter(c => c).map((cat, i) => (
-                                <span key={i} className="px-2 py-0.5 bg-accent/5 text-accent rounded-md text-[8px] font-bold uppercase tracking-wider border border-accent/10 flex items-center gap-1">
+                                <span key={i} className="px-3 py-1 bg-accent/5 text-accent rounded-lg text-[9px] font-bold uppercase tracking-wider border border-accent/10">
                                   {cat}
                                 </span>
                               ))}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-[11px] font-medium text-muted">{record.addedBy}</td>
-                          <td className="px-6 py-4 font-mono font-bold text-green-600 text-xs">₦{record.paid.toLocaleString()}</td>
-                          <td className="px-6 py-4 font-mono font-bold text-red-600 text-xs">₦{record.balance.toLocaleString()}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-1">
+                          <td className="px-10 py-6 text-[12px] font-medium text-muted">{record.addedBy}</td>
+                          <td className="px-10 py-6 font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
+                          <td className="px-10 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
+                          <td className="px-10 py-6">
+                            <div className="flex items-center gap-2">
                               {(record.creatorUid === user?.uid || userDoc?.role === 'admin') && (
                                 <>
                                   <button 
                                     onClick={() => handleEditRecord(record)}
-                                    className="p-1.5 text-muted hover:text-accent hover:bg-accent/5 rounded-lg transition-all"
+                                    className="p-2.5 text-muted hover:text-accent hover:bg-accent/5 rounded-xl transition-all"
                                   >
-                                    <Edit2 size={14} />
+                                    <Edit2 size={16} />
                                   </button>
                                   <button 
                                     onClick={() => {
                                       setRecordToDelete(record.id);
                                       setIsDeleteRecordModalOpen(true);
                                     }}
-                                    className="p-1.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    className="p-2.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
                                   >
-                                    <Trash2 size={14} />
+                                    <Trash2 size={16} />
                                   </button>
                                 </>
                               )}
@@ -1912,7 +1979,8 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'finance':
+      }
+      case 'finance': {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
@@ -1935,84 +2003,157 @@ function ExonaApp() {
               </motion.p>
             </div>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-ink rounded-[3rem] p-12 text-white shadow-2xl shadow-ink/20 mb-12 relative overflow-hidden group"
-            >
-              <div className="relative z-10">
-                <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.3em] mb-4">Institution Balance</p>
-                <h3 className="text-7xl font-mono font-medium tracking-tighter mb-8">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
-                <div className="flex items-center gap-3 text-white/60 text-[10px] font-bold uppercase tracking-widest bg-white/5 w-fit px-5 py-2.5 rounded-2xl backdrop-blur-md border border-white/10">
-                  <ShieldCheck size={14} className="text-green-400" />
-                  Verified & Encrypted
-                </div>
-              </div>
-              <div className="absolute -right-20 -bottom-20 opacity-5 group-hover:scale-110 transition-transform duration-1000">
-                <Wallet size={400} strokeWidth={1} />
-              </div>
-              <div className="absolute top-0 right-0 p-12">
-                <div className="h-16 w-16 rounded-full border border-white/10 flex items-center justify-center">
-                  <ArrowUpRight size={32} className="text-white/20" />
-                </div>
-              </div>
-            </motion.div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-              <div className="lg:col-span-1 space-y-8">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-10">
+              <div className="xl:col-span-3 space-y-10">
                 <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="bg-white p-10 rounded-[2.5rem] premium-shadow border border-gray-100"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-ink rounded-[3.5rem] p-16 text-white shadow-2xl shadow-ink/20 relative overflow-hidden group"
                 >
-                  <div className="flex items-center gap-4 mb-8">
-                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink">
-                      <CreditCard size={24} />
+                  <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-12">
+                      <div>
+                        <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.4em] mb-4">Institution Balance</p>
+                        <h3 className="text-8xl font-mono font-medium tracking-tighter">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
+                      </div>
+                      <div className="h-20 w-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-xl">
+                        <TrendingUp size={32} className="text-green-400" />
+                      </div>
                     </div>
-                    <h4 className="font-serif italic text-xl text-ink">Bank Details</h4>
+                    
+                    <div className="flex flex-wrap gap-6">
+                      <div className="flex items-center gap-3 text-white/60 text-[10px] font-bold uppercase tracking-widest bg-white/5 w-fit px-6 py-3 rounded-2xl backdrop-blur-md border border-white/10">
+                        <ShieldCheck size={16} className="text-green-400" />
+                        Verified & Encrypted
+                      </div>
+                      <div className="flex items-center gap-3 text-white/60 text-[10px] font-bold uppercase tracking-widest bg-white/5 w-fit px-6 py-3 rounded-2xl backdrop-blur-md border border-white/10">
+                        <Clock size={16} className="text-accent" />
+                        Last Updated: {new Date().toLocaleTimeString()}
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-6">
-                    <div>
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-2">Bank Name</p>
-                      <p className="font-bold text-ink text-sm">{finance?.bankName || '---'}</p>
+                  
+                  <div className="absolute -right-20 -bottom-20 opacity-5 group-hover:scale-110 transition-transform duration-1000">
+                    <Sparkles size={500} strokeWidth={1} />
+                  </div>
+                </motion.div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { label: 'Deposit', icon: ArrowUpRight, color: 'bg-green-500' },
+                    { label: 'Withdraw', icon: TrendingDown, color: 'bg-red-500' },
+                    { label: 'Transfer', icon: Send, color: 'bg-blue-500' }
+                  ].map((action, i) => (
+                    <motion.button
+                      key={i}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + (i * 0.1) }}
+                      className="bg-white p-8 rounded-[2.5rem] premium-shadow border border-gray-100 flex flex-col items-center gap-4 hover:border-accent/20 transition-all group"
+                    >
+                      <div className={`h-14 w-14 rounded-2xl ${action.color} text-white flex items-center justify-center group-hover:scale-110 transition-transform`}>
+                        <action.icon size={24} />
+                      </div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-ink">{action.label}</span>
+                    </motion.button>
+                  ))}
+                </div>
+
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="bg-white p-12 rounded-[3rem] premium-shadow border border-gray-100"
+                >
+                  <div className="flex items-center justify-between mb-12">
+                    <h4 className="font-serif italic text-3xl text-ink tracking-tight">Transaction History</h4>
+                    <div className="flex gap-4">
+                      <button className="h-12 w-12 bg-gray-50 rounded-2xl text-muted hover:text-ink transition-all flex items-center justify-center"><Search size={20} /></button>
+                      <button className="h-12 w-12 bg-gray-50 rounded-2xl text-muted hover:text-ink transition-all flex items-center justify-center"><Filter size={20} /></button>
                     </div>
-                    <div>
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-2">Account Number</p>
-                      <p className="font-mono font-bold text-ink text-lg tracking-widest">{finance?.accountNumber || '---'}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center py-40">
+                    <div className="h-32 w-32 rounded-full bg-gray-50 flex items-center justify-center mb-10 relative">
+                      <Database size={56} className="text-gray-200" strokeWidth={1} />
+                      <div className="absolute -right-2 -bottom-2 h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-lg">
+                        <Sparkles size={20} className="text-accent" />
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-2">Account Name</p>
-                      <p className="font-bold text-ink text-sm">{finance?.accountName || '---'}</p>
-                    </div>
+                    <p className="font-serif italic text-3xl text-ink mb-4">No transactions yet</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted">Your financial journey starts here</p>
                   </div>
                 </motion.div>
               </div>
 
-              <div className="lg:col-span-2">
+              <div className="xl:col-span-1 space-y-10">
                 <motion.div 
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="bg-white p-10 rounded-[2.5rem] premium-shadow border border-gray-100 h-full"
+                  className="bg-white p-12 rounded-[3rem] premium-shadow border border-gray-100"
                 >
-                  <div className="flex items-center justify-between mb-10">
-                    <h4 className="font-serif italic text-xl text-ink">Transaction History</h4>
-                    <button className="p-3 bg-gray-50 rounded-xl text-muted hover:text-ink transition-all"><Filter size={18} /></button>
+                  <div className="flex items-center gap-5 mb-12">
+                    <div className="h-16 w-16 bg-gray-50 rounded-2xl flex items-center justify-center text-ink">
+                      <CreditCard size={32} />
+                    </div>
+                    <h4 className="font-serif italic text-2xl text-ink tracking-tight">Bank Details</h4>
                   </div>
-                  <div className="flex flex-col items-center justify-center py-24 opacity-20">
-                    <MessageSquare size={64} strokeWidth={1} />
-                    <p className="font-serif italic text-xl mt-6">No transaction history found</p>
+                  <div className="space-y-10">
+                    <div className="group">
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-3">Bank Name</p>
+                      <p className="font-bold text-ink text-lg group-hover:text-accent transition-colors">{finance?.bankName || '---'}</p>
+                    </div>
+                    <div className="group">
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-3">Account Number</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-mono font-bold text-ink text-2xl tracking-[0.2em]">{finance?.accountNumber || '---'}</p>
+                        <button className="h-10 w-10 bg-gray-50 rounded-xl flex items-center justify-center text-muted hover:text-accent transition-all"><Plus size={18} /></button>
+                      </div>
+                    </div>
+                    <div className="group">
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-3">Account Name</p>
+                      <p className="font-bold text-ink text-lg group-hover:text-accent transition-colors">{finance?.accountName || '---'}</p>
+                    </div>
+                  </div>
+                  <button className="w-full mt-12 py-6 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all">
+                    Update Details
+                  </button>
+                </motion.div>
+
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="bg-accent/5 p-10 rounded-[2.5rem] border border-accent/10 relative overflow-hidden"
+                >
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-4 mb-6 text-accent">
+                      <ShieldCheck size={24} />
+                      <p className="font-bold text-[12px] uppercase tracking-widest">Security Protocol</p>
+                    </div>
+                    <p className="text-[14px] text-accent/80 leading-relaxed font-medium">
+                      All financial data is encrypted and stored securely. Only authorized administrators can access detailed transaction logs.
+                    </p>
+                  </div>
+                  <div className="absolute -right-4 -bottom-4 opacity-5">
+                    <Fingerprint size={100} />
                   </div>
                 </motion.div>
               </div>
             </div>
           </div>
         );
-      case 'attendance':
+      }
+      case 'attendance': {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
+        const filteredAttendance = attendance.filter(r => 
+          r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase())
+        );
+        const presentToday = filteredAttendance.filter(r => r.status === 'present').length;
+        const absentToday = filteredAttendance.filter(r => r.status === 'absent').length;
+
         return (
           <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
@@ -2033,42 +2174,81 @@ function ExonaApp() {
                   Teacher Presence Log
                 </motion.p>
               </div>
-              <motion.button 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsAttendanceModalOpen(true)}
-                className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-              >
-                <Plus size={20} />
-                Record Attendance
-              </motion.button>
+              <div className="flex flex-wrap items-center justify-center md:justify-end gap-4">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Search teachers..." 
+                    value={attendanceSearch}
+                    onChange={(e) => setAttendanceSearch(e.target.value)}
+                    className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
+                  />
+                </div>
+                <motion.button 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setIsAttendanceModalOpen(true)}
+                  className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
+                >
+                  <Plus size={20} />
+                  Record Attendance
+                </motion.button>
+              </div>
             </div>
 
-            <div className="bg-white rounded-[2.5rem] premium-shadow border border-gray-100 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {[
+                { label: 'Total Records', value: filteredAttendance.length, icon: ClipboardList, color: 'text-ink', bg: 'bg-gray-50' },
+                { label: 'Present Today', value: presentToday, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50/30' },
+                { label: 'Absent Today', value: absentToday, icon: XCircle, color: 'text-red-600', bg: 'bg-red-50/30' }
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 premium-shadow flex items-center gap-6 group hover:border-accent/20 transition-all"
+                >
+                  <div className={`h-16 w-16 rounded-[1.5rem] ${stat.bg} flex items-center justify-center text-ink group-hover:scale-110 transition-transform`}>
+                    <stat.icon size={28} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                    <p className={`text-3xl font-serif italic ${stat.color}`}>{stat.value}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Teacher Name</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Teacher Name</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Status</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Date</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {attendance.length === 0 ? (
+                    {filteredAttendance.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-6 py-24 text-center">
+                        <td colSpan={4} className="px-6 py-32 text-center">
                           <div className="flex flex-col items-center gap-6 opacity-20">
-                            <Users size={48} strokeWidth={1} />
-                            <p className="font-serif italic text-lg">No records found</p>
+                            <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
+                              <Users size={48} strokeWidth={1} />
+                            </div>
+                            <p className="font-serif italic text-2xl">No records found</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest">Try adjusting your search</p>
                           </div>
                         </td>
                       </tr>
                     ) : (
-                      attendance.map((record, idx) => (
+                      filteredAttendance.map((record, idx) => (
                         <motion.tr 
                           key={record.id}
                           initial={{ opacity: 0 }}
@@ -2076,16 +2256,16 @@ function ExonaApp() {
                           transition={{ delay: idx * 0.05 }}
                           className="hover:bg-gray-50/50 transition-colors group"
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-lg bg-accent/5 flex items-center justify-center text-accent font-bold text-[10px]">
+                          <td className="px-10 py-6">
+                            <div className="flex items-center gap-4">
+                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
                                 {record.teacherName.charAt(0)}
                               </div>
-                              <span className="font-semibold text-ink text-xs">{record.teacherName}</span>
+                              <span className="font-bold text-ink text-sm">{record.teacherName}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 rounded-full text-[8px] font-bold uppercase tracking-widest border ${
+                          <td className="px-10 py-6">
+                            <span className={`px-4 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border ${
                               record.status === 'present' ? 'bg-green-50 text-green-600 border-green-100' :
                               record.status === 'absent' ? 'bg-red-50 text-red-600 border-red-100' :
                               'bg-orange-50 text-orange-600 border-orange-100'
@@ -2093,8 +2273,8 @@ function ExonaApp() {
                               {record.status}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-[11px] font-medium text-muted">{record.date}</td>
-                          <td className="px-6 py-4 text-[11px] font-medium text-muted">{record.addedBy}</td>
+                          <td className="px-10 py-6 text-[12px] font-medium text-muted">{record.date}</td>
+                          <td className="px-10 py-6 text-[12px] font-medium text-muted">{record.addedBy}</td>
                         </motion.tr>
                       ))
                     )}
@@ -2104,7 +2284,8 @@ function ExonaApp() {
             </div>
           </div>
         );
-      case 'ai':
+      }
+      case 'ai': {
         return (
           <div className="flex flex-col h-full w-full max-w-4xl mx-auto py-12 px-8">
             <div className="flex flex-col mb-12 items-center text-center">
@@ -2183,7 +2364,8 @@ function ExonaApp() {
             </motion.div>
           </div>
         );
-      case 'penalty':
+      }
+      case 'penalty': {
         return (
           <div className="w-full max-w-4xl mx-auto py-12 px-8">
             <div className="flex flex-col mb-12 items-center text-center">
@@ -2220,7 +2402,8 @@ function ExonaApp() {
             </motion.div>
           </div>
         );
-      case 'profile':
+      }
+      case 'profile': {
         if (!user) { setView('login'); return null; }
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
@@ -2289,6 +2472,7 @@ function ExonaApp() {
             </div>
           </div>
         );
+      }
       default: return null;
     }
   };
@@ -3262,6 +3446,110 @@ function ExonaApp() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+
+        {/* Sidebar Navigation */}
+        {sidebarOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-ink/20 backdrop-blur-sm z-[150]"
+            />
+            <motion.div 
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-[160] flex flex-col border-r border-gray-100"
+            >
+              <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center font-serif italic text-xl shadow-lg shadow-ink/10">Ex</div>
+                  <h2 className="text-xl font-serif italic text-ink tracking-tight">Exona Mainframe</h2>
+                </div>
+                <button onClick={() => setSidebarOpen(false)} className="p-2 text-muted hover:bg-gray-50 rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <div className="px-4 py-2">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Navigation</p>
+                </div>
+                <SidebarItem 
+                  icon={Home} 
+                  label="Horizon Feed" 
+                  active={view === 'feed'} 
+                  onClick={() => { setView('feed'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={GraduationCap} 
+                  label="Institutions" 
+                  active={view === 'schools'} 
+                  onClick={() => { setView('schools'); setSidebarOpen(false); }} 
+                />
+                
+                <div className="px-4 py-6">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
+                </div>
+                <SidebarItem 
+                  icon={ClipboardList} 
+                  label="Student Records" 
+                  active={view === 'records'} 
+                  onClick={() => { setView('records'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={Calendar} 
+                  label="Attendance" 
+                  active={view === 'attendance'} 
+                  onClick={() => { setView('attendance'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={Wallet} 
+                  label="Finance Hub" 
+                  active={view === 'finance'} 
+                  onClick={() => { setView('finance'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={AlertCircle} 
+                  label="Penalty System" 
+                  active={view === 'penalty'} 
+                  onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
+                />
+
+                <div className="px-4 py-6">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">System</p>
+                </div>
+                <SidebarItem 
+                  icon={UserIcon} 
+                  label="User Profile" 
+                  active={view === 'profile'} 
+                  onClick={() => { setView(user ? 'profile' : 'login'); setSidebarOpen(false); }} 
+                />
+                {userDoc?.role === 'admin' && (
+                  <SidebarItem 
+                    icon={ShieldCheck} 
+                    label="Admin Console" 
+                    active={view === 'admin'} 
+                    onClick={() => { setView('admin'); setSidebarOpen(false); }} 
+                  />
+                )}
+              </div>
+
+              <div className="p-6 border-t border-gray-50">
+                <button 
+                  onClick={() => signOut(auth)}
+                  className="w-full flex items-center gap-4 px-6 py-4 text-red-600 hover:bg-red-50 rounded-2xl transition-all font-bold text-[11px] uppercase tracking-widest"
+                >
+                  <LogOut size={18} />
+                  Terminate Session
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
