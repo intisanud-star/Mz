@@ -2117,7 +2117,7 @@ function ExonaApp() {
             transition={{ delay: 0.8, duration: 1 }}
             className="flex flex-col items-center"
           >
-            <p className="text-[10px] font-bold uppercase tracking-[0.6em] text-white/40 mb-12">Mastering Education</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.6em] text-white/40 mb-12">Mastering Records</p>
             
             <div className="flex items-center gap-3">
               <div className="h-1 w-1 bg-white/20 rounded-full animate-bounce"></div>
