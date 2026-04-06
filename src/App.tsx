@@ -490,7 +490,7 @@ function ExonaApp() {
     setIsUploading(true);
     setUploadProgress(0);
     try {
-      let logoUrl = newSchool.logo.trim() || `https://picsum.photos/seed/${newSchool.name.toLowerCase().replace(/\s+/g, '-')}/200`;
+      let logoUrl = newSchool.logo.trim();
       
       if (selectedFile) {
         console.log('Uploading logo file...', selectedFile.name);
@@ -586,7 +586,7 @@ function ExonaApp() {
     setIsUploading(true);
     setUploadProgress(0);
     try {
-      let logoUrl = newPlace.logo.trim() || `https://picsum.photos/seed/${newPlace.name.toLowerCase().replace(/\s+/g, '-')}/200`;
+      let logoUrl = newPlace.logo.trim();
       
       if (selectedFile) {
         console.log('Uploading logo file...', selectedFile.name);
@@ -1298,7 +1298,7 @@ function ExonaApp() {
         const totalBalance = allRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
 
         return (
-          <div className="max-w-6xl mx-auto py-12 px-8 pb-32 lg:pb-12">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8 pb-32 lg:pb-12">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
               <div>
                 <motion.h2 
@@ -1467,7 +1467,7 @@ function ExonaApp() {
         );
       case 'feed':
         return (
-          <div className="max-w-3xl mx-auto py-12 px-6">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-6">
             <div className="flex flex-col mb-12">
               <motion.h2 
                 initial={{ opacity: 0, x: -20 }}
@@ -1494,11 +1494,17 @@ function ExonaApp() {
                 className="bg-white rounded-[2rem] premium-shadow p-8 mb-12 flex items-center gap-6 border border-gray-100"
               >
                 <div className="relative">
-                  <img 
-                    src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                    className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
-                    referrerPolicy="no-referrer"
-                  />
+                  {user.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold text-lg border border-accent/10">
+                      {user.displayName?.charAt(0)}
+                    </div>
+                  )}
                   <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-green-500 border-2 border-white rounded-full"></div>
                 </div>
                 <button 
@@ -1557,7 +1563,7 @@ function ExonaApp() {
         if (!selectedSchool) { setView('schools'); return null; }
         const schoolPosts = posts.filter(p => p.schoolId === selectedSchool.id);
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
+          <div className="w-full max-w-[1600px] mx-auto py-8 px-4 pb-24 lg:pb-8">
             <button 
               onClick={() => setView('schools')}
               className="flex items-center gap-2 text-muted font-bold mb-8 hover:text-accent transition-colors"
@@ -1584,11 +1590,17 @@ function ExonaApp() {
 
             {user && (
               <div className="bg-white rounded-[2rem] border border-gray-100 premium-shadow p-8 mb-12 flex items-center gap-6">
-                <img 
-                  src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} 
-                  className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
-                  referrerPolicy="no-referrer"
-                />
+                {user.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    className="h-14 w-14 rounded-2xl bg-accent/5 object-cover shadow-sm" 
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-bold text-lg border border-accent/10">
+                    {user.displayName?.charAt(0)}
+                  </div>
+                )}
                 <button 
                   onClick={openNewPostModal}
                   className="flex-1 text-left px-8 py-4.5 bg-gray-50 rounded-2xl text-muted font-semibold hover:bg-gray-100 transition-all text-sm"
@@ -1628,7 +1640,7 @@ function ExonaApp() {
         if (!selectedUserProfile) { setView('feed'); return null; }
         const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
         return (
-          <div className="max-w-2xl mx-auto py-8 px-4 pb-24 lg:pb-8">
+          <div className="w-full max-w-[1600px] mx-auto py-8 px-4 pb-24 lg:pb-8">
             <button 
               onClick={() => setView('feed')}
               className="flex items-center gap-2 text-muted font-bold mb-8 hover:text-accent transition-colors"
@@ -1731,7 +1743,7 @@ function ExonaApp() {
         );
       case 'schools':
         return (
-          <div className="max-w-3xl mx-auto py-12 px-6 pb-24 lg:pb-12">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-6 pb-24 lg:pb-12">
             <div className="flex items-center justify-between mb-12 bg-white p-8 rounded-[3rem] border border-gray-100 premium-shadow">
               <div className="flex items-center gap-6">
                 <div className="h-16 w-16 bg-accent/5 rounded-[1.5rem] flex items-center justify-center text-accent shadow-sm border border-accent/10">
@@ -1889,7 +1901,7 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="max-w-6xl mx-auto py-12 px-8">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
               <div>
                 <motion.h2 
@@ -2025,7 +2037,7 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="max-w-6xl mx-auto py-12 px-8">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
             <div className="flex flex-col mb-12">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
@@ -2123,7 +2135,7 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
         return (
-          <div className="max-w-6xl mx-auto py-12 px-8">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
               <div className="flex flex-col">
                 <motion.h2 
@@ -2215,7 +2227,7 @@ function ExonaApp() {
         );
       case 'ai':
         return (
-          <div className="flex flex-col h-full max-w-5xl mx-auto py-12 px-8">
+          <div className="flex flex-col h-full w-full max-w-[1600px] mx-auto py-12 px-8">
             <div className="flex flex-col mb-12">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
@@ -2294,7 +2306,7 @@ function ExonaApp() {
         );
       case 'penalty':
         return (
-          <div className="max-w-4xl mx-auto py-12 px-8">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
             <div className="flex flex-col mb-12">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
@@ -2332,7 +2344,7 @@ function ExonaApp() {
       case 'profile':
         if (!user) { setView('login'); return null; }
         return (
-          <div className="max-w-4xl mx-auto py-12 px-8">
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8">
             <div className="flex flex-col mb-12">
               <motion.h2 
                 initial={{ opacity: 0, y: 10 }}
@@ -2740,7 +2752,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-2xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-6xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -2867,7 +2879,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -3116,7 +3128,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -3266,7 +3278,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -3334,7 +3346,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-lg bg-white rounded-[3.5rem] premium-shadow flex flex-col max-h-[85vh] border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow flex flex-col max-h-[85vh] border border-gray-100"
             >
               <div className="p-10 border-b border-gray-50 flex items-center justify-between">
                 <div>
@@ -3487,7 +3499,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col overflow-hidden bg-paper">
-        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-10 flex items-center justify-between sticky top-0 z-40">
+        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-8 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-8">
             <button onClick={() => setSidebarOpen(true)} className="lg:hidden h-12 w-12 bg-gray-50 text-ink rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"><Menu size={24} /></button>
             <div className="relative hidden md:block group">
