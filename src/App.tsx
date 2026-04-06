@@ -456,24 +456,39 @@ function ExonaApp() {
   };
 
   const handleCreateSchool = async () => {
-    if (!newSchool.name.trim() || !user) return;
+    console.log('handleCreateSchool started', { newSchool, user: user?.uid, editingSchool: editingSchool?.id });
+    if (!newSchool.name.trim() || !user) {
+      console.warn('handleCreateSchool aborted: missing name or user', { name: newSchool.name, user: user?.uid });
+      return;
+    }
     setIsUploading(true);
+    setUploadProgress(0);
     try {
       let logoUrl = newSchool.logo.trim() || `https://picsum.photos/seed/${newSchool.name.toLowerCase().replace(/\s+/g, '-')}/200`;
       
       if (selectedFile) {
+        console.log('Uploading logo file...', selectedFile.name);
         const fileRef = ref(storage, `schools/${user.uid}/${Date.now()}_${selectedFile.name}`);
         const uploadTask = uploadBytesResumable(fileRef, selectedFile);
         await new Promise((resolve, reject) => {
           uploadTask.on('state_changed', (snapshot) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             setUploadProgress(progress);
-          }, (error) => reject(error), () => resolve(null));
+            console.log(`Upload progress: ${progress}%`);
+          }, (error) => {
+            console.error('Upload failed:', error);
+            reject(error);
+          }, () => {
+            console.log('Upload complete');
+            resolve(null);
+          });
         });
         logoUrl = await getDownloadURL(fileRef);
+        console.log('Logo URL obtained:', logoUrl);
       }
 
       if (editingSchool) {
+        console.log('Updating existing school:', editingSchool.id);
         await setDoc(doc(db, 'schools', editingSchool.id), {
           ...editingSchool,
           name: newSchool.name.trim(),
@@ -481,7 +496,9 @@ function ExonaApp() {
           logo: logoUrl,
           type: newSchool.type
         }, { merge: true });
+        console.log('School updated successfully');
       } else {
+        console.log('Creating new school...');
         const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
         await setDoc(doc(db, 'schools', schoolId), {
           id: schoolId,
@@ -492,6 +509,7 @@ function ExonaApp() {
           creatorUid: user.uid,
           timestamp: serverTimestamp()
         });
+        console.log('School created successfully:', schoolId);
         
         // Initialize finance for the school
         await setDoc(doc(db, 'finance', schoolId), {
@@ -501,6 +519,7 @@ function ExonaApp() {
           accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
           accountName: `${newSchool.name} General`
         });
+        console.log('Finance initialized for school');
       }
       setNewSchool({ name: '', description: '', logo: '', type: 'school' });
       setEditingSchool(null);
@@ -508,31 +527,48 @@ function ExonaApp() {
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (error) {
+      console.error('Error in handleCreateSchool:', error);
       handleFirestoreError(error, OperationType.CREATE, 'schools');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const handleCreatePlace = async () => {
-    if (!newPlace.name.trim() || !user) return;
+    console.log('handleCreatePlace started', { newPlace, user: user?.uid, editingPlace: editingPlace?.id });
+    if (!newPlace.name.trim() || !user) {
+      console.warn('handleCreatePlace aborted: missing name or user', { name: newPlace.name, user: user?.uid });
+      return;
+    }
     setIsUploading(true);
+    setUploadProgress(0);
     try {
       let logoUrl = newPlace.logo.trim() || `https://picsum.photos/seed/${newPlace.name.toLowerCase().replace(/\s+/g, '-')}/200`;
       
       if (selectedFile) {
+        console.log('Uploading logo file...', selectedFile.name);
         const fileRef = ref(storage, `places/${user.uid}/${Date.now()}_${selectedFile.name}`);
         const uploadTask = uploadBytesResumable(fileRef, selectedFile);
         await new Promise((resolve, reject) => {
           uploadTask.on('state_changed', (snapshot) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             setUploadProgress(progress);
-          }, (error) => reject(error), () => resolve(null));
+            console.log(`Upload progress: ${progress}%`);
+          }, (error) => {
+            console.error('Upload failed:', error);
+            reject(error);
+          }, () => {
+            console.log('Upload complete');
+            resolve(null);
+          });
         });
         logoUrl = await getDownloadURL(fileRef);
+        console.log('Logo URL obtained:', logoUrl);
       }
 
       if (editingPlace) {
+        console.log('Updating existing place:', editingPlace.id);
         await setDoc(doc(db, 'places', editingPlace.id), {
           ...editingPlace,
           name: newPlace.name.trim(),
@@ -540,7 +576,9 @@ function ExonaApp() {
           logo: logoUrl,
           category: newPlace.category
         }, { merge: true });
+        console.log('Place updated successfully');
       } else {
+        console.log('Creating new place...');
         const placeId = newPlace.name.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
         await setDoc(doc(db, 'places', placeId), {
           id: placeId,
@@ -551,6 +589,7 @@ function ExonaApp() {
           creatorUid: user.uid,
           timestamp: serverTimestamp()
         });
+        console.log('Place created successfully:', placeId);
         
         // Initialize finance for the place
         await setDoc(doc(db, 'finance', placeId), {
@@ -560,6 +599,7 @@ function ExonaApp() {
           accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
           accountName: `${newPlace.name} General`
         });
+        console.log('Finance initialized for place');
       }
       setNewPlace({ name: '', description: '', logo: '', category: 'School' });
       setEditingPlace(null);
@@ -567,9 +607,11 @@ function ExonaApp() {
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (error) {
+      console.error('Error in handleCreatePlace:', error);
       handleFirestoreError(error, OperationType.CREATE, 'places');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -2727,6 +2769,7 @@ function ExonaApp() {
                           type="file" 
                           className="hidden" 
                           accept="image/*"
+                          disabled={isUploading}
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -2744,12 +2787,31 @@ function ExonaApp() {
               <div className="flex justify-end mt-12">
                 <button 
                   onClick={handleCreateSchool}
-                  disabled={!newSchool.name.trim()}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                  disabled={!newSchool.name.trim() || isUploading}
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
-                  {editingSchool ? 'Synchronize Updates' : 'Authorize Registration'}
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      {editingSchool ? 'Synchronizing...' : 'Authorizing...'}
+                    </>
+                  ) : (
+                    editingSchool ? 'Synchronize Updates' : 'Authorize Registration'
+                  )}
                 </button>
               </div>
+              {isUploading && (
+                <div className="mt-6">
+                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${uploadProgress}%` }}
+                      className="h-full bg-accent"
+                    />
+                  </div>
+                  <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-2 text-center">{Math.round(uploadProgress)}% Transmission Complete</p>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
