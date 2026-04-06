@@ -83,6 +83,7 @@ interface School {
   type: 'school' | 'place';
   creatorUid: string;
   timestamp: any;
+  educationalLevels?: string[];
 }
 
 interface StudentRecord {
@@ -411,7 +412,13 @@ function ExonaApp() {
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
-  const [newSchool, setNewSchool] = useState({ name: '', description: '', logo: '', type: 'school' as School['type'] });
+  const [newSchool, setNewSchool] = useState({ 
+    name: '', 
+    description: '', 
+    logo: '', 
+    type: 'school' as School['type'],
+    educationalLevels: [] as string[]
+  });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
@@ -496,7 +503,8 @@ function ExonaApp() {
           name: newSchool.name.trim(),
           description: newSchool.description.trim(),
           logo: logoUrl,
-          type: newSchool.type
+          type: newSchool.type,
+          educationalLevels: newSchool.educationalLevels
         }, { merge: true });
         console.log('School updated successfully');
       } else {
@@ -508,6 +516,7 @@ function ExonaApp() {
           description: newSchool.description.trim() || `Official space for ${newSchool.name}`,
           logo: logoUrl,
           type: newSchool.type,
+          educationalLevels: newSchool.educationalLevels,
           creatorUid: user.uid,
           timestamp: serverTimestamp()
         });
@@ -523,7 +532,7 @@ function ExonaApp() {
         });
         console.log('Finance initialized for school');
       }
-      setNewSchool({ name: '', description: '', logo: '', type: 'school' });
+      setNewSchool({ name: '', description: '', logo: '', type: 'school', educationalLevels: [] });
       setEditingSchool(null);
       setIsSchoolModalOpen(false);
       setSelectedFile(null);
@@ -1724,7 +1733,13 @@ function ExonaApp() {
                         <button 
                           onClick={() => {
                             setEditingSchool(school);
-                            setNewSchool({ name: school.name, description: school.description, logo: school.logo, type: school.type });
+                            setNewSchool({ 
+                              name: school.name, 
+                              description: school.description, 
+                              logo: school.logo, 
+                              type: school.type,
+                              educationalLevels: school.educationalLevels || []
+                            });
                             setIsSchoolModalOpen(true);
                           }}
                           className="h-14 w-14 bg-gray-50 rounded-2xl flex items-center justify-center text-muted hover:text-accent hover:bg-accent/5 transition-all"
@@ -1850,7 +1865,16 @@ function ExonaApp() {
                               <span className="font-semibold text-ink text-sm">{record.studentName}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6 text-sm font-medium text-muted">{record.category}</td>
+                          <td className="px-8 py-6 text-sm font-medium text-muted">
+                            <div className="flex flex-wrap gap-2">
+                              {record.category.split(',').map(c => c.trim()).filter(c => c).map((cat, i) => (
+                                <span key={i} className="px-3 py-1 bg-accent/5 text-accent rounded-lg text-[9px] font-bold uppercase tracking-wider border border-accent/10 flex items-center gap-1">
+                                  <div className="h-1 w-1 bg-accent rounded-full"></div>
+                                  {cat}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
                           <td className="px-8 py-6 text-sm font-medium text-muted">{record.addedBy}</td>
                           <td className="px-8 py-6 font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
                           <td className="px-8 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
@@ -2665,13 +2689,53 @@ function ExonaApp() {
                 </div>
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Category/Class</label>
-                  <input 
-                    type="text" 
-                    value={newRecord.category}
-                    onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
-                    placeholder="e.g. JSS1, SS3"
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
-                  />
+                  {selectedSchool?.educationalLevels && selectedSchool.educationalLevels.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2 px-2">
+                        {selectedSchool.educationalLevels.map(level => {
+                          const currentCategories = newRecord.category.split(',').map(c => c.trim()).filter(c => c);
+                          const isSelected = currentCategories.includes(level);
+                          return (
+                            <button
+                              key={level}
+                              type="button"
+                              onClick={() => {
+                                let newCategories;
+                                if (isSelected) {
+                                  newCategories = currentCategories.filter(c => c !== level);
+                                } else {
+                                  newCategories = [...currentCategories, level];
+                                }
+                                setNewRecord({...newRecord, category: newCategories.join(', ')});
+                              }}
+                              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                                isSelected
+                                  ? 'bg-ink text-white border-ink shadow-md'
+                                  : 'bg-gray-50 text-muted border-transparent hover:bg-gray-100'
+                              }`}
+                            >
+                              {level}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <input 
+                        type="text" 
+                        value={newRecord.category}
+                        onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
+                        placeholder="Or specify exact class (e.g. SS3 A)"
+                        className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                      />
+                    </div>
+                  ) : (
+                    <input 
+                      type="text" 
+                      value={newRecord.category}
+                      onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
+                      placeholder="e.g. JSS1, SS3"
+                      className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                    />
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="group">
@@ -2796,6 +2860,35 @@ function ExonaApp() {
                     ))}
                   </div>
                 </div>
+
+                {newSchool.type === 'school' && (
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Educational Levels</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Pre-Nursery', 'Nursery', 'Primary', 'Secondary', 'Tertiary'].map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => {
+                            const levels = newSchool.educationalLevels || [];
+                            if (levels.includes(level)) {
+                              setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
+                            } else {
+                              setNewSchool({ ...newSchool, educationalLevels: [...levels, level] });
+                            }
+                          }}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                            (newSchool.educationalLevels || []).includes(level)
+                              ? 'bg-ink text-white border-ink shadow-lg shadow-ink/10'
+                              : 'bg-gray-50 text-muted border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Institution Name</label>
                   <input 
