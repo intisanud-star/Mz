@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, Video as VideoIcon, Paperclip,
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
-  BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown,
+  BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle
 } from 'lucide-react';
@@ -265,7 +265,7 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
             </div>
           )}
         </button>
-        <div className="w-0.5 flex-1 bg-gray-100 rounded-full" />
+        <div className="w-0.5 flex-1 bg-transparent rounded-full" />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -381,7 +381,7 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'sub-admin'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -458,6 +458,9 @@ function ExonaApp() {
     educationalLevels: [] as string[]
   });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+
+  const subAdminInstitutions = schools.filter(s => s.subAdmins?.includes(user?.email || ''));
+  const isSubAdmin = subAdminInstitutions.length > 0;
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
 
@@ -1102,10 +1105,15 @@ function ExonaApp() {
 
   useEffect(() => {
     if (splashDone && !loading && view === 'splash') {
-      // Always go to feed first, even if not logged in
-      setView('feed');
+      if (userDoc?.role === 'admin') {
+        setView('admin');
+      } else if (isSubAdmin) {
+        setView('sub-admin');
+      } else {
+        setView('feed');
+      }
     }
-  }, [splashDone, loading, user, view]);
+  }, [splashDone, loading, user, userDoc, isSubAdmin, view]);
 
   // Data listeners
   useEffect(() => {
@@ -1382,6 +1390,169 @@ function ExonaApp() {
 
   const renderView = () => {
     switch (view) {
+      case 'sub-admin': {
+        if (!isSubAdmin) { setView('feed'); return null; }
+        
+        const subAdminRecords = allRecords.filter(r => subAdminInstitutions.some(s => s.id === r.schoolId));
+        const subAdminFinance = allFinance.filter(f => subAdminInstitutions.some(s => s.id === f.schoolId));
+        
+        const totalRevenue = subAdminFinance.reduce((acc, f) => acc + (f.institutionBalance || 0), 0);
+        const totalPaid = subAdminRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
+        const totalBalance = subAdminRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
+
+        return (
+          <div className="w-full max-w-[1600px] mx-auto py-12 px-8 pb-32 lg:pb-12">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+              <div>
+                <motion.h2 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
+                >
+                  Sub-Admin Console
+                </motion.h2>
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-muted text-[11px] font-bold uppercase tracking-[0.4em]"
+                >
+                  Management for your assigned institutions
+                </motion.p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+              {[
+                { label: 'Assigned Institutions', value: subAdminInstitutions.length, color: 'accent' },
+                { label: 'Total Students', value: subAdminRecords.length, color: 'green-600' },
+                { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'ink' },
+                { label: 'Pending Balance', value: `₦${totalBalance.toLocaleString()}`, color: 'red-600' }
+              ].map((stat, i) => (
+                <motion.div 
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.1 }}
+                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 premium-shadow group hover:border-accent/20 transition-all"
+                >
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">{stat.label}</p>
+                  <h3 className={`text-3xl font-serif italic text-${stat.color}`}>{stat.value}</h3>
+                  <div className="mt-8 h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: '60%' }}
+                      transition={{ delay: 0.5 + i * 0.1, duration: 1 }}
+                      className={`h-full bg-${stat.color}`}
+                    />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+              <div className="space-y-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-2xl font-serif italic text-ink">Your Institutions</h3>
+                </div>
+                <div className="grid gap-6">
+                  {subAdminInstitutions.map(school => (
+                    <motion.div 
+                      key={school.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="bg-white p-8 rounded-[2rem] border border-gray-100 premium-shadow flex items-center justify-between group hover:border-accent/20 transition-all"
+                    >
+                      <div className="flex items-center gap-6">
+                        <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center text-ink font-bold text-2xl overflow-hidden border border-gray-100">
+                          {school.logo ? (
+                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            school.name.charAt(0)
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-ink text-lg">{school.name}</h4>
+                          <p className="text-muted text-xs font-medium uppercase tracking-widest">{school.type}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                          className="px-6 py-3 bg-gray-50 text-ink rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-gray-100 transition-all"
+                        >
+                          Feed
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedSchool(school); setView('records'); }}
+                          className="px-6 py-3 bg-gray-50 text-ink rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-gray-100 transition-all"
+                        >
+                          Records
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                          className="px-6 py-3 bg-ink text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+                        >
+                          Finance
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <h3 className="text-2xl font-serif italic text-ink">Quick Actions</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <button 
+                    onClick={() => setView('records')}
+                    className="p-8 bg-accent/5 border border-accent/10 rounded-[2.5rem] text-left group hover:bg-accent/10 transition-all"
+                  >
+                    <div className="h-14 w-14 bg-accent text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-accent/20">
+                      <Users size={28} />
+                    </div>
+                    <h4 className="font-bold text-ink text-lg mb-2">Student Directory</h4>
+                    <p className="text-muted text-xs font-medium leading-relaxed">Access and manage student profiles across your institutions.</p>
+                  </button>
+
+                  <button 
+                    onClick={() => setView('finance')}
+                    className="p-8 bg-green-50 border border-green-100 rounded-[2.5rem] text-left group hover:bg-green-100 transition-all"
+                  >
+                    <div className="h-14 w-14 bg-green-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-green-600/20">
+                      <Wallet size={28} />
+                    </div>
+                    <h4 className="font-bold text-ink text-lg mb-2">Financial Hub</h4>
+                    <p className="text-muted text-xs font-medium leading-relaxed">Monitor revenue and balances for your assigned schools.</p>
+                  </button>
+
+                  <button 
+                    onClick={() => setView('attendance')}
+                    className="p-8 bg-blue-50 border border-blue-100 rounded-[2.5rem] text-left group hover:bg-blue-100 transition-all"
+                  >
+                    <div className="h-14 w-14 bg-blue-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-600/20">
+                      <Calendar size={28} />
+                    </div>
+                    <h4 className="font-bold text-ink text-lg mb-2">Attendance</h4>
+                    <p className="text-muted text-xs font-medium leading-relaxed">Track teacher and staff attendance records.</p>
+                  </button>
+
+                  <button 
+                    onClick={() => setView('ai')}
+                    className="p-8 bg-purple-50 border border-purple-100 rounded-[2.5rem] text-left group hover:bg-purple-100 transition-all"
+                  >
+                    <div className="h-14 w-14 bg-purple-600 text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-purple-600/20">
+                      <Sparkles size={28} />
+                    </div>
+                    <h4 className="font-bold text-ink text-lg mb-2">AI Assistant</h4>
+                    <p className="text-muted text-xs font-medium leading-relaxed">Get insights and help with institutional management.</p>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
       case 'admin': {
         if (userDoc?.role !== 'admin') { setView('feed'); return null; }
         const totalRevenue = allFinance.reduce((acc, f) => acc + (f.institutionBalance || 0), 0);
@@ -1581,6 +1752,59 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
+            <div className="mb-8 pt-4">
+              <h1 className="text-3xl font-serif italic text-ink mb-2">Welcome to Exona</h1>
+              <p className="text-sm text-muted font-medium">Your central hub for institution management and updates.</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <button 
+                onClick={() => setView('schools')}
+                className="p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-ink/5 transition-all text-left group"
+              >
+                <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink mb-4 group-hover:bg-ink group-hover:text-white transition-colors">
+                  <GraduationCap size={24} />
+                </div>
+                <h3 className="font-bold text-ink text-sm">Institutions</h3>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Manage Schools & Places</p>
+              </button>
+              <button 
+                onClick={() => setView('records')}
+                className="p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-ink/5 transition-all text-left group"
+              >
+                <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink mb-4 group-hover:bg-ink group-hover:text-white transition-colors">
+                  <ClipboardList size={24} />
+                </div>
+                <h3 className="font-bold text-ink text-sm">Student Records</h3>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">View & Edit Profiles</p>
+              </button>
+            </div>
+
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-serif italic text-ink">Featured Institutions</h2>
+                <button onClick={() => setView('schools')} className="text-[12px] font-bold text-muted hover:text-ink transition-colors">View All</button>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+                {schools.slice(0, 5).map(school => (
+                  <button 
+                    key={school.id}
+                    onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                    className="flex-shrink-0 w-32 text-center group"
+                  >
+                    <div className="h-20 w-20 bg-white border border-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-2 group-hover:shadow-lg transition-all overflow-hidden">
+                      {school.logo ? (
+                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-2xl font-bold text-gray-200">{school.name.charAt(0)}</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] font-bold text-ink truncate w-full">{school.name}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {user && (
               <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
                 <div className="flex flex-col items-center gap-2">
@@ -1591,7 +1815,7 @@ function ExonaApp() {
                       {user.displayName?.charAt(0)}
                     </div>
                   )}
-                  <div className="w-0.5 h-8 bg-gray-100 rounded-full" />
+                  <div className="w-0.5 h-8 bg-transparent rounded-full" />
                 </div>
                 <div className="flex-1">
                   <button 
@@ -1716,7 +1940,7 @@ function ExonaApp() {
                 <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
                 <div className="flex items-center gap-2">
                   <p className="text-ink text-[14px]">{selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '')}</p>
-                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">threads.net</span>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">exona.io</span>
                 </div>
               </div>
               <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
@@ -1771,7 +1995,7 @@ function ExonaApp() {
             </div>
 
             <div className="flex border-b border-gray-100 mb-4">
-              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Threads</button>
+              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Broadcasts</button>
               <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Replies</button>
               <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
             </div>
@@ -2555,7 +2779,7 @@ function ExonaApp() {
                 <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
                 <div className="flex items-center gap-2">
                   <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">threads.net</span>
+                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">exona.io</span>
                 </div>
               </div>
               <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
@@ -2592,7 +2816,7 @@ function ExonaApp() {
             </div>
 
             <div className="flex border-b border-gray-100 mb-4">
-              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Threads</button>
+              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Broadcasts</button>
               <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Replies</button>
               <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
             </div>
@@ -3735,7 +3959,7 @@ function ExonaApp() {
                   onClick={() => { setView('finance'); setSidebarOpen(false); }} 
                 />
                 <SidebarItem 
-                  icon={AlertCircle} 
+                  icon={Shield} 
                   label="Penalty System" 
                   active={view === 'penalty'} 
                   onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
@@ -3756,6 +3980,14 @@ function ExonaApp() {
                     label="Admin Console" 
                     active={view === 'admin'} 
                     onClick={() => { setView('admin'); setSidebarOpen(false); }} 
+                  />
+                )}
+                {isSubAdmin && (
+                  <SidebarItem 
+                    icon={LayoutGrid} 
+                    label="Sub-Admin Dashboard" 
+                    active={view === 'sub-admin'} 
+                    onClick={() => { setView('sub-admin'); setSidebarOpen(false); }} 
                   />
                 )}
               </div>
@@ -3783,11 +4015,7 @@ function ExonaApp() {
         </div>
 
         <div className="flex items-center justify-center w-1/3">
-          <div className="cursor-pointer" onClick={() => setView('feed')}>
-            <svg viewBox="0 0 24 24" className="h-8 w-8 fill-ink">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm1-13h-2v2h2V7zm0 4h-2v6h2v-6z" />
-            </svg>
-          </div>
+          <h1 className="text-xl font-serif italic text-ink cursor-pointer" onClick={() => setView('feed')}>Exona</h1>
         </div>
 
         <div className="flex items-center justify-end w-1/3 gap-4">
@@ -3820,7 +4048,7 @@ function ExonaApp() {
           <PlusSquare size={28} />
         </button>
         <button onClick={() => setView('penalty')} className={`p-2 transition-all ${view === 'penalty' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
-          <Heart size={28} strokeWidth={view === 'penalty' ? 2.5 : 2} />
+          <Bell size={28} strokeWidth={view === 'penalty' ? 2.5 : 2} />
         </button>
         <button onClick={() => user ? setView('profile') : setView('login')} className={`p-2 transition-all ${view === 'profile' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
           <UserIcon size={28} strokeWidth={view === 'profile' ? 2.5 : 2} />
