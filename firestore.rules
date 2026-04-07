@@ -25,11 +25,11 @@ service cloud.firestore {
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins)
+          (request.auth.token.email != null && request.auth.token.email_verified == true && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || request.auth.token.email.lower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
           get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins)
+          (request.auth.token.email != null && request.auth.token.email_verified == true && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || request.auth.token.email.lower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
         ))
       );
     }
@@ -37,7 +37,7 @@ service cloud.firestore {
     function canReadRecord(recordData) {
       return recordData.visibility == 'public' ||
              recordData.creatorUid == request.auth.uid ||
-             (recordData.visibility == 'shared' && request.auth.token.email in recordData.sharedWith) ||
+             (recordData.visibility == 'shared' && request.auth.token.email != null && request.auth.token.email in recordData.sharedWith) ||
              isAdmin();
     }
 
@@ -45,9 +45,9 @@ service cloud.firestore {
       return data.studentName is string && data.studentName.size() > 0 &&
              data.category is string &&
              data.visibility in ['public', 'private', 'shared'] &&
-             data.creatorUid == request.auth.uid &&
              data.paid is number &&
-             data.balance is number;
+             data.balance is number &&
+             data.schoolId is string;
     }
 
     function isValidPost(data) {
@@ -112,8 +112,8 @@ service cloud.firestore {
 
     match /studentRecords/{recordId} {
       allow read: if isAuthenticated() && canReadRecord(resource.data);
-      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidRecord(request.resource.data);
-      allow update: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin()) && isValidRecord(request.resource.data);
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidRecord(request.resource.data) && request.resource.data.creatorUid == request.auth.uid;
+      allow update: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin()) && isValidRecord(request.resource.data) && request.resource.data.creatorUid == resource.data.creatorUid;
       allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 

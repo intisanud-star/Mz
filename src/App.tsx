@@ -52,6 +52,7 @@ interface Place {
   creatorUid: string;
   timestamp: any;
   isOfficial?: boolean;
+  subAdmins?: string[];
 }
 
 interface Post {
@@ -459,7 +460,10 @@ function ExonaApp() {
   });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
 
-  const subAdminInstitutions = schools.filter(s => s.subAdmins?.includes(user?.email || ''));
+  const subAdminInstitutions = [
+    ...schools.filter(s => s.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase())),
+    ...places.filter(p => p.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase()))
+  ];
   const isSubAdmin = subAdminInstitutions.length > 0;
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
@@ -1341,12 +1345,12 @@ function ExonaApp() {
     }
   };
 
-  const canManageInstitution = (school: School | null) => {
+  const canManageInstitution = (school: School | Place | null) => {
     if (!user || !userDoc) return false;
     if (userDoc.role === 'admin') return true;
     if (!school) return false;
     if (school.creatorUid === user.uid) return true;
-    if (school.subAdmins && school.subAdmins.includes(user.email || '')) return true;
+    if (school.subAdmins && school.subAdmins.some(email => email.toLowerCase() === user.email?.toLowerCase())) return true;
     return false;
   };
 
@@ -1355,14 +1359,15 @@ function ExonaApp() {
 
     try {
       const currentSubAdmins = schoolToManageSubAdmins.subAdmins || [];
-      if (currentSubAdmins.includes(subAdminEmail.trim())) {
+      const newEmail = subAdminEmail.trim().toLowerCase();
+      if (currentSubAdmins.map(e => e.toLowerCase()).includes(newEmail)) {
         alert('This user is already a sub-admin.');
         return;
       }
 
       const collectionName = schoolToManageSubAdmins.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, schoolToManageSubAdmins.id);
-      const newSubAdmins = [...currentSubAdmins, subAdminEmail.trim()];
+      const newSubAdmins = [...currentSubAdmins, newEmail];
       
       await setDoc(schoolRef, { subAdmins: newSubAdmins }, { merge: true });
       setSchoolToManageSubAdmins({ ...schoolToManageSubAdmins, subAdmins: newSubAdmins });
@@ -1379,7 +1384,7 @@ function ExonaApp() {
 
     try {
       const currentSubAdmins = schoolToManageSubAdmins.subAdmins || [];
-      const newSubAdmins = currentSubAdmins.filter(e => e !== email);
+      const newSubAdmins = currentSubAdmins.filter(e => e.toLowerCase() !== email.toLowerCase());
       
       const collectionName = schoolToManageSubAdmins.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, schoolToManageSubAdmins.id);
