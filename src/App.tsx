@@ -35,7 +35,7 @@ import {
   deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, where, getDocs } from 'firebase/firestore';
 
 /**
  * @license
@@ -95,6 +95,7 @@ interface School {
   creatorUid: string;
   timestamp: any;
   educationalLevels?: string[];
+  subAdmins?: string[]; // Array of user emails
 }
 
 interface StudentRecord {
@@ -445,6 +446,9 @@ function ExonaApp() {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [isSubAdminModalOpen, setIsSubAdminModalOpen] = useState(false);
+  const [subAdminEmail, setSubAdminEmail] = useState('');
+  const [schoolToManageSubAdmins, setSchoolToManageSubAdmins] = useState<School | null>(null);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ 
     name: '', 
@@ -861,7 +865,7 @@ function ExonaApp() {
           commentsCount: 0,
           reshares: 0,
           timestamp: serverTimestamp(),
-          isOfficial: userDoc?.role === 'admin',
+          isOfficial: canManageInstitution(view === 'school-feed' ? selectedSchool : null),
           schoolId: (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon'
         });
       }
@@ -1044,9 +1048,25 @@ function ExonaApp() {
           await ensureUserDocument(currentUser);
           
           // Listen real-time to user document
-          userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+          userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
             if (docSnap.exists()) {
-              setUserDoc(docSnap.data());
+              const data = docSnap.data();
+              setUserDoc(data);
+              
+              // Bootstrap admin role for owner email if not set
+              if (currentUser.email === 'musstaphamusa@gmail.com' && data.role !== 'admin') {
+                await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
+              }
+            } else {
+              // Create user doc if it doesn't exist
+              const initialData = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                displayName: currentUser.displayName || 'User',
+                role: currentUser.email === 'musstaphamusa@gmail.com' ? 'admin' : 'user'
+              };
+              await setDoc(doc(db, 'users', currentUser.uid), initialData);
+              setUserDoc(initialData);
             }
           });
 
@@ -1313,6 +1333,53 @@ function ExonaApp() {
     }
   };
 
+  const canManageInstitution = (school: School | null) => {
+    if (!user || !userDoc) return false;
+    if (userDoc.role === 'admin') return true;
+    if (!school) return false;
+    if (school.creatorUid === user.uid) return true;
+    if (school.subAdmins && school.subAdmins.includes(user.email || '')) return true;
+    return false;
+  };
+
+  const handleAddSubAdmin = async () => {
+    if (!subAdminEmail.trim() || !schoolToManageSubAdmins) return;
+
+    try {
+      const currentSubAdmins = schoolToManageSubAdmins.subAdmins || [];
+      if (currentSubAdmins.includes(subAdminEmail.trim())) {
+        alert('This user is already a sub-admin.');
+        return;
+      }
+
+      const schoolRef = doc(db, 'schools', schoolToManageSubAdmins.id);
+      const newSubAdmins = [...currentSubAdmins, subAdminEmail.trim()];
+      
+      await setDoc(schoolRef, { subAdmins: newSubAdmins }, { merge: true });
+      setSchoolToManageSubAdmins({ ...schoolToManageSubAdmins, subAdmins: newSubAdmins });
+      setSubAdminEmail('');
+    } catch (error) {
+      console.error('Error adding sub-admin:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `schools/${schoolToManageSubAdmins?.id}`);
+    }
+  };
+
+  const handleRemoveSubAdmin = async (email: string) => {
+    if (!schoolToManageSubAdmins) return;
+
+    try {
+      const currentSubAdmins = schoolToManageSubAdmins.subAdmins || [];
+      const newSubAdmins = currentSubAdmins.filter(e => e !== email);
+      
+      const schoolRef = doc(db, 'schools', schoolToManageSubAdmins.id);
+      await setDoc(schoolRef, { subAdmins: newSubAdmins }, { merge: true });
+      setSchoolToManageSubAdmins({ ...schoolToManageSubAdmins, subAdmins: newSubAdmins });
+    } catch (error) {
+      console.error('Error removing sub-admin:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `schools/${schoolToManageSubAdmins?.id}`);
+    }
+  };
+
   const renderView = () => {
     switch (view) {
       case 'admin': {
@@ -1436,6 +1503,17 @@ function ExonaApp() {
                                   </button>
                                   <button 
                                     onClick={() => {
+                                      setSchoolToManageSubAdmins(school);
+                                      setIsSubAdminModalOpen(true);
+                                    }}
+                                    className="px-6 py-2.5 bg-accent/5 text-accent rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-accent hover:text-white transition-all shadow-sm flex items-center gap-2"
+                                    title="Appoint Sub-Admins"
+                                  >
+                                    <UserPlus size={14} />
+                                    Appoint
+                                  </button>
+                                  <button 
+                                    onClick={() => {
                                       setSchoolToDelete(school.id);
                                       setIsDeleteSchoolModalOpen(true);
                                     }}
@@ -1556,20 +1634,34 @@ function ExonaApp() {
         const schoolPosts = posts.filter(p => p.schoolId === selectedSchool.id);
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
-            <div className="flex items-center gap-4 mb-8">
-              <button onClick={() => setView('schools')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                <ChevronRight size={20} className="rotate-180" />
-              </button>
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
-                  {selectedSchool.logo ? (
-                    <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <span className="text-muted text-[10px] font-bold">{selectedSchool.name.charAt(0)}</span>
-                  )}
+            <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center gap-4">
+                <button onClick={() => setView('schools')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <ChevronRight size={20} className="rotate-180" />
+                </button>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                    {selectedSchool.logo ? (
+                      <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="text-muted text-[10px] font-bold">{selectedSchool.name.charAt(0)}</span>
+                    )}
+                  </div>
+                  <h2 className="font-bold text-ink text-lg">{selectedSchool.name}</h2>
                 </div>
-                <h2 className="font-bold text-ink text-lg">{selectedSchool.name}</h2>
               </div>
+              {userDoc?.role === 'admin' && (
+                <button 
+                  onClick={() => {
+                    setSchoolToManageSubAdmins(selectedSchool);
+                    setIsSubAdminModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-accent/5 text-accent rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2"
+                >
+                  <UserPlus size={14} />
+                  Appoint
+                </button>
+              )}
             </div>
 
             {user && (
@@ -1790,15 +1882,29 @@ function ExonaApp() {
                         Visit
                       </button>
                       {userDoc?.role === 'admin' && (
-                        <button 
-                          onClick={() => {
-                            setSchoolToDelete(school.id);
-                            setIsDeleteSchoolModalOpen(true);
-                          }}
-                          className="p-2 text-muted hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        <>
+                          <button 
+                            onClick={() => {
+                              setSchoolToManageSubAdmins(school);
+                              setIsSubAdminModalOpen(true);
+                            }}
+                            className="px-4 py-2 bg-accent/5 text-accent rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2"
+                            title="Manage Sub-Admins"
+                          >
+                            <UserPlus size={16} />
+                            Appoint
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSchoolToDelete(school.id);
+                              setIsDeleteSchoolModalOpen(true);
+                            }}
+                            className="p-2 text-muted hover:text-red-600 transition-colors"
+                            title="Delete Institution"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1873,17 +1979,19 @@ function ExonaApp() {
                     className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
                   />
                 </div>
-                <motion.button 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsRecordModalOpen(true)}
-                  className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-                >
-                  <Plus size={20} />
-                  Add Student Record
-                </motion.button>
+                {canManageInstitution(selectedSchool) && (
+                  <motion.button 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsRecordModalOpen(true)}
+                    className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
+                  >
+                    <Plus size={20} />
+                    Add Student Record
+                  </motion.button>
+                )}
               </div>
             </div>
 
@@ -1980,7 +2088,7 @@ function ExonaApp() {
                           <td className="px-10 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
                           <td className="px-10 py-6">
                             <div className="flex items-center gap-2">
-                              {(record.creatorUid === user?.uid || userDoc?.role === 'admin') && (
+                              {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
                                 <>
                                   <button 
                                     onClick={() => handleEditRecord(record)}
@@ -2147,9 +2255,11 @@ function ExonaApp() {
                       <p className="font-bold text-ink text-lg group-hover:text-accent transition-colors">{finance?.accountName || '---'}</p>
                     </div>
                   </div>
-                  <button className="w-full mt-12 py-6 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all">
-                    Update Details
-                  </button>
+                    {canManageInstitution(selectedSchool) && (
+                      <button className="w-full mt-12 py-6 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all">
+                        Update Details
+                      </button>
+                    )}
                 </motion.div>
 
                 <motion.div 
@@ -2216,17 +2326,19 @@ function ExonaApp() {
                     className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
                   />
                 </div>
-                <motion.button 
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsAttendanceModalOpen(true)}
-                  className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-                >
-                  <Plus size={20} />
-                  Record Attendance
-                </motion.button>
+                {canManageInstitution(selectedSchool) && (
+                  <motion.button 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsAttendanceModalOpen(true)}
+                    className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
+                  >
+                    <Plus size={20} />
+                    Record Attendance
+                  </motion.button>
+                )}
               </div>
             </div>
 
@@ -3386,6 +3498,84 @@ function ExonaApp() {
                     'Authorize Presence'
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isSubAdminModalOpen && schoolToManageSubAdmins && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">Appoint Sub-Admins</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">{schoolToManageSubAdmins.name} Authority Management</p>
+                </div>
+                <button onClick={() => setIsSubAdminModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="space-y-8">
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">User Email Address</label>
+                  <div className="flex gap-4">
+                    <input 
+                      type="email" 
+                      value={subAdminEmail}
+                      onChange={(e) => setSubAdminEmail(e.target.value)}
+                      placeholder="e.g. intisanud@gmail.com"
+                      className="flex-1 px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                    />
+                    <button 
+                      onClick={handleAddSubAdmin}
+                      disabled={!subAdminEmail.trim()}
+                      className="px-8 bg-ink text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90 flex items-center gap-2"
+                    >
+                      <UserPlus size={16} />
+                      Appoint
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-6 ml-4">Current Sub-Admins</p>
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                    {schoolToManageSubAdmins.subAdmins && schoolToManageSubAdmins.subAdmins.length > 0 ? (
+                      schoolToManageSubAdmins.subAdmins.map((email, idx) => (
+                        <motion.div 
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          key={idx} 
+                          className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-ink font-bold text-xs shadow-sm">
+                              {email.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="text-sm font-medium text-ink">{email}</span>
+                          </div>
+                          <button 
+                            onClick={() => handleRemoveSubAdmin(email)}
+                            className="p-2.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <UserMinus size={18} />
+                          </button>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-center py-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
+                        <p className="text-sm text-muted italic">No sub-admins appointed yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>
