@@ -1752,49 +1752,80 @@ function ExonaApp() {
                 .map(school => (
                 <div 
                   key={school.id}
-                  className="py-4 flex items-center justify-between group"
+                  className="py-6 border-b border-gray-50 group"
                 >
-                  <div 
-                    className="flex items-center gap-4 cursor-pointer flex-1"
-                    onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                  >
-                    <div className={`h-14 w-14 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 ${
-                      school.logo ? 'bg-white' : 'bg-gray-200'
-                    }`}>
-                      {school.logo ? (
-                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span className="text-ink">{school.name.charAt(0)}</span>
+                  <div className="flex items-start justify-between mb-4">
+                    <div 
+                      className="flex items-center gap-4 cursor-pointer flex-1"
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                    >
+                      <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden border border-gray-100 shadow-sm ${
+                        school.logo ? 'bg-white' : 'bg-gray-200'
+                      }`}>
+                        {school.logo ? (
+                          <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-ink">{school.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <h4 className="text-[16px] font-bold text-ink truncate">{school.name}</h4>
+                          <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
+                        </div>
+                        <p className="text-[13px] text-muted line-clamp-1">{school.description}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">1.2k followers</p>
+                          <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                        className="px-6 py-2 bg-ink text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 active:scale-95"
+                      >
+                        Visit
+                      </button>
+                      {userDoc?.role === 'admin' && (
+                        <button 
+                          onClick={() => {
+                            setSchoolToDelete(school.id);
+                            setIsDeleteSchoolModalOpen(true);
+                          }}
+                          className="p-2 text-muted hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <h4 className="text-[15px] font-bold text-ink truncate">{school.name}</h4>
-                        <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
-                      </div>
-                      <p className="text-[14px] text-muted truncate">{school.description}</p>
-                      <p className="text-[12px] text-muted mt-1">1.2k followers</p>
-                    </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
+
+                  {/* Institution Action Buttons */}
+                  <div className="flex items-center gap-2 ml-20">
                     <button 
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                      className="px-6 py-1.5 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors"
+                      onClick={() => { setSelectedSchool(school); setView('records'); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
                     >
-                      Visit
+                      <ClipboardList size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Records</span>
                     </button>
-                    {userDoc?.role === 'admin' && (
-                      <button 
-                        onClick={() => {
-                          setSchoolToDelete(school.id);
-                          setIsDeleteSchoolModalOpen(true);
-                        }}
-                        className="p-2 text-muted hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('attendance'); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                    >
+                      <Calendar size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Attendance</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                    >
+                      <Wallet size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Finance</span>
+                    </button>
                   </div>
                 </div>
               ))}
