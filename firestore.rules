@@ -20,6 +20,20 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
+    function isSchoolManager(schoolId) {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
+          get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
+          (get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins)
+        )) ||
+        (exists(/databases/$(database)/documents/places/$(schoolId)) && (
+          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
+          (get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins)
+        ))
+      );
+    }
+
     function canReadRecord(recordData) {
       return recordData.visibility == 'public' ||
              recordData.creatorUid == request.auth.uid ||
@@ -79,8 +93,8 @@ service cloud.firestore {
 
     match /teacherAttendance/{attendanceId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isValidAttendance(request.resource.data);
-      allow update, delete: if isAdmin();
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidAttendance(request.resource.data);
+      allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /posts/{postId} {
@@ -98,14 +112,14 @@ service cloud.firestore {
 
     match /studentRecords/{recordId} {
       allow read: if isAuthenticated() && canReadRecord(resource.data);
-      allow create: if isAuthenticated() && isValidRecord(request.resource.data);
-      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin()) && isValidRecord(request.resource.data);
-      allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidRecord(request.resource.data);
+      allow update: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin()) && isValidRecord(request.resource.data);
+      allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
     match /finance/{schoolId} {
-      allow read: if isAuthenticated() && (resource.data.schoolId == schoolId || isAdmin());
-      allow write: if isAdmin();
+      allow read: if isAuthenticated() && (resource.data.schoolId == schoolId || isAdmin() || isSchoolManager(schoolId));
+      allow write: if isAdmin() || isSchoolManager(schoolId);
     }
   }
 }

@@ -1360,7 +1360,8 @@ function ExonaApp() {
         return;
       }
 
-      const schoolRef = doc(db, 'schools', schoolToManageSubAdmins.id);
+      const collectionName = schoolToManageSubAdmins.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, schoolToManageSubAdmins.id);
       const newSubAdmins = [...currentSubAdmins, subAdminEmail.trim()];
       
       await setDoc(schoolRef, { subAdmins: newSubAdmins }, { merge: true });
@@ -1368,7 +1369,8 @@ function ExonaApp() {
       setSubAdminEmail('');
     } catch (error) {
       console.error('Error adding sub-admin:', error);
-      handleFirestoreError(error, OperationType.UPDATE, `schools/${schoolToManageSubAdmins?.id}`);
+      const collectionName = schoolToManageSubAdmins?.type === 'school' ? 'schools' : 'places';
+      handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${schoolToManageSubAdmins?.id}`);
     }
   };
 
@@ -1379,12 +1381,14 @@ function ExonaApp() {
       const currentSubAdmins = schoolToManageSubAdmins.subAdmins || [];
       const newSubAdmins = currentSubAdmins.filter(e => e !== email);
       
-      const schoolRef = doc(db, 'schools', schoolToManageSubAdmins.id);
+      const collectionName = schoolToManageSubAdmins.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, schoolToManageSubAdmins.id);
       await setDoc(schoolRef, { subAdmins: newSubAdmins }, { merge: true });
       setSchoolToManageSubAdmins({ ...schoolToManageSubAdmins, subAdmins: newSubAdmins });
     } catch (error) {
       console.error('Error removing sub-admin:', error);
-      handleFirestoreError(error, OperationType.UPDATE, `schools/${schoolToManageSubAdmins?.id}`);
+      const collectionName = schoolToManageSubAdmins?.type === 'school' ? 'schools' : 'places';
+      handleFirestoreError(error, OperationType.UPDATE, `${collectionName}/${schoolToManageSubAdmins?.id}`);
     }
   };
 
