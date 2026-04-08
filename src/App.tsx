@@ -1761,11 +1761,6 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
-            <div className="mb-8 pt-4">
-              <h1 className="text-3xl font-serif italic text-ink mb-2">Welcome to Exona</h1>
-              <p className="text-sm text-muted font-medium">Your central hub for institution management and updates.</p>
-            </div>
-
             <div className="grid grid-cols-2 gap-4 mb-8">
               <button 
                 onClick={() => setView('schools')}
