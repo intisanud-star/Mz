@@ -496,6 +496,7 @@ function ExonaApp() {
     if (!file || !user) return;
 
     setIsUploadingProfile(true);
+    setUploadProgress(0);
     try {
       const fileRef = ref(storage, `users/${user.uid}/profile_${Date.now()}_${file.name}`);
       const uploadTask = uploadBytesResumable(fileRef, file);
@@ -522,6 +523,14 @@ function ExonaApp() {
       // Refresh userDoc state
       const updatedDoc = await getDoc(doc(db, 'users', user.uid));
       if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
+
+      // Update user's posts with new photoURL for consistency
+      const userPostsQuery = query(collection(db, 'posts'), where('authorUid', '==', user.uid));
+      const userPostsSnap = await getDocs(userPostsQuery);
+      const updatePromises = userPostsSnap.docs.map(postDoc => 
+        setDoc(postDoc.ref, { authorPhoto: photoURL }, { merge: true })
+      );
+      await Promise.all(updatePromises);
       
     } catch (error) {
       console.error('Error updating profile picture:', error);
@@ -3047,13 +3056,37 @@ function ExonaApp() {
                   <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">exona.io</span>
                 </div>
               </div>
-              <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
-                {user.photoURL ? (
-                  <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="h-full w-full bg-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
-                    {user.displayName?.charAt(0)}
-                  </div>
+              <div className="relative group h-20 w-20">
+                <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
+                  {isUploadingProfile ? (
+                    <div className="h-full w-full bg-gray-50 flex flex-col items-center justify-center">
+                      <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div 
+                          className="h-full bg-ink"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-[8px] font-bold text-ink mt-2">{Math.round(uploadProgress)}%</p>
+                    </div>
+                  ) : user.photoURL ? (
+                    <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className="h-full w-full bg-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
+                      {user.displayName?.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                {!isUploadingProfile && (
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full">
+                    <Upload size={20} />
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleUpdateProfilePicture}
+                    />
+                  </label>
                 )}
               </div>
             </div>
