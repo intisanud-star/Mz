@@ -10,7 +10,7 @@ import {
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
-  ClipboardList, CheckCircle2, XCircle
+  ClipboardList, CheckCircle2, XCircle, Compass
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -415,6 +415,25 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
     </motion.div>
   );
 };
+
+const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
+  <button 
+    onClick={onClick} 
+    className={`flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all relative z-10 ${active ? 'text-ink' : 'text-muted hover:text-ink/70'}`}
+  >
+    {active && (
+      <motion.div 
+        layoutId="nav-pill"
+        className="absolute inset-0 bg-ink/5 rounded-2xl -z-10"
+        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+      />
+    )}
+    <Icon size={22} strokeWidth={active ? 2.5 : 2} className="transition-transform duration-300" />
+    <span className={`text-[9px] font-bold uppercase tracking-[0.1em] transition-all duration-300 ${active ? 'opacity-100' : 'opacity-0 scale-75'}`}>
+      {label}
+    </span>
+  </button>
+);
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
@@ -2102,7 +2121,7 @@ function ExonaApp() {
                 className="p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-ink/5 transition-all text-left group"
               >
                 <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink mb-4 group-hover:bg-ink group-hover:text-white transition-colors">
-                  <ClipboardList size={24} />
+                  <Search size={24} />
                 </div>
                 <h3 className="font-bold text-ink text-sm">{labels.student} Records</h3>
                 <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">View & Edit Profiles</p>
@@ -2601,7 +2620,25 @@ function ExonaApp() {
       }
       case 'records': {
         if (!user) { setView('login'); return null; }
-        if (!selectedSchool) { setView('schools'); return null; }
+        if (!selectedSchool) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-12 text-center">
+              <div className="h-24 w-24 bg-gray-50 rounded-[2rem] flex items-center justify-center text-muted mb-8">
+                <Database size={48} strokeWidth={1} />
+              </div>
+              <h2 className="text-3xl font-serif italic text-ink mb-4">Select an Institution</h2>
+              <p className="text-muted text-sm font-medium max-w-xs mb-10 leading-relaxed">
+                To access institutional records, please first select an institution from your directory.
+              </p>
+              <button 
+                onClick={() => setView('schools')}
+                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+              >
+                Open Directory
+              </button>
+            </div>
+          );
+        }
         const labels = getLabels(selectedSchool?.type);
         const filteredRecords = records
           .filter(r => r.type === recordTab)
@@ -2782,7 +2819,25 @@ function ExonaApp() {
       }
       case 'finance': {
         if (!user) { setView('login'); return null; }
-        if (!selectedSchool) { setView('schools'); return null; }
+        if (!selectedSchool) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-12 text-center">
+              <div className="h-24 w-24 bg-gray-50 rounded-[2rem] flex items-center justify-center text-muted mb-8">
+                <Wallet size={48} strokeWidth={1} />
+              </div>
+              <h2 className="text-3xl font-serif italic text-ink mb-4">Select an Institution</h2>
+              <p className="text-muted text-sm font-medium max-w-xs mb-10 leading-relaxed">
+                To access financial data, please first select an institution from your directory.
+              </p>
+              <button 
+                onClick={() => setView('schools')}
+                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+              >
+                Open Directory
+              </button>
+            </div>
+          );
+        }
         return (
           <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
             <div className="flex flex-col mb-12 items-center text-center">
@@ -2949,7 +3004,25 @@ function ExonaApp() {
       }
       case 'attendance': {
         if (!user) { setView('login'); return null; }
-        if (!selectedSchool) { setView('schools'); return null; }
+        if (!selectedSchool) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-12 text-center">
+              <div className="h-24 w-24 bg-gray-50 rounded-[2rem] flex items-center justify-center text-muted mb-8">
+                <Compass size={48} strokeWidth={1} />
+              </div>
+              <h2 className="text-3xl font-serif italic text-ink mb-4">Select an Institution</h2>
+              <p className="text-muted text-sm font-medium max-w-xs mb-10 leading-relaxed">
+                To view or record attendance, please first select an institution from your directory.
+              </p>
+              <button 
+                onClick={() => setView('schools')}
+                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+              >
+                Open Directory
+              </button>
+            </div>
+          );
+        }
         const labels = getLabels(selectedSchool.type);
         const filteredAttendance = attendance.filter(r => 
           r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase())
@@ -4486,7 +4559,7 @@ function ExonaApp() {
 
         <div className="flex items-center justify-end w-1/3 gap-4">
           <button onClick={() => setView('schools')} className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors">
-            <Search size={24} />
+            <Compass size={24} />
           </button>
         </div>
       </header>
@@ -4496,29 +4569,57 @@ function ExonaApp() {
         {renderView()}
       </main>
 
-      {/* Bottom Nav (Threads Style) */}
-      <div className="bg-white/80 backdrop-blur-xl border-t border-gray-100 px-6 py-4 flex items-center justify-between sticky bottom-0 z-40">
-        <button onClick={() => setView('feed')} className={`p-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
-          <Home size={28} strokeWidth={view === 'feed' ? 2.5 : 2} />
-        </button>
-        <button onClick={() => setView('schools')} className={`p-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
-          <Search size={28} strokeWidth={view === 'schools' ? 2.5 : 2} />
-        </button>
-        <button 
-          onClick={() => {
-            if (!user) { setView('login'); return; }
-            openNewPostModal();
-          }} 
-          className="p-2 text-muted hover:text-ink transition-all"
+      {/* Bottom Nav (Premium Floating Dock) */}
+      <div className="fixed bottom-6 left-0 right-0 z-50 px-6 pointer-events-none">
+        <motion.div 
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="max-w-lg mx-auto bg-white/80 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2.5rem] px-4 py-3 flex items-center justify-between pointer-events-auto relative"
         >
-          <PlusSquare size={28} />
-        </button>
-        <button onClick={() => setView('penalty')} className={`p-2 transition-all ${view === 'penalty' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
-          <Bell size={28} strokeWidth={view === 'penalty' ? 2.5 : 2} />
-        </button>
-        <button onClick={() => user ? setView('profile') : setView('login')} className={`p-2 transition-all ${view === 'profile' ? 'text-ink' : 'text-muted hover:text-ink'}`}>
-          <UserIcon size={28} strokeWidth={view === 'profile' ? 2.5 : 2} />
-        </button>
+          <div className="flex items-center justify-between w-full relative">
+            <NavButton 
+              active={view === 'feed'} 
+              onClick={() => setView('feed')} 
+              icon={Home} 
+              label="Home"
+            />
+            <NavButton 
+              active={view === 'records'} 
+              onClick={() => setView('records')} 
+              icon={Search} 
+              label={labels.student}
+            />
+            
+            <div className="relative -top-3 px-2">
+              <motion.button 
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => {
+                  if (!user) { setView('login'); return; }
+                  openNewPostModal();
+                }} 
+                className="h-16 w-16 bg-ink text-white rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.2)] relative z-20 group overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <Plus size={36} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
+              </motion.button>
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-1 bg-ink/10 blur-[2px] rounded-full" />
+            </div>
+
+            <NavButton 
+              active={view === 'attendance'} 
+              onClick={() => setView('attendance')} 
+              icon={Calendar} 
+              label="Log"
+            />
+            <NavButton 
+              active={view === 'profile'} 
+              onClick={() => user ? setView('profile') : setView('login')} 
+              icon={UserIcon} 
+              label="Me"
+            />
+          </div>
+        </motion.div>
       </div>
       </div>
     );

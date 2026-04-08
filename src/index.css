@@ -7,15 +7,15 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --color-paper: #FDFDFB;
-  --color-ink: #121212;
-  --color-accent: #2563EB;
-  --color-muted: #6B7280;
-  --color-border: #E5E7EB;
+  --color-ink: #0A0A0A;
+  --color-accent: #1A1A1A;
+  --color-muted: #737373;
+  --color-border: #F5F5F5;
 }
 
 @layer base {
   body {
-    @apply bg-paper text-ink font-sans antialiased selection:bg-accent/20 selection:text-accent;
+    @apply bg-paper text-ink font-sans antialiased selection:bg-ink/10 selection:text-ink;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -25,11 +25,11 @@
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+    @apply bg-white/70 backdrop-blur-2xl border border-white/20;
   }
   
   .premium-shadow {
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08), 0 10px 20px -5px rgba(0, 0, 0, 0.03);
   }
 
   .text-balance {
