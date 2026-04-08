@@ -202,6 +202,36 @@ const formatTime = (timestamp: any) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
+// --- HELPERS ---
+const getLabels = (type?: 'school' | 'place') => {
+  if (type === 'place') {
+    return {
+      student: 'Member',
+      students: 'Members',
+      teacher: 'Staff',
+      teachers: 'Staff',
+      books: 'Services',
+      uniforms: 'Products',
+      school: 'Place',
+      attendance: 'Presence Log',
+      system: 'Official Management System',
+      educationalLevel: 'Category'
+    };
+  }
+  return {
+    student: 'Student',
+    students: 'Students',
+    teacher: 'Teacher',
+    teachers: 'Teachers',
+    books: 'Books',
+    uniforms: 'Uniforms',
+    school: 'School',
+    attendance: 'Teacher Presence Log',
+    system: 'Official Student Information System',
+    educationalLevel: 'Class'
+  };
+};
+
 // --- COMPONENTS ---
 
   const NavIcon = ({ icon: Icon, active, onClick, label }: { icon: any, active: boolean, onClick: () => void, label: string }) => (
@@ -465,6 +495,8 @@ function ExonaApp() {
     educationalLevels: [] as string[]
   });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+
+  const labels = getLabels(selectedSchool?.type);
 
   const subAdminInstitutions = [
     ...schools.filter(s => s.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase())),
@@ -1650,7 +1682,7 @@ function ExonaApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
               {[
                 { label: 'Assigned Institutions', value: subAdminInstitutions.length, color: 'accent' },
-                { label: 'Total Students', value: subAdminRecords.length, color: 'green-600' },
+                { label: `Total ${labels.students}`, value: subAdminRecords.length, color: 'green-600' },
                 { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'ink' },
                 { label: 'Pending Balance', value: `₦${totalBalance.toLocaleString()}`, color: 'red-600' }
               ].map((stat, i) => (
@@ -1813,8 +1845,8 @@ function ExonaApp() {
                     <div className="h-14 w-14 bg-accent text-white rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-accent/20">
                       <Users size={28} />
                     </div>
-                    <h4 className="font-bold text-ink text-lg mb-2">Student Directory</h4>
-                    <p className="text-muted text-xs font-medium leading-relaxed">Access and manage student profiles across your institutions.</p>
+                    <h4 className="font-bold text-ink text-lg mb-2">{labels.student} Directory</h4>
+                    <p className="text-muted text-xs font-medium leading-relaxed">Access and manage {labels.student.toLowerCase()} profiles across your institutions.</p>
                   </button>
 
                   <button 
@@ -1836,7 +1868,7 @@ function ExonaApp() {
                       <Calendar size={28} />
                     </div>
                     <h4 className="font-bold text-ink text-lg mb-2">Attendance</h4>
-                    <p className="text-muted text-xs font-medium leading-relaxed">Track teacher and staff attendance records.</p>
+                    <p className="text-muted text-xs font-medium leading-relaxed">Track {labels.teacher.toLowerCase()} and staff attendance records.</p>
                   </button>
 
                   <button 
@@ -2072,7 +2104,7 @@ function ExonaApp() {
                 <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink mb-4 group-hover:bg-ink group-hover:text-white transition-colors">
                   <ClipboardList size={24} />
                 </div>
-                <h3 className="font-bold text-ink text-sm">Student Records</h3>
+                <h3 className="font-bold text-ink text-sm">{labels.student} Records</h3>
                 <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">View & Edit Profiles</p>
               </button>
             </div>
@@ -2570,6 +2602,7 @@ function ExonaApp() {
       case 'records': {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
+        const labels = getLabels(selectedSchool?.type);
         const filteredRecords = records
           .filter(r => r.type === recordTab)
           .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()));
@@ -2593,7 +2626,7 @@ function ExonaApp() {
                   transition={{ delay: 0.1 }}
                   className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
                 >
-                  Official Student Information System
+                  {labels.system}
                 </motion.p>
               </div>
               <div className="flex flex-wrap items-center justify-center md:justify-end gap-4">
@@ -2601,7 +2634,7 @@ function ExonaApp() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Search students..." 
+                    placeholder={`Search ${labels.students.toLowerCase()}...`} 
                     value={recordSearch}
                     onChange={(e) => setRecordSearch(e.target.value)}
                     className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
@@ -2617,7 +2650,7 @@ function ExonaApp() {
                     className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
                   >
                     <Plus size={20} />
-                    Add Student Record
+                    Add {labels.student} Record
                   </motion.button>
                 )}
               </div>
@@ -2625,7 +2658,7 @@ function ExonaApp() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
               {[
-                { label: 'Total Students', value: filteredRecords.length, icon: Users, color: 'text-ink', bg: 'bg-gray-50' },
+                { label: `Total ${labels.students}`, value: filteredRecords.length, icon: Users, color: 'text-ink', bg: 'bg-gray-50' },
                 { label: 'Total Paid', value: `₦${totalPaid.toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50/30' },
                 { label: 'Total Balance', value: `₦${totalBalance.toLocaleString()}`, icon: Wallet, color: 'text-red-600', bg: 'bg-red-50/30' }
               ].map((stat, i) => (
@@ -2654,7 +2687,7 @@ function ExonaApp() {
                   onClick={() => setRecordTab(tab)}
                   className={`px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${recordTab === tab ? 'bg-white text-ink shadow-sm border border-gray-100' : 'text-muted hover:text-ink'}`}
                 >
-                  {tab}
+                  {tab === 'general' ? 'General' : tab === 'books' ? labels.books : labels.uniforms}
                 </button>
               ))}
             </div>
@@ -2664,7 +2697,7 @@ function ExonaApp() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Student & Details</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">{labels.student} & Details</th>
                       <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Category</th>
                       <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Added By</th>
                       <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Paid</th>
@@ -2917,6 +2950,7 @@ function ExonaApp() {
       case 'attendance': {
         if (!user) { setView('login'); return null; }
         if (!selectedSchool) { setView('schools'); return null; }
+        const labels = getLabels(selectedSchool.type);
         const filteredAttendance = attendance.filter(r => 
           r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase())
         );
@@ -2940,7 +2974,7 @@ function ExonaApp() {
                   transition={{ delay: 0.1 }}
                   className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
                 >
-                  Teacher Presence Log
+                  {labels.attendance}
                 </motion.p>
               </div>
               <div className="flex flex-wrap items-center justify-center md:justify-end gap-4">
@@ -2948,7 +2982,7 @@ function ExonaApp() {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Search teachers..." 
+                    placeholder={`Search ${labels.teachers.toLowerCase()}...`} 
                     value={attendanceSearch}
                     onChange={(e) => setAttendanceSearch(e.target.value)}
                     className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
@@ -2999,7 +3033,7 @@ function ExonaApp() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Teacher Name</th>
+                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
                       <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Status</th>
                       <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Date</th>
                       <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
@@ -3699,7 +3733,11 @@ function ExonaApp() {
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">{editingRecord ? `Edit ${recordTab} Record` : `Add ${recordTab} Record`}</h3>
+                  <h3 className="text-3xl font-serif italic text-ink mb-1">
+                    {editingRecord 
+                      ? `Edit ${recordTab === 'general' ? 'General' : recordTab === 'books' ? labels.books : labels.uniforms} Record` 
+                      : `Add ${recordTab === 'general' ? 'General' : recordTab === 'books' ? labels.books : labels.uniforms} Record`}
+                  </h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
                 <button onClick={() => setIsRecordModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
@@ -3708,7 +3746,7 @@ function ExonaApp() {
               </div>
               <div className="space-y-6">
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Student Name</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.student} Name</label>
                   <input 
                     type="text" 
                     value={newRecord.studentName}
@@ -3718,7 +3756,7 @@ function ExonaApp() {
                   />
                 </div>
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Category/Class</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Category/{labels.educationalLevel}</label>
                   {selectedSchool?.educationalLevels && selectedSchool.educationalLevels.length > 0 ? (
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-2 px-2">
@@ -4107,7 +4145,7 @@ function ExonaApp() {
               </div>
               <div className="space-y-8">
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Teacher Name</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.teacher} Name</label>
                   <input 
                     type="text" 
                     value={newAttendance.teacherName}
