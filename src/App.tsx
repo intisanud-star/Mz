@@ -249,7 +249,8 @@ const getLabels = (type?: 'school' | 'place') => {
   );
 
 const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
-  <button 
+  <motion.button 
+    whileTap={{ scale: 0.98 }}
     onClick={onClick}
     className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-500 group relative overflow-hidden ${
       active 
@@ -266,7 +267,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
     )}
     <div className="flex items-center gap-4 relative z-10">
       <Icon size={20} className={`${active ? 'text-white' : 'text-muted group-hover:text-ink'} transition-colors duration-300`} />
-      <span className="font-bold text-[13px] tracking-tight">{label}</span>
+      <span className={`text-[14px] font-serif italic tracking-wide transition-colors duration-300 ${active ? 'text-white' : 'text-muted group-hover:text-ink'}`}>{label}</span>
     </div>
     {badge && (
       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full relative z-10 ${
@@ -275,7 +276,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
         {badge}
       </span>
     )}
-  </button>
+  </motion.button>
 );
 
 const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId }: any) => {
@@ -417,17 +418,44 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 };
 
 const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
-  <button 
+  <motion.button 
+    whileTap={{ scale: 0.92 }}
     onClick={onClick} 
-    className="flex flex-col items-center justify-center w-full h-full gap-1 group transition-all"
+    className="flex flex-col items-center justify-center flex-1 h-full gap-1 group relative"
   >
-    <div className={`transition-all duration-300 ${active ? 'text-accent scale-110' : 'text-muted group-hover:text-ink'}`}>
-      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
-    </div>
-    <span className={`text-[10px] font-serif italic transition-all duration-300 ${active ? 'text-accent opacity-100' : 'text-muted opacity-60'}`}>
+    {active && (
+      <motion.div 
+        layoutId="nav-active-bg"
+        className="absolute inset-x-1 inset-y-2 bg-accent/5 rounded-2xl -z-10"
+        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+      />
+    )}
+    <motion.div 
+      animate={{ 
+        y: active ? -2 : 0,
+        filter: active ? 'drop-shadow(0 0 8px rgba(0,149,246,0.3))' : 'drop-shadow(0 0 0px rgba(0,0,0,0))'
+      }}
+      className={`transition-colors duration-500 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}
+    >
+      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+    </motion.div>
+    <motion.span 
+      animate={{ 
+        opacity: active ? 1 : 0.6,
+        scale: active ? 1 : 0.98
+      }}
+      className={`text-[11px] font-serif italic tracking-wide transition-colors duration-500 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}
+    >
       {label}
-    </span>
-  </button>
+    </motion.span>
+    {active && (
+      <motion.div 
+        layoutId="active-nav-indicator"
+        className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-10 h-[2px] bg-accent rounded-full shadow-[0_0_12px_rgba(0,149,246,0.6)]"
+        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+      />
+    )}
+  </motion.button>
 );
 
 // --- MAIN DASHBOARD ---
@@ -4532,19 +4560,35 @@ function ExonaApp() {
       {/* Top Navigation (Threads Style) */}
       <header className="h-16 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center w-1/3">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors">
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setSidebarOpen(true)} 
+            className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors"
+          >
             <Menu size={24} />
-          </button>
+          </motion.button>
         </div>
 
         <div className="flex items-center justify-center w-1/3">
-          <h1 className="text-xl font-serif italic text-ink cursor-pointer" onClick={() => setView('feed')}>Exona</h1>
+          <motion.h1 
+            whileHover={{ scale: 1.02 }}
+            className="text-2xl font-serif italic text-ink cursor-pointer tracking-tight" 
+            onClick={() => setView('feed')}
+          >
+            Exona
+          </motion.h1>
         </div>
 
         <div className="flex items-center justify-end w-1/3 gap-4">
-          <button onClick={() => setView('schools')} className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors">
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => setView('schools')} 
+            className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors"
+          >
             <Compass size={24} />
-          </button>
+          </motion.button>
         </div>
       </header>
 
@@ -4553,8 +4597,8 @@ function ExonaApp() {
         {renderView()}
       </main>
 
-      {/* Bottom Nav (Classic Elegant Style) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-100 h-20 px-4 flex items-center justify-around pb-2">
+      {/* Bottom Nav (Refined Classic Style) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-gray-100 h-20 px-2 flex items-center justify-around pb-2 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
         <NavButton 
           active={view === 'feed'} 
           onClick={() => setView('feed')} 
@@ -4568,17 +4612,19 @@ function ExonaApp() {
           label={labels.student}
         />
         
-        <div className="flex flex-col items-center justify-center w-full h-full gap-1">
-          <button 
+        <div className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative">
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             onClick={() => {
               if (!user) { setView('login'); return; }
               openNewPostModal();
             }} 
-            className="h-12 w-12 bg-ink text-white rounded-full flex items-center justify-center shadow-lg shadow-ink/20 hover:scale-110 transition-all active:scale-95"
+            className="h-11 w-11 bg-ink text-white rounded-full flex items-center justify-center shadow-2xl shadow-ink/30 transition-all group/plus"
           >
-            <Plus size={28} strokeWidth={2.5} />
-          </button>
-          <span className="text-[10px] font-serif italic text-muted opacity-60">Create</span>
+            <Plus size={24} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-500" />
+          </motion.button>
+          <span className="text-[11px] font-serif italic text-muted opacity-50">Create</span>
         </div>
 
         <NavButton 
