@@ -419,19 +419,18 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
   <button 
     onClick={onClick} 
-    className={`flex flex-col items-center gap-1 px-4 py-2 rounded-2xl transition-all relative z-10 ${active ? 'text-ink' : 'text-muted hover:text-ink/70'}`}
+    className="flex flex-col items-center justify-center w-full h-full relative group"
   >
+    <div className={`transition-all duration-300 ${active ? 'scale-110 text-ink' : 'text-muted group-hover:text-ink/70'}`}>
+      <Icon size={26} strokeWidth={active ? 2.5 : 2} />
+    </div>
     {active && (
       <motion.div 
-        layoutId="nav-pill"
-        className="absolute inset-0 bg-ink/5 rounded-2xl -z-10"
+        layoutId="nav-dot"
+        className="absolute bottom-1 w-1 h-1 bg-ink rounded-full"
         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
       />
     )}
-    <Icon size={22} strokeWidth={active ? 2.5 : 2} className="transition-transform duration-300" />
-    <span className={`text-[9px] font-bold uppercase tracking-[0.1em] transition-all duration-300 ${active ? 'opacity-100' : 'opacity-0 scale-75'}`}>
-      {label}
-    </span>
   </button>
 );
 
@@ -3450,46 +3449,47 @@ function ExonaApp() {
   if (view === 'login') {
     if (verificationSent || (user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password'))) {
       return (
-        <div className="flex h-screen flex-col items-center justify-center bg-paper p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02)_0%,transparent_50%)]"></div>
+        <div className="flex h-screen flex-col items-center justify-center bg-white p-6">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }} 
             animate={{ opacity: 1, scale: 1 }} 
-            className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center relative z-10"
+            className="w-full max-w-sm text-center"
           >
-            <div className="h-20 w-20 bg-ink text-white rounded-[2rem] flex items-center justify-center font-serif italic text-4xl mb-10 mx-auto shadow-2xl shadow-ink/20">Ex</div>
-            <h2 className="text-4xl font-serif italic text-ink mb-4 tracking-tight">Check your email</h2>
-            <p className="text-muted font-medium mb-10 leading-relaxed">
-              We've sent a verification link to <span className="text-ink font-bold">{user?.email || email}</span>. Please click the link in your email to verify your account.
-            </p>
-            <div className="space-y-4">
-              <button 
-                onClick={async () => {
-                  if (auth.currentUser) {
-                    await auth.currentUser.reload();
-                    if (auth.currentUser.emailVerified) {
-                      const docData = await ensureUserDocument(auth.currentUser);
-                      setUserDoc(docData);
-                      setUser(auth.currentUser);
-                      setView('feed');
-                    } else {
-                      setAuthError('Email not verified yet. Please check your inbox.');
+            <h1 className="text-4xl font-serif italic mb-8">Exona</h1>
+            <div className="bg-white border border-border p-10 rounded-xl mb-4">
+              <h2 className="text-xl font-bold mb-4">Check your email</h2>
+              <p className="text-muted text-sm mb-8 leading-relaxed">
+                We've sent a verification link to <span className="text-ink font-bold">{user?.email || email}</span>. Please click the link in your email to verify your account.
+              </p>
+              <div className="space-y-3">
+                <button 
+                  onClick={async () => {
+                    if (auth.currentUser) {
+                      await auth.currentUser.reload();
+                      if (auth.currentUser.emailVerified) {
+                        const docData = await ensureUserDocument(auth.currentUser);
+                        setUserDoc(docData);
+                        setUser(auth.currentUser);
+                        setView('feed');
+                      } else {
+                        setAuthError('Email not verified yet. Please check your inbox.');
+                      }
                     }
-                  }
-                }} 
-                className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-              >
-                I've verified my email
-              </button>
-              <button 
-                onClick={() => {
-                  setVerificationSent(false);
-                  signOut(auth);
-                }} 
-                className="w-full py-5 bg-gray-50 text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100"
-              >
-                Back to Login
-              </button>
+                  }} 
+                  className="w-full py-2 bg-accent text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all"
+                >
+                  I've verified my email
+                </button>
+                <button 
+                  onClick={() => {
+                    setVerificationSent(false);
+                    signOut(auth);
+                  }} 
+                  className="w-full py-2 text-accent font-bold text-sm hover:underline"
+                >
+                  Back to Login
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>
@@ -3497,116 +3497,91 @@ function ExonaApp() {
     }
 
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-paper p-6 overflow-y-auto relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02)_0%,transparent_50%)]"></div>
-        
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6">
         <motion.div 
-          initial={{ opacity: 0, y: 30 }} 
+          initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
-          className="w-full max-w-md bg-white rounded-[3.5rem] premium-shadow p-12 md:p-16 border border-gray-100 my-8 relative overflow-hidden z-10"
+          className="w-full max-w-sm"
         >
-          <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
-            <ShieldCheck size={200} strokeWidth={1} />
-          </div>
-          
-          <div className="h-20 w-20 bg-ink text-white rounded-[2rem] flex items-center justify-center font-serif italic text-4xl mb-12 shadow-2xl shadow-ink/20">Ex</div>
-          
-          <div className="mb-12">
-            <h2 className="text-5xl font-serif italic text-ink mb-4 tracking-tight leading-tight">
-              {authMode === 'signin' ? 'Welcome Back' : 'Join Exona'}
-            </h2>
-            <p className="text-muted font-medium text-sm leading-relaxed max-w-[280px]">
-              {authMode === 'signin' ? 'Sign in to manage your institutions and connect with your community.' : 'Create an account to start managing your school or business with ease.'}
-            </p>
-          </div>
+          <div className="bg-white border border-border p-10 rounded-sm mb-4 flex flex-col items-center">
+            <h1 className="text-5xl font-serif italic mb-12 mt-4">Exona</h1>
+            
+            {authError && (
+              <div className="mb-6 p-3 w-full bg-red-50 border border-red-100 rounded text-red-600 text-xs text-center">
+                {authError}
+              </div>
+            )}
 
-          {authError && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="mb-8 p-5 bg-red-50 border border-red-100 rounded-3xl text-red-600 text-[11px] font-bold flex items-center gap-3"
-            >
-              <AlertCircle size={18} />
-              {authError}
-            </motion.div>
-          )}
-
-          <div className="space-y-6 mb-10">
-            {authMode === 'signup' && (
-              <div className="group">
-                <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Your Full Name</label>
+            <div className="w-full space-y-2 mb-4">
+              {authMode === 'signup' && (
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g. John Doe"
-                  className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
+                  placeholder="Full Name"
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-border rounded-sm outline-none focus:border-muted transition-all text-sm"
                 />
-              </div>
-            )}
-            <div className="group">
-              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Email Address</label>
+              )}
               <input 
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
+                placeholder="Email address"
+                className="w-full px-3 py-2.5 bg-gray-50 border border-border rounded-sm outline-none focus:border-muted transition-all text-sm"
               />
-            </div>
-            <div className="group">
-              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Password</label>
               <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
+                placeholder="Password"
+                className="w-full px-3 py-2.5 bg-gray-50 border border-border rounded-sm outline-none focus:border-muted transition-all text-sm"
               />
             </div>
-          </div>
 
-          <button 
-            onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
-            className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all mb-8 active:scale-[0.98]"
-          >
-            {authMode === 'signin' ? 'Sign In' : 'Create Account'}
-          </button>
-
-          <div className="relative mb-10">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-[9px] uppercase font-bold text-muted tracking-[0.4em]"><span className="bg-white px-6">Or continue with</span></div>
-          </div>
-
-          <button 
-            onClick={handleGoogleSignIn} 
-            className="w-full py-5 bg-white border border-gray-100 text-ink rounded-[2rem] font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-4 mb-10 active:scale-[0.98]"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" />
-            Google
-          </button>
-
-          <p className="text-center text-[11px] text-muted font-bold uppercase tracking-widest">
-            {authMode === 'signin' ? "Don't have an account?" : "Already have an account?"}{' '}
             <button 
-              onClick={() => {
-                setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
-                setAuthError(null);
-              }} 
-              className="text-ink hover:underline underline-offset-4 decoration-ink/20"
+              onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
+              className="w-full py-2 bg-accent text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all mb-6 active:scale-[0.98]"
             >
-              {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
+              {authMode === 'signin' ? 'Log in' : 'Sign up'}
             </button>
-          </p>
-        </motion.div>
-        
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="mt-12 text-[10px] font-mono text-muted uppercase tracking-[0.5em] text-center"
-        >
-          Exona Institutional Network
+
+            <div className="w-full flex items-center gap-4 mb-6">
+              <div className="flex-1 h-px bg-border"></div>
+              <span className="text-xs font-bold text-muted uppercase">OR</span>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
+
+            <button 
+              onClick={handleGoogleSignIn} 
+              className="flex items-center gap-2 text-sm font-bold text-[#385185] hover:opacity-80 transition-all mb-4"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-4 w-4" />
+              {authMode === 'signin' ? 'Log in with Google' : 'Sign up with Google'}
+            </button>
+
+            {authMode === 'signin' && (
+              <button className="text-xs text-[#00376b] hover:underline">Forgot password?</button>
+            )}
+          </div>
+
+          <div className="bg-white border border-border p-6 rounded-sm text-center">
+            <p className="text-sm">
+              {authMode === 'signin' ? "Don't have an account?" : "Have an account?"}{' '}
+              <button 
+                onClick={() => {
+                  setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
+                  setAuthError(null);
+                }} 
+                className="text-accent font-bold hover:underline"
+              >
+                {authMode === 'signin' ? 'Sign up' : 'Log in'}
+              </button>
+            </p>
+          </div>
+          
+          <div className="mt-8 text-center">
+            <p className="text-xs text-muted">Exona from Antigravity</p>
+          </div>
         </motion.div>
       </div>
     );
@@ -4582,57 +4557,43 @@ function ExonaApp() {
         {renderView()}
       </main>
 
-      {/* Bottom Nav (Premium Floating Dock) */}
-      <div className="fixed bottom-6 left-0 right-0 z-50 px-6 pointer-events-none">
-        <motion.div 
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          className="max-w-lg mx-auto bg-white/80 backdrop-blur-2xl border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2.5rem] px-4 py-3 flex items-center justify-between pointer-events-auto relative"
+      {/* Bottom Nav (Instagram Style) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 px-4 flex items-center justify-around">
+        <NavButton 
+          active={view === 'feed'} 
+          onClick={() => setView('feed')} 
+          icon={Home} 
+          label="Home"
+        />
+        <NavButton 
+          active={view === 'records'} 
+          onClick={() => setView('records')} 
+          icon={Search} 
+          label={labels.student}
+        />
+        
+        <button 
+          onClick={() => {
+            if (!user) { setView('login'); return; }
+            openNewPostModal();
+          }} 
+          className="flex items-center justify-center w-full h-full text-ink hover:scale-110 transition-transform"
         >
-          <div className="flex items-center justify-between w-full relative">
-            <NavButton 
-              active={view === 'feed'} 
-              onClick={() => setView('feed')} 
-              icon={Home} 
-              label="Home"
-            />
-            <NavButton 
-              active={view === 'records'} 
-              onClick={() => setView('records')} 
-              icon={Search} 
-              label={labels.student}
-            />
-            
-            <div className="relative -top-3 px-2">
-              <motion.button 
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => {
-                  if (!user) { setView('login'); return; }
-                  openNewPostModal();
-                }} 
-                className="h-16 w-16 bg-ink text-white rounded-full flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.2)] relative z-20 group overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <Plus size={36} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
-              </motion.button>
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-1 bg-ink/10 blur-[2px] rounded-full" />
-            </div>
+          <PlusSquare size={26} strokeWidth={2} />
+        </button>
 
-            <NavButton 
-              active={view === 'attendance'} 
-              onClick={() => setView('attendance')} 
-              icon={Calendar} 
-              label="Log"
-            />
-            <NavButton 
-              active={view === 'profile'} 
-              onClick={() => user ? setView('profile') : setView('login')} 
-              icon={UserIcon} 
-              label="Me"
-            />
-          </div>
-        </motion.div>
+        <NavButton 
+          active={view === 'attendance'} 
+          onClick={() => setView('attendance')} 
+          icon={Calendar} 
+          label="Log"
+        />
+        <NavButton 
+          active={view === 'profile'} 
+          onClick={() => user ? setView('profile') : setView('login')} 
+          icon={UserIcon} 
+          label="Me"
+        />
       </div>
       </div>
     );

@@ -6,16 +6,16 @@
   --font-serif: "Playfair Display", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-paper: #FDFDFB;
-  --color-ink: #0A0A0A;
-  --color-accent: #1A1A1A;
+  --color-paper: #FFFFFF;
+  --color-ink: #000000;
+  --color-accent: #0095F6;
   --color-muted: #737373;
-  --color-border: #F5F5F5;
+  --color-border: #DBDBDB;
 }
 
 @layer base {
   body {
-    @apply bg-paper text-ink font-sans antialiased selection:bg-ink/10 selection:text-ink;
+    @apply bg-paper text-ink font-sans antialiased selection:bg-accent/10 selection:text-accent;
   }
 
   h1, h2, h3, h4, h5, h6 {
