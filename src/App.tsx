@@ -473,6 +473,7 @@ function ExonaApp() {
   const isSubAdmin = subAdminInstitutions.length > 0;
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+  const [uploadingInstitutionId, setUploadingInstitutionId] = useState<string | null>(null);
   const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
 
   useEffect(() => {
@@ -537,6 +538,54 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     } finally {
       setIsUploadingProfile(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleUpdateInstitutionLogo = async (institution: School | Place, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File size must be less than 5MB.');
+      return;
+    }
+
+    setUploadingInstitutionId(institution.id);
+    setUploadProgress(0);
+    try {
+      const collectionName = institution.type === 'school' ? 'schools' : 'places';
+      const fileRef = ref(storage, `${collectionName}/${institution.id}/logo_${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(fileRef, file);
+      
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          }, 
+          (error) => reject(error), 
+          () => resolve(null)
+        );
+      });
+
+      const logoURL = await getDownloadURL(fileRef);
+      
+      // Update Firestore institution document
+      await setDoc(doc(db, collectionName, institution.id), { logo: logoURL }, { merge: true });
+      
+    } catch (error) {
+      console.error('Error updating institution logo:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `${institution.type === 'school' ? 'schools' : 'places'}/${institution.id}`);
+    } finally {
+      setUploadingInstitutionId(null);
       setUploadProgress(0);
     }
   };
@@ -1636,11 +1685,35 @@ function ExonaApp() {
                       className="bg-white p-8 rounded-[2rem] border border-gray-100 premium-shadow flex items-center justify-between group hover:border-accent/20 transition-all"
                     >
                       <div className="flex items-center gap-6">
-                        <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center text-ink font-bold text-2xl overflow-hidden border border-gray-100">
-                          {school.logo ? (
-                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            school.name.charAt(0)
+                        <div className="relative group h-16 w-16">
+                          <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center text-ink font-bold text-2xl overflow-hidden border border-gray-100">
+                            {uploadingInstitutionId === school.id ? (
+                              <div className="h-full w-full bg-gray-50 flex flex-col items-center justify-center">
+                                <div className="w-10 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                  <motion.div 
+                                    className="h-full bg-ink"
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${uploadProgress}%` }}
+                                  />
+                                </div>
+                                <p className="text-[8px] font-bold text-ink mt-2">{Math.round(uploadProgress)}%</p>
+                              </div>
+                            ) : school.logo ? (
+                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              school.name.charAt(0)
+                            )}
+                          </div>
+                          {uploadingInstitutionId !== school.id && (
+                            <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl">
+                              <Upload size={16} />
+                              <input 
+                                type="file" 
+                                className="hidden" 
+                                accept="image/*"
+                                onChange={(e) => handleUpdateInstitutionLogo(school, e)}
+                              />
+                            </label>
                           )}
                         </div>
                         <div>
