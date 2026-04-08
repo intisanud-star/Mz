@@ -219,15 +219,15 @@ const getLabels = (type?: 'school' | 'place') => {
     };
   }
   return {
-    student: 'Student',
-    students: 'Students',
+    student: 'Member',
+    students: 'Members',
     teacher: 'Teacher',
     teachers: 'Teachers',
     books: 'Books',
     uniforms: 'Uniforms',
     school: 'School',
     attendance: 'Teacher Presence Log',
-    system: 'Official Student Information System',
+    system: 'Official Member Information System',
     educationalLevel: 'Class'
   };
 };
@@ -1373,7 +1373,7 @@ function ExonaApp() {
     const unsubRecords = onSnapshot(q, (snap) => {
       setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
     }, (error) => {
-      console.error('Error fetching student records:', error);
+      console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
       // Only show error if it's not a permission error (which might happen if some records are private)
       if (!error.message.includes('insufficient permissions')) {
         handleFirestoreError(error, OperationType.LIST, 'studentRecords');
@@ -1984,7 +1984,7 @@ function ExonaApp() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
               {[
                 { label: 'Total Schools', value: schools.length, color: 'accent' },
-                { label: 'Total Students', value: allRecords.length, color: 'green-600' },
+                { label: `Total ${labels.students}`, value: allRecords.length, color: 'green-600' },
                 { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'ink' },
                 { label: 'Pending Balance', value: `₦${totalBalance.toLocaleString()}`, color: 'red-600' }
               ].map((stat, i) => (
@@ -2631,7 +2631,7 @@ function ExonaApp() {
                       className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
                     >
                       <ClipboardList size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Records</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
                     </button>
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('attendance'); }}
@@ -3231,7 +3231,7 @@ function ExonaApp() {
                   <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-20">
                     <Cpu size={80} strokeWidth={1} className="mb-8" />
                     <h3 className="font-serif italic text-2xl text-ink mb-4">How can I assist you?</h3>
-                    <p className="text-sm font-medium max-w-sm">Inquire about student records, financial status, or institutional policies. I am here to provide precision data.</p>
+                    <p className="text-sm font-medium max-w-sm">Inquire about {labels.student.toLowerCase()} records, financial status, or institutional policies. I am here to provide precision data.</p>
                   </div>
                 )}
                 {aiMessages.map((msg, i) => (
@@ -3702,37 +3702,83 @@ function ExonaApp() {
                 </button>
               </div>
               
-              <textarea 
-                value={newPostContent}
-                onChange={(e) => setNewPostContent(e.target.value)}
-                placeholder="What's happening in your school?"
-                className="w-full h-56 p-8 bg-gray-50 rounded-[2.5rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-lg font-medium resize-none mb-6 placeholder:text-gray-300 leading-relaxed"
-              />
+              <div className="relative mb-6">
+                <textarea 
+                  value={newPostContent}
+                  onChange={(e) => setNewPostContent(e.target.value)}
+                  placeholder="What's happening in your school?"
+                  className="w-full h-56 p-8 bg-gray-50 rounded-[2.5rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-lg font-medium resize-none placeholder:text-gray-300 leading-relaxed"
+                />
+                <div className="absolute bottom-6 right-8 flex items-center gap-3">
+                  <div className={`text-[10px] font-bold tracking-widest uppercase ${newPostContent.length > 450 ? 'text-red-500' : 'text-muted'}`}>
+                    {newPostContent.length} / 500
+                  </div>
+                  <div className="h-4 w-4 rounded-full border border-gray-100 flex items-center justify-center p-[2px]">
+                    <motion.div 
+                      initial={false}
+                      animate={{ 
+                        height: `${Math.min((newPostContent.length / 500) * 100, 100)}%`,
+                        backgroundColor: newPostContent.length > 450 ? '#ef4444' : '#0095F6'
+                      }}
+                      className="w-full rounded-full"
+                    />
+                  </div>
+                </div>
+              </div>
 
               {previewUrl && (
-                <div className="mb-8 bg-gray-50 rounded-[2.5rem] overflow-hidden border border-gray-100 relative group premium-shadow">
+                <div className="mb-8 bg-gray-50 rounded-[2.5rem] overflow-hidden border border-gray-100 relative group premium-shadow ring-4 ring-accent/5">
                   {/* Try to determine media type from selectedFile or editingPost */}
                   {(selectedFile?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedFile)) ? (
-                    <img src={previewUrl} className="w-full h-64 object-cover" />
+                    <img src={previewUrl} className="w-full h-72 object-cover" />
                   ) : (
-                    <video src={previewUrl} className="w-full h-64 object-cover" />
+                    <video src={previewUrl} className="w-full h-72 object-cover" controls={!isUploading} />
                   )}
+                  
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
                   <button 
                     onClick={() => { setSelectedFile(null); setPreviewUrl(null); }} 
-                    className="absolute top-6 right-6 h-12 w-12 bg-white/90 backdrop-blur-md text-ink rounded-2xl flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90"
+                    className="absolute top-6 right-6 h-12 w-12 bg-white/90 backdrop-blur-md text-ink rounded-2xl flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90 z-20"
                   >
                     <X size={20} />
                   </button>
+
                   {isUploading && (
-                    <div className="absolute inset-0 bg-ink/60 backdrop-blur-sm flex flex-col items-center justify-center p-12">
-                      <div className="w-full bg-white/20 h-1.5 rounded-full overflow-hidden mb-4 max-w-xs">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${uploadProgress}%` }}
-                          className="h-full bg-white"
-                        />
-                      </div>
-                      <p className="text-white text-[10px] font-bold uppercase tracking-[0.4em]">{Math.round(uploadProgress)}% Transmission Complete</p>
+                    <div className="absolute inset-0 bg-ink/80 backdrop-blur-md flex flex-col items-center justify-center p-12 z-30">
+                      <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="mb-8 relative"
+                      >
+                        <svg className="h-24 w-24 -rotate-90">
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="40"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="transparent"
+                            className="text-white/10"
+                          />
+                          <motion.circle
+                            cx="48"
+                            cy="48"
+                            r="40"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                            fill="transparent"
+                            strokeDasharray="251.2"
+                            animate={{ strokeDashoffset: 251.2 - (251.2 * uploadProgress) / 100 }}
+                            className="text-accent"
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">{Math.round(uploadProgress)}%</span>
+                        </div>
+                      </motion.div>
+                      <h4 className="text-white text-sm font-serif italic mb-2">Uploading Media...</h4>
+                      <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.4em]">Horizon Network Transmission</p>
                     </div>
                   )}
                 </div>
@@ -3944,7 +3990,7 @@ function ExonaApp() {
                 <Trash2 size={32} />
               </div>
               <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Record?</h3>
-              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove the student information from the institutional database. Are you sure?</p>
+              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove the {labels.student.toLowerCase()} information from the institutional database. Are you sure?</p>
               
               <div className="flex flex-col gap-4">
                 <button 
@@ -4493,7 +4539,7 @@ function ExonaApp() {
                 </div>
                 <SidebarItem 
                   icon={ClipboardList} 
-                  label="Student Records" 
+                  label={`${labels.student} Records`} 
                   active={view === 'records'} 
                   onClick={() => { setView('records'); setSidebarOpen(false); }} 
                 />
