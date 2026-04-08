@@ -419,18 +419,14 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
   <button 
     onClick={onClick} 
-    className="flex flex-col items-center justify-center w-full h-full relative group"
+    className="flex flex-col items-center justify-center w-full h-full gap-1 group transition-all"
   >
-    <div className={`transition-all duration-300 ${active ? 'scale-110 text-ink' : 'text-muted group-hover:text-ink/70'}`}>
-      <Icon size={26} strokeWidth={active ? 2.5 : 2} />
+    <div className={`transition-all duration-300 ${active ? 'text-accent scale-110' : 'text-muted group-hover:text-ink'}`}>
+      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
     </div>
-    {active && (
-      <motion.div 
-        layoutId="nav-dot"
-        className="absolute bottom-1 w-1 h-1 bg-ink rounded-full"
-        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-      />
-    )}
+    <span className={`text-[10px] font-serif italic transition-all duration-300 ${active ? 'text-accent opacity-100' : 'text-muted opacity-60'}`}>
+      {label}
+    </span>
   </button>
 );
 
@@ -4557,8 +4553,8 @@ function ExonaApp() {
         {renderView()}
       </main>
 
-      {/* Bottom Nav (Instagram Style) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 px-4 flex items-center justify-around">
+      {/* Bottom Nav (Classic Elegant Style) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-100 h-20 px-4 flex items-center justify-around pb-2">
         <NavButton 
           active={view === 'feed'} 
           onClick={() => setView('feed')} 
@@ -4572,15 +4568,18 @@ function ExonaApp() {
           label={labels.student}
         />
         
-        <button 
-          onClick={() => {
-            if (!user) { setView('login'); return; }
-            openNewPostModal();
-          }} 
-          className="flex items-center justify-center w-full h-full text-ink hover:scale-110 transition-transform"
-        >
-          <PlusSquare size={26} strokeWidth={2} />
-        </button>
+        <div className="flex flex-col items-center justify-center w-full h-full gap-1">
+          <button 
+            onClick={() => {
+              if (!user) { setView('login'); return; }
+              openNewPostModal();
+            }} 
+            className="h-12 w-12 bg-ink text-white rounded-full flex items-center justify-center shadow-lg shadow-ink/20 hover:scale-110 transition-all active:scale-95"
+          >
+            <Plus size={28} strokeWidth={2.5} />
+          </button>
+          <span className="text-[10px] font-serif italic text-muted opacity-60">Create</span>
+        </div>
 
         <NavButton 
           active={view === 'attendance'} 
