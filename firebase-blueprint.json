@@ -1,42 +1,88 @@
 {
   "entities": {
-    "users": {
+    "User": {
       "title": "User",
-      "description": "A user in the Exona platform.",
+      "description": "User profile and settings",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
-        "photoURL": { "type": "string" },
-        "role": { "type": "string", "enum": ["user", "admin"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "photoURL": { "type": "string", "format": "uri" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "schoolId": { "type": "string" },
+        "following": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["uid", "email", "role"]
+      "required": ["uid", "email", "displayName"]
     },
-    "places": {
-      "title": "Place",
-      "description": "A school, business, or community space created by a user.",
+    "School": {
+      "title": "School",
+      "description": "Educational institution",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "category": { "type": "string", "enum": ["School", "Business", "Community", "Personal", "Other"] },
         "description": { "type": "string" },
-        "logo": { "type": "string" },
+        "logo": { "type": "string", "format": "uri" },
+        "type": { "type": "string", "enum": ["school"] },
         "creatorUid": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "isOfficial": { "type": "boolean" }
+        "educationalLevels": { "type": "array", "items": { "type": "string" } },
+        "subAdmins": { "type": "array", "items": { "type": "string" } },
+        "followers": { "type": "array", "items": { "type": "string" } },
+        "pendingFollowers": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["name", "category", "creatorUid", "timestamp"]
+      "required": ["id", "name", "creatorUid"]
     },
-    "studentRecords": {
-      "title": "Student Record",
-      "description": "A record for a student (fees, books, etc.) with privacy settings.",
+    "Place": {
+      "title": "Place",
+      "description": "General institution or business",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "studentName": { "type": "string", "description": "Name of the student." },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["place"] },
+        "category": { "type": "string", "enum": ["School", "Business", "Community", "Personal", "Other"] },
+        "logo": { "type": "string", "format": "uri" },
+        "description": { "type": "string" },
+        "creatorUid": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isOfficial": { "type": "boolean" },
+        "subAdmins": { "type": "array", "items": { "type": "string" } },
+        "followers": { "type": "array", "items": { "type": "string" } },
+        "pendingFollowers": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "name", "creatorUid"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Feed post or announcement",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string", "format": "uri" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string", "format": "uri" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "likes": { "type": "number" },
+        "likedBy": { "type": "array", "items": { "type": "string" } },
+        "commentsCount": { "type": "number" },
+        "reshares": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isOfficial": { "type": "boolean" },
+        "schoolId": { "type": "string" }
+      },
+      "required": ["authorUid", "content", "timestamp"]
+    },
+    "StudentRecord": {
+      "title": "StudentRecord",
+      "description": "Student financial or academic record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentName": { "type": "string" },
         "category": { "type": "string" },
         "paid": { "type": "number" },
         "balance": { "type": "number" },
@@ -48,30 +94,28 @@
         "addedBy": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["studentName", "category", "visibility", "creatorUid", "timestamp"]
+      "required": ["studentName", "schoolId", "creatorUid"]
     },
-    "teacherAttendance": {
-      "title": "Teacher Attendance",
-      "description": "A record of teacher attendance for a specific school.",
+    "TeacherAttendance": {
+      "title": "TeacherAttendance",
+      "description": "Teacher attendance log",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "teacherName": { "type": "string" },
         "schoolId": { "type": "string" },
         "status": { "type": "string", "enum": ["present", "absent", "late"] },
-        "date": { "type": "string", "format": "date" },
-        "addedBy": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
+        "date": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "addedBy": { "type": "string" }
       },
-      "required": ["teacherName", "schoolId", "status", "date", "timestamp"]
+      "required": ["teacherName", "schoolId", "status", "date"]
     },
-    "finance": {
-      "title": "School Finance",
-      "description": "Financial details for a school or institution.",
+    "SchoolFinance": {
+      "title": "SchoolFinance",
+      "description": "Financial details of an institution",
       "type": "object",
       "properties": {
-        "schoolId": { "type": "string" },
-        "placeId": { "type": "string" },
         "institutionBalance": { "type": "number" },
         "bankName": { "type": "string" },
         "accountNumber": { "type": "string" },
@@ -81,11 +125,13 @@
     }
   },
   "firestore": {
-    "/users/{userId}": { "schema": "users", "description": "User profiles" },
-    "/places/{placeId}": { "schema": "places", "description": "User-created places/institutions" },
-    "/schools/{schoolId}": { "schema": "places", "description": "User-created schools" },
-    "/studentRecords/{recordId}": { "schema": "studentRecords", "description": "Student records linked to schools" },
-    "/teacherAttendance/{attendanceId}": { "schema": "teacherAttendance", "description": "Teacher attendance logs" },
-    "/finance/{institutionId}": { "schema": "finance", "description": "Financial data for institutions" }
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/schools/{schoolId}": { "schema": "School", "description": "School institutions" },
+    "/places/{placeId}": { "schema": "Place", "description": "Other institutions" },
+    "/posts/{postId}": { "schema": "Post", "description": "Feed posts" },
+    "/posts/{postId}/comments/{commentId}": { "schema": "object", "description": "Post comments" },
+    "/studentRecords/{recordId}": { "schema": "StudentRecord", "description": "Student records" },
+    "/teacherAttendance/{attendanceId}": { "schema": "TeacherAttendance", "description": "Teacher attendance" },
+    "/finance/{schoolId}": { "schema": "SchoolFinance", "description": "Institution finance" }
   }
 }

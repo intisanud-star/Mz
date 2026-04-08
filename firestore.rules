@@ -2,6 +2,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields: uid, email, displayName, photoURL, role, schoolId, following
+    //
+    // Collection: schools / places
+    // Fields: id, name, description, logo, type, creatorUid, subAdmins, followers, pendingFollowers
+    //
+    // Collection: posts
+    // Fields: authorUid, content, mediaUrl, mediaType, likes, likedBy, schoolId
+    //
+    // Collection: studentRecords
+    // Fields: schoolId, studentName, category, creatorUid, paid, balance, visibility, sharedWith
+    //
+    // Collection: teacherAttendance
+    // Fields: teacherName, schoolId, status, date, addedBy
+    //
+    // Collection: finance
+    // Fields: institutionBalance, bankName, accountNumber, accountName
+    //
+    // ===============================================================
+
+    // ===============================================================
     // Helper Functions
     // ===============================================================
     
@@ -16,8 +40,8 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() && 
         (request.auth.token.email == "musstaphamusa@gmail.com" && request.auth.token.email_verified == true ||
-         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
     function isSchoolManager(schoolId) {
@@ -25,46 +49,72 @@ service cloud.firestore {
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (request.auth.token.email != null && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || request.auth.token.email.toLower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
+          (request.auth.token.email != null && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && 
+           (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || 
+            request.auth.token.email.lower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
           get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (request.auth.token.email != null && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || request.auth.token.email.toLower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
+          (request.auth.token.email != null && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && 
+           (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || 
+            request.auth.token.email.lower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
         ))
       );
     }
 
-    function canReadRecord(recordData) {
-      return recordData.visibility == 'public' ||
-             recordData.creatorUid == request.auth.uid ||
-             (recordData.visibility == 'shared' && request.auth.token.email != null && request.auth.token.email in recordData.sharedWith) ||
-             isAdmin();
+    function isFollower(schoolId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        schoolId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following;
     }
 
-    function isValidRecord(data) {
-      return data.studentName is string && data.studentName.size() > 0 &&
-             data.category is string &&
-             data.visibility in ['public', 'private', 'shared'] &&
-             data.paid is number &&
-             data.balance is number &&
-             data.schoolId is string;
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.email is string && isValidEmail(data.email) &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             (!('photoURL' in data) || isValidUrl(data.photoURL)) &&
+             (!('role' in data) || data.role in ['admin', 'user']) &&
+             (!('following' in data) || data.following is list);
+    }
+
+    function isValidInstitution(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.creatorUid == request.auth.uid &&
+             (!('logo' in data) || isValidUrl(data.logo)) &&
+             (!('subAdmins' in data) || (data.subAdmins is list && data.subAdmins.size() < 50)) &&
+             (!('followers' in data) || (data.followers is list && data.followers.size() < 10000)) &&
+             (!('pendingFollowers' in data) || (data.pendingFollowers is list && data.pendingFollowers.size() < 1000));
     }
 
     function isValidPost(data) {
-      return data.content is string && data.content.size() > 0 &&
-             data.authorUid == request.auth.uid;
+      return data.authorUid == request.auth.uid &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
+             (!('mediaUrl' in data) || isValidUrl(data.mediaUrl)) &&
+             (!('schoolId' in data) || data.schoolId is string);
     }
 
-    function isValidSchool(data) {
-      return data.name is string && data.name.size() > 0 &&
-             data.creatorUid == request.auth.uid;
-    }
-
-    function isValidAttendance(data) {
-      return data.teacherName is string && data.teacherName.size() > 0 &&
+    function isValidRecord(data) {
+      return data.studentName is string && data.studentName.size() > 0 && data.studentName.size() < 100 &&
              data.schoolId is string &&
-             data.status in ['present', 'absent', 'late'] &&
-             data.date is string;
+             data.paid is number && data.balance is number &&
+             data.creatorUid == request.auth.uid &&
+             data.visibility in ['public', 'private', 'shared'];
     }
 
     // ===============================================================
@@ -72,57 +122,75 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) || isAdmin();
+      // PII Protection: Users can only read their own profile, except for basic info needed for display
+      // Actually, for a social app, we might need to read others' profiles (name, photo)
+      // But let's restrict sensitive fields if possible. 
+      // Firestore rules are all-or-nothing for a document.
+      // So we allow read if authenticated, but we should be careful.
+      allow read: if isAuthenticated(); 
+      
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
+                       (request.resource.data.role == resource.data.role || isAdmin())) || 
+                      isAdmin();
     }
 
     match /schools/{schoolId} {
-      allow read: if true; // Publicly readable
-      allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidInstitution(request.resource.data);
       allow update: if isAuthenticated() && (
-        isSchoolManager(schoolId) ||
-        // User following (adding to pending)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) && 
-         request.resource.data.pendingFollowers.hasAll(resource.data.pendingFollowers || []) &&
-         request.auth.uid in request.resource.data.pendingFollowers) ||
-        // User unfollowing (removing from followers or pending)
-        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) && 
+        (isSchoolManager(schoolId) && isValidInstitution(request.resource.data) && 
+         request.resource.data.creatorUid == resource.data.creatorUid) ||
+        // Allow users to request follow (add to pending)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
+         request.auth.uid in request.resource.data.pendingFollowers &&
+         request.resource.data.pendingFollowers.size() <= (resource.data.pendingFollowers.size() + 1)) ||
+        // Allow users to unfollow
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
-         !(request.auth.uid in (request.resource.data.followers || [])) &&
-         !(request.auth.uid in (request.resource.data.pendingFollowers || [])))
+         !(request.auth.uid in request.resource.data.followers) &&
+         !(request.auth.uid in request.resource.data.pendingFollowers))
       );
       allow delete: if isAdmin();
     }
 
     match /places/{placeId} {
-      allow read: if true; // Publicly readable
-      allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidInstitution(request.resource.data);
       allow update: if isAuthenticated() && (
-        isSchoolManager(placeId) ||
-        // User following (adding to pending)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) && 
-         request.resource.data.pendingFollowers.hasAll(resource.data.pendingFollowers || []) &&
-         request.auth.uid in request.resource.data.pendingFollowers) ||
-        // User unfollowing (removing from followers or pending)
-        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) && 
+        (isSchoolManager(placeId) && isValidInstitution(request.resource.data) && 
+         request.resource.data.creatorUid == resource.data.creatorUid) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
+         request.auth.uid in request.resource.data.pendingFollowers &&
+         request.resource.data.pendingFollowers.size() <= (resource.data.pendingFollowers.size() + 1)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
-         !(request.auth.uid in (request.resource.data.followers || [])) &&
-         !(request.auth.uid in (request.resource.data.pendingFollowers || [])))
+         !(request.auth.uid in request.resource.data.followers) &&
+         !(request.auth.uid in request.resource.data.pendingFollowers))
       );
       allow delete: if isAdmin();
     }
 
-    match /teacherAttendance/{attendanceId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidAttendance(request.resource.data);
-      allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
-    }
-
     match /posts/{postId} {
-      allow read: if true; // Publicly readable
+      // Social Feed Logic: Only show posts from followed institutions or own posts
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.authorUid == request.auth.uid ||
+        (resource.data.schoolId == null) || // Public global posts
+        (resource.data.schoolId != null && (isFollower(resource.data.schoolId) || isSchoolManager(resource.data.schoolId)))
+      );
+      
       allow create: if isAuthenticated() && isValidPost(request.resource.data);
-      allow update: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      
+      allow update: if isAuthenticated() && (
+        (resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 
+         request.resource.data.authorUid == resource.data.authorUid) || 
+        isAdmin() ||
+        // Allow liking
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']))
+      );
+      
       allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
 
       match /comments/{commentId} {
@@ -133,15 +201,34 @@ service cloud.firestore {
     }
 
     match /studentRecords/{recordId} {
-      allow read: if isAuthenticated() && canReadRecord(resource.data);
-      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidRecord(request.resource.data) && request.resource.data.creatorUid == request.auth.uid;
-      allow update: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin()) && isValidRecord(request.resource.data) && request.resource.data.creatorUid == resource.data.creatorUid;
-      allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow read: if isAuthenticated() && (
+        isSchoolManager(resource.data.schoolId) ||
+        resource.data.creatorUid == request.auth.uid ||
+        (resource.data.visibility == 'public') ||
+        (resource.data.visibility == 'shared' && request.auth.token.email in resource.data.sharedWith)
+      );
+      
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidRecord(request.resource.data);
+      
+      allow update: if isAuthenticated() && (
+        (isSchoolManager(resource.data.schoolId) && isValidRecord(request.resource.data) && 
+         request.resource.data.creatorUid == resource.data.creatorUid && 
+         request.resource.data.schoolId == resource.data.schoolId) || 
+        isAdmin()
+      );
+      
+      allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
+    }
+
+    match /teacherAttendance/{attendanceId} {
+      allow read: if isAuthenticated() && isSchoolManager(resource.data.schoolId);
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
+      allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
-      allow read: if isAuthenticated() && (resource.data.schoolId == schoolId || isAdmin() || isSchoolManager(schoolId));
-      allow write: if isAdmin() || isSchoolManager(schoolId);
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
+      allow write: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
   }
 }
