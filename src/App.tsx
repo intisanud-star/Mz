@@ -1386,7 +1386,7 @@ function ExonaApp() {
 
   const handleEmailSignUp = async () => {
     if (!email || !password || !displayName) {
-      setAuthError('Please fill in all fields.');
+      setAuthError('Please enter your name, email, and a password.');
       return;
     }
     setAuthError(null);
@@ -1395,16 +1395,23 @@ function ExonaApp() {
       await updateProfile(userCredential.user, { displayName });
       await sendEmailVerification(userCredential.user);
       setVerificationSent(true);
-      // The user is signed in but not verified. We'll handle this in the auth listener.
     } catch (e: any) {
       console.error('Sign Up Error:', e);
-      setAuthError(e.message || 'Failed to create account.');
+      if (e.code === 'auth/email-already-in-use') {
+        setAuthError('This email is already registered. Try signing in instead.');
+      } else if (e.code === 'auth/weak-password') {
+        setAuthError('Your password is too weak. Please use at least 6 characters.');
+      } else if (e.code === 'auth/invalid-email') {
+        setAuthError('Please enter a valid email address.');
+      } else {
+        setAuthError('Something went wrong. Please try again.');
+      }
     }
   };
 
   const handleEmailSignIn = async () => {
     if (!email || !password) {
-      setAuthError('Please enter email and password.');
+      setAuthError('Please enter your email and password.');
       return;
     }
     setAuthError(null);
@@ -1412,7 +1419,13 @@ function ExonaApp() {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e: any) {
       console.error('Sign In Error:', e);
-      setAuthError(e.message || 'Invalid email or password.');
+      if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
+        setAuthError('Incorrect email or password. Please try again.');
+      } else if (e.code === 'auth/too-many-requests') {
+        setAuthError('Too many failed attempts. Please try again later.');
+      } else {
+        setAuthError('Failed to sign in. Please check your connection.');
+      }
     }
   };
 
@@ -3424,9 +3437,9 @@ function ExonaApp() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 0.2 }}
           transition={{ delay: 2, duration: 1 }}
-          className="absolute bottom-12 text-[9px] font-mono tracking-widest uppercase"
+          className="absolute bottom-12 text-[9px] font-sans tracking-[0.4em] uppercase font-bold"
         >
-          System Initializing v4.0.2
+          Preparing your workspace
         </motion.div>
       </div>
     );
@@ -3440,14 +3453,14 @@ function ExonaApp() {
         <div className="flex h-screen flex-col items-center justify-center bg-paper p-6 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,0,0,0.02)_0%,transparent_50%)]"></div>
           <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ opacity: 1, scale: 1 }} 
             className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center relative z-10"
           >
             <div className="h-20 w-20 bg-ink text-white rounded-[2rem] flex items-center justify-center font-serif italic text-4xl mb-10 mx-auto shadow-2xl shadow-ink/20">Ex</div>
-            <h2 className="text-4xl font-serif italic text-ink mb-4 tracking-tight">Verify Identity</h2>
+            <h2 className="text-4xl font-serif italic text-ink mb-4 tracking-tight">Check your email</h2>
             <p className="text-muted font-medium mb-10 leading-relaxed">
-              An authentication link has been dispatched to <span className="text-ink font-bold">{user?.email || email}</span>. Please authorize via your inbox to proceed.
+              We've sent a verification link to <span className="text-ink font-bold">{user?.email || email}</span>. Please click the link in your email to verify your account.
             </p>
             <div className="space-y-4">
               <button 
@@ -3460,13 +3473,13 @@ function ExonaApp() {
                       setUser(auth.currentUser);
                       setView('feed');
                     } else {
-                      setAuthError('Identity not yet verified. Please check your secure inbox.');
+                      setAuthError('Email not verified yet. Please check your inbox.');
                     }
                   }
                 }} 
                 className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
               >
-                Confirm Verification
+                I've verified my email
               </button>
               <button 
                 onClick={() => {
@@ -3475,7 +3488,7 @@ function ExonaApp() {
                 }} 
                 className="w-full py-5 bg-gray-50 text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100"
               >
-                Return to Portal
+                Back to Login
               </button>
             </div>
           </motion.div>
@@ -3500,10 +3513,10 @@ function ExonaApp() {
           
           <div className="mb-12">
             <h2 className="text-5xl font-serif italic text-ink mb-4 tracking-tight leading-tight">
-              {authMode === 'signin' ? 'Institutional Access' : 'Establish Identity'}
+              {authMode === 'signin' ? 'Welcome Back' : 'Join Exona'}
             </h2>
             <p className="text-muted font-medium text-sm leading-relaxed max-w-[280px]">
-              {authMode === 'signin' ? 'Enter the Exona mainframe to manage your academic and social presence.' : 'Join the next generation of institutional management and community.'}
+              {authMode === 'signin' ? 'Sign in to manage your institutions and connect with your community.' : 'Create an account to start managing your school or business with ease.'}
             </p>
           </div>
 
@@ -3521,33 +3534,33 @@ function ExonaApp() {
           <div className="space-y-6 mb-10">
             {authMode === 'signup' && (
               <div className="group">
-                <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Full Name</label>
+                <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Your Full Name</label>
                 <input 
                   type="text" 
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Alexander Pierce"
+                  placeholder="e.g. John Doe"
                   className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
                 />
               </div>
             )}
             <div className="group">
-              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Credential Email</label>
+              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Email Address</label>
               <input 
                 type="email" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@institution.edu"
+                placeholder="you@example.com"
                 className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
               />
             </div>
             <div className="group">
-              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Security Key</label>
+              <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Password</label>
               <input 
                 type="password" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Enter your password"
                 className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium placeholder:text-gray-300"
               />
             </div>
@@ -3557,12 +3570,12 @@ function ExonaApp() {
             onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
             className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all mb-8 active:scale-[0.98]"
           >
-            {authMode === 'signin' ? 'Authorize Access' : 'Initialize Account'}
+            {authMode === 'signin' ? 'Sign In' : 'Create Account'}
           </button>
 
           <div className="relative mb-10">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-[9px] uppercase font-bold text-muted tracking-[0.4em]"><span className="bg-white px-6">Third-Party Gateway</span></div>
+            <div className="relative flex justify-center text-[9px] uppercase font-bold text-muted tracking-[0.4em]"><span className="bg-white px-6">Or continue with</span></div>
           </div>
 
           <button 
@@ -3570,11 +3583,11 @@ function ExonaApp() {
             className="w-full py-5 bg-white border border-gray-100 text-ink rounded-[2rem] font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-4 mb-10 active:scale-[0.98]"
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="h-5 w-5" />
-            Continue with Google
+            Google
           </button>
 
           <p className="text-center text-[11px] text-muted font-bold uppercase tracking-widest">
-            {authMode === 'signin' ? "New to the mainframe?" : "Already registered?"}{' '}
+            {authMode === 'signin' ? "Don't have an account?" : "Already have an account?"}{' '}
             <button 
               onClick={() => {
                 setAuthMode(authMode === 'signin' ? 'signup' : 'signin');
@@ -3582,7 +3595,7 @@ function ExonaApp() {
               }} 
               className="text-ink hover:underline underline-offset-4 decoration-ink/20"
             >
-              {authMode === 'signin' ? 'Create Identity' : 'Sign In'}
+              {authMode === 'signin' ? 'Sign Up' : 'Sign In'}
             </button>
           </p>
         </motion.div>
@@ -3593,7 +3606,7 @@ function ExonaApp() {
           transition={{ delay: 1 }}
           className="mt-12 text-[10px] font-mono text-muted uppercase tracking-[0.5em] text-center"
         >
-          Secure Institutional Network • v4.0.2
+          Exona Institutional Network
         </motion.div>
       </div>
     );
