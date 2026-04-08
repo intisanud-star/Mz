@@ -104,6 +104,7 @@ export async function ensureUserDocument(user: User) {
         displayName: user.displayName,
         photoURL: user.photoURL,
         role: isAdminEmail ? 'admin' : 'user',
+        following: [],
         createdAt: serverTimestamp(),
       };
       await setDoc(userRef, data);

@@ -80,14 +80,36 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if true; // Publicly readable
       allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (
+        isSchoolManager(schoolId) ||
+        // User following (adding to pending)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) && 
+         request.resource.data.pendingFollowers.hasAll(resource.data.pendingFollowers || []) &&
+         request.auth.uid in request.resource.data.pendingFollowers) ||
+        // User unfollowing (removing from followers or pending)
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
+         !(request.auth.uid in (request.resource.data.followers || [])) &&
+         !(request.auth.uid in (request.resource.data.pendingFollowers || [])))
+      );
       allow delete: if isAdmin();
     }
 
     match /places/{placeId} {
       allow read: if true; // Publicly readable
       allow create: if isAuthenticated() && (isValidSchool(request.resource.data) || isAdmin());
-      allow update: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow update: if isAuthenticated() && (
+        isSchoolManager(placeId) ||
+        // User following (adding to pending)
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) && 
+         request.resource.data.pendingFollowers.hasAll(resource.data.pendingFollowers || []) &&
+         request.auth.uid in request.resource.data.pendingFollowers) ||
+        // User unfollowing (removing from followers or pending)
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
+         !(request.auth.uid in (request.resource.data.followers || [])) &&
+         !(request.auth.uid in (request.resource.data.pendingFollowers || [])))
+      );
       allow delete: if isAdmin();
     }
 

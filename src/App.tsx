@@ -35,7 +35,7 @@ import {
   deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, where, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 /**
  * @license
@@ -46,6 +46,7 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
 interface Place {
   id: string;
   name: string;
+  type: 'place';
   category: 'School' | 'Business' | 'Community' | 'Personal' | 'Other';
   logo: string;
   description: string;
@@ -53,6 +54,8 @@ interface Place {
   timestamp: any;
   isOfficial?: boolean;
   subAdmins?: string[];
+  followers?: string[];
+  pendingFollowers?: string[];
 }
 
 interface Post {
@@ -92,11 +95,13 @@ interface School {
   name: string;
   description: string;
   logo: string;
-  type: 'school' | 'place';
+  type: 'school';
   creatorUid: string;
   timestamp: any;
   educationalLevels?: string[];
   subAdmins?: string[]; // Array of user emails
+  followers?: string[];
+  pendingFollowers?: string[];
 }
 
 interface StudentRecord {
@@ -136,6 +141,7 @@ interface UserDoc {
   photoURL?: string;
   role?: 'admin' | 'user';
   schoolId?: string;
+  following?: string[];
 }
 
 interface SchoolFinance {
@@ -428,7 +434,7 @@ function ExonaApp() {
   const [editingPlace, setEditingPlace] = useState<Place | null>(null);
   const [placeSearch, setPlaceSearch] = useState('');
   const [placeFilter, setPlaceFilter] = useState<'all' | 'School' | 'Business' | 'Community' | 'Personal'>('all');
-  const [newPlace, setNewPlace] = useState({ name: '', description: '', logo: '', category: 'School' as Place['category'] });
+  const [newPlace, setNewPlace] = useState({ name: '', description: '', logo: '', category: 'School' as Place['category'], type: 'place' as const });
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -455,7 +461,7 @@ function ExonaApp() {
     name: '', 
     description: '', 
     logo: '', 
-    type: 'school' as School['type'],
+    type: 'school' as const,
     educationalLevels: [] as string[]
   });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
@@ -467,6 +473,23 @@ function ExonaApp() {
   const isSubAdmin = subAdminInstitutions.length > 0;
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+  const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
+
+  useEffect(() => {
+    const pendingUids = subAdminInstitutions.flatMap(s => s.pendingFollowers || []);
+    const uniqueUids = [...new Set(pendingUids)].filter(uid => !pendingFollowerNames[uid]);
+    
+    uniqueUids.forEach(async (uid) => {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', uid));
+        if (userSnap.exists()) {
+          setPendingFollowerNames(prev => ({ ...prev, [uid]: userSnap.data().displayName || 'Anonymous' }));
+        }
+      } catch (error) {
+        console.error('Error fetching user name:', error);
+      }
+    });
+  }, [subAdminInstitutions]);
 
   const handleUpdateProfilePicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1397,6 +1420,84 @@ function ExonaApp() {
     }
   };
 
+  const handleFollowInstitution = async (school: School | Place) => {
+    if (!user) { setView('login'); return; }
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      
+      if (school.followers?.includes(user.uid) || school.pendingFollowers?.includes(user.uid)) return;
+
+      await setDoc(schoolRef, { 
+        pendingFollowers: arrayUnion(user.uid) 
+      }, { merge: true });
+      
+      alert('Follow request sent. Waiting for approval from sub-admin.');
+    } catch (error) {
+      console.error('Error following institution:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
+    }
+  };
+
+  const handleUnfollowInstitution = async (school: School | Place) => {
+    if (!user || !userDoc) return;
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      const userRef = doc(db, 'users', user.uid);
+      
+      await Promise.all([
+        setDoc(schoolRef, { 
+          followers: arrayRemove(user.uid),
+          pendingFollowers: arrayRemove(user.uid)
+        }, { merge: true }),
+        setDoc(userRef, { 
+          following: arrayRemove(school.id) 
+        }, { merge: true })
+      ]);
+    } catch (error) {
+      console.error('Error unfollowing institution:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
+    }
+  };
+
+  const handleApproveFollower = async (school: School | Place, followerUid: string) => {
+    if (!user) return;
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      const userRef = doc(db, 'users', followerUid);
+      
+      await Promise.all([
+        setDoc(schoolRef, { 
+          followers: arrayUnion(followerUid),
+          pendingFollowers: arrayRemove(followerUid)
+        }, { merge: true }),
+        setDoc(userRef, { 
+          following: arrayUnion(school.id) 
+        }, { merge: true })
+      ]);
+    } catch (error) {
+      console.error('Error approving follower:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
+    }
+  };
+
+  const handleRejectFollower = async (school: School | Place, followerUid: string) => {
+    if (!user) return;
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      
+      await setDoc(schoolRef, { 
+        pendingFollowers: arrayRemove(followerUid)
+      }, { merge: true });
+    } catch (error) {
+      console.error('Error rejecting follower:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
+    }
+  };
+
   const renderView = () => {
     switch (view) {
       case 'sub-admin': {
@@ -1458,6 +1559,59 @@ function ExonaApp() {
                 </motion.div>
               ))}
             </div>
+
+            {/* Pending Follow Requests */}
+            {subAdminInstitutions.some(s => s.pendingFollowers && s.pendingFollowers.length > 0) && (
+              <div className="mb-16">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="h-12 w-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600">
+                    <UserPlus size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-serif italic text-ink">Pending Follow Requests</h3>
+                    <p className="text-[11px] font-bold text-muted uppercase tracking-widest">Approve users to see your content</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {subAdminInstitutions.map(school => 
+                    (school.pendingFollowers || []).map(followerUid => (
+                      <motion.div 
+                        key={`${school.id}-${followerUid}`} 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="p-6 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between group hover:border-accent/20 transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink font-bold">
+                            {pendingFollowerNames[followerUid]?.charAt(0) || '?'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-ink">{pendingFollowerNames[followerUid] || 'Loading...'}</p>
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Requesting to follow {school.name}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={() => handleApproveFollower(school, followerUid)}
+                            className="p-3 bg-green-50 text-green-600 rounded-2xl hover:bg-green-600 hover:text-white transition-all active:scale-90"
+                            title="Approve"
+                          >
+                            <CheckCircle2 size={20} />
+                          </button>
+                          <button 
+                            onClick={() => handleRejectFollower(school, followerUid)}
+                            className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all active:scale-90"
+                            title="Reject"
+                          >
+                            <XCircle size={20} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div className="space-y-8">
@@ -1839,7 +1993,11 @@ function ExonaApp() {
             )}
 
             <div className="divide-y divide-gray-100">
-              {posts.filter(p => p.schoolId === 'horizon' || !p.schoolId).map((post, idx) => (
+              {posts.filter(p => 
+                (userDoc?.role === 'admin') ||
+                (p.schoolId && userDoc?.following?.includes(p.schoolId)) ||
+                (p.authorUid === user?.uid)
+              ).map((post, idx) => (
                 <FeedPost 
                   key={post.id} 
                   post={post} 
@@ -1853,6 +2011,25 @@ function ExonaApp() {
                   currentUserId={user?.uid}
                 />
               ))}
+              {posts.filter(p => 
+                (userDoc?.role === 'admin') ||
+                (p.schoolId && userDoc?.following?.includes(p.schoolId)) ||
+                (p.authorUid === user?.uid)
+              ).length === 0 && (
+                <div className="py-20 text-center">
+                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-muted mx-auto mb-6">
+                    <Users size={32} />
+                  </div>
+                  <h3 className="text-xl font-serif italic text-ink mb-2">Your feed is empty</h3>
+                  <p className="text-sm text-muted mb-8">Follow institutions to see their updates here.</p>
+                  <button 
+                    onClick={() => setView('schools')}
+                    className="px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+                  >
+                    Explore Institutions
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -1860,6 +2037,11 @@ function ExonaApp() {
       case 'school-feed': {
         if (!selectedSchool) { setView('schools'); return null; }
         const schoolPosts = posts.filter(p => p.schoolId === selectedSchool.id);
+        const isFollowing = selectedSchool.followers?.includes(user?.uid || '');
+        const isManager = canManageInstitution(selectedSchool);
+        const isAdmin = userDoc?.role === 'admin';
+        const canSeeContent = isFollowing || isManager || isAdmin;
+
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
             <div className="flex items-center justify-between mb-8">
@@ -1878,59 +2060,112 @@ function ExonaApp() {
                   <h2 className="font-bold text-ink text-lg">{selectedSchool.name}</h2>
                 </div>
               </div>
-              {userDoc?.role === 'admin' && (
-                <button 
-                  onClick={() => {
-                    setSchoolToManageSubAdmins(selectedSchool);
-                    setIsSubAdminModalOpen(true);
-                  }}
-                  className="px-4 py-2 bg-accent/5 text-accent rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2"
-                >
-                  <UserPlus size={14} />
-                  Appoint
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {user && !isManager && !isAdmin && (
+                  <>
+                    {isFollowing ? (
+                      <button 
+                        onClick={() => handleUnfollowInstitution(selectedSchool)}
+                        className="px-4 py-2 bg-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        Unfollow
+                      </button>
+                    ) : selectedSchool.pendingFollowers?.includes(user.uid) ? (
+                      <button 
+                        disabled
+                        className="px-4 py-2 bg-gray-50 text-muted/50 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
+                      >
+                        Pending
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => handleFollowInstitution(selectedSchool)}
+                        className="px-4 py-2 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
+                      >
+                        Follow
+                      </button>
+                    )}
+                  </>
+                )}
+                {isAdmin && (
+                  <button 
+                    onClick={() => {
+                      setSchoolToManageSubAdmins(selectedSchool);
+                      setIsSubAdminModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-accent/5 text-accent rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2"
+                  >
+                    <UserPlus size={14} />
+                    Appoint
+                  </button>
+                )}
+              </div>
             </div>
 
-            {user && (
-              <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
-                <div className="flex flex-col items-center gap-2">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
-                      {user.displayName?.charAt(0)}
+            {!canSeeContent ? (
+              <div className="py-20 text-center bg-white border border-gray-100 rounded-[2.5rem] px-8 shadow-sm">
+                <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-muted mx-auto mb-6">
+                  <Shield size={32} />
+                </div>
+                <h3 className="text-xl font-serif italic text-ink mb-2">Follow to see content</h3>
+                <p className="text-sm text-muted mb-8">This institution's posts are only visible to approved followers.</p>
+                {!selectedSchool.pendingFollowers?.includes(user?.uid || '') && (
+                  <button 
+                    onClick={() => handleFollowInstitution(selectedSchool)}
+                    className="px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+                  >
+                    Request Access
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                {user && (
+                  <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
+                    <div className="flex flex-col items-center gap-2">
+                      {user.photoURL ? (
+                        <img src={user.photoURL} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
+                          {user.displayName?.charAt(0)}
+                        </div>
+                      )}
+                      <div className="w-0.5 h-8 bg-gray-100 rounded-full" />
+                    </div>
+                    <div className="flex-1">
+                      <button 
+                        onClick={openNewPostModal}
+                        className="w-full text-left py-2 text-muted font-medium text-[14px]"
+                      >
+                        Post to {selectedSchool.name}...
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="divide-y divide-gray-100">
+                  {schoolPosts.map(post => (
+                    <FeedPost 
+                      key={post.id} 
+                      post={post} 
+                      onUserClick={handleUserClick}
+                      onLike={handleLikePost}
+                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                      onReshare={handleResharePost}
+                      onForward={handleForwardPost}
+                      onEdit={handleEditPost}
+                      onDelete={onDeletePostClick}
+                      currentUserId={user?.uid}
+                    />
+                  ))}
+                  {schoolPosts.length === 0 && (
+                    <div className="py-20 text-center text-muted">
+                      <p className="text-sm font-medium">No posts yet from this institution.</p>
                     </div>
                   )}
-                  <div className="w-0.5 h-8 bg-gray-100 rounded-full" />
                 </div>
-                <div className="flex-1">
-                  <button 
-                    onClick={openNewPostModal}
-                    className="w-full text-left py-2 text-muted font-medium text-[14px]"
-                  >
-                    Post to {selectedSchool.name}...
-                  </button>
-                </div>
-              </div>
+              </>
             )}
-
-            <div className="divide-y divide-gray-100">
-              {schoolPosts.map(post => (
-                <FeedPost 
-                  key={post.id} 
-                  post={post} 
-                  onUserClick={handleUserClick}
-                  onLike={handleLikePost}
-                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                  onReshare={handleResharePost}
-                  onForward={handleForwardPost}
-                  onEdit={handleEditPost}
-                  onDelete={onDeletePostClick}
-                  currentUserId={user?.uid}
-                />
-              ))}
-            </div>
           </div>
         );
       }
@@ -2095,7 +2330,7 @@ function ExonaApp() {
                         </div>
                         <p className="text-[13px] text-muted line-clamp-1">{school.description}</p>
                         <div className="flex items-center gap-3 mt-1.5">
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">1.2k followers</p>
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
                           <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
                           <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
                         </div>
@@ -2103,6 +2338,32 @@ function ExonaApp() {
                     </div>
                     
                     <div className="flex items-center gap-2">
+                      {user && !canManageInstitution(school) && (
+                        <>
+                          {school.followers?.includes(user.uid) ? (
+                            <button 
+                              onClick={() => handleUnfollowInstitution(school)}
+                              className="px-4 py-2 bg-gray-100 text-muted rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                            >
+                              Unfollow
+                            </button>
+                          ) : school.pendingFollowers?.includes(user.uid) ? (
+                            <button 
+                              disabled
+                              className="px-4 py-2 bg-gray-50 text-muted/50 rounded-xl text-[12px] font-bold uppercase tracking-widest cursor-not-allowed"
+                            >
+                              Pending
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleFollowInstitution(school)}
+                              className="px-4 py-2 bg-ink text-white rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
+                            >
+                              Follow
+                            </button>
+                          )}
+                        </>
+                      )}
                       <button 
                         onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                         className="px-6 py-2 bg-ink text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 active:scale-95"
