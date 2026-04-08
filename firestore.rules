@@ -25,11 +25,11 @@ service cloud.firestore {
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (request.auth.token.email != null && request.auth.token.email_verified == true && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || request.auth.token.email.lower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
+          (request.auth.token.email != null && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || request.auth.token.email.toLower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
           get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (request.auth.token.email != null && request.auth.token.email_verified == true && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || request.auth.token.email.lower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
+          (request.auth.token.email != null && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || request.auth.token.email.toLower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
         ))
       );
     }
