@@ -1212,13 +1212,70 @@ function ExonaApp() {
       }
     });
 
-    const unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('timestamp', 'desc')), (snap) => {
-      setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
-    }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'posts');
+    let unsubPosts = () => {};
+    if (user && userDoc) {
+      if (userDoc.role === 'admin') {
+        unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('timestamp', 'desc')), (snap) => {
+          setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
+        }, (error) => {
+          if (!error.message.includes('insufficient permissions')) {
+            handleFirestoreError(error, OperationType.LIST, 'posts');
+          }
+        });
+      } else {
+        // Personalized Feed for regular users
+        const following = userDoc.following || [];
+        const relevantIds = [user.uid, ...following];
+        
+        // We need to fetch:
+        // 1. Posts where authorUid is in relevantIds (covers own posts and followed users)
+        // 2. Posts where schoolId is in relevantIds (covers followed institutions)
+        
+        // Firestore 'in' limit is 30. If following > 29, we'd need to chunk.
+        // For now, we'll use the first 30 relevant IDs.
+        const limitedIds = relevantIds.slice(0, 30);
+        
+        const qAuthor = query(collection(db, 'posts'), where('authorUid', 'in', limitedIds), orderBy('timestamp', 'desc'));
+        const qSchool = query(collection(db, 'posts'), where('schoolId', 'in', limitedIds), orderBy('timestamp', 'desc'));
+        
+        const unsubAuthor = onSnapshot(qAuthor, (snap) => {
+          const authorPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+          setPosts(prev => {
+            const otherPosts = prev.filter(p => !authorPosts.find(ap => ap.id === p.id));
+            return [...otherPosts, ...authorPosts].sort((a, b) => {
+              const tA = a.timestamp?.toMillis?.() || 0;
+              const tB = b.timestamp?.toMillis?.() || 0;
+              return tB - tA;
+            });
+          });
+        }, (error) => {
+          if (!error.message.includes('insufficient permissions')) {
+            handleFirestoreError(error, OperationType.LIST, 'posts (author)');
+          }
+        });
+
+        const unsubSchool = onSnapshot(qSchool, (snap) => {
+          const schoolPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+          setPosts(prev => {
+            const otherPosts = prev.filter(p => !schoolPosts.find(sp => sp.id === p.id));
+            return [...otherPosts, ...schoolPosts].sort((a, b) => {
+              const tA = a.timestamp?.toMillis?.() || 0;
+              const tB = b.timestamp?.toMillis?.() || 0;
+              return tB - tA;
+            });
+          });
+        }, (error) => {
+          if (!error.message.includes('insufficient permissions')) {
+            handleFirestoreError(error, OperationType.LIST, 'posts (school)');
+          }
+        });
+
+        unsubPosts = () => { unsubAuthor(); unsubSchool(); };
       }
-    });
+    } else {
+      // Guest view: No posts or only public posts if we had a public flag
+      setPosts([]);
+    }
 
     let unsubAllRecords = () => {};
     let unsubAllFinance = () => {};

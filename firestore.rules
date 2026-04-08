@@ -51,21 +51,22 @@ service cloud.firestore {
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
           (request.auth.token.email != null && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && 
            (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || 
-            request.auth.token.email.lower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
+            request.auth.token.email.toLower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
           get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
           (request.auth.token.email != null && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && 
            (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || 
-            request.auth.token.email.lower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
+            request.auth.token.email.toLower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
         ))
       );
     }
 
-    function isFollower(schoolId) {
+    function isFollower(id) {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        schoolId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following;
+        ('following' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
+        (id in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following);
     }
 
     function isValidEmail(email) {
@@ -173,12 +174,12 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      // Social Feed Logic: Only show posts from followed institutions or own posts
+      // Social Feed Logic: Only show posts from followed institutions or followed users, or own posts
       allow read: if isAuthenticated() && (
         isAdmin() ||
         resource.data.authorUid == request.auth.uid ||
-        (resource.data.schoolId == null) || // Public global posts
-        (resource.data.schoolId != null && (isFollower(resource.data.schoolId) || isSchoolManager(resource.data.schoolId)))
+        (resource.data.schoolId != null && (isFollower(resource.data.schoolId) || isSchoolManager(resource.data.schoolId))) ||
+        (resource.data.schoolId == null && isFollower(resource.data.authorUid))
       );
       
       allow create: if isAuthenticated() && isValidPost(request.resource.data);
