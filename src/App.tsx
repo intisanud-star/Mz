@@ -10,7 +10,7 @@ import {
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
-  ClipboardList, CheckCircle2, XCircle, Compass
+  ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -143,6 +143,9 @@ interface UserDoc {
   schoolId?: string;
   following?: string[];
   invitesCount?: number;
+  referredBy?: string | null;
+  isLifetimeFree?: boolean;
+  hasCreatedInstitution?: boolean;
 }
 
 interface SchoolFinance {
@@ -253,166 +256,174 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   <motion.button 
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-500 group relative overflow-hidden ${
+    className={`w-full flex items-center justify-between px-6 py-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${
       active 
-        ? 'bg-ink text-white shadow-2xl shadow-ink/10' 
+        ? 'bg-whatsapp-teal/10 text-whatsapp-teal' 
         : 'text-muted hover:bg-gray-50 hover:text-ink'
     }`}
   >
-    {active && (
-      <motion.div 
-        layoutId="sidebar-active-bg"
-        className="absolute inset-0 bg-ink"
-        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-      />
-    )}
     <div className="flex items-center gap-4 relative z-10">
-      <Icon size={20} className={`${active ? 'text-white' : 'text-muted group-hover:text-ink'} transition-colors duration-300`} />
-      <span className={`text-[14px] font-serif italic tracking-wide transition-colors duration-300 ${active ? 'text-white' : 'text-muted group-hover:text-ink'}`}>{label}</span>
+      <Icon size={20} className={`${active ? 'text-whatsapp-teal' : 'text-muted group-hover:text-ink'} transition-colors duration-300`} />
+      <span className={`text-[14px] font-bold tracking-wide transition-colors duration-300 ${active ? 'text-whatsapp-teal' : 'text-muted group-hover:text-ink'}`}>{label}</span>
     </div>
     {badge && (
-      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full relative z-10 ${
-        active ? 'bg-white/20 text-white' : 'bg-accent/10 text-accent'
-      }`}>
+      <span className="bg-whatsapp-teal text-white text-[10px] font-bold px-2 py-0.5 rounded-full relative z-10">
         {badge}
       </span>
     )}
   </motion.button>
 );
 
+const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title: string, subtitle: string, icon: any, children: React.ReactNode, toolbar?: React.ReactNode }) => {
+  return (
+    <div className="flex flex-col h-full bg-[#F3F2F1] overflow-hidden">
+      {/* Ribbon Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm z-20">
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="h-8 w-8 bg-ink rounded-lg flex items-center justify-center text-white shrink-0">
+              <Icon size={18} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-ink leading-none truncate">{title}</h2>
+              <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1 truncate">{subtitle}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 md:gap-2 shrink-0">
+            <div className="hidden sm:flex h-6 w-6 rounded-full bg-gray-100 items-center justify-center text-[10px] font-bold text-muted">?</div>
+            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">_</div>
+            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">□</div>
+            <div className="h-6 w-6 rounded-full bg-red-50 flex items-center justify-center text-[10px] font-bold text-red-400">×</div>
+          </div>
+        </div>
+        {/* Toolbar / Ribbon Tabs */}
+        <div className="px-4 md:px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar bg-gray-50/50">
+          {toolbar}
+        </div>
+      </div>
+
+      {/* Canvas Area */}
+      <div className="flex-1 overflow-y-auto p-0 md:p-8 lg:p-12 flex justify-center custom-scrollbar">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full md:max-w-[1000px] bg-white shadow-2xl min-h-screen md:min-h-[1200px] p-6 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20"
+        >
+          {/* Page Header Decor */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
+          {children}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
 const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId }: any) => {
   const [showMenu, setShowMenu] = useState(false);
   const isLiked = post.likedBy?.includes(currentUserId);
+  const isOwnPost = post.authorUid === currentUserId;
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 10 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="py-6 border-b border-gray-100 flex gap-4"
+      className={`flex flex-col mb-4 px-4 ${isOwnPost ? 'items-end' : 'items-start'}`}
     >
-      <div className="flex flex-col items-center gap-2">
-        <button 
-          onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-          className="hover:opacity-80 transition-opacity"
+      {!isOwnPost && (
+        <span className="text-[11px] font-bold text-whatsapp-teal ml-2 mb-1 uppercase tracking-wider">
+          {post.authorName}
+        </span>
+      )}
+      
+      <div className="flex items-end gap-2 max-w-[85%]">
+        {!isOwnPost && (
+          <button 
+            onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
+            className="shrink-0 mb-1"
+          >
+            {post.authorPhoto ? (
+              <img src={post.authorPhoto} className="h-8 w-8 rounded-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-ink font-bold text-[10px]">
+                {post.authorName?.charAt(0)}
+              </div>
+            )}
+          </button>
+        )}
+
+        <div 
+          className={`relative p-3 rounded-2xl shadow-sm ${
+            isOwnPost 
+              ? 'bg-[#DCF8C6] rounded-tr-none text-ink' 
+              : 'bg-white rounded-tl-none text-ink'
+          }`}
         >
-          {post.authorPhoto ? (
-            <img src={post.authorPhoto} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
-              {post.authorName?.charAt(0)}
+          {post.mediaUrl && (
+            <div className="mb-2 rounded-lg overflow-hidden bg-gray-50 -mx-1 -mt-1">
+              {post.mediaType === 'image' ? (
+                <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[300px]" referrerPolicy="no-referrer" />
+              ) : (
+                <video src={post.mediaUrl} controls className="w-full h-auto max-h-[300px]" />
+              )}
             </div>
           )}
-        </button>
-        <div className="w-0.5 flex-1 bg-transparent rounded-full" />
-      </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <h4 className="font-bold text-ink text-[14px] hover:underline cursor-pointer" onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}>
-              {post.authorName}
-            </h4>
-            {post.isOfficial && <ShieldCheck size={14} className="text-blue-500 fill-blue-500/10" />}
-            <span className="text-muted text-[13px]">{formatTime(post.timestamp)}</span>
-          </div>
-          <div className="relative">
-            <button 
-              onClick={() => setShowMenu(!showMenu)}
-              className="text-muted hover:text-ink p-1 rounded-full hover:bg-gray-100 transition-all"
-            >
-              <MoreHorizontal size={18} />
-            </button>
-            
-            <AnimatePresence>
-              {showMenu && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden py-2"
-                >
-                  {post.authorUid === currentUserId && (
-                    <>
-                      <button 
-                        onClick={() => { onEdit?.(post); setShowMenu(false); }}
-                        className="w-full px-4 py-2.5 text-left text-[13px] font-semibold text-ink hover:bg-gray-50 flex items-center gap-3"
-                      >
-                        <Edit2 size={16} />
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => { onDelete?.(post); setShowMenu(false); }}
-                        className="w-full px-4 py-2.5 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 flex items-center gap-3"
-                      >
-                        <Trash2 size={16} />
-                        Delete
-                      </button>
-                    </>
-                  )}
-                  <button 
-                    onClick={() => setShowMenu(false)}
-                    className="w-full px-4 py-2.5 text-left text-[13px] font-semibold text-muted hover:bg-gray-50 flex items-center gap-3"
-                  >
-                    <Bell size={16} />
-                    Mute
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+          {post.resharedFrom && (
+            <div className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-whatsapp-teal">
+              <p className="text-[11px] font-bold text-whatsapp-teal mb-0.5">{post.resharedFrom.authorName}</p>
+              <p className="text-[12px] text-muted leading-tight line-clamp-2">{post.resharedFrom.content}</p>
+            </div>
+          )}
 
-        <p className="text-ink text-[14px] leading-normal mb-3 whitespace-pre-wrap">
-          {post.content}
-        </p>
+          <p className="text-[14px] leading-relaxed whitespace-pre-wrap pb-4">
+            {post.content}
+          </p>
 
-        {post.mediaUrl && (
-          <div className="mb-3 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 max-w-md">
-            {post.mediaType === 'image' ? (
-              <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[400px]" referrerPolicy="no-referrer" />
-            ) : (
-              <video src={post.mediaUrl} controls className="w-full h-auto max-h-[400px]" />
+          <div className="absolute bottom-1 right-2 flex items-center gap-1">
+            <span className="text-[10px] text-muted/70 font-medium">
+              {formatTime(post.timestamp)}
+            </span>
+            {isOwnPost && (
+              <div className="flex text-blue-400">
+                <Check size={12} className="-mr-1.5" />
+                <Check size={12} />
+              </div>
             )}
           </div>
-        )}
 
-        {post.resharedFrom && (
-          <div className="mb-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
-            <p className="text-[12px] font-bold text-ink mb-1">{post.resharedFrom.authorName}</p>
-            <p className="text-[13px] text-muted leading-snug">{post.resharedFrom.content}</p>
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={() => setShowMenu(!showMenu)}
+              className="text-muted hover:text-ink p-1"
+            >
+              <ChevronDown size={14} />
+            </button>
           </div>
-        )}
-
-        <div className="flex items-center gap-5 mt-2">
-          <button 
-            onClick={() => onLike?.(post.id, post.likedBy || [])}
-            className={`flex items-center gap-1.5 transition-colors ${isLiked ? 'text-red-500' : 'text-ink hover:text-red-500'}`}
-          >
-            <Heart size={20} className={isLiked ? 'fill-red-500' : ''} />
-            {post.likes > 0 && <span className="text-[13px] font-medium">{post.likes}</span>}
-          </button>
-          <button 
-            onClick={() => onComment?.(post)}
-            className="flex items-center gap-1.5 text-ink hover:text-blue-500 transition-colors"
-          >
-            <MessageCircle size={20} />
-            {post.commentsCount > 0 && <span className="text-[13px] font-medium">{post.commentsCount}</span>}
-          </button>
-          <button 
-            onClick={() => onReshare?.(post)}
-            className="flex items-center gap-1.5 text-ink hover:text-green-600 transition-colors"
-          >
-            <Repeat size={20} />
-            {post.reshares > 0 && <span className="text-[13px] font-medium">{post.reshares}</span>}
-          </button>
-          <button 
-            onClick={() => onForward?.(post)}
-            className="text-ink hover:text-blue-500 transition-colors"
-          >
-            <Send size={20} />
-          </button>
         </div>
+      </div>
+
+      <div className="flex items-center gap-4 mt-1 px-2">
+        <button 
+          onClick={() => onLike?.(post.id, post.likedBy || [])}
+          className={`flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest transition-colors ${isLiked ? 'text-whatsapp-teal' : 'text-muted hover:text-whatsapp-teal'}`}
+        >
+          <Heart size={14} className={isLiked ? 'fill-whatsapp-teal' : ''} />
+          {post.likes > 0 && <span>{post.likes}</span>}
+        </button>
+        <button 
+          onClick={() => onComment?.(post)}
+          className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-muted hover:text-whatsapp-teal transition-colors"
+        >
+          <MessageCircle size={14} />
+          {post.commentsCount > 0 && <span>{post.commentsCount}</span>}
+        </button>
+        <button 
+          onClick={() => onForward?.(post)}
+          className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest text-muted hover:text-whatsapp-teal transition-colors"
+        >
+          <Send size={14} />
+        </button>
       </div>
     </motion.div>
   );
@@ -424,38 +435,24 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
     onClick={onClick} 
     className="flex flex-col items-center justify-center flex-1 h-full gap-1 group relative"
   >
-    {active && (
-      <motion.div 
-        layoutId="nav-active-bg"
-        className="absolute inset-x-1 inset-y-2 bg-accent/5 rounded-2xl -z-10"
-        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-      />
-    )}
     <motion.div 
       animate={{ 
-        y: active ? -2 : 0,
-        filter: active ? 'drop-shadow(0 0 8px rgba(0,149,246,0.3))' : 'drop-shadow(0 0 0px rgba(0,0,0,0))'
+        scale: active ? 1.1 : 1,
+        color: active ? 'var(--color-whatsapp-teal)' : 'var(--color-muted)'
       }}
-      className={`transition-colors duration-500 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}
+      className="relative"
     >
       <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+      {active && (
+        <motion.div 
+          layoutId="nav-active-dot"
+          className="absolute -top-1 -right-1 w-2 h-2 bg-whatsapp-teal rounded-full"
+        />
+      )}
     </motion.div>
-    <motion.span 
-      animate={{ 
-        opacity: active ? 1 : 0.6,
-        scale: active ? 1 : 0.98
-      }}
-      className={`text-[11px] font-serif italic tracking-wide transition-colors duration-500 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}
-    >
+    <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${active ? 'text-whatsapp-teal' : 'text-muted'}`}>
       {label}
-    </motion.span>
-    {active && (
-      <motion.div 
-        layoutId="active-nav-indicator"
-        className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-10 h-[2px] bg-accent rounded-full shadow-[0_0_12px_rgba(0,149,246,0.6)]"
-        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-      />
-    )}
+    </span>
   </motion.button>
 );
 
@@ -553,6 +550,17 @@ function ExonaApp() {
   const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    if (refCode) {
+      localStorage.setItem('exona_ref', refCode);
+      // Clean up URL
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
+  useEffect(() => {
     const pendingUids = subAdminInstitutions.flatMap(s => s.pendingFollowers || []);
     const uniqueUids = [...new Set(pendingUids)].filter(uid => !pendingFollowerNames[uid]);
     
@@ -567,6 +575,34 @@ function ExonaApp() {
       }
     });
   }, [subAdminInstitutions]);
+
+  const checkReferralQualification = async (currentUserDoc: UserDoc) => {
+    if (currentUserDoc.hasCreatedInstitution || !currentUserDoc.referredBy) return;
+
+    try {
+      const referrerRef = doc(db, 'users', currentUserDoc.referredBy);
+      const referrerSnap = await getDoc(referrerRef);
+      
+      if (referrerSnap.exists()) {
+        const referrerData = referrerSnap.data() as UserDoc;
+        const newInvitesCount = (referrerData.invitesCount || 0) + 1;
+        
+        await setDoc(referrerRef, { 
+          invitesCount: newInvitesCount,
+          isLifetimeFree: newInvitesCount >= 3
+        }, { merge: true });
+        console.log('Referrer invitesCount updated:', newInvitesCount);
+      }
+
+      // Mark current user as having created an institution
+      await setDoc(doc(db, 'users', currentUserDoc.uid), { 
+        hasCreatedInstitution: true 
+      }, { merge: true });
+      console.log('Current user marked as institution creator');
+    } catch (error) {
+      console.error('Error in checkReferralQualification:', error);
+    }
+  };
 
   const handleUpdateProfilePicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -733,6 +769,11 @@ function ExonaApp() {
           accountName: `${newSchool.name} General`
         });
         console.log('Finance initialized for school');
+        
+        // Check for referral qualification
+        if (userDoc) {
+          await checkReferralQualification(userDoc);
+        }
       }
       setNewSchool({ name: '', description: '', logo: '', type: 'school', educationalLevels: [] });
       setEditingSchool(null);
@@ -827,6 +868,11 @@ function ExonaApp() {
           accountName: `${newPlace.name} General`
         });
         console.log('Finance initialized for place');
+
+        // Check for referral qualification
+        if (userDoc) {
+          await checkReferralQualification(userDoc);
+        }
       }
       setNewPlace({ name: '', description: '', logo: '', category: 'School' });
       setEditingPlace(null);
@@ -1209,7 +1255,8 @@ function ExonaApp() {
 
         try {
           // Ensure doc exists and role is correct
-          await ensureUserDocument(currentUser);
+          const storedRef = localStorage.getItem('exona_ref');
+          await ensureUserDocument(currentUser, storedRef);
           
           // Listen real-time to user document
           userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
@@ -2142,6 +2189,7 @@ function ExonaApp() {
       }
       case 'feed': {
         const invitesCount = userDoc?.invitesCount || 0;
+        const isQualified = userDoc?.isLifetimeFree || invitesCount >= 3;
         const inviteProgress = Math.min(invitesCount, 3);
 
         return (
@@ -2150,57 +2198,72 @@ function ExonaApp() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 p-8 bg-gradient-to-br from-ink via-gray-900 to-accent/20 rounded-[2.5rem] relative overflow-hidden group shadow-2xl shadow-ink/20"
+              className={`mb-8 p-8 rounded-[2.5rem] relative overflow-hidden group shadow-2xl transition-all duration-700 ${
+                isQualified 
+                  ? 'bg-gradient-to-br from-green-600 via-emerald-700 to-teal-900 shadow-green-500/20' 
+                  : 'bg-gradient-to-br from-ink via-gray-900 to-accent/20 shadow-ink/20'
+              }`}
             >
               <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                <Sparkles size={120} className="text-white" />
+                {isQualified ? <BadgeCheck size={120} className="text-white" /> : <Sparkles size={120} className="text-white" />}
               </div>
               
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="px-3 py-1 bg-accent text-white text-[10px] font-bold uppercase tracking-widest rounded-full">Limited Offer</span>
+                  <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${
+                    isQualified ? 'bg-white text-emerald-700' : 'bg-accent text-white'
+                  }`}>
+                    {isQualified ? 'Offer Unlocked' : 'Limited Offer'}
+                  </span>
                   <div className="h-1 w-1 bg-white/30 rounded-full"></div>
                   <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Lifetime Access</span>
                 </div>
                 
                 <h3 className="text-2xl font-serif italic text-white mb-3 leading-tight">
-                  Invite 3 Institutions & Get <br />
-                  <span className="text-accent">Lifetime Free Access</span>
+                  {isQualified 
+                    ? "Congratulations! You've Earned Lifetime Free Access" 
+                    : "Invite 3 Institutions & Get Lifetime Free Access"
+                  }
                 </h3>
                 
                 <p className="text-white/60 text-xs font-medium mb-8 max-w-[280px] leading-relaxed">
-                  Help schools and organizations digitize their records. Once 3 of your invites join, your account is free forever.
+                  {isQualified 
+                    ? "You've successfully helped 3 institutions join Exona. Enjoy all premium features for free, forever."
+                    : "Help schools and organizations digitize their records. Once 3 of your invites join and create an institution, your account is free forever."
+                  }
                 </p>
 
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
-                    <span>Your Progress</span>
-                    <span className="text-white">{inviteProgress}/3 Invites</span>
-                  </div>
-                  <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${(inviteProgress / 3) * 100}%` }}
-                      className="h-full bg-accent shadow-[0_0_15px_rgba(0,149,246,0.5)]"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    {[1, 2, 3].map((i) => (
-                      <div 
-                        key={i}
-                        className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-                          i <= inviteProgress ? 'bg-accent' : 'bg-white/5'
-                        }`}
+                {!isQualified && (
+                  <div className="space-y-4 mb-8">
+                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      <span>Your Progress</span>
+                      <span className="text-white">{inviteProgress}/3 Successful Invites</span>
+                    </div>
+                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(inviteProgress / 3) * 100}%` }}
+                        className="h-full bg-accent shadow-[0_0_15px_rgba(0,149,246,0.5)]"
                       />
-                    ))}
+                    </div>
+                    <div className="flex gap-2">
+                      {[1, 2, 3].map((i) => (
+                        <div 
+                          key={i}
+                          className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+                            i <= inviteProgress ? 'bg-accent' : 'bg-white/5'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <motion.button 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
-                    const vercelLink = "https://mz-rosy.vercel.app/";
+                    const vercelLink = `https://mz-rosy.vercel.app/?ref=${user?.uid || ''}`;
                     const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
                     navigator.clipboard.writeText(inviteText);
                     setLinkCopied(true);
@@ -2209,7 +2272,7 @@ function ExonaApp() {
                   className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-xl flex items-center justify-center gap-3 ${
                     linkCopied 
                       ? 'bg-green-500 text-white' 
-                      : 'bg-white text-ink hover:bg-gray-100'
+                      : isQualified ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white text-ink hover:bg-gray-100'
                   }`}
                 >
                   {linkCopied ? (
@@ -2220,86 +2283,95 @@ function ExonaApp() {
                   ) : (
                     <>
                       <Share2 size={18} />
-                      Share Invite Link
+                      {isQualified ? 'Share with Others' : 'Share Invite Link'}
                     </>
                   )}
                 </motion.button>
               </div>
             </motion.div>
 
-            <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="space-y-1 mb-8">
               <button 
                 onClick={() => setView('schools')}
-                className="p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-ink/5 transition-all text-left group"
+                className="w-full p-4 bg-white hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
               >
-                <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink mb-4 group-hover:bg-ink group-hover:text-white transition-colors">
+                <div className="h-12 w-12 bg-whatsapp-teal rounded-full flex items-center justify-center text-white shrink-0">
                   <GraduationCap size={24} />
                 </div>
-                <h3 className="font-bold text-ink text-sm">Institutions</h3>
-                <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Manage Schools & Places</p>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-ink text-[15px]">Institutions</h3>
+                    <span className="text-[10px] text-muted font-medium">9:41 AM</span>
+                  </div>
+                  <p className="text-[13px] text-muted truncate">Manage Schools & Places</p>
+                </div>
               </button>
               <button 
                 onClick={() => setView('records')}
-                className="p-6 bg-white border border-gray-100 rounded-[2rem] hover:shadow-xl hover:shadow-ink/5 transition-all text-left group"
+                className="w-full p-4 bg-white hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
               >
-                <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink mb-4 group-hover:bg-ink group-hover:text-white transition-colors">
+                <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center text-white shrink-0">
                   <Search size={24} />
                 </div>
-                <h3 className="font-bold text-ink text-sm">{labels.student} Records</h3>
-                <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">View & Edit Profiles</p>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
+                    <span className="text-[10px] text-muted font-medium">Yesterday</span>
+                  </div>
+                  <p className="text-[13px] text-muted truncate">View & Edit Profiles</p>
+                </div>
               </button>
             </div>
 
-            <div className="mb-8">
+            <div className="mb-8 px-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-serif italic text-ink">Featured Institutions</h2>
-                <button onClick={() => setView('schools')} className="text-[12px] font-bold text-muted hover:text-ink transition-colors">View All</button>
+                <h2 className="text-[14px] font-bold text-whatsapp-teal uppercase tracking-wider">Recent Status</h2>
+                <button onClick={() => setView('schools')} className="text-[12px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
               </div>
               <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
                 {schools.slice(0, 5).map(school => (
                   <button 
                     key={school.id}
                     onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    className="flex-shrink-0 w-32 text-center group"
+                    className="flex-shrink-0 w-20 text-center group"
                   >
-                    <div className="h-20 w-20 bg-white border border-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-2 group-hover:shadow-lg transition-all overflow-hidden">
-                      {school.logo ? (
-                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span className="text-2xl font-bold text-gray-200">{school.name.charAt(0)}</span>
-                      )}
+                    <div className="h-16 w-16 p-0.5 rounded-full border-2 border-whatsapp-teal flex items-center justify-center mx-auto mb-2 group-hover:scale-105 transition-all overflow-hidden bg-white">
+                      <div className="h-full w-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
+                        {school.logo ? (
+                          <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-xl font-bold text-gray-300">{school.name.charAt(0)}</span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-[11px] font-bold text-ink truncate w-full">{school.name}</p>
+                    <p className="text-[11px] font-medium text-ink truncate w-full">{school.name}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             {user && (
-              <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
-                <div className="flex flex-col items-center gap-2">
+              <div className="py-4 px-4 bg-white border-b border-gray-100 flex gap-3 items-center sticky top-16 z-30">
+                <div className="h-10 w-10 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden">
                   {user.photoURL ? (
-                    <img src={user.photoURL} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
+                    <div className="h-full w-full flex items-center justify-center text-ink font-bold text-xs">
                       {user.displayName?.charAt(0)}
                     </div>
                   )}
-                  <div className="w-0.5 h-8 bg-transparent rounded-full" />
-                </div>
-                <div className="flex-1">
-                  <button 
-                    onClick={openNewPostModal}
-                    className="w-full text-left py-2 text-muted font-medium text-[14px]"
-                  >
-                    What's new?
-                  </button>
                 </div>
                 <button 
                   onClick={openNewPostModal}
-                  className="px-4 py-1.5 bg-gray-100 text-ink rounded-full font-bold text-[13px] hover:bg-gray-200 transition-colors"
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 transition-colors rounded-full px-5 py-2.5 text-left text-muted text-[14px] border border-gray-200"
                 >
-                  Post
+                  Type a message...
+                </button>
+                <button 
+                  onClick={openNewPostModal}
+                  className="h-10 w-10 bg-whatsapp-teal text-white rounded-full flex items-center justify-center shadow-md hover:bg-whatsapp-dark transition-colors"
+                >
+                  <Plus size={20} />
                 </button>
               </div>
             )}
@@ -2356,10 +2428,10 @@ function ExonaApp() {
 
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-4">
-                <button onClick={() => setView('schools')} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-                  <ChevronRight size={20} className="rotate-180" />
+            <div className="flex items-center justify-between mb-6 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setView('schools')} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-whatsapp-teal">
+                  <ChevronRight size={24} className="rotate-180" />
                 </button>
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
@@ -2369,7 +2441,10 @@ function ExonaApp() {
                       <span className="text-muted text-[10px] font-bold">{selectedSchool.name.charAt(0)}</span>
                     )}
                   </div>
-                  <h2 className="font-bold text-ink text-lg">{selectedSchool.name}</h2>
+                  <div>
+                    <h2 className="font-bold text-ink text-base leading-tight">{selectedSchool.name}</h2>
+                    <p className="text-[10px] text-muted font-medium">Online</p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -2745,16 +2820,16 @@ function ExonaApp() {
         if (!selectedSchool) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center">
-              <div className="h-24 w-24 bg-gray-50 rounded-[2rem] flex items-center justify-center text-muted mb-8">
-                <Database size={48} strokeWidth={1} />
+              <div className="h-24 w-24 bg-white rounded-full flex items-center justify-center text-whatsapp-teal mb-8 shadow-lg">
+                <Database size={48} strokeWidth={1.5} />
               </div>
-              <h2 className="text-3xl font-serif italic text-ink mb-4">Select an Institution</h2>
-              <p className="text-muted text-sm font-medium max-w-xs mb-10 leading-relaxed">
+              <h2 className="text-2xl font-bold text-ink mb-3">Select an Institution</h2>
+              <p className="text-muted text-[14px] max-w-xs mb-10 leading-relaxed">
                 To access institutional records, please first select an institution from your directory.
               </p>
               <button 
                 onClick={() => setView('schools')}
-                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+                className="px-10 py-4 bg-whatsapp-teal text-white rounded-full font-bold text-sm shadow-lg hover:bg-whatsapp-dark transition-all"
               >
                 Open Directory
               </button>
@@ -2769,174 +2844,142 @@ function ExonaApp() {
         const totalBalance = filteredRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
 
         return (
-          <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
-              <div className="text-center md:text-left">
-                <motion.h2 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
-                >
-                  {selectedSchool.name} Records
-                </motion.h2>
-                <motion.p 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-                >
-                  {labels.system}
-                </motion.p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center md:justify-end gap-4">
-                <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder={`Search ${labels.students.toLowerCase()}...`} 
-                    value={recordSearch}
-                    onChange={(e) => setRecordSearch(e.target.value)}
-                    className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
-                  />
+          <WordLayout 
+            title={`${selectedSchool.name} Records`}
+            subtitle={labels.system}
+            icon={Database}
+            toolbar={
+              <div className="flex items-center gap-6">
+                <div className="flex gap-1 bg-gray-200/50 p-1 rounded-lg">
+                  {(['general', 'books', 'uniforms'] as const).map(tab => (
+                    <button 
+                      key={tab}
+                      onClick={() => setRecordTab(tab)}
+                      className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                    >
+                      {tab === 'general' ? 'Home' : tab === 'books' ? labels.books : labels.uniforms}
+                    </button>
+                  ))}
                 </div>
-                {canManageInstitution(selectedSchool) && (
-                  <motion.button 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsRecordModalOpen(true)}
-                    className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-                  >
-                    <Plus size={20} />
-                    Add {labels.student} Record
-                  </motion.button>
-                )}
+                <div className="h-6 w-[1px] bg-gray-200" />
+                <div className="flex items-center gap-2">
+                  <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
+                    <input 
+                      type="text" 
+                      placeholder="Search..." 
+                      value={recordSearch}
+                      onChange={(e) => setRecordSearch(e.target.value)}
+                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-48" 
+                    />
+                  </div>
+                  {canManageInstitution(selectedSchool) && (
+                    <button 
+                      onClick={() => setIsRecordModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all"
+                    >
+                      <Plus size={14} />
+                      New Record
+                    </button>
+                  )}
+                </div>
               </div>
+            }
+          >
+            <div className="mb-16 border-b border-gray-100 pb-12">
+              <h1 className="text-4xl font-serif italic text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">{recordTab} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
               {[
-                { label: `Total ${labels.students}`, value: filteredRecords.length, icon: Users, color: 'text-ink', bg: 'bg-gray-50' },
-                { label: 'Total Paid', value: `₦${totalPaid.toLocaleString()}`, icon: CreditCard, color: 'text-green-600', bg: 'bg-green-50/30' },
-                { label: 'Total Balance', value: `₦${totalBalance.toLocaleString()}`, icon: Wallet, color: 'text-red-600', bg: 'bg-red-50/30' }
+                { label: `Total ${labels.students}`, value: filteredRecords.length, icon: Users },
+                { label: 'Total Paid', value: `₦${totalPaid.toLocaleString()}`, icon: CreditCard },
+                { label: 'Total Balance', value: `₦${totalBalance.toLocaleString()}`, icon: Wallet }
               ].map((stat, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 premium-shadow flex items-center gap-6 group hover:border-accent/20 transition-all"
-                >
-                  <div className={`h-16 w-16 rounded-[1.5rem] ${stat.bg} flex items-center justify-center text-ink group-hover:scale-110 transition-transform`}>
-                    <stat.icon size={28} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-                    <p className={`text-3xl font-serif italic ${stat.color}`}>{stat.value}</p>
-                  </div>
-                </motion.div>
+                <div key={i} className="border-l border-gray-100 pl-6">
+                  <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+                  <p className="text-2xl font-serif italic text-ink">{stat.value}</p>
+                </div>
               ))}
             </div>
 
-            <div className="flex gap-3 mb-10 bg-gray-50 p-1.5 rounded-2xl border border-gray-100 w-fit">
-              {(['general', 'books', 'uniforms'] as const).map(tab => (
-                <button 
-                  key={tab}
-                  onClick={() => setRecordTab(tab)}
-                  className={`px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${recordTab === tab ? 'bg-white text-ink shadow-sm border border-gray-100' : 'text-muted hover:text-ink'}`}
-                >
-                  {tab === 'general' ? 'General' : tab === 'books' ? labels.books : labels.uniforms}
-                </button>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">{labels.student} & Details</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Category</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Added By</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Paid</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Balance</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Actions</th>
+            <div className="overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
+              <table className="w-full text-left border-collapse min-w-[800px]">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.student}</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Balance</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Added By</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-20 text-center">
+                        <p className="font-serif italic text-lg text-muted">No records found in this section</p>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {filteredRecords.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-32 text-center">
-                          <div className="flex flex-col items-center gap-6 opacity-20">
-                            <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
-                              <Filter size={48} strokeWidth={1} />
+                  ) : (
+                    filteredRecords.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-ink text-sm">{record.studentName}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{record.category}</span>
+                        </td>
+                        <td className="px-6 py-4 font-mono font-bold text-green-600 text-[13px]">₦{record.paid.toLocaleString()}</td>
+                        <td className="px-6 py-4 font-mono font-bold text-red-600 text-[13px]">₦{record.balance.toLocaleString()}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-ink">
+                              {record.addedBy?.charAt(0) || 'A'}
                             </div>
-                            <p className="font-serif italic text-2xl">No records found</p>
-                            <p className="text-[10px] font-bold uppercase tracking-widest">Try adjusting your search or filters</p>
+                            <span className="text-[10px] font-medium text-ink">{record.addedBy || 'Admin'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-medium text-muted">
+                            {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
+                              <>
+                                <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
+                                  <Edit2 size={14} />
+                                </button>
+                                <button onClick={() => { setRecordToDelete(record.id); setIsDeleteRecordModalOpen(true); }} className="p-2 text-muted hover:text-red-600 transition-all">
+                                  <Trash2 size={14} />
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
-                    ) : (
-                      filteredRecords.map((record, idx) => (
-                        <motion.tr 
-                          key={record.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: idx * 0.05 }}
-                          className="hover:bg-gray-50/50 transition-colors group"
-                        >
-                          <td className="px-10 py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
-                                {record.studentName.charAt(0)}
-                              </div>
-                              <span className="font-bold text-ink text-sm">{record.studentName}</span>
-                            </div>
-                          </td>
-                          <td className="px-10 py-6">
-                            <div className="flex flex-wrap gap-2">
-                              {record.category.split(',').map(c => c.trim()).filter(c => c).map((cat, i) => (
-                                <span key={i} className="px-3 py-1 bg-accent/5 text-accent rounded-lg text-[9px] font-bold uppercase tracking-wider border border-accent/10">
-                                  {cat}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-10 py-6 text-[12px] font-medium text-muted">{record.addedBy}</td>
-                          <td className="px-10 py-6 font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</td>
-                          <td className="px-10 py-6 font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</td>
-                          <td className="px-10 py-6">
-                            <div className="flex items-center gap-2">
-                              {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
-                                <>
-                                  <button 
-                                    onClick={() => handleEditRecord(record)}
-                                    className="p-2.5 text-muted hover:text-accent hover:bg-accent/5 rounded-xl transition-all"
-                                  >
-                                    <Edit2 size={16} />
-                                  </button>
-                                  <button 
-                                    onClick={() => {
-                                      setRecordToDelete(record.id);
-                                      setIsDeleteRecordModalOpen(true);
-                                    }}
-                                    className="p-2.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </motion.tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
+              <div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona</p>
+                <p className="text-[10px] text-muted">{new Date().toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Authorized Signature</p>
+                <div className="h-8 w-32 border-b border-gray-200" />
               </div>
             </div>
-          </div>
+          </WordLayout>
         );
       }
       case 'finance': {
@@ -2961,167 +3004,93 @@ function ExonaApp() {
           );
         }
         return (
-          <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
-            <div className="flex flex-col mb-12 items-center text-center">
-              <motion.h2 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-5xl font-serif italic text-ink tracking-tight mb-2"
-              >
-                {selectedSchool.name} Finance
-              </motion.h2>
-              <motion.p 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-              >
-                Institutional Financial Terminal
-              </motion.p>
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-10">
-              <div className="xl:col-span-3 space-y-10">
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-ink rounded-[3.5rem] p-16 text-white shadow-2xl shadow-ink/20 relative overflow-hidden group"
-                >
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-12">
-                      <div>
-                        <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.4em] mb-4">Institution Balance</p>
-                        <h3 className="text-8xl font-mono font-medium tracking-tighter">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
-                      </div>
-                      <div className="h-20 w-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-xl">
-                        <TrendingUp size={32} className="text-green-400" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-6">
-                      <div className="flex items-center gap-3 text-white/60 text-[10px] font-bold uppercase tracking-widest bg-white/5 w-fit px-6 py-3 rounded-2xl backdrop-blur-md border border-white/10">
-                        <ShieldCheck size={16} className="text-green-400" />
-                        Verified & Encrypted
-                      </div>
-                      <div className="flex items-center gap-3 text-white/60 text-[10px] font-bold uppercase tracking-widest bg-white/5 w-fit px-6 py-3 rounded-2xl backdrop-blur-md border border-white/10">
-                        <Clock size={16} className="text-accent" />
-                        Last Updated: {new Date().toLocaleTimeString()}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="absolute -right-20 -bottom-20 opacity-5 group-hover:scale-110 transition-transform duration-1000">
-                    <Sparkles size={500} strokeWidth={1} />
-                  </div>
-                </motion.div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[
-                    { label: 'Deposit', icon: ArrowUpRight, color: 'bg-green-500' },
-                    { label: 'Withdraw', icon: TrendingDown, color: 'bg-red-500' },
-                    { label: 'Transfer', icon: Send, color: 'bg-blue-500' }
-                  ].map((action, i) => (
-                    <motion.button
-                      key={i}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 + (i * 0.1) }}
-                      className="bg-white p-8 rounded-[2.5rem] premium-shadow border border-gray-100 flex flex-col items-center gap-4 hover:border-accent/20 transition-all group"
-                    >
-                      <div className={`h-14 w-14 rounded-2xl ${action.color} text-white flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                        <action.icon size={24} />
-                      </div>
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-ink">{action.label}</span>
-                    </motion.button>
-                  ))}
+          <WordLayout 
+            title={`${selectedSchool.name} Finance`}
+            subtitle="Institutional Financial Terminal"
+            icon={Wallet}
+            toolbar={
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <button className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-2">
+                    <ArrowUpRight size={14} />
+                    Deposit
+                  </button>
+                  <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center gap-2">
+                    <TrendingDown size={14} />
+                    Withdraw
+                  </button>
                 </div>
-
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="bg-white p-12 rounded-[3rem] premium-shadow border border-gray-100"
-                >
-                  <div className="flex items-center justify-between mb-12">
-                    <h4 className="font-serif italic text-3xl text-ink tracking-tight">Transaction History</h4>
-                    <div className="flex gap-4">
-                      <button className="h-12 w-12 bg-gray-50 rounded-2xl text-muted hover:text-ink transition-all flex items-center justify-center"><Search size={20} /></button>
-                      <button className="h-12 w-12 bg-gray-50 rounded-2xl text-muted hover:text-ink transition-all flex items-center justify-center"><Filter size={20} /></button>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center justify-center py-40">
-                    <div className="h-32 w-32 rounded-full bg-gray-50 flex items-center justify-center mb-10 relative">
-                      <Database size={56} className="text-gray-200" strokeWidth={1} />
-                      <div className="absolute -right-2 -bottom-2 h-10 w-10 bg-white rounded-full flex items-center justify-center shadow-lg">
-                        <Sparkles size={20} className="text-accent" />
-                      </div>
-                    </div>
-                    <p className="font-serif italic text-3xl text-ink mb-4">No transactions yet</p>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-muted">Your financial journey starts here</p>
-                  </div>
-                </motion.div>
+                <div className="h-6 w-[1px] bg-gray-200" />
+                <div className="flex items-center gap-2">
+                  <button className="p-2 text-muted hover:text-ink transition-all"><Search size={16} /></button>
+                  <button className="p-2 text-muted hover:text-ink transition-all"><Filter size={16} /></button>
+                </div>
               </div>
+            }
+          >
+            <div className="mb-16 border-b border-gray-100 pb-12">
+              <h1 className="text-4xl font-serif italic text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Financial Statement • {new Date().toLocaleDateString()}</p>
+            </div>
 
-              <div className="xl:col-span-1 space-y-10">
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="bg-white p-12 rounded-[3rem] premium-shadow border border-gray-100"
-                >
-                  <div className="flex items-center gap-5 mb-12">
-                    <div className="h-16 w-16 bg-gray-50 rounded-2xl flex items-center justify-center text-ink">
-                      <CreditCard size={32} />
-                    </div>
-                    <h4 className="font-serif italic text-2xl text-ink tracking-tight">Bank Details</h4>
+            <div className="bg-ink rounded-sm p-12 text-white mb-16 relative overflow-hidden">
+              <div className="relative z-10">
+                <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em] mb-4">Institution Balance</p>
+                <h3 className="text-6xl font-mono font-medium tracking-tighter mb-8">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
+                <div className="flex gap-4">
+                  <div className="flex items-center gap-2 text-white/60 text-[9px] font-bold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg border border-white/10">
+                    <ShieldCheck size={14} className="text-green-400" />
+                    Verified
                   </div>
-                  <div className="space-y-10">
-                    <div className="group">
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-3">Bank Name</p>
-                      <p className="font-bold text-ink text-lg group-hover:text-accent transition-colors">{finance?.bankName || '---'}</p>
-                    </div>
-                    <div className="group">
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-3">Account Number</p>
-                      <div className="flex items-center justify-between">
-                        <p className="font-mono font-bold text-ink text-2xl tracking-[0.2em]">{finance?.accountNumber || '---'}</p>
-                        <button className="h-10 w-10 bg-gray-50 rounded-xl flex items-center justify-center text-muted hover:text-accent transition-all"><Plus size={18} /></button>
-                      </div>
-                    </div>
-                    <div className="group">
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mb-3">Account Name</p>
-                      <p className="font-bold text-ink text-lg group-hover:text-accent transition-colors">{finance?.accountName || '---'}</p>
-                    </div>
+                  <div className="flex items-center gap-2 text-white/60 text-[9px] font-bold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg border border-white/10">
+                    <Clock size={14} className="text-accent" />
+                    {new Date().toLocaleTimeString()}
                   </div>
-                    {canManageInstitution(selectedSchool) && (
-                      <button className="w-full mt-12 py-6 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:bg-ink/90 transition-all">
-                        Update Details
-                      </button>
-                    )}
-                </motion.div>
-
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 }}
-                  className="bg-accent/5 p-10 rounded-[2.5rem] border border-accent/10 relative overflow-hidden"
-                >
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-4 mb-6 text-accent">
-                      <ShieldCheck size={24} />
-                      <p className="font-bold text-[12px] uppercase tracking-widest">Security Protocol</p>
-                    </div>
-                    <p className="text-[14px] text-accent/80 leading-relaxed font-medium">
-                      All financial data is encrypted and stored securely. Only authorized administrators can access detailed transaction logs.
-                    </p>
-                  </div>
-                  <div className="absolute -right-4 -bottom-4 opacity-5">
-                    <Fingerprint size={100} />
-                  </div>
-                </motion.div>
+                </div>
+              </div>
+              <div className="absolute -right-10 -bottom-10 opacity-5">
+                <Sparkles size={300} strokeWidth={1} />
               </div>
             </div>
-          </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
+              <div className="space-y-8">
+                <h4 className="font-serif italic text-2xl text-ink border-b border-gray-100 pb-4">Bank Information</h4>
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Bank Name</p>
+                    <p className="font-bold text-ink text-sm">{finance?.bankName || '---'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Account Number</p>
+                    <p className="font-mono font-bold text-ink text-xl tracking-widest">{finance?.accountNumber || '---'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Account Name</p>
+                    <p className="font-bold text-ink text-sm">{finance?.accountName || '---'}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-8">
+                <h4 className="font-serif italic text-2xl text-ink border-b border-gray-100 pb-4">Recent Activity</h4>
+                <div className="flex flex-col items-center justify-center py-12 bg-gray-50/50 rounded-sm border border-dashed border-gray-200">
+                  <Database size={32} className="text-gray-200 mb-4" />
+                  <p className="font-serif italic text-lg text-muted">No recent transactions</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
+              <div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona</p>
+                <p className="text-[10px] text-muted">{new Date().toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Authorized Signature</p>
+                <div className="h-8 w-32 border-b border-gray-200" />
+              </div>
+            </div>
+          </WordLayout>
         );
       }
       case 'attendance': {
@@ -3153,254 +3122,211 @@ function ExonaApp() {
         const absentToday = filteredAttendance.filter(r => r.status === 'absent').length;
 
         return (
-          <div className="w-full max-w-full mx-auto py-8 px-4 md:px-12">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-12 gap-8">
-              <div className="flex flex-col text-center md:text-left">
-                <motion.h2 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
-                >
-                  {selectedSchool.name} Attendance
-                </motion.h2>
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-                >
-                  {labels.attendance}
-                </motion.p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center md:justify-end gap-4">
-                <div className="relative group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder={`Search ${labels.teachers.toLowerCase()}...`} 
-                    value={attendanceSearch}
-                    onChange={(e) => setAttendanceSearch(e.target.value)}
-                    className="pl-12 pr-6 py-4 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400 w-64 premium-shadow" 
-                  />
+          <WordLayout 
+            title={`${selectedSchool.name} Attendance`}
+            subtitle={labels.attendance}
+            icon={Compass}
+            toolbar={
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="relative group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
+                    <input 
+                      type="text" 
+                      placeholder={`Search ${labels.teachers.toLowerCase()}...`} 
+                      value={attendanceSearch}
+                      onChange={(e) => setAttendanceSearch(e.target.value)}
+                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-48" 
+                    />
+                  </div>
+                  {canManageInstitution(selectedSchool) && (
+                    <button 
+                      onClick={() => setIsAttendanceModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all"
+                    >
+                      <Plus size={14} />
+                      Record Attendance
+                    </button>
+                  )}
                 </div>
-                {canManageInstitution(selectedSchool) && (
-                  <motion.button 
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setIsAttendanceModalOpen(true)}
-                    className="flex items-center gap-3 px-8 py-4 bg-ink text-white rounded-2xl font-bold text-sm shadow-xl shadow-ink/10 hover:bg-ink/90 transition-all"
-                  >
-                    <Plus size={20} />
-                    Record Attendance
-                  </motion.button>
-                )}
               </div>
+            }
+          >
+            <div className="mb-16 border-b border-gray-100 pb-12">
+              <h1 className="text-4xl font-serif italic text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">{labels.attendance} Log • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
               {[
-                { label: 'Total Records', value: filteredAttendance.length, icon: ClipboardList, color: 'text-ink', bg: 'bg-gray-50' },
-                { label: 'Present Today', value: presentToday, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-50/30' },
-                { label: 'Absent Today', value: absentToday, icon: XCircle, color: 'text-red-600', bg: 'bg-red-50/30' }
+                { label: 'Total Records', value: filteredAttendance.length, icon: ClipboardList },
+                { label: 'Present Today', value: presentToday, icon: CheckCircle2 },
+                { label: 'Absent Today', value: absentToday, icon: XCircle }
               ].map((stat, i) => (
-                <motion.div 
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 premium-shadow flex items-center gap-6 group hover:border-accent/20 transition-all"
-                >
-                  <div className={`h-16 w-16 rounded-[1.5rem] ${stat.bg} flex items-center justify-center text-ink group-hover:scale-110 transition-transform`}>
-                    <stat.icon size={28} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-1">{stat.label}</p>
-                    <p className={`text-3xl font-serif italic ${stat.color}`}>{stat.value}</p>
-                  </div>
-                </motion.div>
+                <div key={i} className="border-l border-gray-100 pl-6">
+                  <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">{stat.label}</p>
+                  <p className="text-2xl font-serif italic text-ink">{stat.value}</p>
+                </div>
               ))}
             </div>
 
-            <div className="bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50/50 border-b border-gray-100">
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Status</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Date</th>
-                      <th className="px-10 py-6 text-[10px] font-bold uppercase tracking-widest text-muted">Recorded By</th>
+            <div className="overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
+              <table className="w-full text-left border-collapse min-w-[700px]">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filteredAttendance.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-20 text-center">
+                        <p className="font-serif italic text-lg text-muted">No attendance records found</p>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {filteredAttendance.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-32 text-center">
-                          <div className="flex flex-col items-center gap-6 opacity-20">
-                            <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center">
-                              <Users size={48} strokeWidth={1} />
-                            </div>
-                            <p className="font-serif italic text-2xl">No records found</p>
-                            <p className="text-[10px] font-bold uppercase tracking-widest">Try adjusting your search</p>
-                          </div>
+                  ) : (
+                    filteredAttendance.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-6 py-4">
+                          <span className="font-bold text-ink text-sm">{record.teacherName}</span>
                         </td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                            record.status === 'present' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'
+                          }`}>
+                            {record.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-[12px] font-medium text-muted">{record.date}</td>
+                        <td className="px-6 py-4 text-right text-[12px] font-medium text-muted">{record.addedBy}</td>
                       </tr>
-                    ) : (
-                      filteredAttendance.map((record, idx) => (
-                        <motion.tr 
-                          key={record.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: idx * 0.05 }}
-                          className="hover:bg-gray-50/50 transition-colors group"
-                        >
-                          <td className="px-10 py-6">
-                            <div className="flex items-center gap-4">
-                              <div className="h-10 w-10 rounded-xl bg-accent/5 flex items-center justify-center text-accent font-bold text-xs">
-                                {record.teacherName.charAt(0)}
-                              </div>
-                              <span className="font-bold text-ink text-sm">{record.teacherName}</span>
-                            </div>
-                          </td>
-                          <td className="px-10 py-6">
-                            <span className={`px-4 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border ${
-                              record.status === 'present' ? 'bg-green-50 text-green-600 border-green-100' :
-                              record.status === 'absent' ? 'bg-red-50 text-red-600 border-red-100' :
-                              'bg-orange-50 text-orange-600 border-orange-100'
-                            }`}>
-                              {record.status}
-                            </span>
-                          </td>
-                          <td className="px-10 py-6 text-[12px] font-medium text-muted">{record.date}</td>
-                          <td className="px-10 py-6 text-[12px] font-medium text-muted">{record.addedBy}</td>
-                        </motion.tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
+              <div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona</p>
+                <p className="text-[10px] text-muted">{new Date().toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Authorized Signature</p>
+                <div className="h-8 w-32 border-b border-gray-200" />
               </div>
             </div>
-          </div>
+          </WordLayout>
         );
       }
       case 'ai': {
         return (
-          <div className="flex flex-col h-full w-full max-w-4xl mx-auto py-12 px-8">
-            <div className="flex flex-col mb-12 items-center text-center">
-              <motion.h2 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
-              >
-                Exona AI
-              </motion.h2>
-              <motion.p 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-              >
-                Intelligent Institutional Intelligence
-              </motion.p>
+          <WordLayout 
+            title="Exona AI"
+            subtitle="Intelligent Institutional Intelligence"
+            icon={Cpu}
+            toolbar={
+              <div className="flex items-center gap-4">
+                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">New Chat</button>
+                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">History</button>
+              </div>
+            }
+          >
+            <div className="mb-16 border-b border-gray-100 pb-12">
+              <h1 className="text-4xl font-serif italic text-ink mb-2">Exona AI Terminal</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Active Session • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="flex-1 bg-white rounded-[3rem] premium-shadow border border-gray-100 overflow-hidden flex flex-col"
-            >
-              <div className="flex-1 overflow-y-auto p-10 space-y-8">
-                {aiMessages.length === 0 && (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-12 opacity-20">
-                    <Cpu size={80} strokeWidth={1} className="mb-8" />
-                    <h3 className="font-serif italic text-2xl text-ink mb-4">How can I assist you?</h3>
-                    <p className="text-sm font-medium max-w-sm">Inquire about {labels.student.toLowerCase()} records, financial status, or institutional policies. I am here to provide precision data.</p>
+            <div className="space-y-8 mb-20">
+              {aiMessages.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-20 opacity-20">
+                  <Cpu size={64} strokeWidth={1} className="mb-6" />
+                  <p className="font-serif italic text-xl">System Ready</p>
+                </div>
+              )}
+              {aiMessages.map((msg, i) => (
+                <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-2">{msg.role === 'user' ? 'User Query' : 'AI Response'}</p>
+                  <div className={`max-w-[85%] p-6 border ${
+                    msg.role === 'user' ? 'bg-gray-50 border-gray-200 text-ink' : 'bg-white border-ink/10 text-ink font-serif italic text-lg'
+                  }`}>
+                    {msg.text}
                   </div>
-                )}
-                {aiMessages.map((msg, i) => (
-                  <motion.div 
-                    key={i} 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div className={`max-w-[75%] p-6 rounded-[2rem] text-sm font-medium leading-relaxed ${
-                      msg.role === 'user' ? 'bg-ink text-white rounded-tr-none' : 'bg-gray-50 text-ink rounded-tl-none border border-gray-100'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </motion.div>
-                ))}
-                {isAiTyping && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-50 p-6 rounded-[2rem] rounded-tl-none flex gap-1.5 border border-gray-100">
-                      <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce"></span>
-                      <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                      <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex gap-4">
+                </div>
+              ))}
+              {isAiTyping && (
+                <div className="flex gap-1.5">
+                  <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce"></span>
+                  <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                  <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-auto pt-12 border-t border-gray-100">
+              <div className="flex gap-4">
                 <input 
                   type="text" 
                   value={aiInput}
                   onChange={(e) => setAiInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
-                  placeholder="Inquire with Exona AI..." 
-                  className="flex-1 px-8 py-5 bg-white rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 transition-all text-sm font-semibold premium-shadow border border-gray-100"
+                  placeholder="Type your inquiry here..." 
+                  className="flex-1 px-6 py-4 bg-gray-50 border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-medium"
                 />
                 <button 
                   onClick={handleAiSend}
                   disabled={!aiInput.trim() || isAiTyping}
-                  className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center shadow-xl shadow-ink/10 hover:scale-105 transition-transform disabled:opacity-50"
+                  className="px-8 py-4 bg-ink text-white rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-ink/90 transition-all disabled:opacity-50"
                 >
-                  <Send size={24} />
+                  Send
                 </button>
               </div>
-            </motion.div>
-          </div>
+            </div>
+          </WordLayout>
         );
       }
       case 'penalty': {
         return (
-          <div className="w-full max-w-4xl mx-auto py-12 px-8">
-            <div className="flex flex-col mb-12 items-center text-center">
-              <motion.h2 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-4xl font-serif italic text-ink tracking-tight mb-2"
-              >
-                Penalty Board
-              </motion.h2>
-              <motion.p 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-              >
-                Disciplinary Records & Notices
-              </motion.p>
+          <WordLayout 
+            title="Penalty Board"
+            subtitle="Disciplinary Records & Notices"
+            icon={ShieldCheck}
+            toolbar={
+              <div className="flex items-center gap-4">
+                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Filter</button>
+                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Export</button>
+              </div>
+            }
+          >
+            <div className="mb-16 border-b border-gray-100 pb-12 text-center">
+              <h1 className="text-4xl font-serif italic text-ink mb-2">Institutional Conduct Report</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Confidential • {new Date().toLocaleDateString()}</p>
             </div>
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white p-16 rounded-[3rem] premium-shadow border border-gray-100 text-center"
-            >
-              <div className="h-24 w-24 bg-green-50 text-green-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-sm">
+
+            <div className="flex flex-col items-center justify-center py-32 text-center">
+              <div className="h-24 w-24 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-8 border border-green-100">
                 <ShieldCheck size={48} strokeWidth={1.5} />
               </div>
               <h3 className="font-serif italic text-3xl text-ink mb-4">Exemplary Record</h3>
-              <p className="text-muted text-sm font-medium max-w-sm mx-auto leading-relaxed">
+              <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
                 You have no active penalties or disciplinary notices. Your commitment to institutional standards is noted and appreciated.
               </p>
-            </motion.div>
-          </div>
+            </div>
+
+            <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
+              <div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona Security</p>
+                <p className="text-[10px] text-muted">{new Date().toLocaleString()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Office of Conduct</p>
+                <div className="h-8 w-32 border-b border-gray-200" />
+              </div>
+            </div>
+          </WordLayout>
         );
       }
       case 'profile': {
@@ -4593,23 +4519,39 @@ function ExonaApp() {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-[160] flex flex-col border-r border-gray-100"
             >
-              <div className="p-8 border-b border-gray-50 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center font-serif italic text-xl shadow-lg shadow-ink/10">Ex</div>
-                  <h2 className="text-xl font-serif italic text-ink tracking-tight">Exona Mainframe</h2>
+              <div className="p-6 bg-whatsapp-dark text-white flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold">Menu</h2>
+                  <button onClick={() => setSidebarOpen(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                    <X size={20} />
+                  </button>
                 </div>
-                <button onClick={() => setSidebarOpen(false)} className="p-2 text-muted hover:bg-gray-50 rounded-xl transition-colors">
-                  <X size={20} />
-                </button>
+                {user && (
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="h-14 w-14 rounded-full overflow-hidden border-2 border-white/20">
+                      {user.photoURL ? (
+                        <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <div className="h-full w-full bg-whatsapp-teal flex items-center justify-center text-xl font-bold">
+                          {user.displayName?.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-bold text-base">{user.displayName}</p>
+                      <p className="text-xs text-white/70">{user.email}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div className="flex-1 overflow-y-auto p-4 space-y-1">
                 <div className="px-4 py-2">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Navigation</p>
                 </div>
                 <SidebarItem 
                   icon={Home} 
-                  label="Horizon Feed" 
+                  label="Chats" 
                   active={view === 'feed'} 
                   onClick={() => { setView('feed'); setSidebarOpen(false); }} 
                 />
@@ -4620,7 +4562,7 @@ function ExonaApp() {
                   onClick={() => { setView('schools'); setSidebarOpen(false); }} 
                 />
                 
-                <div className="px-4 py-6">
+                <div className="px-4 py-4">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
                 </div>
                 <SidebarItem 
@@ -4648,12 +4590,12 @@ function ExonaApp() {
                   onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
                 />
 
-                <div className="px-4 py-6">
+                <div className="px-4 py-4">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">System</p>
                 </div>
                 <SidebarItem 
                   icon={UserIcon} 
-                  label="User Profile" 
+                  label="Settings" 
                   active={view === 'profile'} 
                   onClick={() => { setView(user ? 'profile' : 'login'); setSidebarOpen(false); }} 
                 />
@@ -4675,13 +4617,13 @@ function ExonaApp() {
                 )}
               </div>
 
-              <div className="p-6 border-t border-gray-50">
+              <div className="p-4 border-t border-gray-100">
                 <button 
                   onClick={() => signOut(auth)}
-                  className="w-full flex items-center gap-4 px-6 py-4 text-red-600 hover:bg-red-50 rounded-2xl transition-all font-bold text-[11px] uppercase tracking-widest"
+                  className="w-full flex items-center gap-4 px-6 py-4 text-red-600 hover:bg-red-50 rounded-xl transition-all font-bold text-[11px] uppercase tracking-widest"
                 >
                   <LogOut size={18} />
-                  Terminate Session
+                  Log Out
                 </button>
               </div>
             </motion.div>
@@ -4689,59 +4631,52 @@ function ExonaApp() {
         )}
       </AnimatePresence>
 
-      {/* Top Navigation (Threads Style) */}
-      <header className="h-16 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-6 flex items-center justify-between sticky top-0 z-40">
-        <div className="flex items-center w-1/3">
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setSidebarOpen(true)} 
-            className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors"
-          >
-            <Menu size={24} />
-          </motion.button>
-        </div>
-
-        <div className="flex items-center justify-center w-1/3">
+      {/* Top Navigation (WhatsApp Style) */}
+      <header className="h-16 bg-whatsapp-dark px-4 flex items-center justify-between sticky top-0 z-40 shadow-md">
+        <div className="flex items-center gap-4">
           <motion.h1 
             whileHover={{ scale: 1.02 }}
-            className="text-2xl font-serif italic text-ink cursor-pointer tracking-tight" 
+            className="text-xl font-bold text-white cursor-pointer tracking-tight" 
             onClick={() => setView('feed')}
           >
             Exona
           </motion.h1>
         </div>
 
-        <div className="flex items-center justify-end w-1/3 gap-4">
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setView('schools')} 
-            className="p-2 text-ink hover:bg-gray-50 rounded-full transition-colors"
+        <div className="flex items-center gap-4 text-white/90">
+          <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            <Camera size={20} />
+          </button>
+          <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+            <Search size={20} />
+          </button>
+          <button 
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
           >
-            <Compass size={24} />
-          </motion.button>
+            <MoreVertical size={20} />
+          </button>
         </div>
       </header>
 
       {/* Main Area */}
-      <main className="flex-1 overflow-y-auto bg-paper">
+      <main className="flex-1 overflow-y-auto bg-whatsapp-bg">
         {renderView()}
       </main>
 
-      {/* Bottom Nav (Refined Classic Style) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-gray-100 h-20 px-2 flex items-center justify-around pb-2 shadow-[0_-10px_40px_rgba(0,0,0,0.02)]">
+      {/* Bottom Nav (WhatsApp Style) */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 px-2 flex items-center justify-around pb-1 shadow-lg">
         <NavButton 
           active={view === 'feed'} 
           onClick={() => setView('feed')} 
-          icon={Home} 
-          label="Home"
+          icon={MessageSquare} 
+          label="Chats"
         />
         <NavButton 
-          active={view === 'records'} 
-          onClick={() => setView('records')} 
-          icon={Search} 
-          label={labels.student}
+          active={view === 'schools'} 
+          onClick={() => setView('schools')} 
+          icon={Circle} 
+          label="Status"
         />
         
         <div className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative">
@@ -4752,24 +4687,23 @@ function ExonaApp() {
               if (!user) { setView('login'); return; }
               openNewPostModal();
             }} 
-            className="h-11 w-11 bg-ink text-white rounded-full flex items-center justify-center shadow-2xl shadow-ink/30 transition-all group/plus"
+            className="h-12 w-12 bg-whatsapp-teal text-white rounded-full flex items-center justify-center shadow-lg transition-all"
           >
-            <Plus size={24} strokeWidth={3} className="group-hover:rotate-90 transition-transform duration-500" />
+            <Plus size={24} strokeWidth={3} />
           </motion.button>
-          <span className="text-[11px] font-serif italic text-muted opacity-50">Create</span>
         </div>
 
         <NavButton 
-          active={view === 'attendance'} 
-          onClick={() => setView('attendance')} 
-          icon={Calendar} 
-          label="Log"
+          active={view === 'ai'} 
+          onClick={() => setView('ai')} 
+          icon={Phone} 
+          label="Calls"
         />
         <NavButton 
           active={view === 'profile'} 
           onClick={() => user ? setView('profile') : setView('login')} 
           icon={UserIcon} 
-          label="Me"
+          label="Settings"
         />
       </div>
       </div>

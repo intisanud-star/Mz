@@ -6,11 +6,14 @@
   --font-serif: "Playfair Display", serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-paper: #FFFFFF;
-  --color-ink: #000000;
-  --color-accent: #0095F6;
-  --color-muted: #737373;
-  --color-border: #F0F0F0;
+  --color-paper: #F0F2F5;
+  --color-ink: #111B21;
+  --color-accent: #25D366;
+  --color-whatsapp-dark: #075E54;
+  --color-whatsapp-teal: #128C7E;
+  --color-whatsapp-bg: #ECE5DD;
+  --color-muted: #667781;
+  --color-border: #D1D7DB;
 }
 
 @layer base {
@@ -54,5 +57,20 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #E5E7EB;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #D1D5DB;
   }
 }

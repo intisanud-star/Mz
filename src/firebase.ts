@@ -91,7 +91,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-export async function ensureUserDocument(user: User) {
+export async function ensureUserDocument(user: User, referredBy?: string | null) {
   const userRef = doc(db, 'users', user.uid);
   const isAdminEmail = user.email === 'musstaphamusa@gmail.com';
   
@@ -106,6 +106,10 @@ export async function ensureUserDocument(user: User) {
         role: isAdminEmail ? 'admin' : 'user',
         following: [],
         createdAt: serverTimestamp(),
+        referredBy: referredBy || null,
+        invitesCount: 0,
+        isLifetimeFree: false,
+        hasCreatedInstitution: false,
       };
       await setDoc(userRef, data);
       return data;
