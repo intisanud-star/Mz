@@ -167,21 +167,21 @@ class ErrorBoundary extends Component<any, any> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-paper p-6 text-center">
+        <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 text-center">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-md bg-white p-12 rounded-[3rem] premium-shadow border border-gray-100"
+            className="max-w-md bg-white p-12 rounded-[3rem] border border-gray-100"
           >
-            <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+            <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
               <AlertTriangle size={32} />
             </div>
-            <h1 className="text-2xl font-serif italic text-ink mb-4 tracking-tight">System Interruption</h1>
+            <h1 className="text-2xl font-extrabold text-ink mb-4 tracking-tight">System Interruption</h1>
             <p className="text-muted text-sm font-medium mb-8 leading-relaxed">An unexpected error has occurred within the Exona core. Our engineers have been notified.</p>
-            <pre className="text-[10px] font-mono bg-gray-50 p-6 rounded-2xl overflow-auto max-h-40 text-left mb-10 text-muted border border-gray-100">{this.state.error?.message}</pre>
+            <pre className="text-[10px] font-mono bg-white p-6 rounded-2xl overflow-auto max-h-40 text-left mb-10 text-muted border border-gray-100">{this.state.error?.message}</pre>
             <button 
               onClick={() => window.location.reload()} 
-              className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 transition-all active:scale-[0.98]"
+              className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all active:scale-[0.98]"
             >
               Restart Core
             </button>
@@ -241,7 +241,7 @@ const getLabels = (type?: 'school' | 'place') => {
   const NavIcon = ({ icon: Icon, active, onClick, label }: { icon: any, active: boolean, onClick: () => void, label: string }) => (
     <button 
       onClick={onClick}
-      className={`p-4 rounded-2xl transition-all relative group ${active ? 'text-ink' : 'text-muted hover:text-ink hover:bg-gray-50'}`}
+      className={`p-4 rounded-2xl transition-all relative group ${active ? 'text-ink' : 'text-muted hover:text-ink hover:bg-white border border-transparent hover:border-gray-100'}`}
       title={label}
     >
       <Icon size={24} strokeWidth={active ? 2.5 : 2} />
@@ -259,7 +259,7 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
     className={`w-full flex items-center justify-between px-6 py-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${
       active 
         ? 'bg-whatsapp-teal/10 text-whatsapp-teal' 
-        : 'text-muted hover:bg-gray-50 hover:text-ink'
+        : 'text-muted hover:bg-white border border-transparent hover:border-gray-100 hover:text-ink'
     }`}
   >
     <div className="flex items-center gap-4 relative z-10">
@@ -276,9 +276,9 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
 
 const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title: string, subtitle: string, icon: any, children: React.ReactNode, toolbar?: React.ReactNode }) => {
   return (
-    <div className="flex flex-col h-full bg-[#F3F2F1] overflow-hidden">
+    <div className="flex flex-col h-full bg-white overflow-hidden">
       {/* Ribbon Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm z-20">
+      <div className="bg-white border-b border-gray-200 z-20">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="h-8 w-8 bg-ink rounded-lg flex items-center justify-center text-white shrink-0">
@@ -290,14 +290,14 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
-            <div className="hidden sm:flex h-6 w-6 rounded-full bg-gray-100 items-center justify-center text-[10px] font-bold text-muted">?</div>
-            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">_</div>
-            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">□</div>
-            <div className="h-6 w-6 rounded-full bg-red-50 flex items-center justify-center text-[10px] font-bold text-red-400">×</div>
+            <div className="hidden sm:flex h-6 w-6 rounded-full bg-white border border-gray-100 items-center justify-center text-[10px] font-bold text-muted">?</div>
+            <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">_</div>
+            <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">□</div>
+            <div className="h-6 w-6 rounded-full bg-white border border-red-100 flex items-center justify-center text-[10px] font-bold text-red-400">×</div>
           </div>
         </div>
         {/* Toolbar / Ribbon Tabs */}
-        <div className="px-4 md:px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar bg-gray-50/50">
+        <div className="px-4 md:px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar bg-white">
           {toolbar}
         </div>
       </div>
@@ -307,7 +307,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full md:max-w-[1000px] bg-white shadow-2xl min-h-screen md:min-h-[1200px] p-6 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20"
+          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-6 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20"
         >
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
@@ -345,7 +345,7 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
             {post.authorPhoto ? (
               <img src={post.authorPhoto} className="h-8 w-8 rounded-full object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-ink font-bold text-[10px]">
+              <div className="h-8 w-8 rounded-full bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-[10px]">
                 {post.authorName?.charAt(0)}
               </div>
             )}
@@ -353,14 +353,14 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
         )}
 
         <div 
-          className={`relative p-3 rounded-2xl shadow-sm ${
+          className={`relative p-3 rounded-2xl border border-gray-100 ${
             isOwnPost 
-              ? 'bg-[#DCF8C6] rounded-tr-none text-ink' 
+              ? 'bg-white rounded-tr-none text-ink' 
               : 'bg-white rounded-tl-none text-ink'
           }`}
         >
           {post.mediaUrl && (
-            <div className="mb-2 rounded-lg overflow-hidden bg-gray-50 -mx-1 -mt-1">
+            <div className="mb-2 rounded-lg overflow-hidden bg-white border border-gray-100 -mx-1 -mt-1">
               {post.mediaType === 'image' ? (
                 <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[300px]" referrerPolicy="no-referrer" />
               ) : (
@@ -370,13 +370,13 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
           )}
 
           {post.resharedFrom && (
-            <div className="mb-2 p-2 bg-black/5 rounded-lg border-l-4 border-whatsapp-teal">
+            <div className="mb-2 p-2 bg-white border border-gray-100 rounded-lg border-l-4 border-whatsapp-teal">
               <p className="text-[11px] font-bold text-whatsapp-teal mb-0.5">{post.resharedFrom.authorName}</p>
               <p className="text-[12px] text-muted leading-tight line-clamp-2">{post.resharedFrom.content}</p>
             </div>
           )}
 
-          <p className="text-[14px] leading-relaxed whitespace-pre-wrap pb-4">
+          <p className="text-[14px] leading-relaxed whitespace-pre-wrap pb-4 font-bold">
             {post.content}
           </p>
 
@@ -430,30 +430,15 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
 };
 
 const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
-  <motion.button 
-    whileTap={{ scale: 0.92 }}
+  <button 
     onClick={onClick} 
     className="flex flex-col items-center justify-center flex-1 h-full gap-1 group relative"
   >
-    <motion.div 
-      animate={{ 
-        scale: active ? 1.1 : 1,
-        color: active ? 'var(--color-whatsapp-teal)' : 'var(--color-muted)'
-      }}
-      className="relative"
-    >
-      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
-      {active && (
-        <motion.div 
-          layoutId="nav-active-dot"
-          className="absolute -top-1 -right-1 w-2 h-2 bg-whatsapp-teal rounded-full"
-        />
-      )}
-    </motion.div>
-    <span className={`text-[10px] font-bold uppercase tracking-widest transition-colors ${active ? 'text-whatsapp-teal' : 'text-muted'}`}>
-      {label}
-    </span>
-  </motion.button>
+    <div className={`transition-all ${active ? 'text-whatsapp-teal' : 'text-muted'}`}>
+      <Icon size={24} strokeWidth={active ? 3 : 2} />
+    </div>
+    <span className={`text-[11px] font-bold tracking-tight ${active ? 'text-whatsapp-teal' : 'text-muted'}`}>{label}</span>
+  </button>
 );
 
 // --- MAIN DASHBOARD ---
@@ -1768,7 +1753,7 @@ function ExonaApp() {
                 <motion.h2 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
+                  className="text-5xl font-extrabold text-ink tracking-tight mb-2"
                 >
                   Sub-Admin Console
                 </motion.h2>
@@ -1795,11 +1780,11 @@ function ExonaApp() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + i * 0.1 }}
-                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 premium-shadow group hover:border-accent/20 transition-all"
+                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 group hover:border-accent/20 transition-all"
                 >
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">{stat.label}</p>
-                  <h3 className={`text-3xl font-serif italic text-${stat.color}`}>{stat.value}</h3>
-                  <div className="mt-8 h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                  <h3 className={`text-3xl font-extrabold text-${stat.color}`}>{stat.value}</h3>
+                  <div className="mt-8 h-1.5 w-full bg-white border border-gray-100 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: '60%' }}
@@ -1819,7 +1804,7 @@ function ExonaApp() {
                     <UserPlus size={24} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-serif italic text-ink">Pending Follow Requests</h3>
+                    <h3 className="text-2xl font-extrabold text-ink">Pending Follow Requests</h3>
                     <p className="text-[11px] font-bold text-muted uppercase tracking-widest">Approve users to see your content</p>
                   </div>
                 </div>
@@ -1833,7 +1818,7 @@ function ExonaApp() {
                         className="p-6 bg-white border border-gray-100 rounded-[2rem] shadow-sm flex items-center justify-between group hover:border-accent/20 transition-all"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-ink font-bold">
+                          <div className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-ink font-bold">
                             {pendingFollowerNames[followerUid]?.charAt(0) || '?'}
                           </div>
                           <div>
@@ -1867,7 +1852,7 @@ function ExonaApp() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               <div className="space-y-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-2xl font-serif italic text-ink">Your Institutions</h3>
+                  <h3 className="text-2xl font-extrabold text-ink">Your Institutions</h3>
                 </div>
                 <div className="grid gap-6">
                   {subAdminInstitutions.map(school => (
@@ -1879,9 +1864,9 @@ function ExonaApp() {
                     >
                       <div className="flex items-center gap-6">
                         <div className="relative group h-16 w-16">
-                          <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center text-ink font-bold text-2xl overflow-hidden border border-gray-100">
+                          <div className="h-16 w-16 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-2xl overflow-hidden">
                             {uploadingInstitutionId === school.id ? (
-                              <div className="h-full w-full bg-gray-50 flex flex-col items-center justify-center">
+                              <div className="h-full w-full bg-white border border-gray-100 flex flex-col items-center justify-center">
                                 <div className="w-10 h-1 bg-gray-100 rounded-full overflow-hidden">
                                   <motion.div 
                                     className="h-full bg-ink"
@@ -1940,7 +1925,7 @@ function ExonaApp() {
               </div>
 
               <div className="space-y-8">
-                <h3 className="text-2xl font-serif italic text-ink">Quick Actions</h3>
+                <h3 className="text-2xl font-extrabold text-ink">Quick Actions</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <button 
                     onClick={() => setView('records')}
@@ -2004,7 +1989,7 @@ function ExonaApp() {
                 <motion.h2 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-5xl font-serif italic text-ink tracking-tight mb-2"
+                  className="text-5xl font-extrabold text-ink tracking-tight mb-2"
                 >
                   Admin Terminal
                 </motion.h2>
@@ -2023,7 +2008,7 @@ function ExonaApp() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setIsSchoolModalOpen(true)}
-                className="flex items-center gap-3 px-10 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 transition-all"
+                className="flex items-center gap-3 px-10 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all"
               >
                 <Plus size={20} />
                 Register Institution
@@ -2042,16 +2027,16 @@ function ExonaApp() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + i * 0.1 }}
-                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 premium-shadow group hover:border-accent/20 transition-all"
+                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 group hover:border-accent/20 transition-all"
                 >
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">{stat.label}</p>
-                  <h3 className={`text-3xl font-serif italic text-${stat.color}`}>{stat.value}</h3>
-                  <div className="mt-8 h-1.5 w-full bg-gray-50 rounded-full overflow-hidden">
+                  <h3 className={`text-3xl font-extrabold text-${stat.color}`}>{stat.value}</h3>
+                  <div className="mt-8 h-1.5 w-full bg-white border border-gray-100 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: '60%' }}
                       transition={{ delay: 0.5 + i * 0.1, duration: 1 }}
-                      className={`h-full bg-${stat.color}`}
+                      className={`h-full bg-ink`}
                     />
                   </div>
                 </motion.div>
@@ -2064,31 +2049,31 @@ function ExonaApp() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 }}
-                  className="bg-white rounded-[3rem] border border-gray-100 premium-shadow overflow-hidden"
+                  className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden"
                 >
                   <div className="p-10 border-b border-gray-50 flex items-center justify-between">
-                    <h4 className="font-serif italic text-2xl text-ink tracking-tight">Registered Institutions</h4>
-                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-muted">
+                    <h4 className="font-extrabold text-2xl text-ink tracking-tight">Registered Institutions</h4>
+                    <div className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted">
                       <Search size={20} />
                     </div>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="bg-gray-50/50">
+                        <tr className="bg-white border-b border-gray-100">
                           <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">School</th>
                           <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Balance</th>
                           <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-gray-50">
+                      <tbody className="divide-y divide-gray-100">
                         {schools.map(school => {
                           const schoolFin = allFinance.find(f => f.schoolId === school.id);
                           return (
-                            <tr key={school.id} className="hover:bg-gray-50/50 transition-colors group">
+                            <tr key={school.id} className="hover:bg-white transition-colors group border-b border-gray-100">
                               <td className="px-10 py-8">
                                 <div className="flex items-center gap-6">
-                                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50 flex items-center justify-center">
+                                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
                                     {school.logo ? (
                                       <img src={school.logo} className="h-full w-full object-cover" />
                                     ) : (
@@ -2106,7 +2091,7 @@ function ExonaApp() {
                                 <div className="flex items-center gap-3">
                                   <button 
                                     onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                                    className="px-6 py-2.5 bg-gray-50 text-muted rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-ink hover:text-white transition-all shadow-sm"
+                                    className="px-6 py-2.5 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white hover:border-gray-300 transition-all"
                                   >
                                     Manage
                                   </button>
@@ -2115,7 +2100,7 @@ function ExonaApp() {
                                       setSchoolToManageSubAdmins(school);
                                       setIsSubAdminModalOpen(true);
                                     }}
-                                    className="px-6 py-2.5 bg-accent/5 text-accent rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-accent hover:text-white transition-all shadow-sm flex items-center gap-2"
+                                    className="px-6 py-2.5 bg-white border border-gray-100 text-accent rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white hover:border-gray-300 transition-all flex items-center gap-2"
                                     title="Appoint Sub-Admins"
                                   >
                                     <UserPlus size={14} />
@@ -2126,7 +2111,7 @@ function ExonaApp() {
                                       setSchoolToDelete(school.id);
                                       setIsDeleteSchoolModalOpen(true);
                                     }}
-                                    className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                    className="p-2.5 bg-white border border-gray-100 text-red-600 rounded-xl hover:bg-red-50 transition-all"
                                     title="Delete Institution"
                                   >
                                     <Trash2 size={14} />
@@ -2147,22 +2132,22 @@ function ExonaApp() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.7 }}
-                  className="bg-white p-10 rounded-[3rem] border border-gray-100 premium-shadow"
+                  className="bg-white p-10 rounded-[3rem] border border-gray-100"
                 >
-                  <h4 className="font-serif italic text-2xl text-ink tracking-tight mb-10">System Activity</h4>
+                  <h4 className="font-extrabold text-2xl text-ink tracking-tight mb-10">System Activity</h4>
                   <div className="space-y-10">
                     {posts.slice(0, 5).map((post, i) => (
                       <div key={post.id} className="flex gap-6 relative">
                         {i < 4 && <div className="absolute left-6 top-10 bottom-[-2.5rem] w-px bg-gray-100"></div>}
                         <div className="relative">
                           {post.authorPhoto ? (
-                            <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover shadow-sm border border-gray-100" />
+                            <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover border border-gray-100" />
                           ) : (
-                            <div className="h-12 w-12 rounded-2xl bg-gray-100 flex items-center justify-center text-ink font-bold text-xs border border-gray-100">
+                            <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-ink font-bold text-xs border border-gray-100">
                               {post.authorName?.charAt(0)}
                             </div>
                           )}
-                          <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+                          <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center border border-gray-100">
                             <div className="h-2 w-2 bg-accent rounded-full"></div>
                           </div>
                         </div>
@@ -2178,7 +2163,7 @@ function ExonaApp() {
                       </div>
                     ))}
                   </div>
-                  <button className="w-full mt-12 py-5 bg-gray-50 text-muted rounded-[1.5rem] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100">
+                  <button className="w-full mt-12 py-5 bg-white text-muted rounded-[1.5rem] text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white hover:border-gray-200 transition-all border border-gray-100">
                     View Audit Logs
                   </button>
                 </motion.div>
@@ -2209,7 +2194,7 @@ function ExonaApp() {
                 placeholder="Search institutions..." 
                 value={schoolSearch}
                 onChange={(e) => setSchoolSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-100 border-none rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400" 
+                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-100 rounded-2xl focus:ring-0 outline-none transition-all text-ink font-bold placeholder:text-gray-400" 
               />
             </div>
 
@@ -2221,7 +2206,7 @@ function ExonaApp() {
                   className={`px-6 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
                     schoolFilter === f 
                       ? 'bg-ink text-white' 
-                      : 'bg-white text-muted border border-gray-200 hover:bg-gray-50'
+                      : 'bg-white text-muted border border-gray-200 hover:bg-white hover:border-gray-300'
                   }`}
                 >
                   {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
@@ -2243,8 +2228,8 @@ function ExonaApp() {
                       className="flex items-center gap-4 cursor-pointer flex-1"
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                     >
-                      <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden border border-gray-100 shadow-sm ${
-                        school.logo ? 'bg-white' : 'bg-gray-200'
+                      <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden border border-gray-100 ${
+                        school.logo ? 'bg-white' : 'bg-white'
                       }`}>
                         {school.logo ? (
                           <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
@@ -2272,14 +2257,14 @@ function ExonaApp() {
                           {school.followers?.includes(user.uid) ? (
                             <button 
                               onClick={() => handleUnfollowInstitution(school)}
-                              className="px-4 py-2 bg-gray-100 text-muted rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                              className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
                             >
                               Unfollow
                             </button>
                           ) : school.pendingFollowers?.includes(user.uid) ? (
                             <button 
                               disabled
-                              className="px-4 py-2 bg-gray-50 text-muted/50 rounded-xl text-[12px] font-bold uppercase tracking-widest cursor-not-allowed"
+                              className="px-4 py-2 bg-white border border-gray-100 text-muted/50 rounded-xl text-[12px] font-bold uppercase tracking-widest cursor-not-allowed"
                             >
                               Pending
                             </button>
@@ -2295,7 +2280,7 @@ function ExonaApp() {
                       )}
                       <button 
                         onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                        className="px-6 py-2 bg-ink text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 active:scale-95"
+                        className="px-6 py-2 bg-ink text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-ink/90 transition-all active:scale-95"
                       >
                         Visit
                       </button>
@@ -2331,21 +2316,21 @@ function ExonaApp() {
                   <div className="flex items-center gap-2 ml-20">
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
                     >
                       <ClipboardList size={14} className="group-hover/btn:scale-110 transition-transform" />
                       <span className="text-[10px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
                     </button>
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('attendance'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
                     >
                       <Calendar size={14} className="group-hover/btn:scale-110 transition-transform" />
                       <span className="text-[10px] font-bold uppercase tracking-widest">Attendance</span>
                     </button>
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
                     >
                       <Wallet size={14} className="group-hover/btn:scale-110 transition-transform" />
                       <span className="text-[10px] font-bold uppercase tracking-widest">Finance</span>
@@ -2367,13 +2352,13 @@ function ExonaApp() {
 
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
-            <div className="flex items-center justify-between mb-6 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-6 bg-white p-3 rounded-xl border border-gray-100">
               <div className="flex items-center gap-3">
-                <button onClick={() => setView('schools')} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-whatsapp-teal">
+                <button onClick={() => setView('schools')} className="p-2 hover:bg-white border border-transparent hover:border-gray-100 rounded-full transition-colors text-whatsapp-teal">
                   <ChevronRight size={24} className="rotate-180" />
                 </button>
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
                     {selectedSchool.logo ? (
                       <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
@@ -2382,7 +2367,7 @@ function ExonaApp() {
                   </div>
                   <div>
                     <h2 className="font-bold text-ink text-base leading-tight">{selectedSchool.name}</h2>
-                    <p className="text-[10px] text-muted font-medium">Online</p>
+                    <p className="text-[10px] text-muted font-bold">Online</p>
                   </div>
                 </div>
               </div>
@@ -2392,14 +2377,14 @@ function ExonaApp() {
                     {isFollowing ? (
                       <button 
                         onClick={() => handleUnfollowInstitution(selectedSchool)}
-                        className="px-4 py-2 bg-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                        className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
                       >
                         Unfollow
                       </button>
                     ) : selectedSchool.pendingFollowers?.includes(user.uid) ? (
                       <button 
                         disabled
-                        className="px-4 py-2 bg-gray-50 text-muted/50 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
+                        className="px-4 py-2 bg-white border border-gray-100 text-muted/50 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
                       >
                         Pending
                       </button>
@@ -2429,16 +2414,16 @@ function ExonaApp() {
             </div>
 
             {!canSeeContent ? (
-              <div className="py-20 text-center bg-white border border-gray-100 rounded-[2.5rem] px-8 shadow-sm">
-                <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-muted mx-auto mb-6">
+              <div className="py-20 text-center bg-white border border-gray-100 rounded-[2.5rem] px-8">
+                <div className="h-20 w-20 bg-white border border-gray-100 rounded-[2.5rem] flex items-center justify-center text-muted mx-auto mb-6">
                   <Shield size={32} />
                 </div>
-                <h3 className="text-xl font-serif italic text-ink mb-2">Follow to see content</h3>
-                <p className="text-sm text-muted mb-8">This institution's posts are only visible to approved followers.</p>
+                <h3 className="text-xl font-bold text-ink mb-2">Follow to see content</h3>
+                <p className="text-sm text-muted font-bold mb-8">This institution's posts are only visible to approved followers.</p>
                 {!selectedSchool.pendingFollowers?.includes(user?.uid || '') && (
                   <button 
                     onClick={() => handleFollowInstitution(selectedSchool)}
-                    className="px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+                    className="px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all"
                   >
                     Request Access
                   </button>
@@ -2482,14 +2467,14 @@ function ExonaApp() {
                 <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
                 <div className="flex items-center gap-2">
                   <p className="text-ink text-[14px]">{selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '')}</p>
-                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">exona.io</span>
+                  <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
                 </div>
               </div>
               <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
                 {selectedUserProfile.photo ? (
                   <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="h-full w-full bg-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
+                  <div className="h-full w-full bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
                     {selectedUserProfile.name?.charAt(0)}
                   </div>
                 )}
@@ -2503,7 +2488,7 @@ function ExonaApp() {
             <div className="flex items-center gap-4 mb-8">
               <div className="flex -space-x-2">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-gray-200" />
+                  <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-white border border-gray-100" />
                 ))}
               </div>
               <p className="text-muted text-[14px] hover:underline cursor-pointer">
@@ -2584,7 +2569,7 @@ function ExonaApp() {
                       className="flex-shrink-0 w-16 text-center group"
                     >
                       <div className="h-14 w-14 p-0.5 rounded-full border-2 border-whatsapp-teal flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white">
-                        <div className="h-full w-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
+                        <div className="h-full w-full rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
                           {school.logo ? (
                             <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
@@ -2607,9 +2592,7 @@ function ExonaApp() {
                   setLinkCopied(true);
                   setTimeout(() => setLinkCopied(false), 3000);
                 }}
-                className={`w-full p-4 transition-all text-left flex items-center gap-4 border-b border-gray-100 ${
-                  isQualified ? 'bg-green-50' : 'bg-whatsapp-teal/5'
-                }`}
+                className={`w-full p-4 transition-all text-left flex items-center gap-4 border-b border-gray-100 bg-white`}
               >
                 <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shrink-0 ${
                   isQualified ? 'bg-green-600' : 'bg-whatsapp-teal'
@@ -2632,9 +2615,9 @@ function ExonaApp() {
               {/* Special Items */}
               <button 
                 onClick={() => setView('feed')}
-                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+                className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
               >
-                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
+                <div className="h-12 w-12 bg-white border border-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
                   <GraduationCap size={24} />
                 </div>
                 <div className="flex-1">
@@ -2647,9 +2630,9 @@ function ExonaApp() {
               </button>
               <button 
                 onClick={() => setView('records')}
-                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+                className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
               >
-                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
+                <div className="h-12 w-12 bg-white border border-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
                   <Search size={24} />
                 </div>
                 <div className="flex-1">
@@ -2668,9 +2651,9 @@ function ExonaApp() {
                   <button 
                     key={school.id}
                     onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+                    className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
                   >
-                    <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                    <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
                       {school.logo ? (
                         <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -2694,8 +2677,8 @@ function ExonaApp() {
 
               {/* Empty State / Explore */}
               {(!userDoc?.following || userDoc.following.length === 0) && (
-                <div className="py-12 px-8 text-center bg-gray-50/50">
-                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-muted mx-auto mb-4 shadow-sm">
+                <div className="py-12 px-8 text-center bg-white border border-gray-100 rounded-3xl mt-4">
+                  <div className="h-16 w-16 bg-white border border-gray-100 rounded-full flex items-center justify-center text-muted mx-auto mb-4">
                     <MessageSquare size={24} />
                   </div>
                   <h3 className="text-lg font-bold text-ink mb-2">No active updates</h3>
@@ -2717,16 +2700,16 @@ function ExonaApp() {
         if (!selectedSchool) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center">
-              <div className="h-24 w-24 bg-white rounded-full flex items-center justify-center text-whatsapp-teal mb-8 shadow-lg">
+              <div className="h-24 w-24 bg-white border border-gray-100 rounded-full flex items-center justify-center text-whatsapp-teal mb-8">
                 <Database size={48} strokeWidth={1.5} />
               </div>
               <h2 className="text-2xl font-bold text-ink mb-3">Select an Institution</h2>
-              <p className="text-muted text-[14px] max-w-xs mb-10 leading-relaxed">
+              <p className="text-muted text-[14px] font-bold max-w-xs mb-10 leading-relaxed">
                 To access institutional records, please first select an institution from your directory.
               </p>
               <button 
                 onClick={() => setView('schools')}
-                className="px-10 py-4 bg-whatsapp-teal text-white rounded-full font-bold text-sm shadow-lg hover:bg-whatsapp-dark transition-all"
+                className="px-10 py-4 bg-whatsapp-teal text-white rounded-full font-bold text-sm hover:bg-whatsapp-dark transition-all"
               >
                 Open Directory
               </button>
@@ -2747,18 +2730,18 @@ function ExonaApp() {
             icon={Database}
             toolbar={
               <div className="flex items-center gap-6">
-                <div className="flex gap-1 bg-gray-200/50 p-1 rounded-lg">
+                <div className="flex gap-1 bg-white border border-gray-100 p-1 rounded-lg">
                   {(['general', 'books', 'uniforms'] as const).map(tab => (
                     <button 
                       key={tab}
                       onClick={() => setRecordTab(tab)}
-                      className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                      className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
                     >
                       {tab === 'general' ? 'Home' : tab === 'books' ? labels.books : labels.uniforms}
                     </button>
                   ))}
                 </div>
-                <div className="h-6 w-[1px] bg-gray-200" />
+                <div className="h-6 w-[1px] bg-gray-100" />
                 <div className="flex items-center gap-2">
                   <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
@@ -2784,8 +2767,8 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-serif italic text-ink mb-2">{selectedSchool.name}</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">{recordTab} Records • {new Date().toLocaleDateString()}</p>
+              <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{recordTab} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
@@ -2796,7 +2779,7 @@ function ExonaApp() {
               ].map((stat, i) => (
                 <div key={i} className="border-l border-gray-100 pl-6">
                   <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                  <p className="text-2xl font-serif italic text-ink">{stat.value}</p>
+                  <p className="text-2xl font-extrabold text-ink">{stat.value}</p>
                 </div>
               ))}
             </div>
@@ -2804,7 +2787,7 @@ function ExonaApp() {
             <div className="overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
+                  <tr className="bg-white border-b border-gray-200">
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.student}</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
@@ -2818,12 +2801,12 @@ function ExonaApp() {
                   {filteredRecords.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-6 py-20 text-center">
-                        <p className="font-serif italic text-lg text-muted">No records found in this section</p>
+                        <p className="font-bold text-lg text-muted">No records found in this section</p>
                       </td>
                     </tr>
                   ) : (
                     filteredRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
                         <td className="px-6 py-4">
                           <span className="font-bold text-ink text-sm">{record.studentName}</span>
                         </td>
@@ -2834,7 +2817,7 @@ function ExonaApp() {
                         <td className="px-6 py-4 font-mono font-bold text-red-600 text-[13px]">₦{record.balance.toLocaleString()}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded-full bg-gray-100 flex items-center justify-center text-[8px] font-bold text-ink">
+                            <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[8px] font-bold text-ink">
                               {record.addedBy?.charAt(0) || 'A'}
                             </div>
                             <span className="text-[10px] font-medium text-ink">{record.addedBy || 'Admin'}</span>
@@ -2884,16 +2867,16 @@ function ExonaApp() {
         if (!selectedSchool) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center">
-              <div className="h-24 w-24 bg-gray-50 rounded-[2rem] flex items-center justify-center text-muted mb-8">
+              <div className="h-24 w-24 bg-white border border-gray-100 rounded-[2rem] flex items-center justify-center text-muted mb-8">
                 <Wallet size={48} strokeWidth={1} />
               </div>
-              <h2 className="text-3xl font-serif italic text-ink mb-4">Select an Institution</h2>
-              <p className="text-muted text-sm font-medium max-w-xs mb-10 leading-relaxed">
+              <h2 className="text-3xl font-extrabold text-ink mb-4">Select an Institution</h2>
+              <p className="text-muted text-sm font-bold max-w-xs mb-10 leading-relaxed">
                 To access financial data, please first select an institution from your directory.
               </p>
               <button 
                 onClick={() => setView('schools')}
-                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:scale-105 transition-transform"
               >
                 Open Directory
               </button>
@@ -2912,7 +2895,7 @@ function ExonaApp() {
                     <ArrowUpRight size={14} />
                     Deposit
                   </button>
-                  <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center gap-2">
+                  <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all flex items-center gap-2">
                     <TrendingDown size={14} />
                     Withdraw
                   </button>
@@ -2926,8 +2909,8 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-serif italic text-ink mb-2">{selectedSchool.name}</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Financial Statement • {new Date().toLocaleDateString()}</p>
+              <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Financial Statement • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="bg-ink rounded-sm p-12 text-white mb-16 relative overflow-hidden">
@@ -2952,7 +2935,7 @@ function ExonaApp() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
               <div className="space-y-8">
-                <h4 className="font-serif italic text-2xl text-ink border-b border-gray-100 pb-4">Bank Information</h4>
+                <h4 className="font-extrabold text-2xl text-ink border-b border-gray-100 pb-4">Bank Information</h4>
                 <div className="space-y-6">
                   <div>
                     <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Bank Name</p>
@@ -2969,10 +2952,10 @@ function ExonaApp() {
                 </div>
               </div>
               <div className="space-y-8">
-                <h4 className="font-serif italic text-2xl text-ink border-b border-gray-100 pb-4">Recent Activity</h4>
-                <div className="flex flex-col items-center justify-center py-12 bg-gray-50/50 rounded-sm border border-dashed border-gray-200">
+                <h4 className="font-extrabold text-2xl text-ink border-b border-gray-100 pb-4">Recent Activity</h4>
+                <div className="flex flex-col items-center justify-center py-12 bg-white rounded-sm border border-dashed border-gray-200">
                   <Database size={32} className="text-gray-200 mb-4" />
-                  <p className="font-serif italic text-lg text-muted">No recent transactions</p>
+                  <p className="font-bold text-lg text-muted">No recent transactions</p>
                 </div>
               </div>
             </div>
@@ -2995,16 +2978,16 @@ function ExonaApp() {
         if (!selectedSchool) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center">
-              <div className="h-24 w-24 bg-gray-50 rounded-[2rem] flex items-center justify-center text-muted mb-8">
+              <div className="h-24 w-24 bg-white border border-gray-100 rounded-[2rem] flex items-center justify-center text-muted mb-8">
                 <Compass size={48} strokeWidth={1} />
               </div>
-              <h2 className="text-3xl font-serif italic text-ink mb-4">Select an Institution</h2>
-              <p className="text-muted text-sm font-medium max-w-xs mb-10 leading-relaxed">
+              <h2 className="text-3xl font-extrabold text-ink mb-4">Select an Institution</h2>
+              <p className="text-muted text-sm font-bold max-w-xs mb-10 leading-relaxed">
                 To view or record attendance, please first select an institution from your directory.
               </p>
               <button 
                 onClick={() => setView('schools')}
-                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 hover:scale-105 transition-transform"
+                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:scale-105 transition-transform"
               >
                 Open Directory
               </button>
@@ -3050,8 +3033,8 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-serif italic text-ink mb-2">{selectedSchool.name}</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">{labels.attendance} Log • {new Date().toLocaleDateString()}</p>
+              <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{labels.attendance} Log • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
@@ -3062,7 +3045,7 @@ function ExonaApp() {
               ].map((stat, i) => (
                 <div key={i} className="border-l border-gray-100 pl-6">
                   <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                  <p className="text-2xl font-serif italic text-ink">{stat.value}</p>
+                  <p className="text-2xl font-extrabold text-ink">{stat.value}</p>
                 </div>
               ))}
             </div>
@@ -3070,7 +3053,7 @@ function ExonaApp() {
             <div className="overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
+                  <tr className="bg-white border-b border-gray-200">
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
@@ -3081,18 +3064,18 @@ function ExonaApp() {
                   {filteredAttendance.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-20 text-center">
-                        <p className="font-serif italic text-lg text-muted">No attendance records found</p>
+                        <p className="font-bold text-lg text-muted">No attendance records found</p>
                       </td>
                     </tr>
                   ) : (
                     filteredAttendance.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50/50 transition-colors group">
+                      <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
                         <td className="px-6 py-4">
                           <span className="font-bold text-ink text-sm">{record.teacherName}</span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                            record.status === 'present' ? 'bg-green-50 text-green-600 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'
+                            record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
                           }`}>
                             {record.status}
                           </span>
@@ -3133,7 +3116,7 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-serif italic text-ink mb-2">Exona AI Terminal</h1>
+              <h1 className="text-4xl font-extrabold text-ink mb-2">Exona AI Terminal</h1>
               <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Active Session • {new Date().toLocaleDateString()}</p>
             </div>
 
@@ -3141,14 +3124,14 @@ function ExonaApp() {
               {aiMessages.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 opacity-20">
                   <Cpu size={64} strokeWidth={1} className="mb-6" />
-                  <p className="font-serif italic text-xl">System Ready</p>
+                  <p className="font-bold text-xl">System Ready</p>
                 </div>
               )}
               {aiMessages.map((msg, i) => (
                 <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-2">{msg.role === 'user' ? 'User Query' : 'AI Response'}</p>
                   <div className={`max-w-[85%] p-6 border ${
-                    msg.role === 'user' ? 'bg-gray-50 border-gray-200 text-ink' : 'bg-white border-ink/10 text-ink font-serif italic text-lg'
+                    msg.role === 'user' ? 'bg-white border-gray-200 text-ink' : 'bg-white border-ink/10 text-ink font-extrabold text-lg'
                   }`}>
                     {msg.text}
                   </div>
@@ -3171,7 +3154,7 @@ function ExonaApp() {
                   onChange={(e) => setAiInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
                   placeholder="Type your inquiry here..." 
-                  className="flex-1 px-6 py-4 bg-gray-50 border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-medium"
+                  className="flex-1 px-6 py-4 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
                 />
                 <button 
                   onClick={handleAiSend}
@@ -3193,21 +3176,21 @@ function ExonaApp() {
             icon={ShieldCheck}
             toolbar={
               <div className="flex items-center gap-4">
-                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Filter</button>
-                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Export</button>
+                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all">Filter</button>
+                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all">Export</button>
               </div>
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12 text-center">
-              <h1 className="text-4xl font-serif italic text-ink mb-2">Institutional Conduct Report</h1>
+              <h1 className="text-4xl font-extrabold text-ink mb-2">Institutional Conduct Report</h1>
               <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Confidential • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="flex flex-col items-center justify-center py-32 text-center">
-              <div className="h-24 w-24 bg-green-50 text-green-600 rounded-full flex items-center justify-center mb-8 border border-green-100">
+              <div className="h-24 w-24 bg-white text-green-600 rounded-full flex items-center justify-center mb-8 border border-gray-100">
                 <ShieldCheck size={48} strokeWidth={1.5} />
               </div>
-              <h3 className="font-serif italic text-3xl text-ink mb-4">Exemplary Record</h3>
+              <h3 className="font-extrabold text-3xl text-ink mb-4">Exemplary Record</h3>
               <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
                 You have no active penalties or disciplinary notices. Your commitment to institutional standards is noted and appreciated.
               </p>
@@ -3235,13 +3218,13 @@ function ExonaApp() {
                 <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
                 <div className="flex items-center gap-2">
                   <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                  <span className="px-2 py-0.5 bg-gray-100 rounded-full text-muted text-[11px] font-medium">exona.io</span>
+                  <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
                 </div>
               </div>
               <div className="relative group h-20 w-20">
                 <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
                   {isUploadingProfile ? (
-                    <div className="h-full w-full bg-gray-50 flex flex-col items-center justify-center">
+                    <div className="h-full w-full bg-white border border-gray-100 flex flex-col items-center justify-center">
                       <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
                         <motion.div 
                           className="h-full bg-ink"
@@ -3254,7 +3237,7 @@ function ExonaApp() {
                   ) : user.photoURL ? (
                     <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <div className="h-full w-full bg-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
+                    <div className="h-full w-full bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
                       {user.displayName?.charAt(0)}
                     </div>
                   )}
@@ -3345,7 +3328,7 @@ function ExonaApp() {
             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center"
           >
-            <h1 className="text-7xl font-serif italic tracking-tighter text-white mb-2">Exona</h1>
+            <h1 className="text-7xl font-extrabold tracking-tighter text-white mb-2">Exona</h1>
             <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/40 to-transparent mb-8"></div>
           </motion.div>
           
@@ -3388,7 +3371,7 @@ function ExonaApp() {
             animate={{ opacity: 1, scale: 1 }} 
             className="w-full max-w-sm text-center"
           >
-            <h1 className="text-4xl font-serif italic mb-8">Exona</h1>
+            <h1 className="text-4xl font-extrabold mb-8">Exona</h1>
             <div className="bg-white border border-border p-10 rounded-xl mb-4">
               <h2 className="text-xl font-bold mb-4">Check your email</h2>
               <p className="text-muted text-sm mb-8 leading-relaxed">
@@ -3437,7 +3420,7 @@ function ExonaApp() {
           className="w-full max-w-sm"
         >
           <div className="bg-white border border-border p-10 rounded-sm mb-4 flex flex-col items-center">
-            <h1 className="text-5xl font-serif italic mb-12 mt-4">Exona</h1>
+            <h1 className="text-5xl font-extrabold mb-12 mt-4">Exona</h1>
             
             {authError && (
               <div className="mb-6 p-3 w-full bg-red-50 border border-red-100 rounded text-red-600 text-xs text-center">
@@ -3452,23 +3435,23 @@ function ExonaApp() {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="Full Name"
-                  className="w-full px-3 py-2.5 bg-gray-50 border border-border rounded-sm outline-none focus:border-muted transition-all text-sm"
+                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
                 />
               )}
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email address"
-                className="w-full px-3 py-2.5 bg-gray-50 border border-border rounded-sm outline-none focus:border-muted transition-all text-sm"
-              />
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="w-full px-3 py-2.5 bg-gray-50 border border-border rounded-sm outline-none focus:border-muted transition-all text-sm"
-              />
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
+                />
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
+                />
             </div>
 
             <button 
@@ -3521,7 +3504,7 @@ function ExonaApp() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       {/* Modals */}
       <AnimatePresence>
         {isDeleteModalOpen && (
@@ -3531,12 +3514,12 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100"
             >
-              <div className="h-20 w-20 bg-red-50 rounded-[1.5rem] flex items-center justify-center text-red-600 mb-8 shadow-xl shadow-red-100">
+              <div className="h-20 w-20 bg-red-50 rounded-[1.5rem] flex items-center justify-center text-red-600 mb-8">
                 <AlertTriangle size={32} />
               </div>
-              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Terminate Identity?</h3>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Terminate Identity?</h3>
               <p className="text-muted font-medium mb-10 leading-relaxed">
                 This protocol is permanent and cannot be reversed. Are you absolutely certain you wish to purge your Exona identity from the mainframe?
               </p>
@@ -3569,7 +3552,7 @@ function ExonaApp() {
                 <button 
                   onClick={handleDeleteAccount}
                   disabled={isDeleting}
-                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 disabled:opacity-50 transition-all active:scale-[0.98]"
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-red-700 disabled:opacity-50 transition-all active:scale-[0.98]"
                 >
                   {isDeleting ? 'Purging...' : 'Confirm Termination'}
                 </button>
@@ -3580,7 +3563,7 @@ function ExonaApp() {
                     setAuthError(null);
                   }}
                   disabled={isDeleting}
-                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 disabled:opacity-50 transition-all border border-gray-100"
+                  className="w-full py-5 bg-white text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 disabled:opacity-50 transition-all border border-gray-100"
                 >
                   Abort Protocol
                 </button>
@@ -3596,16 +3579,16 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-6xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-6xl bg-white rounded-[3.5rem] p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">{editingPost ? 'Refine Broadcast' : 'Initialize Broadcast'}</h3>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">{editingPost ? 'Refine Broadcast' : 'Initialize Broadcast'}</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Horizon Network Transmission</p>
                 </div>
                 <button 
                   onClick={() => setIsPostModalOpen(false)} 
-                  className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"
+                  className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-50 transition-all border border-gray-100 active:scale-90"
                 >
                   <X size={20} />
                 </button>
@@ -3616,7 +3599,7 @@ function ExonaApp() {
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   placeholder="What's happening in your school?"
-                  className="w-full h-56 p-8 bg-gray-50 rounded-[2.5rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-lg font-medium resize-none placeholder:text-gray-300 leading-relaxed"
+                  className="w-full h-56 p-8 bg-white rounded-[2.5rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-gray-100 transition-all text-lg font-bold resize-none placeholder:text-gray-300 leading-relaxed"
                 />
                 <div className="absolute bottom-6 right-8 flex items-center gap-3">
                   <div className={`text-[10px] font-bold tracking-widest uppercase ${newPostContent.length > 450 ? 'text-red-500' : 'text-muted'}`}>
@@ -3636,7 +3619,7 @@ function ExonaApp() {
               </div>
 
               {previewUrl && (
-                <div className="mb-8 bg-gray-50 rounded-[2.5rem] overflow-hidden border border-gray-100 relative group premium-shadow ring-4 ring-accent/5">
+                <div className="mb-8 bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 relative group ring-4 ring-accent/5">
                   {/* Try to determine media type from selectedFile or editingPost */}
                   {(selectedFile?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedFile)) ? (
                     <img src={previewUrl} className="w-full h-72 object-cover" />
@@ -3686,7 +3669,7 @@ function ExonaApp() {
                           <span className="text-white text-xs font-bold">{Math.round(uploadProgress)}%</span>
                         </div>
                       </motion.div>
-                      <h4 className="text-white text-sm font-serif italic mb-2">Uploading Media...</h4>
+                      <h4 className="text-white text-sm font-extrabold mb-2">Uploading Media...</h4>
                       <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.4em]">Horizon Network Transmission</p>
                     </div>
                   )}
@@ -3707,7 +3690,7 @@ function ExonaApp() {
                 <button 
                   onClick={handleCreatePost}
                   disabled={!newPostContent.trim() || isUploading}
-                  className="px-12 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] shadow-2xl shadow-ink/20 hover:bg-ink/90 disabled:opacity-50 transition-all flex items-center gap-3 active:scale-[0.98]"
+                  className="px-12 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 disabled:opacity-50 transition-all flex items-center gap-3 active:scale-[0.98]"
                 >
                   {isUploading ? (
                     <>
@@ -3738,13 +3721,13 @@ function ExonaApp() {
               <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
                 <Trash2 size={32} />
               </div>
-              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Retract Broadcast?</h3>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Retract Broadcast?</h3>
               <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove the transmission from the Horizon network. Are you sure?</p>
               
               <div className="flex flex-col gap-4">
                 <button 
                   onClick={handleDeletePost}
-                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 transition-all active:scale-[0.98]"
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-red-700 transition-all active:scale-[0.98]"
                 >
                   Confirm Retraction
                 </button>
@@ -3753,7 +3736,7 @@ function ExonaApp() {
                     setIsDeletePostModalOpen(false);
                     setPostToDelete(null);
                   }}
-                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100"
+                  className="w-full py-5 bg-white text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-all border border-gray-100"
                 >
                   Abort
                 </button>
@@ -3769,18 +3752,18 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">
                     {editingRecord 
                       ? `Edit ${recordTab === 'general' ? 'General' : recordTab === 'books' ? labels.books : labels.uniforms} Record` 
                       : `Add ${recordTab === 'general' ? 'General' : recordTab === 'books' ? labels.books : labels.uniforms} Record`}
                   </h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
-                <button onClick={() => setIsRecordModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                <button onClick={() => setIsRecordModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
                   <X size={20} />
                 </button>
               </div>
@@ -3792,7 +3775,7 @@ function ExonaApp() {
                     value={newRecord.studentName}
                     onChange={(e) => setNewRecord({...newRecord, studentName: e.target.value})}
                     placeholder="Full Legal Name"
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                   />
                 </div>
                 <div className="group">
@@ -3818,8 +3801,8 @@ function ExonaApp() {
                               }}
                               className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
                                 isSelected
-                                  ? 'bg-ink text-white border-ink shadow-md'
-                                  : 'bg-gray-50 text-muted border-transparent hover:bg-gray-100'
+                                  ? 'bg-ink text-white border-ink'
+                                  : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
                               }`}
                             >
                               {level}
@@ -3832,7 +3815,7 @@ function ExonaApp() {
                         value={newRecord.category}
                         onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
                         placeholder="Or specify exact class (e.g. SS3 A)"
-                        className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                        className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                       />
                     </div>
                   ) : (
@@ -3893,12 +3876,12 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100 text-center"
             >
-              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
                 <Trash2 size={32} />
               </div>
-              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Record?</h3>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Erase Record?</h3>
               <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove the {labels.student.toLowerCase()} information from the institutional database. Are you sure?</p>
               
               <div className="flex flex-col gap-4">
@@ -3938,12 +3921,12 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100 text-center"
             >
-              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
                 <Trash2 size={32} />
               </div>
-              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Institution?</h3>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Erase Institution?</h3>
               <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove this institution and all its associated data from the system. Are you sure?</p>
               
               <div className="flex flex-col gap-4">
@@ -3980,12 +3963,12 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100 text-center"
             >
-              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
                 <Trash2 size={32} />
               </div>
-              <h3 className="text-3xl font-serif italic text-ink mb-3 tracking-tight">Erase Place?</h3>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Erase Place?</h3>
               <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove this place from the system. Are you sure?</p>
               
               <div className="flex flex-col gap-4">
@@ -4022,11 +4005,11 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Register Institution'}</h3>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Register Institution'}</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Global Network Expansion</p>
                 </div>
                 <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
@@ -4071,8 +4054,8 @@ function ExonaApp() {
                           }}
                           className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
                             (newSchool.educationalLevels || []).includes(level)
-                              ? 'bg-ink text-white border-ink shadow-lg shadow-ink/10'
-                              : 'bg-gray-50 text-muted border-transparent hover:bg-gray-100'
+                              ? 'bg-ink text-white border-ink'
+                              : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
                           }`}
                         >
                           {level}
@@ -4088,7 +4071,7 @@ function ExonaApp() {
                     value={newSchool.name}
                     onChange={(e) => setNewSchool({...newSchool, name: e.target.value})}
                     placeholder="e.g. Horizon International"
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                   />
                 </div>
                 <div className="group">
@@ -4097,13 +4080,13 @@ function ExonaApp() {
                     value={newSchool.description}
                     onChange={(e) => setNewSchool({...newSchool, description: e.target.value})}
                     placeholder="Brief institutional overview..."
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium resize-none h-32 leading-relaxed"
+                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold resize-none h-32 leading-relaxed"
                   />
                 </div>
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Visual Identity</label>
-                  <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border border-transparent hover:border-gray-100 transition-all">
-                    <div className="h-20 w-20 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-gray-100 shadow-sm">
+                  <div className="flex items-center gap-6 p-6 bg-white border border-gray-100 rounded-[2rem] transition-all">
+                    <div className="h-20 w-20 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-gray-100">
                       {previewUrl || newSchool.logo ? (
                         <img src={previewUrl || newSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -4111,7 +4094,7 @@ function ExonaApp() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <label className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-xl text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm hover:shadow-md transition-all cursor-pointer border border-gray-100">
+                      <label className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-xl text-[10px] font-bold uppercase tracking-widest text-ink transition-all cursor-pointer border border-gray-100">
                         <Upload size={14} />
                         Upload Logo
                         <input 
@@ -4137,7 +4120,7 @@ function ExonaApp() {
                 <button 
                   onClick={handleCreateSchool}
                   disabled={!newSchool.name.trim() || isUploading}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
                   {isUploading ? (
                     <>
@@ -4172,14 +4155,14 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">Record Attendance</h3>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">Record Attendance</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Presence Log</p>
                 </div>
-                <button onClick={() => setIsAttendanceModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                <button onClick={() => setIsAttendanceModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
                   <X size={20} />
                 </button>
               </div>
@@ -4191,7 +4174,7 @@ function ExonaApp() {
                     value={newAttendance.teacherName}
                     onChange={(e) => setNewAttendance({...newAttendance, teacherName: e.target.value})}
                     placeholder="Full Legal Name"
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                   />
                 </div>
                 <div>
@@ -4203,8 +4186,8 @@ function ExonaApp() {
                         onClick={() => setNewAttendance({ ...newAttendance, status: s })}
                         className={`py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
                           newAttendance.status === s 
-                            ? 'bg-ink text-white border-ink shadow-xl shadow-ink/10' 
-                            : 'bg-gray-50 text-muted border-transparent hover:bg-gray-100'
+                            ? 'bg-ink text-white border-ink' 
+                            : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
                         }`}
                       >
                         {s}
@@ -4217,7 +4200,7 @@ function ExonaApp() {
                 <button 
                   onClick={handleCreateAttendance}
                   disabled={!newAttendance.teacherName.trim() || isUploading}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
                   {isUploading ? (
                     <>
@@ -4240,14 +4223,14 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-2xl bg-white rounded-[3.5rem] premium-shadow p-12 border border-gray-100"
+              className="w-full max-w-2xl bg-white rounded-[3.5rem] p-12 border border-gray-100"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">Appoint Sub-Admins</h3>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">Appoint Sub-Admins</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">{schoolToManageSubAdmins.name} Authority Management</p>
                 </div>
-                <button onClick={() => setIsSubAdminModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                <button onClick={() => setIsSubAdminModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
                   <X size={20} />
                 </button>
               </div>
@@ -4261,7 +4244,7 @@ function ExonaApp() {
                       value={subAdminEmail}
                       onChange={(e) => setSubAdminEmail(e.target.value)}
                       placeholder="e.g. intisanud@gmail.com"
-                      className="flex-1 px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
+                      className="flex-1 px-8 py-5 bg-white rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-gray-100 focus:border-gray-200 transition-all text-sm font-bold"
                     />
                     <button 
                       onClick={handleAddSubAdmin}
@@ -4283,10 +4266,10 @@ function ExonaApp() {
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
                           key={idx} 
-                          className="flex items-center justify-between p-5 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                          className="flex items-center justify-between p-5 bg-white rounded-2xl border border-gray-100 hover:border-gray-200 transition-all group"
                         >
                           <div className="flex items-center gap-4">
-                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-ink font-bold text-xs shadow-sm">
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-ink font-bold text-xs border border-gray-100">
                               {email.charAt(0).toUpperCase()}
                             </div>
                             <span className="text-sm font-medium text-ink">{email}</span>
@@ -4300,8 +4283,8 @@ function ExonaApp() {
                         </motion.div>
                       ))
                     ) : (
-                      <div className="text-center py-10 bg-gray-50 rounded-[2rem] border border-dashed border-gray-200">
-                        <p className="text-sm text-muted italic">No sub-admins appointed yet</p>
+                      <div className="text-center py-10 bg-white rounded-[2rem] border border-dashed border-gray-200">
+                        <p className="text-sm text-muted font-bold">No sub-admins appointed yet</p>
                       </div>
                     )}
                   </div>
@@ -4318,14 +4301,14 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] premium-shadow flex flex-col max-h-[85vh] border border-gray-100"
+              className="w-full max-w-4xl bg-white rounded-[3.5rem] flex flex-col max-h-[85vh] border border-gray-100"
             >
               <div className="p-10 border-b border-gray-50 flex items-center justify-between">
                 <div>
-                  <h3 className="text-3xl font-serif italic text-ink mb-1">Broadcast Replies</h3>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">Broadcast Replies</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Community Interactions</p>
                 </div>
-                <button onClick={() => setIsCommentModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                <button onClick={() => setIsCommentModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-50 transition-all border border-gray-100 active:scale-90">
                   <X size={20} />
                 </button>
               </div>
@@ -4334,25 +4317,25 @@ function ExonaApp() {
                 {postComments.length === 0 ? (
                   <div className="text-center py-20 opacity-20">
                     <MessageCircle size={64} strokeWidth={1} className="mx-auto mb-6" />
-                    <p className="font-serif italic text-xl">No replies yet. Start the conversation.</p>
+                    <p className="font-bold text-xl">No replies yet. Start the conversation.</p>
                   </div>
                 ) : (
                   postComments.map(comment => (
                     <div key={comment.id} className="flex gap-6 group">
                       <div className="relative">
                         {comment.authorPhoto ? (
-                          <img src={comment.authorPhoto} className="h-14 w-14 rounded-2xl object-cover shadow-sm border border-gray-100" referrerPolicy="no-referrer" />
+                          <img src={comment.authorPhoto} className="h-14 w-14 rounded-2xl object-cover border border-gray-100" referrerPolicy="no-referrer" />
                         ) : (
-                          <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-serif italic text-2xl border border-accent/10">
+                          <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-extrabold text-2xl border border-accent/10">
                             {comment.authorName?.charAt(0)}
                           </div>
                         )}
-                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center shadow-sm">
+                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center border border-gray-100">
                           <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                         </div>
                       </div>
                       <div className="flex-1">
-                        <div className="bg-gray-50/50 rounded-[2rem] p-8 border border-gray-100 group-hover:bg-white group-hover:premium-shadow transition-all duration-500">
+                        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-gray-200 transition-all duration-500">
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-[15px] font-bold text-ink tracking-tight">{comment.authorName}</p>
                             <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
@@ -4379,7 +4362,7 @@ function ExonaApp() {
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder="Share your perspective..."
-                      className="w-full pl-10 pr-20 py-6 bg-gray-50 rounded-[2rem] border border-transparent outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-100 transition-all text-[15px] font-medium placeholder:text-gray-300"
+                      className="w-full pl-10 pr-20 py-6 bg-white rounded-[2rem] border border-gray-100 outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-[15px] font-bold placeholder:text-gray-300"
                       onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                     />
                     <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3">
@@ -4389,7 +4372,7 @@ function ExonaApp() {
                   <button 
                     onClick={handleAddComment}
                     disabled={!commentText.trim()}
-                    className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center shadow-2xl shadow-ink/10 hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90"
+                    className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90"
                   >
                     <Send size={24} />
                   </button>
@@ -4414,7 +4397,7 @@ function ExonaApp() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-80 bg-white shadow-2xl z-[160] flex flex-col border-r border-gray-100"
+              className="fixed inset-y-0 left-0 w-80 bg-white z-[160] flex flex-col border-r border-gray-100"
             >
               <div className="p-6 bg-whatsapp-dark text-white flex flex-col gap-4">
                 <div className="flex items-center justify-between">
@@ -4529,27 +4512,27 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation (WhatsApp Style) */}
-      <header className="h-16 bg-whatsapp-dark px-4 flex items-center justify-between sticky top-0 z-40 shadow-md">
+      <header className="h-16 bg-white px-4 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
         <div className="flex items-center gap-4">
           <motion.h1 
             whileHover={{ scale: 1.02 }}
-            className="text-xl font-bold text-white cursor-pointer tracking-tight" 
+            className="text-xl font-extrabold text-ink cursor-pointer tracking-tight" 
             onClick={() => setView('feed')}
           >
             Exona
           </motion.h1>
         </div>
 
-        <div className="flex items-center gap-4 text-white/90">
-          <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+        <div className="flex items-center gap-4 text-ink">
+          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <Camera size={20} />
           </button>
-          <button className="p-2 hover:bg-white/10 rounded-full transition-colors">
+          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <Search size={20} />
           </button>
           <button 
             onClick={() => setSidebarOpen(true)}
-            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
             <MoreVertical size={20} />
           </button>
@@ -4557,12 +4540,12 @@ function ExonaApp() {
       </header>
 
       {/* Main Area */}
-      <main className="flex-1 overflow-y-auto bg-whatsapp-bg">
+      <main className="flex-1 overflow-y-auto bg-white">
         {renderView()}
       </main>
 
       {/* Bottom Nav (WhatsApp Style) */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 px-2 flex items-center justify-around pb-1 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-100 h-16 px-2 flex items-center justify-around pb-1">
         <NavButton 
           active={view === 'feed'} 
           onClick={() => setView('feed')} 

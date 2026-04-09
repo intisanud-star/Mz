@@ -18,11 +18,11 @@
 
 @layer base {
   body {
-    @apply bg-paper text-ink font-sans antialiased selection:bg-accent/10 selection:text-accent;
+    @apply bg-white text-ink font-sans font-bold antialiased selection:bg-accent/10 selection:text-accent;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tighter font-serif italic;
+    @apply tracking-tighter font-sans font-extrabold;
   }
 }
 
