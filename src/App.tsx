@@ -142,6 +142,7 @@ interface UserDoc {
   role?: 'admin' | 'user';
   schoolId?: string;
   following?: string[];
+  invitesCount?: number;
 }
 
 interface SchoolFinance {
@@ -547,6 +548,7 @@ function ExonaApp() {
   const isSubAdmin = subAdminInstitutions.length > 0;
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [uploadingInstitutionId, setUploadingInstitutionId] = useState<string | null>(null);
   const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
 
@@ -2139,8 +2141,92 @@ function ExonaApp() {
         );
       }
       case 'feed': {
+        const invitesCount = userDoc?.invitesCount || 0;
+        const inviteProgress = Math.min(invitesCount, 3);
+
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
+            {/* Promotional Ad Banner */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-8 bg-gradient-to-br from-ink via-gray-900 to-accent/20 rounded-[2.5rem] relative overflow-hidden group shadow-2xl shadow-ink/20"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
+                <Sparkles size={120} className="text-white" />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="px-3 py-1 bg-accent text-white text-[10px] font-bold uppercase tracking-widest rounded-full">Limited Offer</span>
+                  <div className="h-1 w-1 bg-white/30 rounded-full"></div>
+                  <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Lifetime Access</span>
+                </div>
+                
+                <h3 className="text-2xl font-serif italic text-white mb-3 leading-tight">
+                  Invite 3 Institutions & Get <br />
+                  <span className="text-accent">Lifetime Free Access</span>
+                </h3>
+                
+                <p className="text-white/60 text-xs font-medium mb-8 max-w-[280px] leading-relaxed">
+                  Help schools and organizations digitize their records. Once 3 of your invites join, your account is free forever.
+                </p>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                    <span>Your Progress</span>
+                    <span className="text-white">{inviteProgress}/3 Invites</span>
+                  </div>
+                  <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(inviteProgress / 3) * 100}%` }}
+                      className="h-full bg-accent shadow-[0_0_15px_rgba(0,149,246,0.5)]"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    {[1, 2, 3].map((i) => (
+                      <div 
+                        key={i}
+                        className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
+                          i <= inviteProgress ? 'bg-accent' : 'bg-white/5'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    const vercelLink = "https://mz-rosy.vercel.app/";
+                    const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
+                    navigator.clipboard.writeText(inviteText);
+                    setLinkCopied(true);
+                    setTimeout(() => setLinkCopied(false), 3000);
+                  }}
+                  className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-xl flex items-center justify-center gap-3 ${
+                    linkCopied 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-white text-ink hover:bg-gray-100'
+                  }`}
+                >
+                  {linkCopied ? (
+                    <>
+                      <CheckCircle2 size={18} />
+                      Link Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Share2 size={18} />
+                      Share Invite Link
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+
             <div className="grid grid-cols-2 gap-4 mb-8">
               <button 
                 onClick={() => setView('schools')}

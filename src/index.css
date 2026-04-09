@@ -10,7 +10,7 @@
   --color-ink: #000000;
   --color-accent: #0095F6;
   --color-muted: #737373;
-  --color-border: #DBDBDB;
+  --color-border: #F0F0F0;
 }
 
 @layer base {
@@ -19,17 +19,37 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
+    @apply tracking-tighter font-serif italic;
   }
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/70 backdrop-blur-2xl border border-white/20;
+    @apply bg-white/80 backdrop-blur-3xl border border-white/20;
   }
   
   .premium-shadow {
-    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.08), 0 10px 20px -5px rgba(0, 0, 0, 0.03);
+    box-shadow: 
+      0 10px 30px -5px rgba(0, 0, 0, 0.04),
+      0 20px 60px -10px rgba(0, 0, 0, 0.02);
+  }
+
+  .depth-3d {
+    box-shadow: 
+      0 1px 2px rgba(0,0,0,0.02),
+      0 4px 8px rgba(0,0,0,0.02),
+      0 16px 32px rgba(0,0,0,0.02),
+      0 32px 64px rgba(0,0,0,0.02);
+    @apply transition-all duration-500;
+  }
+
+  .depth-3d:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 
+      0 1px 2px rgba(0,0,0,0.04),
+      0 8px 16px rgba(0,0,0,0.04),
+      0 24px 48px rgba(0,0,0,0.04),
+      0 48px 96px rgba(0,0,0,0.04);
   }
 
   .text-balance {
