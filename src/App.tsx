@@ -2193,124 +2193,89 @@ function ExonaApp() {
         const inviteProgress = Math.min(invitesCount, 3);
 
         return (
-          <div className="w-full max-w-xl mx-auto py-4 px-4">
-            {/* Promotional Ad Banner */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`mb-8 p-8 rounded-[2.5rem] relative overflow-hidden group shadow-2xl transition-all duration-700 ${
-                isQualified 
-                  ? 'bg-gradient-to-br from-green-600 via-emerald-700 to-teal-900 shadow-green-500/20' 
-                  : 'bg-gradient-to-br from-ink via-gray-900 to-accent/20 shadow-ink/20'
-              }`}
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                {isQualified ? <BadgeCheck size={120} className="text-white" /> : <Sparkles size={120} className="text-white" />}
-              </div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-widest rounded-full ${
-                    isQualified ? 'bg-white text-emerald-700' : 'bg-accent text-white'
-                  }`}>
-                    {isQualified ? 'Offer Unlocked' : 'Limited Offer'}
-                  </span>
-                  <div className="h-1 w-1 bg-white/30 rounded-full"></div>
-                  <span className="text-white/60 text-[10px] font-bold uppercase tracking-widest">Lifetime Access</span>
+          <div className="w-full max-w-xl mx-auto pb-32">
+            {/* WhatsApp Style Chat List */}
+            <div className="bg-white">
+              {/* Recent Status (WhatsApp Style) */}
+              <div className="py-4 px-4 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[13px] font-bold text-whatsapp-teal uppercase tracking-wider">Recent Status</h2>
+                  <button onClick={() => setView('schools')} className="text-[11px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
                 </div>
-                
-                <h3 className="text-2xl font-serif italic text-white mb-3 leading-tight">
-                  {isQualified 
-                    ? "Congratulations! You've Earned Lifetime Free Access" 
-                    : "Invite 3 Institutions & Get Lifetime Free Access"
-                  }
-                </h3>
-                
-                <p className="text-white/60 text-xs font-medium mb-8 max-w-[280px] leading-relaxed">
-                  {isQualified 
-                    ? "You've successfully helped 3 institutions join Exona. Enjoy all premium features for free, forever."
-                    : "Help schools and organizations digitize their records. Once 3 of your invites join and create an institution, your account is free forever."
-                  }
-                </p>
-
-                {!isQualified && (
-                  <div className="space-y-4 mb-8">
-                    <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
-                      <span>Your Progress</span>
-                      <span className="text-white">{inviteProgress}/3 Successful Invites</span>
-                    </div>
-                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${(inviteProgress / 3) * 100}%` }}
-                        className="h-full bg-accent shadow-[0_0_15px_rgba(0,149,246,0.5)]"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      {[1, 2, 3].map((i) => (
-                        <div 
-                          key={i}
-                          className={`h-1.5 flex-1 rounded-full transition-colors duration-500 ${
-                            i <= inviteProgress ? 'bg-accent' : 'bg-white/5'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <motion.button 
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    const vercelLink = `https://mz-rosy.vercel.app/?ref=${user?.uid || ''}`;
-                    const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
-                    navigator.clipboard.writeText(inviteText);
-                    setLinkCopied(true);
-                    setTimeout(() => setLinkCopied(false), 3000);
-                  }}
-                  className={`w-full py-4 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] transition-all duration-500 shadow-xl flex items-center justify-center gap-3 ${
-                    linkCopied 
-                      ? 'bg-green-500 text-white' 
-                      : isQualified ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-white text-ink hover:bg-gray-100'
-                  }`}
-                >
-                  {linkCopied ? (
-                    <>
-                      <CheckCircle2 size={18} />
-                      Link Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Share2 size={18} />
-                      {isQualified ? 'Share with Others' : 'Share Invite Link'}
-                    </>
-                  )}
-                </motion.button>
+                <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                  {schools.slice(0, 8).map(school => (
+                    <button 
+                      key={school.id}
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                      className="flex-shrink-0 w-16 text-center group"
+                    >
+                      <div className="h-14 w-14 p-0.5 rounded-full border-2 border-whatsapp-teal flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white">
+                        <div className="h-full w-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
+                          {school.logo ? (
+                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-lg font-bold text-gray-300">{school.name.charAt(0)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </motion.div>
 
-            <div className="space-y-1 mb-8">
+              {/* Referral Offer as a Pinned Chat */}
+              <button 
+                onClick={() => {
+                  const vercelLink = `https://mz-rosy.vercel.app/?ref=${user?.uid || ''}`;
+                  const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
+                  navigator.clipboard.writeText(inviteText);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 3000);
+                }}
+                className={`w-full p-4 transition-all text-left flex items-center gap-4 border-b border-gray-100 ${
+                  isQualified ? 'bg-green-50' : 'bg-whatsapp-teal/5'
+                }`}
+              >
+                <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shrink-0 ${
+                  isQualified ? 'bg-green-600' : 'bg-whatsapp-teal'
+                }`}>
+                  {isQualified ? <BadgeCheck size={24} /> : <Sparkles size={24} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-ink text-[15px]">
+                      {isQualified ? 'Lifetime Access Unlocked' : 'Lifetime Free Offer'}
+                    </h3>
+                    <span className="text-[10px] text-whatsapp-teal font-bold uppercase">Pinned</span>
+                  </div>
+                  <p className="text-[13px] text-muted truncate">
+                    {linkCopied ? 'Link Copied to Clipboard!' : isQualified ? 'You have earned lifetime access!' : `Progress: ${inviteProgress}/3 invites. Click to share link.`}
+                  </p>
+                </div>
+              </button>
+
+              {/* Special Items */}
               <button 
                 onClick={() => setView('schools')}
-                className="w-full p-4 bg-white hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
               >
-                <div className="h-12 w-12 bg-whatsapp-teal rounded-full flex items-center justify-center text-white shrink-0">
+                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
                   <GraduationCap size={24} />
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">Institutions</h3>
+                    <h3 className="font-bold text-ink text-[15px]">Institutions Directory</h3>
                     <span className="text-[10px] text-muted font-medium">9:41 AM</span>
                   </div>
-                  <p className="text-[13px] text-muted truncate">Manage Schools & Places</p>
+                  <p className="text-[13px] text-muted truncate">Explore and follow schools</p>
                 </div>
               </button>
               <button 
                 onClick={() => setView('records')}
-                className="w-full p-4 bg-white hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
               >
-                <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center text-white shrink-0">
+                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
                   <Search size={24} />
                 </div>
                 <div className="flex-1">
@@ -2318,97 +2283,52 @@ function ExonaApp() {
                     <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
                     <span className="text-[10px] text-muted font-medium">Yesterday</span>
                   </div>
-                  <p className="text-[13px] text-muted truncate">View & Edit Profiles</p>
+                  <p className="text-[13px] text-muted truncate">Access all digitized profiles</p>
                 </div>
               </button>
-            </div>
 
-            <div className="mb-8 px-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[14px] font-bold text-whatsapp-teal uppercase tracking-wider">Recent Status</h2>
-                <button onClick={() => setView('schools')} className="text-[12px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
-              </div>
-              <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
-                {schools.slice(0, 5).map(school => (
+              {/* Followed Institutions as Chats */}
+              {schools.filter(s => userDoc?.following?.includes(s.id)).map(school => {
+                const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
+                return (
                   <button 
                     key={school.id}
                     onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    className="flex-shrink-0 w-20 text-center group"
+                    className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
                   >
-                    <div className="h-16 w-16 p-0.5 rounded-full border-2 border-whatsapp-teal flex items-center justify-center mx-auto mb-2 group-hover:scale-105 transition-all overflow-hidden bg-white">
-                      <div className="h-full w-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
-                        {school.logo ? (
-                          <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <span className="text-xl font-bold text-gray-300">{school.name.charAt(0)}</span>
-                        )}
+                    <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                      {school.logo ? (
+                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-ink text-[15px] truncate">{school.name}</h3>
+                        <span className="text-[10px] text-muted font-medium">
+                          {lastPost ? formatTime(lastPost.timestamp) : '9:41 AM'}
+                        </span>
                       </div>
+                      <p className="text-[13px] text-muted truncate">
+                        {lastPost ? lastPost.content : `Welcome to ${school.name}`}
+                      </p>
                     </div>
-                    <p className="text-[11px] font-medium text-ink truncate w-full">{school.name}</p>
                   </button>
-                ))}
-              </div>
-            </div>
+                );
+              })}
 
-            {user && (
-              <div className="py-4 px-4 bg-white border-b border-gray-100 flex gap-3 items-center sticky top-16 z-30">
-                <div className="h-10 w-10 rounded-full bg-gray-100 flex-shrink-0 overflow-hidden">
-                  {user.photoURL ? (
-                    <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center text-ink font-bold text-xs">
-                      {user.displayName?.charAt(0)}
-                    </div>
-                  )}
-                </div>
-                <button 
-                  onClick={openNewPostModal}
-                  className="flex-1 bg-gray-50 hover:bg-gray-100 transition-colors rounded-full px-5 py-2.5 text-left text-muted text-[14px] border border-gray-200"
-                >
-                  Type a message...
-                </button>
-                <button 
-                  onClick={openNewPostModal}
-                  className="h-10 w-10 bg-whatsapp-teal text-white rounded-full flex items-center justify-center shadow-md hover:bg-whatsapp-dark transition-colors"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-            )}
-
-            <div className="divide-y divide-gray-100">
-              {posts.filter(p => 
-                (userDoc?.role === 'admin') ||
-                (p.schoolId && userDoc?.following?.includes(p.schoolId)) ||
-                (p.authorUid === user?.uid)
-              ).map((post, idx) => (
-                <FeedPost 
-                  key={post.id} 
-                  post={post} 
-                  onUserClick={handleUserClick}
-                  onLike={handleLikePost}
-                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                  onReshare={handleResharePost}
-                  onForward={handleForwardPost}
-                  onEdit={handleEditPost}
-                  onDelete={onDeletePostClick}
-                  currentUserId={user?.uid}
-                />
-              ))}
-              {posts.filter(p => 
-                (userDoc?.role === 'admin') ||
-                (p.schoolId && userDoc?.following?.includes(p.schoolId)) ||
-                (p.authorUid === user?.uid)
-              ).length === 0 && (
-                <div className="py-20 text-center">
-                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center text-muted mx-auto mb-6">
-                    <Users size={32} />
+              {/* Empty State / Explore */}
+              {(!userDoc?.following || userDoc.following.length === 0) && (
+                <div className="py-12 px-8 text-center bg-gray-50/50">
+                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-muted mx-auto mb-4 shadow-sm">
+                    <MessageSquare size={24} />
                   </div>
-                  <h3 className="text-xl font-serif italic text-ink mb-2">Your feed is empty</h3>
-                  <p className="text-sm text-muted mb-8">Follow institutions to see their updates here.</p>
+                  <h3 className="text-lg font-bold text-ink mb-2">No active chats</h3>
+                  <p className="text-sm text-muted mb-6">Follow institutions to see their updates here as chats.</p>
                   <button 
                     onClick={() => setView('schools')}
-                    className="px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+                    className="px-6 py-2.5 bg-whatsapp-teal text-white rounded-full font-bold text-sm shadow-md hover:bg-whatsapp-dark transition-all"
                   >
                     Explore Institutions
                   </button>
