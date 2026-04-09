@@ -2287,7 +2287,7 @@ function ExonaApp() {
                 </div>
               </button>
 
-              {/* Followed Institutions as Chats */}
+              {/* Followed Institutions as Home Feed */}
               {schools.filter(s => userDoc?.following?.includes(s.id)).map(school => {
                 const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
                 return (
@@ -2324,8 +2324,8 @@ function ExonaApp() {
                   <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-muted mx-auto mb-4 shadow-sm">
                     <MessageSquare size={24} />
                   </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">No active chats</h3>
-                  <p className="text-sm text-muted mb-6">Follow institutions to see their updates here as chats.</p>
+                  <h3 className="text-lg font-bold text-ink mb-2">No active updates</h3>
+                  <p className="text-sm text-muted mb-6">Follow institutions to see their updates here on your home feed.</p>
                   <button 
                     onClick={() => setView('schools')}
                     className="px-6 py-2.5 bg-whatsapp-teal text-white rounded-full font-bold text-sm shadow-md hover:bg-whatsapp-dark transition-all"
@@ -4566,8 +4566,8 @@ function ExonaApp() {
         <NavButton 
           active={view === 'feed'} 
           onClick={() => setView('feed')} 
-          icon={MessageSquare} 
-          label="Chats"
+          icon={Home} 
+          label="Home"
         />
         <NavButton 
           active={view === 'schools'} 
