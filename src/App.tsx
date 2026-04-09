@@ -2427,29 +2427,6 @@ function ExonaApp() {
               </div>
             ) : (
               <>
-                {user && (
-                  <div className="py-6 border-b border-gray-100 flex gap-4 items-start">
-                    <div className="flex flex-col items-center gap-2">
-                      {user.photoURL ? (
-                        <img src={user.photoURL} className="h-10 w-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center text-ink font-bold text-xs">
-                          {user.displayName?.charAt(0)}
-                        </div>
-                      )}
-                      <div className="w-0.5 h-8 bg-gray-100 rounded-full" />
-                    </div>
-                    <div className="flex-1">
-                      <button 
-                        onClick={openNewPostModal}
-                        className="w-full text-left py-2 text-muted font-medium text-[14px]"
-                      >
-                        Post to {selectedSchool.name}...
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 <div className="divide-y divide-gray-100">
                   {schoolPosts.map(post => (
                     <FeedPost 
@@ -4599,20 +4576,6 @@ function ExonaApp() {
           label="Status"
         />
         
-        <div className="flex flex-col items-center justify-center flex-1 h-full gap-1 relative">
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => {
-              if (!user) { setView('login'); return; }
-              openNewPostModal();
-            }} 
-            className="h-12 w-12 bg-whatsapp-teal text-white rounded-full flex items-center justify-center shadow-lg transition-all"
-          >
-            <Plus size={24} strokeWidth={3} />
-          </motion.button>
-        </div>
-
         <NavButton 
           active={view === 'ai'} 
           onClick={() => setView('ai')} 
