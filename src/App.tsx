@@ -2188,152 +2188,171 @@ function ExonaApp() {
         );
       }
       case 'feed': {
-        const invitesCount = userDoc?.invitesCount || 0;
-        const isQualified = userDoc?.isLifetimeFree || invitesCount >= 3;
-        const inviteProgress = Math.min(invitesCount, 3);
-
         return (
-          <div className="w-full max-w-xl mx-auto pb-32">
-            {/* WhatsApp Style Chat List */}
-            <div className="bg-white">
-              {/* Recent Status (WhatsApp Style) */}
-              <div className="py-4 px-4 border-b border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[13px] font-bold text-whatsapp-teal uppercase tracking-wider">Recent Status</h2>
-                  <button onClick={() => setView('schools')} className="text-[11px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
-                </div>
-                <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-                  {schools.slice(0, 8).map(school => (
-                    <button 
-                      key={school.id}
+          <div className="w-full max-w-xl mx-auto py-8 px-4">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-bold text-ink tracking-tight">Institutions</h2>
+              {userDoc?.role === 'admin' && (
+                <button 
+                  onClick={() => setIsSchoolModalOpen(true)}
+                  className="h-10 w-10 bg-ink text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform"
+                >
+                  <Plus size={20} />
+                </button>
+              )}
+            </div>
+
+            <div className="relative mb-8 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="Search institutions..." 
+                value={schoolSearch}
+                onChange={(e) => setSchoolSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-gray-100 border-none rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400" 
+              />
+            </div>
+
+            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+              {['all', 'school', 'place'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setSchoolFilter(f as any)}
+                  className={`px-6 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
+                    schoolFilter === f 
+                      ? 'bg-ink text-white' 
+                      : 'bg-white text-muted border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
+                </button>
+              ))}
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {schools
+                .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
+                .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
+                .map(school => (
+                <div 
+                  key={school.id}
+                  className="py-6 border-b border-gray-50 group"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div 
+                      className="flex items-center gap-4 cursor-pointer flex-1"
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                      className="flex-shrink-0 w-16 text-center group"
                     >
-                      <div className="h-14 w-14 p-0.5 rounded-full border-2 border-whatsapp-teal flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white">
-                        <div className="h-full w-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
-                          {school.logo ? (
-                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-lg font-bold text-gray-300">{school.name.charAt(0)}</span>
-                          )}
+                      <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden border border-gray-100 shadow-sm ${
+                        school.logo ? 'bg-white' : 'bg-gray-200'
+                      }`}>
+                        {school.logo ? (
+                          <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-ink">{school.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <h4 className="text-[16px] font-bold text-ink truncate">{school.name}</h4>
+                          <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
+                        </div>
+                        <p className="text-[13px] text-muted line-clamp-1">{school.description}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
+                          <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
                         </div>
                       </div>
-                      <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Referral Offer as a Pinned Chat */}
-              <button 
-                onClick={() => {
-                  const vercelLink = `https://mz-rosy.vercel.app/?ref=${user?.uid || ''}`;
-                  const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
-                  navigator.clipboard.writeText(inviteText);
-                  setLinkCopied(true);
-                  setTimeout(() => setLinkCopied(false), 3000);
-                }}
-                className={`w-full p-4 transition-all text-left flex items-center gap-4 border-b border-gray-100 ${
-                  isQualified ? 'bg-green-50' : 'bg-whatsapp-teal/5'
-                }`}
-              >
-                <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shrink-0 ${
-                  isQualified ? 'bg-green-600' : 'bg-whatsapp-teal'
-                }`}>
-                  {isQualified ? <BadgeCheck size={24} /> : <Sparkles size={24} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">
-                      {isQualified ? 'Lifetime Access Unlocked' : 'Lifetime Free Offer'}
-                    </h3>
-                    <span className="text-[10px] text-whatsapp-teal font-bold uppercase">Pinned</span>
-                  </div>
-                  <p className="text-[13px] text-muted truncate">
-                    {linkCopied ? 'Link Copied to Clipboard!' : isQualified ? 'You have earned lifetime access!' : `Progress: ${inviteProgress}/3 invites. Click to share link.`}
-                  </p>
-                </div>
-              </button>
-
-              {/* Special Items */}
-              <button 
-                onClick={() => setView('schools')}
-                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
-              >
-                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
-                  <GraduationCap size={24} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">Institutions Directory</h3>
-                    <span className="text-[10px] text-muted font-medium">9:41 AM</span>
-                  </div>
-                  <p className="text-[13px] text-muted truncate">Explore and follow schools</p>
-                </div>
-              </button>
-              <button 
-                onClick={() => setView('records')}
-                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
-              >
-                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
-                  <Search size={24} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
-                    <span className="text-[10px] text-muted font-medium">Yesterday</span>
-                  </div>
-                  <p className="text-[13px] text-muted truncate">Access all digitized profiles</p>
-                </div>
-              </button>
-
-              {/* Followed Institutions as Home Feed */}
-              {schools.filter(s => userDoc?.following?.includes(s.id)).map(school => {
-                const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
-                return (
-                  <button 
-                    key={school.id}
-                    onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
-                  >
-                    <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
-                      {school.logo ? (
-                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {user && !canManageInstitution(school) && (
+                        <>
+                          {school.followers?.includes(user.uid) ? (
+                            <button 
+                              onClick={() => handleUnfollowInstitution(school)}
+                              className="px-4 py-2 bg-gray-100 text-muted rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                            >
+                              Unfollow
+                            </button>
+                          ) : school.pendingFollowers?.includes(user.uid) ? (
+                            <button 
+                              disabled
+                              className="px-4 py-2 bg-gray-50 text-muted/50 rounded-xl text-[12px] font-bold uppercase tracking-widest cursor-not-allowed"
+                            >
+                              Pending
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => handleFollowInstitution(school)}
+                              className="px-4 py-2 bg-ink text-white rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
+                            >
+                              Follow
+                            </button>
+                          )}
+                        </>
+                      )}
+                      <button 
+                        onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                        className="px-6 py-2 bg-ink text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 active:scale-95"
+                      >
+                        Visit
+                      </button>
+                      {userDoc?.role === 'admin' && (
+                        <>
+                          <button 
+                            onClick={() => {
+                              setSchoolToManageSubAdmins(school);
+                              setIsSubAdminModalOpen(true);
+                            }}
+                            className="px-4 py-2 bg-accent/5 text-accent rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2"
+                            title="Manage Sub-Admins"
+                          >
+                            <UserPlus size={16} />
+                            Appoint
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setSchoolToDelete(school.id);
+                              setIsDeleteSchoolModalOpen(true);
+                            }}
+                            className="p-2 text-muted hover:text-red-600 transition-colors"
+                            title="Delete Institution"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-ink text-[15px] truncate">{school.name}</h3>
-                        <span className="text-[10px] text-muted font-medium">
-                          {lastPost ? formatTime(lastPost.timestamp) : '9:41 AM'}
-                        </span>
-                      </div>
-                      <p className="text-[13px] text-muted truncate">
-                        {lastPost ? lastPost.content : `Welcome to ${school.name}`}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-
-              {/* Empty State / Explore */}
-              {(!userDoc?.following || userDoc.following.length === 0) && (
-                <div className="py-12 px-8 text-center bg-gray-50/50">
-                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-muted mx-auto mb-4 shadow-sm">
-                    <MessageSquare size={24} />
                   </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">No active updates</h3>
-                  <p className="text-sm text-muted mb-6">Follow institutions to see their updates here on your home feed.</p>
-                  <button 
-                    onClick={() => setView('schools')}
-                    className="px-6 py-2.5 bg-whatsapp-teal text-white rounded-full font-bold text-sm shadow-md hover:bg-whatsapp-dark transition-all"
-                  >
-                    Explore Institutions
-                  </button>
+
+                  {/* Institution Action Buttons */}
+                  <div className="flex items-center gap-2 ml-20">
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('records'); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                    >
+                      <ClipboardList size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('attendance'); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                    >
+                      <Calendar size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Attendance</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                    >
+                      <Wallet size={14} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[10px] font-bold uppercase tracking-widest">Finance</span>
+                    </button>
+                  </div>
                 </div>
-              )}
+              ))}
             </div>
           </div>
         );
@@ -2543,171 +2562,152 @@ function ExonaApp() {
         );
       }
       case 'schools': {
+        const invitesCount = userDoc?.invitesCount || 0;
+        const isQualified = userDoc?.isLifetimeFree || invitesCount >= 3;
+        const inviteProgress = Math.min(invitesCount, 3);
+
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold text-ink tracking-tight">Institutions</h2>
-              {userDoc?.role === 'admin' && (
-                <button 
-                  onClick={() => setIsSchoolModalOpen(true)}
-                  className="h-10 w-10 bg-ink text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform"
-                >
-                  <Plus size={20} />
-                </button>
-              )}
-            </div>
-
-            <div className="relative mb-8 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search institutions..." 
-                value={schoolSearch}
-                onChange={(e) => setSchoolSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-gray-100 border-none rounded-2xl focus:ring-0 outline-none transition-all text-ink font-medium placeholder:text-gray-400" 
-              />
-            </div>
-
-            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-              {['all', 'school', 'place'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setSchoolFilter(f as any)}
-                  className={`px-6 py-2 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
-                    schoolFilter === f 
-                      ? 'bg-ink text-white' 
-                      : 'bg-white text-muted border border-gray-200 hover:bg-gray-50'
-                  }`}
-                >
-                  {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
-                </button>
-              ))}
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {schools
-                .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
-                .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
-                .map(school => (
-                <div 
-                  key={school.id}
-                  className="py-6 border-b border-gray-50 group"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer flex-1"
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    >
-                      <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden border border-gray-100 shadow-sm ${
-                        school.logo ? 'bg-white' : 'bg-gray-200'
-                      }`}>
-                        {school.logo ? (
-                          <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <span className="text-ink">{school.name.charAt(0)}</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <h4 className="text-[16px] font-bold text-ink truncate">{school.name}</h4>
-                          <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
-                        </div>
-                        <p className="text-[13px] text-muted line-clamp-1">{school.description}</p>
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
-                          <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {user && !canManageInstitution(school) && (
-                        <>
-                          {school.followers?.includes(user.uid) ? (
-                            <button 
-                              onClick={() => handleUnfollowInstitution(school)}
-                              className="px-4 py-2 bg-gray-100 text-muted rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
-                            >
-                              Unfollow
-                            </button>
-                          ) : school.pendingFollowers?.includes(user.uid) ? (
-                            <button 
-                              disabled
-                              className="px-4 py-2 bg-gray-50 text-muted/50 rounded-xl text-[12px] font-bold uppercase tracking-widest cursor-not-allowed"
-                            >
-                              Pending
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleFollowInstitution(school)}
-                              className="px-4 py-2 bg-ink text-white rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
-                            >
-                              Follow
-                            </button>
-                          )}
-                        </>
-                      )}
-                      <button 
-                        onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                        className="px-6 py-2 bg-ink text-white rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 active:scale-95"
-                      >
-                        Visit
-                      </button>
-                      {userDoc?.role === 'admin' && (
-                        <>
-                          <button 
-                            onClick={() => {
-                              setSchoolToManageSubAdmins(school);
-                              setIsSubAdminModalOpen(true);
-                            }}
-                            className="px-4 py-2 bg-accent/5 text-accent rounded-xl font-bold text-[12px] uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2"
-                            title="Manage Sub-Admins"
-                          >
-                            <UserPlus size={16} />
-                            Appoint
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setSchoolToDelete(school.id);
-                              setIsDeleteSchoolModalOpen(true);
-                            }}
-                            className="p-2 text-muted hover:text-red-600 transition-colors"
-                            title="Delete Institution"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Institution Action Buttons */}
-                  <div className="flex items-center gap-2 ml-20">
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
-                    >
-                      <ClipboardList size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('attendance'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
-                    >
-                      <Calendar size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Attendance</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-50 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
-                    >
-                      <Wallet size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Finance</span>
-                    </button>
-                  </div>
+          <div className="w-full max-w-xl mx-auto pb-32">
+            {/* WhatsApp Style Chat List */}
+            <div className="bg-white">
+              {/* Recent Status (WhatsApp Style) */}
+              <div className="py-4 px-4 border-b border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-[13px] font-bold text-whatsapp-teal uppercase tracking-wider">Recent Status</h2>
+                  <button onClick={() => setView('feed')} className="text-[11px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
                 </div>
-              ))}
+                <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                  {schools.slice(0, 8).map(school => (
+                    <button 
+                      key={school.id}
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                      className="flex-shrink-0 w-16 text-center group"
+                    >
+                      <div className="h-14 w-14 p-0.5 rounded-full border-2 border-whatsapp-teal flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white">
+                        <div className="h-full w-full rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
+                          {school.logo ? (
+                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-lg font-bold text-gray-300">{school.name.charAt(0)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Referral Offer as a Pinned Chat */}
+              <button 
+                onClick={() => {
+                  const vercelLink = `https://mz-rosy.vercel.app/?ref=${user?.uid || ''}`;
+                  const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
+                  navigator.clipboard.writeText(inviteText);
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 3000);
+                }}
+                className={`w-full p-4 transition-all text-left flex items-center gap-4 border-b border-gray-100 ${
+                  isQualified ? 'bg-green-50' : 'bg-whatsapp-teal/5'
+                }`}
+              >
+                <div className={`h-12 w-12 rounded-full flex items-center justify-center text-white shrink-0 ${
+                  isQualified ? 'bg-green-600' : 'bg-whatsapp-teal'
+                }`}>
+                  {isQualified ? <BadgeCheck size={24} /> : <Sparkles size={24} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-ink text-[15px]">
+                      {isQualified ? 'Lifetime Access Unlocked' : 'Lifetime Free Offer'}
+                    </h3>
+                    <span className="text-[10px] text-whatsapp-teal font-bold uppercase">Pinned</span>
+                  </div>
+                  <p className="text-[13px] text-muted truncate">
+                    {linkCopied ? 'Link Copied to Clipboard!' : isQualified ? 'You have earned lifetime access!' : `Progress: ${inviteProgress}/3 invites. Click to share link.`}
+                  </p>
+                </div>
+              </button>
+
+              {/* Special Items */}
+              <button 
+                onClick={() => setView('feed')}
+                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+              >
+                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
+                  <GraduationCap size={24} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-ink text-[15px]">Institutions Directory</h3>
+                    <span className="text-[10px] text-muted font-medium">9:41 AM</span>
+                  </div>
+                  <p className="text-[13px] text-muted truncate">Explore and follow schools</p>
+                </div>
+              </button>
+              <button 
+                onClick={() => setView('records')}
+                className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+              >
+                <div className="h-12 w-12 bg-gray-100 rounded-full flex items-center justify-center text-ink shrink-0">
+                  <Search size={24} />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
+                    <span className="text-[10px] text-muted font-medium">Yesterday</span>
+                  </div>
+                  <p className="text-[13px] text-muted truncate">Access all digitized profiles</p>
+                </div>
+              </button>
+
+              {/* Followed Institutions as Home Feed */}
+              {schools.filter(s => userDoc?.following?.includes(s.id)).map(school => {
+                const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
+                return (
+                  <button 
+                    key={school.id}
+                    onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                    className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 border-b border-gray-100"
+                  >
+                    <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                      {school.logo ? (
+                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-ink text-[15px] truncate">{school.name}</h3>
+                        <span className="text-[10px] text-muted font-medium">
+                          {lastPost ? formatTime(lastPost.timestamp) : '9:41 AM'}
+                        </span>
+                      </div>
+                      <p className="text-[13px] text-muted truncate">
+                        {lastPost ? lastPost.content : `Welcome to ${school.name}`}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Empty State / Explore */}
+              {(!userDoc?.following || userDoc.following.length === 0) && (
+                <div className="py-12 px-8 text-center bg-gray-50/50">
+                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-muted mx-auto mb-4 shadow-sm">
+                    <MessageSquare size={24} />
+                  </div>
+                  <h3 className="text-lg font-bold text-ink mb-2">No active updates</h3>
+                  <p className="text-sm text-muted mb-6">Follow institutions to see their updates here on your home feed.</p>
+                  <button 
+                    onClick={() => setView('feed')}
+                    className="px-6 py-2.5 bg-whatsapp-teal text-white rounded-full font-bold text-sm shadow-md hover:bg-whatsapp-dark transition-all"
+                  >
+                    Explore Institutions
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         );
