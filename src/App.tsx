@@ -35,7 +35,7 @@ import {
   deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 /**
  * @license
@@ -741,9 +741,15 @@ function ExonaApp() {
           type: newSchool.type,
           educationalLevels: newSchool.educationalLevels,
           creatorUid: user.uid,
+          subAdmins: [user.email],
           timestamp: serverTimestamp()
         });
         console.log('School created successfully:', schoolId);
+        
+        // Update user document to reflect they've created an institution
+        await updateDoc(doc(db, 'users', user.uid), {
+          hasCreatedInstitution: true
+        });
         
         // Initialize finance for the school
         await setDoc(doc(db, 'finance', schoolId), {
@@ -1789,7 +1795,7 @@ function ExonaApp() {
                       initial={{ width: 0 }}
                       animate={{ width: '60%' }}
                       transition={{ delay: 0.5 + i * 0.1, duration: 1 }}
-                      className={`h-full bg-${stat.color}`}
+                      className={`h-full bg-ink`}
                     />
                   </div>
                 </motion.div>
@@ -2177,7 +2183,7 @@ function ExonaApp() {
           <div className="w-full max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-8">
               <h2 className="text-2xl font-bold text-ink tracking-tight">Institutions</h2>
-              {userDoc?.role === 'admin' && (
+              {user && (
                 <button 
                   onClick={() => setIsSchoolModalOpen(true)}
                   className="h-10 w-10 bg-ink text-white rounded-full flex items-center justify-center hover:scale-105 transition-transform"
@@ -2284,7 +2290,7 @@ function ExonaApp() {
                       >
                         Visit
                       </button>
-                      {userDoc?.role === 'admin' && (
+                      {canManageInstitution(school) && (
                         <>
                           <button 
                             onClick={() => {
@@ -2398,7 +2404,7 @@ function ExonaApp() {
                     )}
                   </>
                 )}
-                {isAdmin && (
+                {(isAdmin || isManager) && (
                   <button 
                     onClick={() => {
                       setSchoolToManageSubAdmins(selectedSchool);
