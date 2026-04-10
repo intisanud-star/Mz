@@ -10,7 +10,8 @@ import {
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
-  ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone
+  ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
+  Calculator, FileBarChart, IdCard, Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -501,6 +502,7 @@ function ExonaApp() {
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
   const [postComments, setPostComments] = useState<any[]>([]);
+  const [activeTool, setActiveTool] = useState<string | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schoolSearch, setSchoolSearch] = useState('');
@@ -3109,67 +3111,287 @@ function ExonaApp() {
         );
       }
       case 'ai': {
-        return (
-          <WordLayout 
-            title="Exona AI"
-            subtitle="Intelligent Institutional Intelligence"
-            icon={Cpu}
-            toolbar={
-              <div className="flex items-center gap-4">
-                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">New Chat</button>
-                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">History</button>
-              </div>
-            }
-          >
-            <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-extrabold text-ink mb-2">Exona AI Terminal</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Active Session • {new Date().toLocaleDateString()}</p>
-            </div>
+        const tools = [
+          { id: 'ai', name: 'Exona AI', description: 'Intelligent assistant for institutional queries', icon: Cpu, color: 'ink' },
+          { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
+          { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
+          { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
+          { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
+          { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
+        ];
 
-            <div className="space-y-8 mb-20">
-              {aiMessages.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 opacity-20">
-                  <Cpu size={64} strokeWidth={1} className="mb-6" />
-                  <p className="font-bold text-xl">System Ready</p>
+        if (activeTool === 'ai') {
+          return (
+            <WordLayout 
+              title="Exona AI"
+              subtitle="Intelligent Institutional Intelligence"
+              icon={Cpu}
+              toolbar={
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+                  <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">New Chat</button>
                 </div>
-              )}
-              {aiMessages.map((msg, i) => (
-                <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-2">{msg.role === 'user' ? 'User Query' : 'AI Response'}</p>
-                  <div className={`max-w-[85%] p-6 border ${
-                    msg.role === 'user' ? 'bg-white border-gray-200 text-ink' : 'bg-white border-ink/10 text-ink font-extrabold text-lg'
-                  }`}>
-                    {msg.text}
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Exona AI Terminal</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Active Session • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="space-y-8 mb-20">
+                {aiMessages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-20 opacity-20">
+                    <Cpu size={64} strokeWidth={1} className="mb-6" />
+                    <p className="font-bold text-xl">System Ready</p>
+                  </div>
+                )}
+                {aiMessages.map((msg, i) => (
+                  <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-2">{msg.role === 'user' ? 'User Query' : 'AI Response'}</p>
+                    <div className={`max-w-[85%] p-6 border ${
+                      msg.role === 'user' ? 'bg-white border-gray-200 text-ink' : 'bg-white border-ink/10 text-ink font-extrabold text-lg'
+                    }`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {isAiTyping && (
+                  <div className="flex gap-1.5">
+                    <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce"></span>
+                    <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                    <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-auto pt-12 border-t border-gray-100">
+                <div className="flex gap-4">
+                  <input 
+                    type="text" 
+                    value={aiInput}
+                    onChange={(e) => setAiInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
+                    placeholder="Type your inquiry here..." 
+                    className="flex-1 px-6 py-4 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
+                  />
+                  <button 
+                    onClick={handleAiSend}
+                    disabled={!aiInput.trim() || isAiTyping}
+                    className="px-8 py-4 bg-ink text-white rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-ink/90 transition-all disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeTool === 'calculator') {
+          return (
+            <WordLayout 
+              title="Fee Calculator"
+              subtitle="Institutional Financial Utility"
+              icon={Calculator}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Fee Calculator</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Financial Tool • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="max-w-2xl mx-auto bg-white p-12 rounded-[3rem] border border-gray-100">
+                <div className="space-y-8">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Total Tuition Fee</label>
+                    <div className="relative">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">₦</span>
+                      <input type="number" className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="0.00" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Amount Paid</label>
+                    <div className="relative">
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">₦</span>
+                      <input type="number" className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="0.00" />
+                    </div>
+                  </div>
+                  <div className="pt-8 border-t border-gray-50">
+                    <div className="flex justify-between items-center mb-4">
+                      <p className="text-sm font-bold text-muted uppercase tracking-widest">Outstanding Balance</p>
+                      <p className="text-3xl font-extrabold text-red-600">₦0.00</p>
+                    </div>
+                    <button className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all">Generate Invoice Preview</button>
                   </div>
                 </div>
-              ))}
-              {isAiTyping && (
-                <div className="flex gap-1.5">
-                  <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce"></span>
-                  <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                  <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.4s]"></span>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeTool === 'penalty') {
+          return (
+            <WordLayout 
+              title="Penalty Board"
+              subtitle="Disciplinary Records & Notices"
+              icon={ShieldAlert}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12 text-center">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Institutional Conduct Report</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Confidential • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <div className="h-24 w-24 bg-white text-green-600 rounded-full flex items-center justify-center mb-8 border border-gray-100">
+                  <ShieldCheck size={48} strokeWidth={1.5} />
                 </div>
-              )}
+                <h3 className="font-extrabold text-3xl text-ink mb-4">Exemplary Record</h3>
+                <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
+                  No disciplinary actions or penalties have been recorded for your account. Maintain this standard of excellence.
+                </p>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeTool === 'referral') {
+          return (
+            <WordLayout 
+              title="Referral Hub"
+              subtitle="Growth & Rewards Program"
+              icon={Gift}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Referral Program</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Rewards Terminal • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="bg-white p-10 rounded-[3rem] border border-gray-100">
+                  <h4 className="font-extrabold text-2xl text-ink mb-8">Your Referral Link</h4>
+                  <div className="flex gap-4 mb-8">
+                    <input 
+                      readOnly 
+                      value={`https://exona.app/ref/${user?.uid?.slice(0, 8)}`}
+                      className="flex-1 px-6 py-4 bg-gray-50 border-none rounded-2xl font-mono text-xs text-ink outline-none" 
+                    />
+                    <button className="px-6 py-4 bg-ink text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 transition-all">Copy</button>
+                  </div>
+                  <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10">
+                    <p className="text-xs font-bold text-accent leading-relaxed">
+                      Share this link with other institutions. For every successful registration, you earn ₦5,000 in credits.
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-white p-10 rounded-[3rem] border border-gray-100">
+                  <h4 className="font-extrabold text-2xl text-ink mb-8">Performance</h4>
+                  <div className="space-y-6">
+                    <div className="flex justify-between items-center p-6 bg-gray-50 rounded-2xl">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Total Referrals</p>
+                      <p className="text-2xl font-extrabold text-ink">0</p>
+                    </div>
+                    <div className="flex justify-between items-center p-6 bg-gray-50 rounded-2xl">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Earned Rewards</p>
+                      <p className="text-2xl font-extrabold text-green-600">₦0.00</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeTool === 'id-gen') {
+          return (
+            <WordLayout 
+              title="ID Generator"
+              subtitle="Institutional Identity Utility"
+              icon={IdCard}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">ID Card Generator</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Identity Tool • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <div className="h-24 w-24 bg-white text-blue-600 rounded-full flex items-center justify-center mb-8 border border-gray-100">
+                  <IdCard size={48} strokeWidth={1.5} />
+                </div>
+                <h3 className="font-extrabold text-3xl text-ink mb-4">Coming Soon</h3>
+                <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
+                  The digital ID card generator is currently under development. Soon you will be able to generate and print official identification cards for all members.
+                </p>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeTool === 'reports') {
+          return (
+            <WordLayout 
+              title="Report Center"
+              subtitle="Analytical Intelligence Utility"
+              icon={FileBarChart}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Report Center</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Analytical Tool • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <div className="h-24 w-24 bg-white text-purple-600 rounded-full flex items-center justify-center mb-8 border border-gray-100">
+                  <FileBarChart size={48} strokeWidth={1.5} />
+                </div>
+                <h3 className="font-extrabold text-3xl text-ink mb-4">Coming Soon</h3>
+                <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
+                  Advanced financial and academic reporting tools are being integrated. You will soon be able to export comprehensive institutional data.
+                </p>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        return (
+          <WordLayout 
+            title="Tools Hub"
+            subtitle="Institutional Utility Suite"
+            icon={LayoutGrid}
+          >
+            <div className="mb-16 border-b border-gray-100 pb-12">
+              <h1 className="text-4xl font-extrabold text-ink mb-2">Utility Terminal</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">System Tools • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <div className="mt-auto pt-12 border-t border-gray-100">
-              <div className="flex gap-4">
-                <input 
-                  type="text" 
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
-                  placeholder="Type your inquiry here..." 
-                  className="flex-1 px-6 py-4 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
-                />
-                <button 
-                  onClick={handleAiSend}
-                  disabled={!aiInput.trim() || isAiTyping}
-                  className="px-8 py-4 bg-ink text-white rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-ink/90 transition-all disabled:opacity-50"
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {tools.map((tool) => (
+                <motion.button
+                  key={tool.id}
+                  whileHover={{ scale: 1.02, y: -5 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setActiveTool(tool.id)}
+                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 text-left group hover:border-accent/20 transition-all"
                 >
-                  Send
-                </button>
-              </div>
+                  <div className={`h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-${tool.color} mb-6 group-hover:scale-110 transition-transform`}>
+                    <tool.icon size={28} />
+                  </div>
+                  <h3 className="text-xl font-extrabold text-ink mb-2 tracking-tight">{tool.name}</h3>
+                  <p className="text-muted text-xs font-medium leading-relaxed">{tool.description}</p>
+                </motion.button>
+              ))}
             </div>
           </WordLayout>
         );
@@ -4447,6 +4669,12 @@ function ExonaApp() {
                   active={view === 'schools'} 
                   onClick={() => { setView('schools'); setSidebarOpen(false); }} 
                 />
+                <SidebarItem 
+                  icon={LayoutGrid} 
+                  label="Tools Hub" 
+                  active={view === 'ai'} 
+                  onClick={() => { setView('ai'); setSidebarOpen(false); }} 
+                />
                 
                 <div className="px-4 py-4">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
@@ -4568,8 +4796,8 @@ function ExonaApp() {
         <NavButton 
           active={view === 'ai'} 
           onClick={() => setView('ai')} 
-          icon={Phone} 
-          label="Calls"
+          icon={LayoutGrid} 
+          label="Tools"
         />
         <NavButton 
           active={view === 'profile'} 
