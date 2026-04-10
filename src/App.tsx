@@ -1322,9 +1322,16 @@ function ExonaApp() {
     const unsubSchools = onSnapshot(collection(db, 'schools'), (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
     }, (error) => {
-      // Only log if it's not a permission error for guest
       if (!error.message.includes('insufficient permissions')) {
         handleFirestoreError(error, OperationType.LIST, 'schools');
+      }
+    });
+
+    const unsubPlaces = onSnapshot(collection(db, 'places'), (snap) => {
+      setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as Place)));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'places');
       }
     });
 
@@ -1341,7 +1348,11 @@ function ExonaApp() {
       } else {
         // Personalized Feed for regular users
         const following = userDoc.following || [];
-        const relevantIds = [user.uid, ...following];
+        const managedIds = [
+          ...schools.filter(s => s.creatorUid === user.uid || s.subAdmins?.some(email => email.toLowerCase() === user.email?.toLowerCase())).map(s => s.id),
+          ...places.filter(p => p.creatorUid === user.uid || p.subAdmins?.some(email => email.toLowerCase() === user.email?.toLowerCase())).map(p => p.id)
+        ];
+        const relevantIds = [...new Set([user.uid, ...following, ...managedIds])];
         
         // We need to fetch:
         // 1. Posts where authorUid is in relevantIds (covers own posts and followed users)
@@ -1405,7 +1416,7 @@ function ExonaApp() {
       });
     }
 
-    return () => { unsubSchools(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); };
+    return () => { unsubSchools(); unsubPlaces(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); };
   }, [user, userDoc]);
 
   useEffect(() => {
@@ -2226,6 +2237,16 @@ function ExonaApp() {
               {schools
                 .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
                 .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
+                .filter(s => {
+                  // If searching, show all matching
+                  if (schoolSearch.trim() !== '') return true;
+                  // Admins see all
+                  if (userDoc?.role === 'admin') return true;
+                  // Otherwise only show followed or created
+                  return s.followers?.includes(user?.uid || '') || 
+                         s.creatorUid === user?.uid || 
+                         s.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase());
+                })
                 .map(school => (
                 <div 
                   key={school.id}
@@ -2570,7 +2591,14 @@ function ExonaApp() {
                   <button onClick={() => setView('feed')} className="text-[11px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-                  {schools.slice(0, 8).map(school => (
+                  {schools
+                    .filter(s => {
+                      if (userDoc?.role === 'admin') return true;
+                      return s.followers?.includes(user?.uid || '') || 
+                             s.creatorUid === user?.uid || 
+                             s.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase());
+                    })
+                    .slice(0, 8).map(school => (
                     <button 
                       key={school.id}
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
@@ -2652,8 +2680,12 @@ function ExonaApp() {
                 </div>
               </button>
 
-              {/* Followed Institutions as Home Feed */}
-              {schools.filter(s => userDoc?.following?.includes(s.id)).map(school => {
+              {/* Followed & Managed Institutions as Home Feed */}
+              {schools.filter(s => 
+                userDoc?.following?.includes(s.id) || 
+                s.creatorUid === user?.uid || 
+                s.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase())
+              ).map(school => {
                 const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
                 return (
                   <button 
