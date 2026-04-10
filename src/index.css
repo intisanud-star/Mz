@@ -1,28 +1,27 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", serif;
+  --font-display: "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-paper: #F0F2F5;
-  --color-ink: #111B21;
-  --color-accent: #25D366;
-  --color-whatsapp-dark: #075E54;
-  --color-whatsapp-teal: #128C7E;
-  --color-whatsapp-bg: #ECE5DD;
-  --color-muted: #667781;
-  --color-border: #D1D7DB;
+  --color-paper: #F8FAFC;
+  --color-ink: #0F172A;
+  --color-accent: #6366F1;
+  --color-premium-blue: #3B82F6;
+  --color-premium-indigo: #6366F1;
+  --color-muted: #64748B;
+  --color-border: #E2E8F0;
 }
 
 @layer base {
   body {
-    @apply bg-white text-ink font-sans font-bold antialiased selection:bg-accent/10 selection:text-accent;
+    @apply bg-paper text-ink font-sans antialiased selection:bg-accent/10 selection:text-accent;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tighter font-sans font-extrabold;
+    @apply tracking-tight font-display font-bold;
   }
 }
 
