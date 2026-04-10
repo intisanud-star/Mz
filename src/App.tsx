@@ -702,58 +702,57 @@ function ExonaApp() {
       
       if (selectedFile) {
         console.log('Uploading logo file...', selectedFile.name);
-        const fileRef = ref(storage, `schools/${user.uid}/${Date.now()}_${selectedFile.name}`);
+        const fileRef = ref(storage, `${newSchool.type === 'school' ? 'schools' : 'places'}/${user.uid}/${Date.now()}_${selectedFile.name}`);
         const uploadTask = uploadBytesResumable(fileRef, selectedFile);
         await new Promise((resolve, reject) => {
           uploadTask.on('state_changed', (snapshot) => {
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             setUploadProgress(progress);
-            console.log(`Upload progress: ${progress}%`);
           }, (error) => {
             console.error('Upload failed:', error);
             reject(error);
           }, () => {
-            console.log('Upload complete');
             resolve(null);
           });
         });
         logoUrl = await getDownloadURL(fileRef);
-        console.log('Logo URL obtained:', logoUrl);
       }
 
+      const collectionName = newSchool.type === 'school' ? 'schools' : 'places';
+      
       if (editingSchool) {
-        console.log('Updating existing school:', editingSchool.id);
-        await setDoc(doc(db, 'schools', editingSchool.id), {
+        console.log('Updating existing institution:', editingSchool.id);
+        await setDoc(doc(db, collectionName, editingSchool.id), {
           ...editingSchool,
           name: newSchool.name.trim(),
           description: newSchool.description.trim(),
           logo: logoUrl,
           type: newSchool.type,
-          educationalLevels: newSchool.educationalLevels
+          educationalLevels: newSchool.type === 'school' ? newSchool.educationalLevels : []
         }, { merge: true });
-        console.log('School updated successfully');
+        console.log('Institution updated successfully');
       } else {
-        console.log('Creating new school...');
-        const schoolId = newSchool.name.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
-        await setDoc(doc(db, 'schools', schoolId), {
+        console.log('Creating new institution...');
+        const slug = newSchool.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        const schoolId = `${slug}-${Math.random().toString(36).substr(2, 5)}`;
+        
+        const institutionData = {
           id: schoolId,
           name: newSchool.name.trim(),
           description: newSchool.description.trim() || `Official space for ${newSchool.name}`,
           logo: logoUrl,
           type: newSchool.type,
-          educationalLevels: newSchool.educationalLevels,
+          educationalLevels: newSchool.type === 'school' ? (newSchool.educationalLevels || []) : [],
           creatorUid: user.uid,
           subAdmins: [user.email],
+          followers: [user.uid],
           timestamp: serverTimestamp()
-        });
-        console.log('School created successfully:', schoolId);
+        };
+
+        await setDoc(doc(db, collectionName, schoolId), institutionData);
+        console.log('Institution created successfully:', schoolId);
         
-        // Update user document to reflect they've created an institution
-        await updateDoc(doc(db, 'users', user.uid), {
-          hasCreatedInstitution: true
-        });
-        
-        // Initialize finance for the school
+        // Initialize finance
         await setDoc(doc(db, 'finance', schoolId), {
           schoolId: schoolId,
           institutionBalance: 0,
@@ -761,13 +760,22 @@ function ExonaApp() {
           accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
           accountName: `${newSchool.name} General`
         });
-        console.log('Finance initialized for school');
         
+        // Update user document
+        await setDoc(doc(db, 'users', user.uid), {
+          hasCreatedInstitution: true
+        }, { merge: true });
+
         // Check for referral qualification
         if (userDoc) {
           await checkReferralQualification(userDoc);
         }
+
+        // Set as selected and view
+        setSelectedSchool(institutionData as any);
+        setView('school-feed');
       }
+
       setNewSchool({ name: '', description: '', logo: '', type: 'school', educationalLevels: [] });
       setEditingSchool(null);
       setIsSchoolModalOpen(false);
@@ -775,7 +783,7 @@ function ExonaApp() {
       setPreviewUrl(null);
     } catch (error) {
       console.error('Error in handleCreateSchool:', error);
-      handleFirestoreError(error, OperationType.CREATE, 'schools');
+      handleFirestoreError(error, OperationType.CREATE, 'institutions');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -2086,8 +2094,8 @@ function ExonaApp() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {schools.map(school => {
-                          const schoolFin = allFinance.find(f => f.schoolId === school.id);
+                        {[...schools, ...places].map(school => {
+                          const schoolFin = allFinance.find(f => f.schoolId === school.id || f.placeId === school.id);
                           return (
                             <tr key={school.id} className="hover:bg-white transition-colors group border-b border-gray-100">
                               <td className="px-10 py-8">
@@ -2234,7 +2242,7 @@ function ExonaApp() {
             </div>
 
             <div className="divide-y divide-gray-100">
-              {schools
+              {[...schools, ...places]
                 .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
                 .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
                 .filter(s => {
@@ -2591,7 +2599,7 @@ function ExonaApp() {
                   <button onClick={() => setView('feed')} className="text-[11px] font-bold text-muted hover:text-whatsapp-teal transition-colors">View All</button>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-                  {schools
+                  {[...schools, ...places]
                     .filter(s => {
                       if (userDoc?.role === 'admin') return true;
                       return s.followers?.includes(user?.uid || '') || 
@@ -2681,12 +2689,12 @@ function ExonaApp() {
               </button>
 
               {/* Followed & Managed Institutions as Home Feed */}
-              {schools.filter(s => 
+              {[...schools, ...places].filter(s => 
                 userDoc?.following?.includes(s.id) || 
                 s.creatorUid === user?.uid || 
                 s.subAdmins?.some(email => email.toLowerCase() === user?.email?.toLowerCase())
               ).map(school => {
-                const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => b.timestamp?.seconds - a.timestamp?.seconds)[0];
+                const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
                 return (
                   <button 
                     key={school.id}
