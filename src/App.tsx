@@ -484,13 +484,6 @@ function ExonaApp() {
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isDeleteSchoolModalOpen, setIsDeleteSchoolModalOpen] = useState(false);
   const [schoolToDelete, setSchoolToDelete] = useState<string | null>(null);
-  const [isDeletePlaceModalOpen, setIsDeletePlaceModalOpen] = useState(false);
-  const [placeToDelete, setPlaceToDelete] = useState<string | null>(null);
-  const [isPlaceModalOpen, setIsPlaceModalOpen] = useState(false);
-  const [editingPlace, setEditingPlace] = useState<Place | null>(null);
-  const [placeSearch, setPlaceSearch] = useState('');
-  const [placeFilter, setPlaceFilter] = useState<'all' | 'School' | 'Business' | 'Community' | 'Personal'>('all');
-  const [newPlace, setNewPlace] = useState({ name: '', description: '', logo: '', category: 'School' as Place['category'], type: 'place' as const });
   const [newPostContent, setNewPostContent] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -518,7 +511,8 @@ function ExonaApp() {
     name: '', 
     description: '', 
     logo: '', 
-    type: 'school' as const,
+    type: 'school' as 'school' | 'place',
+    category: 'School' as Place['category'],
     educationalLevels: [] as string[]
   });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
@@ -728,6 +722,7 @@ function ExonaApp() {
           description: newSchool.description.trim(),
           logo: logoUrl,
           type: newSchool.type,
+          category: newSchool.type === 'place' ? newSchool.category : null,
           educationalLevels: newSchool.type === 'school' ? newSchool.educationalLevels : []
         }, { merge: true });
         console.log('Institution updated successfully');
@@ -742,6 +737,7 @@ function ExonaApp() {
           description: newSchool.description.trim() || `Official space for ${newSchool.name}`,
           logo: logoUrl,
           type: newSchool.type,
+          category: newSchool.type === 'place' ? newSchool.category : null,
           educationalLevels: newSchool.type === 'school' ? (newSchool.educationalLevels || []) : [],
           creatorUid: user.uid,
           subAdmins: [user.email],
@@ -755,6 +751,7 @@ function ExonaApp() {
         // Initialize finance
         await setDoc(doc(db, 'finance', schoolId), {
           schoolId: schoolId,
+          placeId: schoolId, // For compatibility
           institutionBalance: 0,
           bankName: 'Exona Trust Bank',
           accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
@@ -776,7 +773,7 @@ function ExonaApp() {
         setView('school-feed');
       }
 
-      setNewSchool({ name: '', description: '', logo: '', type: 'school', educationalLevels: [] });
+      setNewSchool({ name: '', description: '', logo: '', type: 'school', category: 'School', educationalLevels: [] });
       setEditingSchool(null);
       setIsSchoolModalOpen(false);
       setSelectedFile(null);
@@ -794,110 +791,15 @@ function ExonaApp() {
     if (!user || !schoolToDelete) return;
     setIsUploading(true);
     try {
-      await deleteDoc(doc(db, 'schools', schoolToDelete));
+      // Check both collections
+      await Promise.all([
+        deleteDoc(doc(db, 'schools', schoolToDelete)),
+        deleteDoc(doc(db, 'places', schoolToDelete))
+      ]);
       setIsDeleteSchoolModalOpen(false);
       setSchoolToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `schools/${schoolToDelete}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleCreatePlace = async () => {
-    console.log('handleCreatePlace started', { newPlace, user: user?.uid, editingPlace: editingPlace?.id });
-    if (!newPlace.name.trim() || !user) {
-      console.warn('handleCreatePlace aborted: missing name or user', { name: newPlace.name, user: user?.uid });
-      return;
-    }
-    setIsUploading(true);
-    setUploadProgress(0);
-    try {
-      let logoUrl = newPlace.logo.trim();
-      
-      if (selectedFile) {
-        console.log('Uploading logo file...', selectedFile.name);
-        const fileRef = ref(storage, `places/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        const uploadTask = uploadBytesResumable(fileRef, selectedFile);
-        await new Promise((resolve, reject) => {
-          uploadTask.on('state_changed', (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-            console.log(`Upload progress: ${progress}%`);
-          }, (error) => {
-            console.error('Upload failed:', error);
-            reject(error);
-          }, () => {
-            console.log('Upload complete');
-            resolve(null);
-          });
-        });
-        logoUrl = await getDownloadURL(fileRef);
-        console.log('Logo URL obtained:', logoUrl);
-      }
-
-      if (editingPlace) {
-        console.log('Updating existing place:', editingPlace.id);
-        await setDoc(doc(db, 'places', editingPlace.id), {
-          ...editingPlace,
-          name: newPlace.name.trim(),
-          description: newPlace.description.trim(),
-          logo: logoUrl,
-          category: newPlace.category
-        }, { merge: true });
-        console.log('Place updated successfully');
-      } else {
-        console.log('Creating new place...');
-        const placeId = newPlace.name.toLowerCase().replace(/\s+/g, '-') + '-' + Math.random().toString(36).substr(2, 5);
-        await setDoc(doc(db, 'places', placeId), {
-          id: placeId,
-          name: newPlace.name.trim(),
-          description: newPlace.description.trim() || `Official space for ${newPlace.name}`,
-          logo: logoUrl,
-          category: newPlace.category,
-          creatorUid: user.uid,
-          timestamp: serverTimestamp()
-        });
-        console.log('Place created successfully:', placeId);
-        
-        // Initialize finance for the place
-        await setDoc(doc(db, 'finance', placeId), {
-          placeId: placeId,
-          institutionBalance: 0,
-          bankName: 'Exona Trust Bank',
-          accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
-          accountName: `${newPlace.name} General`
-        });
-        console.log('Finance initialized for place');
-
-        // Check for referral qualification
-        if (userDoc) {
-          await checkReferralQualification(userDoc);
-        }
-      }
-      setNewPlace({ name: '', description: '', logo: '', category: 'School' });
-      setEditingPlace(null);
-      setIsPlaceModalOpen(false);
-      setSelectedFile(null);
-      setPreviewUrl(null);
-    } catch (error) {
-      console.error('Error in handleCreatePlace:', error);
-      handleFirestoreError(error, OperationType.CREATE, 'places');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
-  const handleDeletePlace = async () => {
-    if (!user || !placeToDelete) return;
-    setIsUploading(true);
-    try {
-      await deleteDoc(doc(db, 'places', placeToDelete));
-      setIsDeletePlaceModalOpen(false);
-      setPlaceToDelete(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `places/${placeToDelete}`);
+      handleFirestoreError(error, OperationType.DELETE, `institutions/${schoolToDelete}`);
     } finally {
       setIsUploading(false);
     }
@@ -4224,48 +4126,6 @@ function ExonaApp() {
           </motion.div>
         )}
 
-        {isDeletePlaceModalOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100 text-center"
-            >
-              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
-                <Trash2 size={32} />
-              </div>
-              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Erase Place?</h3>
-              <p className="text-muted font-medium mb-10 leading-relaxed">This action is permanent and will remove this place from the system. Are you sure?</p>
-              
-              <div className="flex flex-col gap-4">
-                <button 
-                  onClick={handleDeletePlace}
-                  disabled={isUploading}
-                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-red-100 hover:bg-red-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-                >
-                  {isUploading ? (
-                    <>
-                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                      Erasing...
-                    </>
-                  ) : (
-                    'Confirm Deletion'
-                  )}
-                </button>
-                <button 
-                  onClick={() => { setIsDeletePlaceModalOpen(false); setPlaceToDelete(null); }}
-                  disabled={isUploading}
-                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
-                >
-                  Abort
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
         {isSchoolModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -4327,6 +4187,28 @@ function ExonaApp() {
                           }`}
                         >
                           {level}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {newSchool.type === 'place' && (
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Space Category</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['School', 'Business', 'Community', 'Personal', 'Other'].map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setNewSchool({ ...newSchool, category: c as any })}
+                          className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                            newSchool.category === c
+                              ? 'bg-ink text-white border-ink'
+                              : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
+                          }`}
+                        >
+                          {c}
                         </button>
                       ))}
                     </div>

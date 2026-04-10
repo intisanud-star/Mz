@@ -74,7 +74,7 @@ service cloud.firestore {
     }
 
     function isValidUrl(url) {
-      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+      return url is string && (url == "" || url.matches("^https://.*") || url.matches("^http://.*"));
     }
 
     function hasOnlyAllowedFields(fields) {
@@ -99,6 +99,9 @@ service cloud.firestore {
       return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
              data.creatorUid == request.auth.uid &&
              (!('logo' in data) || isValidUrl(data.logo)) &&
+             (!('description' in data) || data.description is string) &&
+             (!('type' in data) || data.type in ['school', 'place']) &&
+             (!('educationalLevels' in data) || data.educationalLevels is list) &&
              (!('subAdmins' in data) || (data.subAdmins is list && data.subAdmins.size() < 50)) &&
              (!('followers' in data) || (data.followers is list && data.followers.size() < 10000)) &&
              (!('pendingFollowers' in data) || (data.pendingFollowers is list && data.pendingFollowers.size() < 1000));
