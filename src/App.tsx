@@ -813,6 +813,9 @@ function ExonaApp() {
         
         // Update user document
         batch.set(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'User',
           hasCreatedInstitution: true
         }, { merge: true });
 
@@ -1969,32 +1972,7 @@ function ExonaApp() {
                     </div>
                     
                     <div className="flex items-center gap-2">
-                      {user && !canManageInstitution(school) && (
-                        <>
-                          {school.followers?.includes(user.uid) ? (
-                            <button 
-                              onClick={() => handleUnfollowInstitution(school)}
-                              className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
-                            >
-                              Unfollow
-                            </button>
-                          ) : school.pendingFollowers?.includes(user.uid) ? (
-                            <button 
-                              disabled
-                              className="px-4 py-2 bg-white border border-gray-100 text-muted/50 rounded-xl text-[12px] font-bold uppercase tracking-widest cursor-not-allowed"
-                            >
-                              Pending
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleFollowInstitution(school)}
-                              className="px-4 py-2 bg-ink text-white rounded-xl text-[12px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
-                            >
-                              Follow
-                            </button>
-                          )}
-                        </>
-                      )}
+                      {/* Follow/Unfollow buttons removed from list view as per user request */}
                     </div>
                   </div>
 

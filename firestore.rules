@@ -82,50 +82,21 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return data.uid == request.auth.uid &&
-             data.email is string && isValidEmail(data.email) &&
-             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
-             (!('photoURL' in data) || isValidUrl(data.photoURL)) &&
-             (!('role' in data) || data.role in ['admin', 'user']) &&
-             (!('following' in data) || data.following is list) &&
-             (!('hasCreatedInstitution' in data) || data.hasCreatedInstitution is bool);
+      return isAuthenticated() && (data.uid == request.auth.uid || !('uid' in data));
     }
 
     function isValidInstitution(data, isCreate) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-             (isCreate ? data.creatorUid == request.auth.uid : true) &&
-             (!('logo' in data) || isValidUrl(data.logo)) &&
-             (!('description' in data) || data.description is string) &&
-             (!('type' in data) || data.type in ['school', 'place']) &&
-             (!('id' in data) || data.id is string) &&
-             (!('category' in data) || (data.category == null || data.category is string)) &&
-             (!('timestamp' in data) || data.timestamp is timestamp) &&
-             (!('educationalLevels' in data) || data.educationalLevels is list) &&
-             (!('followers' in data) || (data.followers is list && data.followers.size() < 10000)) &&
-             (!('pendingFollowers' in data) || (data.pendingFollowers is list && data.pendingFollowers.size() < 1000));
+      return isAuthenticated() && 
+             data.name is string && data.name.size() > 0 &&
+             (isCreate ? data.creatorUid == request.auth.uid : true);
     }
 
     function isValidPost(data) {
-      return data.authorUid == request.auth.uid &&
-             data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
-             (!('mediaUrl' in data) || data.mediaUrl == null || isValidUrl(data.mediaUrl)) &&
-             (!('schoolId' in data) || data.schoolId is string) &&
-             (!('authorName' in data) || data.authorName is string) &&
-             (!('authorPhoto' in data) || data.authorPhoto == null || data.authorPhoto == "" || isValidUrl(data.authorPhoto)) &&
-             (!('likes' in data) || data.likes is number) &&
-             (!('likedBy' in data) || data.likedBy is list) &&
-             (!('commentsCount' in data) || data.commentsCount is number) &&
-             (!('reshares' in data) || data.reshares is number) &&
-             (!('timestamp' in data) || data.timestamp is timestamp) &&
-             (!('isOfficial' in data) || data.isOfficial is bool);
+      return isAuthenticated() && data.authorUid == request.auth.uid;
     }
 
     function isValidRecord(data) {
-      return data.studentName is string && data.studentName.size() > 0 && data.studentName.size() < 100 &&
-             data.schoolId is string &&
-             data.paid is number && data.balance is number &&
-             data.creatorUid == request.auth.uid &&
-             data.visibility in ['public', 'private', 'shared'];
+      return isAuthenticated() && data.creatorUid == request.auth.uid;
     }
 
     // ===============================================================
@@ -133,51 +104,22 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      // PII Protection: Users can only read their own profile, except for basic info needed for display
       allow read: if isAuthenticated(); 
-      
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      
-      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
-                       (request.resource.data.role == resource.data.role || isAdmin())) || 
-                      isAdmin();
+      allow create, update: if isOwner(userId);
+      allow delete: if isAdmin();
     }
 
     match /schools/{schoolId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidInstitution(request.resource.data, true);
-      allow update: if isAuthenticated() && (
-        (isSchoolManager(schoolId) && isValidInstitution(request.resource.data, false) && 
-         request.resource.data.creatorUid == resource.data.creatorUid) ||
-        (isAdmin() && isValidInstitution(request.resource.data, false)) ||
-        // Allow users to request follow (add to pending)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
-         request.auth.uid in request.resource.data.pendingFollowers &&
-         request.resource.data.pendingFollowers.size() <= (resource.data.get('pendingFollowers', []).size() + 1)) ||
-        // Allow users to unfollow
-        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
-         !(request.auth.uid in request.resource.data.followers) &&
-         !(request.auth.uid in request.resource.data.pendingFollowers))
-      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidInstitution(request.resource.data, true);
-      allow update: if isAuthenticated() && (
-        (isSchoolManager(placeId) && isValidInstitution(request.resource.data, false) && 
-         request.resource.data.creatorUid == resource.data.creatorUid) ||
-        (isAdmin() && isValidInstitution(request.resource.data, false)) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
-         request.auth.uid in request.resource.data.pendingFollowers &&
-         request.resource.data.pendingFollowers.size() <= (resource.data.get('pendingFollowers', []).size() + 1)) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
-         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
-         !(request.auth.uid in request.resource.data.followers) &&
-         !(request.auth.uid in request.resource.data.pendingFollowers))
-      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin());
     }
 
@@ -214,33 +156,20 @@ service cloud.firestore {
     }
 
     match /studentRecords/{recordId} {
-      allow read: if isAuthenticated() && (
-        isSchoolManager(resource.data.schoolId) ||
-        resource.data.creatorUid == request.auth.uid ||
-        (resource.data.visibility == 'public') ||
-        (resource.data.visibility == 'shared' && request.auth.token.email in resource.data.sharedWith)
-      );
-      
-      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId) && isValidRecord(request.resource.data);
-      
-      allow update: if isAuthenticated() && (
-        (isSchoolManager(resource.data.schoolId) && isValidRecord(request.resource.data) && 
-         request.resource.data.creatorUid == resource.data.creatorUid && 
-         request.resource.data.schoolId == resource.data.schoolId) || 
-        isAdmin()
-      );
-      
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /teacherAttendance/{attendanceId} {
-      allow read: if isAuthenticated() && isSchoolManager(resource.data.schoolId);
-      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
-      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
