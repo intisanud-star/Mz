@@ -323,7 +323,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
   );
 };
 
-const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId }: any) => {
+const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId, canManage }: any) => {
   const [showMenu, setShowMenu] = useState(false);
   const isLiked = post.likedBy?.includes(currentUserId);
   const isOwnPost = post.authorUid === currentUserId;
@@ -336,9 +336,14 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
       className={`flex flex-col mb-4 px-4 ${isOwnPost ? 'items-end' : 'items-start'}`}
     >
       {!isOwnPost && (
-        <span className="text-[11px] font-bold text-accent ml-2 mb-1 uppercase tracking-widest">
-          {post.authorName}
-        </span>
+        <div className="flex items-center gap-1 ml-2 mb-1">
+          <span className="text-[11px] font-bold text-accent uppercase tracking-widest">
+            {post.authorName}
+          </span>
+          {post.isOfficial && (
+            <BadgeCheck size={12} className="text-accent fill-accent/10" />
+          )}
+        </div>
       )}
       
       <div className="flex items-end gap-2 max-w-[85%]">
@@ -397,13 +402,34 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
             )}
           </div>
 
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
             <button 
               onClick={() => setShowMenu(!showMenu)}
-              className="text-muted hover:text-ink p-1"
+              className="text-muted hover:text-ink p-1 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-100"
             >
-              <ChevronDown size={14} />
+              <MoreHorizontal size={14} />
             </button>
+            
+            {showMenu && (
+              <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-20">
+                {(isOwnPost || currentUserId === post.schoolId || canManage) && (
+                  <>
+                    <button 
+                      onClick={() => { onEdit?.(post); setShowMenu(false); }}
+                      className="w-full px-4 py-2 text-left text-[11px] font-bold text-ink hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <Edit2 size={12} /> Edit
+                    </button>
+                    <button 
+                      onClick={() => { onDelete?.(post); setShowMenu(false); }}
+                      className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -531,6 +557,7 @@ function ExonaApp() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [uploadingInstitutionId, setUploadingInstitutionId] = useState<string | null>(null);
   const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
+  const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -561,6 +588,19 @@ function ExonaApp() {
       }
     });
   }, [managedInstitutions]);
+
+  const handleEditSchool = (school: School | Place) => {
+    setEditingSchool(school as School);
+    setNewSchool({
+      name: school.name,
+      description: school.description,
+      logo: school.logo,
+      type: school.type,
+      educationalLevels: (school as School).educationalLevels || [],
+      category: (school as Place).category || 'Other'
+    });
+    setIsSchoolModalOpen(true);
+  };
 
   const checkReferralQualification = async (currentUserDoc: UserDoc) => {
     if (currentUserDoc.hasCreatedInstitution || !currentUserDoc.referredBy) return;
@@ -965,6 +1005,9 @@ function ExonaApp() {
         console.log('Media upload successful', mediaUrl);
       }
 
+      const isOfficial = canManageInstitution(view === 'school-feed' ? selectedSchool : null);
+      const schoolId = (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon';
+      
       if (editingPost) {
         console.log('Updating post', editingPost.id);
         await setDoc(doc(db, 'posts', editingPost.id), {
@@ -977,8 +1020,8 @@ function ExonaApp() {
         console.log('Adding new post');
         await addDoc(collection(db, path), {
           authorUid: user.uid,
-          authorName: user.displayName || 'Anonymous',
-          authorPhoto: user.photoURL || '',
+          authorName: isOfficial && selectedSchool ? selectedSchool.name : (user.displayName || 'Anonymous'),
+          authorPhoto: isOfficial && selectedSchool ? selectedSchool.logo : (user.photoURL || ''),
           content: newPostContent.trim(),
           mediaUrl: mediaUrl || null,
           mediaType: mediaType || null,
@@ -987,8 +1030,8 @@ function ExonaApp() {
           commentsCount: 0,
           reshares: 0,
           timestamp: serverTimestamp(),
-          isOfficial: canManageInstitution(view === 'school-feed' ? selectedSchool : null),
-          schoolId: (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon'
+          isOfficial,
+          schoolId
         });
       }
       console.log('Post operation successful');
@@ -1569,17 +1612,18 @@ function ExonaApp() {
     }
   };
 
-  const handleUnfollowInstitution = async (school: School | Place) => {
+  const handleUnfollowInstitution = async (school: School | Place, targetUid?: string) => {
     if (!user || !userDoc) return;
+    const uidToRemove = targetUid || user.uid;
     try {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
-      const userRef = doc(db, 'users', user.uid);
+      const userRef = doc(db, 'users', uidToRemove);
       
       await Promise.all([
         setDoc(schoolRef, { 
-          followers: arrayRemove(user.uid),
-          pendingFollowers: arrayRemove(user.uid)
+          followers: arrayRemove(uidToRemove),
+          pendingFollowers: arrayRemove(uidToRemove)
         }, { merge: true }),
         setDoc(userRef, { 
           following: arrayRemove(school.id) 
@@ -1987,54 +2031,101 @@ function ExonaApp() {
 
         return (
           <div className="w-full max-w-xl mx-auto py-4 px-4">
-            <div className="flex items-center justify-between mb-6 bg-white p-3 rounded-xl border border-gray-100">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setView('schools')} className="p-2 hover:bg-white border border-transparent hover:border-gray-100 rounded-full transition-colors text-accent">
-                  <ChevronRight size={24} className="rotate-180" />
-                </button>
+            <div className="flex flex-col gap-4 mb-6">
+              <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
+                  <button onClick={() => setView('schools')} className="p-2 hover:bg-white border border-transparent hover:border-gray-100 rounded-full transition-colors text-accent">
+                    <ChevronRight size={24} className="rotate-180" />
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
+                      {selectedSchool.logo ? (
+                        <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-muted text-[10px] font-bold">{selectedSchool.name.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-ink text-base leading-tight">{selectedSchool.name}</h2>
+                      <p className="text-[10px] text-muted font-bold">Online</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {user && !isManager && !isAdmin && (
+                    <>
+                      {isFollowing ? (
+                        <button 
+                          onClick={() => handleUnfollowInstitution(selectedSchool)}
+                          className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          Unfollow
+                        </button>
+                      ) : selectedSchool.pendingFollowers?.includes(user.uid) ? (
+                        <button 
+                          disabled
+                          className="px-4 py-2 bg-white border border-gray-100 text-muted/50 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
+                        >
+                          Pending
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleFollowInstitution(selectedSchool)}
+                          className="px-4 py-2 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
+                        >
+                          Follow
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {isManager && (
+                    <button 
+                      onClick={() => openNewPostModal()}
+                      className="h-10 w-10 bg-accent text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
+                    >
+                      <Plus size={20} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {isManager && (
+                <div className="flex bg-white p-1 rounded-xl border border-gray-100">
+                  <button 
+                    onClick={() => setSchoolFeedTab('feed')}
+                    className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'feed' ? 'bg-ink text-white' : 'text-muted hover:bg-gray-50'}`}
+                  >
+                    Feed
+                  </button>
+                  <button 
+                    onClick={() => setSchoolFeedTab('manage')}
+                    className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'manage' ? 'bg-ink text-white' : 'text-muted hover:bg-gray-50'}`}
+                  >
+                    Manage
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {schoolFeedTab === 'feed' && isManager && (
+              <div className="mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl overflow-hidden bg-accent/5 flex items-center justify-center text-accent font-bold border border-gray-100">
                     {selectedSchool.logo ? (
                       <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <span className="text-muted text-[10px] font-bold">{selectedSchool.name.charAt(0)}</span>
+                      <span className="text-accent">{selectedSchool.name.charAt(0)}</span>
                     )}
                   </div>
-                  <div>
-                    <h2 className="font-bold text-ink text-base leading-tight">{selectedSchool.name}</h2>
-                    <p className="text-[10px] text-muted font-bold">Online</p>
-                  </div>
+                  <button 
+                    onClick={() => openNewPostModal()}
+                    className="flex-1 text-left px-4 py-2.5 bg-gray-50 rounded-xl text-muted text-[13px] font-medium hover:bg-gray-100 transition-colors"
+                  >
+                    Post an official update...
+                  </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {user && !isManager && !isAdmin && (
-                  <>
-                    {isFollowing ? (
-                      <button 
-                        onClick={() => handleUnfollowInstitution(selectedSchool)}
-                        className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
-                      >
-                        Unfollow
-                      </button>
-                    ) : selectedSchool.pendingFollowers?.includes(user.uid) ? (
-                      <button 
-                        disabled
-                        className="px-4 py-2 bg-white border border-gray-100 text-muted/50 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
-                      >
-                        Pending
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => handleFollowInstitution(selectedSchool)}
-                        className="px-4 py-2 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
-                      >
-                        Follow
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+            )}
 
             {!canSeeContent ? (
               <div className="py-20 text-center bg-white border border-gray-100 rounded-[2.5rem] px-8">
@@ -2052,6 +2143,141 @@ function ExonaApp() {
                   </button>
                 )}
               </div>
+            ) : schoolFeedTab === 'manage' ? (
+              <div className="space-y-8">
+                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-extrabold text-ink">Pending Approvals</h3>
+                    <span className="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px] font-bold uppercase tracking-widest">
+                      {selectedSchool.pendingFollowers?.length || 0} Requests
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {(!selectedSchool.pendingFollowers || selectedSchool.pendingFollowers.length === 0) ? (
+                      <div className="py-10 text-center opacity-30">
+                        <Users size={48} className="mx-auto mb-4" />
+                        <p className="text-sm font-bold">No pending requests</p>
+                      </div>
+                    ) : (
+                      selectedSchool.pendingFollowers.map(uid => (
+                        <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100">
+                              {pendingFollowerNames[uid]?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-ink">{pendingFollowerNames[uid] || 'Loading...'}</p>
+                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Wants to follow</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleRejectFollower(selectedSchool, uid)}
+                              className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
+                            >
+                              <X size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleApproveFollower(selectedSchool, uid)}
+                              className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:bg-ink/90 transition-colors"
+                            >
+                              <Check size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-extrabold text-ink">Approved Members</h3>
+                    <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
+                      {selectedSchool.followers?.length || 0} Members
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {(!selectedSchool.followers || selectedSchool.followers.length === 0) ? (
+                      <div className="py-10 text-center opacity-30">
+                        <Users size={48} className="mx-auto mb-4" />
+                        <p className="text-sm font-bold">No members yet</p>
+                      </div>
+                    ) : (
+                      selectedSchool.followers.map(uid => (
+                        <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100">
+                              {pendingFollowerNames[uid]?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-ink">{pendingFollowerNames[uid] || 'Loading...'}</p>
+                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Member</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleUnfollowInstitution(selectedSchool, uid)}
+                            className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
+                            title="Remove Member"
+                          >
+                            <UserMinus size={18} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                  <h3 className="text-xl font-extrabold text-ink mb-8">Quick Management</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => { setView('records'); setSidebarOpen(false); }}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
+                        <Database size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Records</span>
+                    </button>
+                    <button 
+                      onClick={() => { setView('attendance'); setSidebarOpen(false); }}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
+                        <Calendar size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Attendance</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                  <h3 className="text-xl font-extrabold text-ink mb-8">Institution Controls</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button 
+                      onClick={() => handleEditSchool(selectedSchool)}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-ink shadow-sm group-hover:scale-110 transition-transform">
+                        <Edit2 size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Edit Details</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSchoolToDelete(selectedSchool.id); setIsDeleteSchoolModalOpen(true); }}
+                      className="flex flex-col items-center gap-3 p-6 bg-red-50/30 rounded-2xl border border-transparent hover:border-red-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-red-600 shadow-sm group-hover:scale-110 transition-transform">
+                        <Trash2 size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-red-600/70">Delete Space</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : (
               <>
                 <div className="divide-y divide-gray-100">
@@ -2067,6 +2293,7 @@ function ExonaApp() {
                       onEdit={handleEditPost}
                       onDelete={onDeletePostClick}
                       currentUserId={user?.uid}
+                      canManage={isManager || isAdmin}
                     />
                   ))}
                   {schoolPosts.length === 0 && (
@@ -2173,28 +2400,65 @@ function ExonaApp() {
         const invitesCount = userDoc?.invitesCount || 0;
         const isQualified = userDoc?.isLifetimeFree || invitesCount >= 3;
         const inviteProgress = Math.min(invitesCount, 3);
+        const myInstitutions = [...schools, ...places].filter(s => s.creatorUid === user?.uid);
 
         return (
           <div className="w-full max-w-xl mx-auto pb-32">
+            <div className="flex items-center justify-between py-8 px-4">
+              <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Institutions</h2>
+              {user && (
+                <button 
+                  onClick={() => setIsSchoolModalOpen(true)}
+                  className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-accent/20"
+                >
+                  <Plus size={24} />
+                </button>
+              )}
+            </div>
+
             {/* WhatsApp Style Chat List */}
             <div className="bg-white">
+              {myInstitutions.length > 0 && (
+                <div className="py-4 px-4 border-b border-gray-100 bg-accent/5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[13px] font-bold text-accent uppercase tracking-widest">My Institutions</h2>
+                  </div>
+                  <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                    {myInstitutions.map(school => (
+                      <button 
+                        key={school.id}
+                        onClick={() => { setSelectedSchool(school); setView('school-feed'); setSchoolFeedTab('manage'); }}
+                        className="flex-shrink-0 w-16 text-center group"
+                      >
+                        <div className="h-14 w-14 p-0.5 rounded-2xl border-2 border-accent flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white shadow-sm">
+                          <div className="h-full w-full rounded-[0.85rem] overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
+                            {school.logo ? (
+                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="text-lg font-bold text-gray-300">{school.name.charAt(0)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Recent Status (WhatsApp Style) */}
               <div className="py-4 px-4 border-b border-gray-100">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[13px] font-bold text-accent uppercase tracking-widest">Active Institutions</h2>
+                  <h2 className="text-[13px] font-bold text-accent uppercase tracking-widest">Followed Institutions</h2>
                   <button onClick={() => setView('feed')} className="text-[11px] font-bold text-muted hover:text-accent transition-colors">View All</button>
                 </div>
                 <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
                   {[...schools, ...places]
-                    .filter(s => {
-                      if (userDoc?.role === 'admin') return true;
-                      return s.followers?.includes(user?.uid || '') || 
-                             s.creatorUid === user?.uid;
-                    })
+                    .filter(s => s.followers?.includes(user?.uid || ''))
                     .slice(0, 8).map(school => (
                     <button 
                       key={school.id}
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); setSchoolFeedTab('feed'); }}
                       className="flex-shrink-0 w-16 text-center group"
                     >
                       <div className="h-14 w-14 p-0.5 rounded-2xl border-2 border-accent flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white shadow-sm">
@@ -2209,6 +2473,9 @@ function ExonaApp() {
                       <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
                     </button>
                   ))}
+                  {[...schools, ...places].filter(s => s.followers?.includes(user?.uid || '')).length === 0 && (
+                    <p className="text-[11px] text-muted font-medium py-4">You haven't followed any institutions yet.</p>
+                  )}
                 </div>
               </div>
 
