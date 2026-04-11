@@ -831,6 +831,7 @@ function ExonaApp() {
       setPreviewUrl(null);
     } catch (error) {
       console.error('Error in handleCreateSchool:', error);
+      alert('Failed to authorize registration. Please check your connection and try again.');
       handleFirestoreError(error, OperationType.CREATE, 'institutions');
     } finally {
       setIsUploading(false);

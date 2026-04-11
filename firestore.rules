@@ -49,8 +49,12 @@ service cloud.firestore {
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
+        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && 
+          getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && 
-          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
+          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid) ||
+        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && 
+          getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
       );
     }
 
@@ -93,6 +97,9 @@ service cloud.firestore {
              (!('logo' in data) || isValidUrl(data.logo)) &&
              (!('description' in data) || data.description is string) &&
              (!('type' in data) || data.type in ['school', 'place']) &&
+             (!('id' in data) || data.id is string) &&
+             (!('category' in data) || (data.category == null || data.category is string)) &&
+             (!('timestamp' in data) || data.timestamp is timestamp) &&
              (!('educationalLevels' in data) || data.educationalLevels is list) &&
              (!('followers' in data) || (data.followers is list && data.followers.size() < 10000)) &&
              (!('pendingFollowers' in data) || (data.pendingFollowers is list && data.pendingFollowers.size() < 1000));
