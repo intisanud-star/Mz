@@ -4849,9 +4849,6 @@ function ExonaApp() {
 
         <div className="flex items-center gap-2 text-ink">
           <button className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink">
-            <Camera size={20} />
-          </button>
-          <button className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink">
             <Search size={20} />
           </button>
           <button 
