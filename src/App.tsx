@@ -302,7 +302,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
           </div>
         </div>
         {/* Toolbar / Ribbon Tabs */}
-        <div className="px-4 md:px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar bg-white">
+        <div className="px-4 md:px-6 py-2 flex flex-wrap items-center gap-2 sm:gap-4 bg-white">
           {toolbar}
         </div>
       </div>
@@ -312,7 +312,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-6 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20"
+          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-4 sm:p-8 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20"
         >
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
@@ -1755,7 +1755,7 @@ function ExonaApp() {
                       <Search size={20} />
                     </div>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto hidden md:block">
                     <table className="w-full text-left">
                       <thead>
                         <tr className="bg-white border-b border-gray-100">
@@ -1810,6 +1810,53 @@ function ExonaApp() {
                         })}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Admin Mobile Card View */}
+                  <div className="md:hidden divide-y divide-gray-50">
+                    {[...schools, ...places].map(school => {
+                      const schoolFin = allFinance.find(f => f.schoolId === school.id || f.placeId === school.id);
+                      return (
+                        <div key={school.id} className="p-6">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="h-12 w-12 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                              {school.logo ? (
+                                <img src={school.logo} className="h-full w-full object-cover" />
+                              ) : (
+                                <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-ink text-sm truncate">{school.name}</p>
+                              <p className="text-[9px] text-muted font-bold uppercase tracking-widest">{school.id}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Balance</p>
+                              <p className="font-mono font-bold text-ink text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                                className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-lg text-[9px] font-bold uppercase tracking-widest hover:border-gray-300 transition-all"
+                              >
+                                Manage
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setSchoolToDelete(school.id);
+                                  setIsDeleteSchoolModalOpen(true);
+                                }}
+                                className="p-2 bg-white border border-gray-100 text-red-600 rounded-lg hover:bg-red-50 transition-all"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </motion.div>
               </div>
@@ -2218,7 +2265,7 @@ function ExonaApp() {
 
                 <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
                   <h3 className="text-xl font-extrabold text-ink mb-8">Quick Management</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <button 
                       onClick={() => { setView('records'); setSidebarOpen(false); }}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
@@ -2236,6 +2283,15 @@ function ExonaApp() {
                         <Calendar size={20} />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Attendance</span>
+                    </button>
+                    <button 
+                      onClick={() => { setView('finance'); setSidebarOpen(false); }}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
+                        <Wallet size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Finance</span>
                     </button>
                   </div>
                 </div>
@@ -2614,20 +2670,20 @@ function ExonaApp() {
             subtitle={labels.system}
             icon={Database}
             toolbar={
-              <div className="flex items-center gap-6">
-                <div className="flex gap-1 bg-white border border-gray-100 p-1 rounded-lg">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
                   {(['general', 'books', 'uniforms'] as const).map(tab => (
                     <button 
                       key={tab}
                       onClick={() => setRecordTab(tab)}
-                      className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
+                      className={`px-3 sm:px-4 py-1.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
                     >
                       {tab === 'general' ? 'Home' : tab === 'books' ? labels.books : labels.uniforms}
                     </button>
                   ))}
                 </div>
-                <div className="h-6 w-[1px] bg-gray-100" />
-                <div className="flex items-center gap-2">
+                <div className="hidden sm:block h-6 w-[1px] bg-gray-100" />
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
                     <input 
@@ -2635,7 +2691,7 @@ function ExonaApp() {
                       placeholder="Search..." 
                       value={recordSearch}
                       onChange={(e) => setRecordSearch(e.target.value)}
-                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-48" 
+                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-32 sm:w-48" 
                     />
                   </div>
                   {canManageInstitution(selectedSchool) && (
@@ -2656,7 +2712,7 @@ function ExonaApp() {
               <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{recordTab} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
               {[
                 { label: `Total ${labels.students}`, value: filteredRecords.length, icon: Users },
                 { label: 'Total Paid', value: `₦${totalPaid.toLocaleString()}`, icon: CreditCard },
@@ -2669,7 +2725,19 @@ function ExonaApp() {
               ))}
             </div>
 
-            <div className="overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
+            {canManageInstitution(selectedSchool) && (
+              <div className="md:hidden mb-12">
+                <button 
+                  onClick={() => setIsRecordModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-3 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 active:scale-[0.98] transition-all"
+                >
+                  <Plus size={20} />
+                  New Record
+                </button>
+              </div>
+            )}
+
+            <div className="hidden md:block overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-white border-b border-gray-200">
@@ -2734,6 +2802,59 @@ function ExonaApp() {
               </table>
             </div>
 
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {filteredRecords.length === 0 ? (
+                <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <p className="font-bold text-muted">No records found</p>
+                </div>
+              ) : (
+                filteredRecords.map((record) => (
+                  <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-bold text-ink">{record.studentName}</h4>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
+                          <>
+                            <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
+                              <Edit2 size={14} />
+                            </button>
+                            <button onClick={() => { setRecordToDelete(record.id); setIsDeleteRecordModalOpen(true); }} className="p-2 text-muted hover:text-red-600 transition-all">
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mb-3">
+                      <div>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Paid</p>
+                        <p className="font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Balance</p>
+                        <p className="font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                      <div className="flex items-center gap-2">
+                        <div className="h-5 w-5 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[7px] font-bold text-ink">
+                          {record.addedBy?.charAt(0) || 'A'}
+                        </div>
+                        <span className="text-[10px] font-medium text-muted">{record.addedBy || 'Admin'}</span>
+                      </div>
+                      <span className="text-[10px] font-medium text-muted">
+                        {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona</p>
@@ -2774,8 +2895,8 @@ function ExonaApp() {
             subtitle="Institutional Financial Terminal"
             icon={Wallet}
             toolbar={
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <div className="flex flex-wrap items-center gap-2">
                   <button className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-2">
                     <ArrowUpRight size={14} />
                     Deposit
@@ -2785,7 +2906,7 @@ function ExonaApp() {
                     Withdraw
                   </button>
                 </div>
-                <div className="h-6 w-[1px] bg-gray-200" />
+                <div className="hidden sm:block h-6 w-[1px] bg-gray-200" />
                 <div className="flex items-center gap-2">
                   <button className="p-2 text-muted hover:text-ink transition-all"><Search size={16} /></button>
                   <button className="p-2 text-muted hover:text-ink transition-all"><Filter size={16} /></button>
@@ -2798,7 +2919,7 @@ function ExonaApp() {
               <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Financial Statement • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <div className="bg-ink rounded-sm p-12 text-white mb-16 relative overflow-hidden">
+            <div className="bg-ink rounded-sm p-12 text-white mb-12 relative overflow-hidden">
               <div className="relative z-10">
                 <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em] mb-4">Institution Balance</p>
                 <h3 className="text-6xl font-mono font-medium tracking-tighter mb-8">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
@@ -2817,6 +2938,23 @@ function ExonaApp() {
                 <Sparkles size={300} strokeWidth={1} />
               </div>
             </div>
+
+            {canManageInstitution(selectedSchool) && (
+              <div className="md:hidden grid grid-cols-2 gap-4 mb-12">
+                <button 
+                  className="flex items-center justify-center gap-3 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 active:scale-[0.98] transition-all"
+                >
+                  <ArrowUpRight size={20} />
+                  Deposit
+                </button>
+                <button 
+                  className="flex items-center justify-center gap-3 py-5 bg-white border border-gray-100 text-ink rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/5 active:scale-[0.98] transition-all"
+                >
+                  <TrendingDown size={20} />
+                  Withdraw
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
               <div className="space-y-8">
@@ -2892,8 +3030,8 @@ function ExonaApp() {
             subtitle={labels.attendance}
             icon={Compass}
             toolbar={
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
                     <input 
@@ -2901,7 +3039,7 @@ function ExonaApp() {
                       placeholder={`Search ${labels.teachers.toLowerCase()}...`} 
                       value={attendanceSearch}
                       onChange={(e) => setAttendanceSearch(e.target.value)}
-                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-48" 
+                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-32 sm:w-48" 
                     />
                   </div>
                   {canManageInstitution(selectedSchool) && (
@@ -2922,7 +3060,7 @@ function ExonaApp() {
               <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{labels.attendance} Log • {new Date().toLocaleDateString()}</p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
               {[
                 { label: 'Total Records', value: filteredAttendance.length, icon: ClipboardList },
                 { label: 'Present Today', value: presentToday, icon: CheckCircle2 },
@@ -2935,7 +3073,19 @@ function ExonaApp() {
               ))}
             </div>
 
-            <div className="overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
+            {canManageInstitution(selectedSchool) && (
+              <div className="md:hidden mb-12">
+                <button 
+                  onClick={() => setIsAttendanceModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-3 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 active:scale-[0.98] transition-all"
+                >
+                  <Plus size={20} />
+                  Record Attendance
+                </button>
+              </div>
+            )}
+
+            <div className="hidden md:block overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
               <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                   <tr className="bg-white border-b border-gray-200">
@@ -2972,6 +3122,35 @@ function ExonaApp() {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {filteredAttendance.length === 0 ? (
+                <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                  <p className="font-bold text-muted">No attendance records found</p>
+                </div>
+              ) : (
+                filteredAttendance.map((record) => (
+                  <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                    <div className="flex justify-between items-center mb-3">
+                      <h4 className="font-bold text-ink">{record.teacherName}</h4>
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                        record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
+                      }`}>
+                        {record.status}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Recorded By</span>
+                        <span className="text-[10px] font-medium text-ink">{record.addedBy}</span>
+                      </div>
+                      <span className="text-[10px] font-medium text-muted">{record.date}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
@@ -3609,7 +3788,7 @@ function ExonaApp() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
       {/* Modals */}
       <AnimatePresence>
         {isDeleteModalOpen && (
