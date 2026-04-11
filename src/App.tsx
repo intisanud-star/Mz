@@ -561,6 +561,12 @@ function ExonaApp() {
   const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
   const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
 
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 4000);
+  };
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const refCode = urlParams.get('ref');
@@ -672,9 +678,10 @@ function ExonaApp() {
         setDoc(postDoc.ref, { authorPhoto: photoURL }, { merge: true })
       );
       await Promise.all(updatePromises);
-      
+      showNotification('Profile picture updated');
     } catch (error) {
       console.error('Error updating profile picture:', error);
+      showNotification('Failed to update picture', 'error');
       handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
     } finally {
       setIsUploadingProfile(false);
@@ -818,6 +825,7 @@ function ExonaApp() {
 
       await batch.commit();
       console.log('Batch committed successfully');
+      showNotification(editingSchool ? 'Institution updated successfully' : 'Institution authorized successfully');
 
       // Check for referral qualification after commit
       if (userDoc) {
@@ -832,7 +840,7 @@ function ExonaApp() {
     } catch (error) {
       console.error('Error in handleCreateSchool:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Failed to authorize registration: ${errorMessage}`);
+      showNotification(`Authorization failed: ${errorMessage}`, 'error');
       handleFirestoreError(error, OperationType.CREATE, 'institutions');
     } finally {
       setIsUploading(false);
@@ -849,9 +857,11 @@ function ExonaApp() {
         deleteDoc(doc(db, 'schools', schoolToDelete)),
         deleteDoc(doc(db, 'places', schoolToDelete))
       ]);
+      showNotification('Institution deleted');
       setIsDeleteSchoolModalOpen(false);
       setSchoolToDelete(null);
     } catch (error) {
+      showNotification('Failed to delete institution', 'error');
       handleFirestoreError(error, OperationType.DELETE, `institutions/${schoolToDelete}`);
     } finally {
       setIsUploading(false);
@@ -895,11 +905,13 @@ function ExonaApp() {
         });
       }
       console.log('Record operation successful');
+      showNotification(editingRecord ? 'Record updated' : 'Record synchronized');
       setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private', sharedWith: '' });
       setIsRecordModalOpen(false);
       setEditingRecord(null);
     } catch (error) {
       console.error('Record operation failed', error);
+      showNotification('Record operation failed', 'error');
       handleFirestoreError(error, editingRecord ? OperationType.UPDATE : OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
@@ -953,9 +965,11 @@ function ExonaApp() {
     setIsUploading(true);
     try {
       await deleteDoc(doc(db, 'studentRecords', recordToDelete));
+      showNotification('Record deleted');
       setIsDeleteRecordModalOpen(false);
       setRecordToDelete(null);
     } catch (error) {
+      showNotification('Failed to delete record', 'error');
       handleFirestoreError(error, OperationType.DELETE, `studentRecords/${recordToDelete}`);
     } finally {
       setIsUploading(false);
@@ -1039,6 +1053,7 @@ function ExonaApp() {
         });
       }
       console.log('Post operation successful');
+      showNotification(editingPost ? 'Broadcast updated' : 'Broadcast transmitted');
       setNewPostContent('');
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -1047,7 +1062,7 @@ function ExonaApp() {
       setEditingPost(null);
     } catch (error) {
       console.error('Post operation failed', error);
-      alert('Failed to transmit broadcast. Please check your connection and try again.');
+      showNotification('Transmission failed. Please check connection.', 'error');
       handleFirestoreError(error, editingPost ? OperationType.UPDATE : OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
@@ -1079,6 +1094,7 @@ function ExonaApp() {
     if (!user || !postToDelete) return;
     try {
       await deleteDoc(doc(db, 'posts', postToDelete.id));
+      showNotification('Broadcast deleted');
       setIsDeletePostModalOpen(false);
       setPostToDelete(null);
     } catch (error) {
@@ -1095,7 +1111,9 @@ function ExonaApp() {
         likedBy: newLikedBy, 
         likes: newLikedBy.length 
       }, { merge: true });
+      showNotification(isLiked ? 'Unliked' : 'Liked');
     } catch (error) {
+      showNotification('Failed to update like', 'error');
       handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
     }
   };
@@ -1116,9 +1134,11 @@ function ExonaApp() {
         displayName: editingProfile.displayName,
         bio: editingProfile.bio
       }, { merge: true });
+      showNotification('Profile updated');
       setIsProfileModalOpen(false);
     } catch (error) {
       console.error('Error updating profile:', error);
+      showNotification('Failed to update profile', 'error');
     }
   };
 
@@ -1146,7 +1166,9 @@ function ExonaApp() {
       await setDoc(doc(db, 'posts', post.id), { 
         reshares: (post.reshares || 0) + 1 
       }, { merge: true });
+      showNotification('Broadcast reshared');
     } catch (error) {
+      showNotification('Failed to reshare', 'error');
       handleFirestoreError(error, OperationType.CREATE, 'posts');
     }
   };
@@ -1183,8 +1205,10 @@ function ExonaApp() {
       await setDoc(doc(db, 'posts', activePostForComments.id), { 
         commentsCount: (activePostForComments.commentsCount || 0) + 1 
       }, { merge: true });
+      showNotification('Comment added');
       setCommentText('');
     } catch (error) {
+      showNotification('Failed to add comment', 'error');
       handleFirestoreError(error, OperationType.CREATE, `posts/${activePostForComments.id}/comments`);
     }
   };
@@ -1514,11 +1538,13 @@ function ExonaApp() {
       // Delete user from Auth
       await deleteUser(user);
       
+      showNotification('Account terminated');
       setIsDeleteModalOpen(false);
       setDeletePassword('');
       setView('login');
     } catch (e: any) {
       console.error('Delete Account Error:', e);
+      showNotification('Termination failed', 'error');
       if (e.code === 'auth/requires-recent-login') {
         setAuthError('Please sign out and sign in again to delete your account.');
       } else {
@@ -1533,8 +1559,10 @@ function ExonaApp() {
     try { 
       await signOut(auth); 
       setView('login'); 
+      showNotification('Logged out successfully');
     } catch (e) { 
       console.error('Logout Error:', e);
+      showNotification('Logout failed', 'error');
     }
   };
 
@@ -1578,7 +1606,9 @@ function ExonaApp() {
           setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
         }
       }
+      showNotification('Following user');
     } catch (error) {
+      showNotification('Failed to follow user', 'error');
       handleFirestoreError(error, OperationType.UPDATE, 'users');
     }
   };
@@ -1605,7 +1635,9 @@ function ExonaApp() {
           setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
         }
       }
+      showNotification('Unfollowed user');
     } catch (error) {
+      showNotification('Failed to unfollow user', 'error');
       handleFirestoreError(error, OperationType.UPDATE, 'users');
     }
   };
@@ -1632,7 +1664,7 @@ function ExonaApp() {
         pendingFollowers: arrayUnion(user.uid) 
       }, { merge: true });
       
-      alert('Follow request sent. Waiting for approval from the institution manager.');
+      showNotification('Follow request sent');
     } catch (error) {
       console.error('Error following institution:', error);
       handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
@@ -1656,6 +1688,7 @@ function ExonaApp() {
           following: arrayRemove(school.id) 
         }, { merge: true })
       ]);
+      showNotification('Unfollowed successfully');
     } catch (error) {
       console.error('Error unfollowing institution:', error);
       handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
@@ -1678,6 +1711,7 @@ function ExonaApp() {
           following: arrayUnion(school.id) 
         }, { merge: true })
       ]);
+      showNotification('Member approved');
     } catch (error) {
       console.error('Error approving follower:', error);
       handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
@@ -1693,6 +1727,7 @@ function ExonaApp() {
       await setDoc(schoolRef, { 
         pendingFollowers: arrayRemove(followerUid)
       }, { merge: true });
+      showNotification('Request rejected');
     } catch (error) {
       console.error('Error rejecting follower:', error);
       handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
@@ -3773,6 +3808,25 @@ function ExonaApp() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
+      {/* Global Notification */}
+      <AnimatePresence>
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -50 }}
+            className={`fixed top-6 left-1/2 -translate-x-1/2 z-[1000] px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 border ${
+              notification.type === 'success' 
+                ? 'bg-ink text-white border-white/10' 
+                : 'bg-red-600 text-white border-red-500'
+            }`}
+          >
+            {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span className="text-sm font-bold tracking-tight">{notification.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modals */}
       <AnimatePresence>
         {isDeleteModalOpen && (
