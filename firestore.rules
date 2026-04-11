@@ -108,8 +108,16 @@ service cloud.firestore {
     function isValidPost(data) {
       return data.authorUid == request.auth.uid &&
              data.content is string && data.content.size() > 0 && data.content.size() < 5000 &&
-             (!('mediaUrl' in data) || isValidUrl(data.mediaUrl)) &&
-             (!('schoolId' in data) || data.schoolId is string);
+             (!('mediaUrl' in data) || data.mediaUrl == null || isValidUrl(data.mediaUrl)) &&
+             (!('schoolId' in data) || data.schoolId is string) &&
+             (!('authorName' in data) || data.authorName is string) &&
+             (!('authorPhoto' in data) || data.authorPhoto == null || data.authorPhoto == "" || isValidUrl(data.authorPhoto)) &&
+             (!('likes' in data) || data.likes is number) &&
+             (!('likedBy' in data) || data.likedBy is list) &&
+             (!('commentsCount' in data) || data.commentsCount is number) &&
+             (!('reshares' in data) || data.reshares is number) &&
+             (!('timestamp' in data) || data.timestamp is timestamp) &&
+             (!('isOfficial' in data) || data.isOfficial is bool);
     }
 
     function isValidRecord(data) {
@@ -178,11 +186,15 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         isAdmin() ||
         resource.data.authorUid == request.auth.uid ||
+        resource.data.schoolId == 'horizon' ||
         (resource.data.schoolId != null && (isFollower(resource.data.schoolId) || isSchoolManager(resource.data.schoolId))) ||
         (resource.data.schoolId == null && isFollower(resource.data.authorUid))
       );
       
-      allow create: if isAuthenticated() && isValidPost(request.resource.data);
+      allow create: if isAuthenticated() && isValidPost(request.resource.data) && (
+        request.resource.data.schoolId == 'horizon' ||
+        isSchoolManager(request.resource.data.schoolId)
+      );
       
       allow update: if isAuthenticated() && (
         (resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 

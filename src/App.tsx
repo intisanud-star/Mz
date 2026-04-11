@@ -1046,6 +1046,7 @@ function ExonaApp() {
       setEditingPost(null);
     } catch (error) {
       console.error('Post operation failed', error);
+      alert('Failed to transmit broadcast. Please check your connection and try again.');
       handleFirestoreError(error, editingPost ? OperationType.UPDATE : OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
