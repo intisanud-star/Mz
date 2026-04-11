@@ -47,18 +47,14 @@ service cloud.firestore {
     function isSchoolManager(schoolId) {
       return isAuthenticated() && (
         isAdmin() ||
-        (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
-          get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (request.auth.token.email != null && get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins != null && 
-           (request.auth.token.email in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins || 
-            request.auth.token.email.toLower() in get(/databases/$(database)/documents/schools/$(schoolId)).data.subAdmins))
-        )) ||
-        (exists(/databases/$(database)/documents/places/$(schoolId)) && (
-          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (request.auth.token.email != null && get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins != null && 
-           (request.auth.token.email in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins || 
-            request.auth.token.email.toLower() in get(/databases/$(database)/documents/places/$(schoolId)).data.subAdmins))
-        ))
+        (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
+          get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
+        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && 
+          getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
+        (exists(/databases/$(database)/documents/places/$(schoolId)) && 
+          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid) ||
+        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && 
+          getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
       );
     }
 
@@ -102,7 +98,6 @@ service cloud.firestore {
              (!('description' in data) || data.description is string) &&
              (!('type' in data) || data.type in ['school', 'place']) &&
              (!('educationalLevels' in data) || data.educationalLevels is list) &&
-             (!('subAdmins' in data) || (data.subAdmins is list && data.subAdmins.size() < 50)) &&
              (!('followers' in data) || (data.followers is list && data.followers.size() < 10000)) &&
              (!('pendingFollowers' in data) || (data.pendingFollowers is list && data.pendingFollowers.size() < 1000));
     }
