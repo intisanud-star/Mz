@@ -87,9 +87,9 @@ service cloud.firestore {
              (!('hasCreatedInstitution' in data) || data.hasCreatedInstitution is bool);
     }
 
-    function isValidInstitution(data) {
+    function isValidInstitution(data, isCreate) {
       return data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
-             data.creatorUid == request.auth.uid &&
+             (isCreate ? data.creatorUid == request.auth.uid : true) &&
              (!('logo' in data) || isValidUrl(data.logo)) &&
              (!('description' in data) || data.description is string) &&
              (!('type' in data) || data.type in ['school', 'place']) &&
@@ -119,10 +119,6 @@ service cloud.firestore {
 
     match /users/{userId} {
       // PII Protection: Users can only read their own profile, except for basic info needed for display
-      // Actually, for a social app, we might need to read others' profiles (name, photo)
-      // But let's restrict sensitive fields if possible. 
-      // Firestore rules are all-or-nothing for a document.
-      // So we allow read if authenticated, but we should be careful.
       allow read: if isAuthenticated(); 
       
       allow create: if isOwner(userId) && isValidUser(request.resource.data);
@@ -134,15 +130,15 @@ service cloud.firestore {
 
     match /schools/{schoolId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidInstitution(request.resource.data);
+      allow create: if isAuthenticated() && isValidInstitution(request.resource.data, true);
       allow update: if isAuthenticated() && (
-        (isSchoolManager(schoolId) && isValidInstitution(request.resource.data) && 
+        (isSchoolManager(schoolId) && isValidInstitution(request.resource.data, false) && 
          request.resource.data.creatorUid == resource.data.creatorUid) ||
-        (isAdmin() && isValidInstitution(request.resource.data)) ||
+        (isAdmin() && isValidInstitution(request.resource.data, false)) ||
         // Allow users to request follow (add to pending)
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
          request.auth.uid in request.resource.data.pendingFollowers &&
-         request.resource.data.pendingFollowers.size() <= (resource.data.pendingFollowers.size() + 1)) ||
+         request.resource.data.pendingFollowers.size() <= (resource.data.get('pendingFollowers', []).size() + 1)) ||
         // Allow users to unfollow
         (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
@@ -154,14 +150,14 @@ service cloud.firestore {
 
     match /places/{placeId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidInstitution(request.resource.data);
+      allow create: if isAuthenticated() && isValidInstitution(request.resource.data, true);
       allow update: if isAuthenticated() && (
-        (isSchoolManager(placeId) && isValidInstitution(request.resource.data) && 
+        (isSchoolManager(placeId) && isValidInstitution(request.resource.data, false) && 
          request.resource.data.creatorUid == resource.data.creatorUid) ||
-        (isAdmin() && isValidInstitution(request.resource.data)) ||
+        (isAdmin() && isValidInstitution(request.resource.data, false)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
          request.auth.uid in request.resource.data.pendingFollowers &&
-         request.resource.data.pendingFollowers.size() <= (resource.data.pendingFollowers.size() + 1)) ||
+         request.resource.data.pendingFollowers.size() <= (resource.data.get('pendingFollowers', []).size() + 1)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
          !(request.auth.uid in request.resource.data.followers) &&
