@@ -124,19 +124,10 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      // Social Feed Logic: Only show posts from followed institutions or followed users, or own posts
-      allow read: if isAuthenticated() && (
-        isAdmin() ||
-        resource.data.authorUid == request.auth.uid ||
-        resource.data.schoolId == 'horizon' ||
-        (resource.data.schoolId != null && (isFollower(resource.data.schoolId) || isSchoolManager(resource.data.schoolId))) ||
-        (resource.data.schoolId == null && isFollower(resource.data.authorUid))
-      );
+      // Allow all authenticated users to read posts to ensure visibility for followers
+      allow read: if isAuthenticated();
       
-      allow create: if isAuthenticated() && isValidPost(request.resource.data) && (
-        request.resource.data.schoolId == 'horizon' ||
-        isSchoolManager(request.resource.data.schoolId)
-      );
+      allow create: if isAuthenticated() && isValidPost(request.resource.data);
       
       allow update: if isAuthenticated() && (
         (resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 

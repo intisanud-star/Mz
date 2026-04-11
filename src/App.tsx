@@ -395,9 +395,8 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
               {formatTime(post.timestamp)}
             </span>
             {isOwnPost && (
-              <div className="flex text-blue-400">
-                <Check size={12} className="-mr-1.5" />
-                <Check size={12} />
+              <div className="flex text-accent/20">
+                {/* Ticks removed as per user request */}
               </div>
             )}
           </div>
@@ -480,6 +479,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
+  const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
@@ -1366,7 +1366,7 @@ function ExonaApp() {
           ...schools.filter(s => s.creatorUid === user.uid).map(s => s.id),
           ...places.filter(p => p.creatorUid === user.uid).map(p => p.id)
         ];
-        const relevantIds = [...new Set([user.uid, ...following, ...managedIds])];
+        const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
         
         // We need to fetch:
         // 1. Posts where authorUid is in relevantIds (covers own posts and followed users)
@@ -1887,7 +1887,20 @@ function ExonaApp() {
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Institutions</h2>
+              <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100">
+                <button 
+                  onClick={() => setFeedTab('institutions')}
+                  className={`px-6 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${feedTab === 'institutions' ? 'bg-ink text-white shadow-lg' : 'text-muted hover:bg-white'}`}
+                >
+                  Institutions
+                </button>
+                <button 
+                  onClick={() => setFeedTab('broadcasts')}
+                  className={`px-6 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${feedTab === 'broadcasts' ? 'bg-ink text-white shadow-lg' : 'text-muted hover:bg-white'}`}
+                >
+                  Broadcasts
+                </button>
+              </div>
               {user && (
                 <button 
                   onClick={() => setIsSchoolModalOpen(true)}
@@ -1898,111 +1911,142 @@ function ExonaApp() {
               )}
             </div>
 
-            <div className="relative mb-8 group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search institutions..." 
-                value={schoolSearch}
-                onChange={(e) => setSchoolSearch(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-[1.5rem] focus:ring-2 focus:ring-accent/5 focus:border-accent/20 outline-none transition-all text-ink font-bold placeholder:text-gray-400 shadow-sm" 
-              />
-            </div>
-
-            <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-              {['all', 'school', 'place'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setSchoolFilter(f as any)}
-                  className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
-                    schoolFilter === f 
-                      ? 'bg-accent text-white shadow-lg shadow-accent/20' 
-                      : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
-                  }`}
-                >
-                  {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
-                </button>
-              ))}
-            </div>
-
-            <div className="divide-y divide-gray-100">
-              {[...schools, ...places]
-                .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
-                .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
-                .filter(s => {
-                  // If searching, show all matching
-                  if (schoolSearch.trim() !== '') return true;
-                  // Admins see all
-                  if (userDoc?.role === 'admin') return true;
-                  // Otherwise only show followed or created
-                  return s.followers?.includes(user?.uid || '') || 
-                         s.creatorUid === user?.uid;
-                })
-                .map(school => (
-                <div 
-                  key={school.id}
-                  className="py-6 border-b border-gray-50 group"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div 
-                      className="flex items-center gap-3 cursor-pointer flex-1"
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    >
-                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 ${
-                        school.logo ? 'bg-white' : 'bg-white'
-                      }`}>
-                        {school.logo ? (
-                          <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <span className="text-ink">{school.name.charAt(0)}</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1 mb-0.5">
-                          <h4 className="text-[15px] font-bold text-ink truncate">{school.name}</h4>
-                          <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
-                        </div>
-                        <p className="text-[12px] text-muted line-clamp-1">{school.description}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
-                          <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
-                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {/* Follow/Unfollow buttons removed from list view as per user request */}
-                    </div>
-                  </div>
-
-                  {/* Institution Action Buttons */}
-                  <div className="flex flex-wrap items-center gap-2 ml-15">
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
-                    >
-                      <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('attendance'); }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
-                    >
-                      <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
-                    >
-                      <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
-                    </button>
-                  </div>
+            {feedTab === 'institutions' ? (
+              <>
+                <div className="relative mb-8 group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Search institutions..." 
+                    value={schoolSearch}
+                    onChange={(e) => setSchoolSearch(e.target.value)}
+                    className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-[1.5rem] focus:ring-2 focus:ring-accent/5 focus:border-accent/20 outline-none transition-all text-ink font-bold placeholder:text-gray-400 shadow-sm" 
+                  />
                 </div>
-              ))}
-            </div>
+
+                <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                  {['all', 'school', 'place'].map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setSchoolFilter(f as any)}
+                      className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
+                        schoolFilter === f 
+                          ? 'bg-accent text-white shadow-lg shadow-accent/20' 
+                          : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {[...schools, ...places]
+                    .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
+                    .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
+                    .filter(s => {
+                      // If searching, show all matching
+                      if (schoolSearch.trim() !== '') return true;
+                      // Admins see all
+                      if (userDoc?.role === 'admin') return true;
+                      // Otherwise only show followed or created
+                      return s.followers?.includes(user?.uid || '') || 
+                             s.creatorUid === user?.uid;
+                    })
+                    .map(school => (
+                    <div 
+                      key={school.id}
+                      className="py-6 border-b border-gray-50 group"
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer flex-1"
+                          onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                        >
+                          <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 ${
+                            school.logo ? 'bg-white' : 'bg-white'
+                          }`}>
+                            {school.logo ? (
+                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="text-ink">{school.name.charAt(0)}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <h4 className="text-[15px] font-bold text-ink truncate">{school.name}</h4>
+                              <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
+                            </div>
+                            <p className="text-[12px] text-muted line-clamp-1">{school.description}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
+                              <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {/* Follow/Unfollow buttons removed from list view as per user request */}
+                        </div>
+                      </div>
+
+                      {/* Institution Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 ml-15">
+                        <button 
+                          onClick={() => { setSelectedSchool(school); setView('records'); }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
+                        >
+                          <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedSchool(school); setView('attendance'); }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
+                        >
+                          <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
+                        >
+                          <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-6">
+                {posts.length === 0 ? (
+                  <div className="py-20 text-center text-muted">
+                    <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6">
+                      <MessageSquare size={32} className="opacity-20" />
+                    </div>
+                    <p className="text-sm font-bold">No broadcasts yet from followed institutions.</p>
+                  </div>
+                ) : (
+                  posts.map(post => (
+                    <FeedPost 
+                      key={post.id} 
+                      post={post} 
+                      onUserClick={handleUserClick}
+                      onLike={handleLikePost}
+                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                      onReshare={handleResharePost}
+                      onForward={handleForwardPost}
+                      onEdit={handleEditPost}
+                      onDelete={onDeletePostClick}
+                      currentUserId={user?.uid}
+                      canManage={userDoc?.role === 'admin'}
+                    />
+                  ))
+                )}
+              </div>
+            )}
           </div>
         );
       }
