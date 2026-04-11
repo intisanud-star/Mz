@@ -241,7 +241,8 @@ service cloud.firestore {
 
     match /finance/{schoolId} {
       allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
-      allow write: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
   }
 }
