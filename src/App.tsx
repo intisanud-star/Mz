@@ -539,6 +539,8 @@ function ExonaApp() {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '' });
 
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ 
@@ -1092,6 +1094,28 @@ function ExonaApp() {
       }, { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
+    }
+  };
+
+  const handleEditProfile = () => {
+    setEditingProfile({
+      displayName: user?.displayName || '',
+      bio: userDoc?.bio || ''
+    });
+    setIsProfileModalOpen(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    try {
+      await updateProfile(user, { displayName: editingProfile.displayName });
+      await setDoc(doc(db, 'users', user.uid), {
+        displayName: editingProfile.displayName,
+        bio: editingProfile.bio
+      }, { merge: true });
+      setIsProfileModalOpen(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
     }
   };
 
@@ -3554,35 +3578,80 @@ function ExonaApp() {
             </div>
 
             <div className="flex gap-3 mb-10">
-              <button className="flex-1 py-2 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors">
+              <button 
+                onClick={handleEditProfile}
+                className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+              >
                 Edit profile
               </button>
-              <button className="flex-1 py-2 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors">
+              <button className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all">
                 Share profile
               </button>
             </div>
 
-            <div className="flex border-b border-gray-100 mb-4">
-              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Broadcasts</button>
-              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Replies</button>
-              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
-            </div>
+            <div className="space-y-12 mt-12">
+              <section>
+                <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-600' },
+                    { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500' },
+                    { icon: Sparkles, label: 'Appearance', desc: 'Customize your visual experience', color: 'purple-600' },
+                    { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'accent' }
+                  ].map((item, i) => (
+                    <button key={i} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group">
+                      <div className="flex items-center gap-5">
+                        <div className={`h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-${item.color} group-hover:scale-110 transition-transform`}>
+                          <item.icon size={20} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[15px] font-bold text-ink tracking-tight">{item.label}</p>
+                          <p className="text-[11px] text-muted font-medium">{item.desc}</p>
+                        </div>
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                        <ChevronRight size={14} className="text-ink" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
 
-            <div className="divide-y divide-gray-100">
-              {posts.filter(p => p.authorUid === user.uid).map(post => (
-                <FeedPost 
-                  key={post.id} 
-                  post={post} 
-                  onUserClick={handleUserClick}
-                  onLike={handleLikePost}
-                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                  onReshare={handleResharePost}
-                  onForward={handleForwardPost}
-                  onEdit={handleEditPost}
-                  onDelete={onDeletePostClick}
-                  currentUserId={user?.uid}
-                />
-              ))}
+              <section>
+                <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Support & Legal</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { icon: AlertCircle, label: 'Help Center', desc: 'Get assistance and documentation' },
+                    { icon: FileText, label: 'Terms of Service', desc: 'Review our legal agreements' }
+                  ].map((item, i) => (
+                    <button key={i} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group">
+                      <div className="flex items-center gap-5">
+                        <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-muted group-hover:text-ink transition-colors">
+                          <item.icon size={20} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[15px] font-bold text-ink tracking-tight">{item.label}</p>
+                          <p className="text-[11px] text-muted font-medium">{item.desc}</p>
+                        </div>
+                      </div>
+                      <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                        <ChevronRight size={14} className="text-ink" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <div className="pt-8 border-t border-gray-100">
+                <button 
+                  onClick={() => signOut(auth)}
+                  className="w-full py-5 bg-red-50 text-red-600 rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-red-100 transition-all flex items-center justify-center gap-4 active:scale-[0.98]"
+                >
+                  <LogOut size={20} />
+                  Sign Out from Exona
+                </button>
+                <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Exona Terminal v1.0.4</p>
+              </div>
             </div>
           </div>
         );
@@ -4420,6 +4489,64 @@ function ExonaApp() {
                   <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-2 text-center">{Math.round(uploadProgress)}% Transmission Complete</p>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isProfileModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
+              className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 bg-ink rounded-2xl flex items-center justify-center text-white">
+                    <UserIcon size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-extrabold text-ink tracking-tight">Edit Profile</h2>
+                    <p className="text-muted text-[10px] font-bold uppercase tracking-[0.3em]">Personal Identity Terminal</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsProfileModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-8">
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Display Name</label>
+                  <input 
+                    type="text" 
+                    value={editingProfile.displayName}
+                    onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
+                    placeholder="Your name..."
+                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                  />
+                </div>
+                <div className="group">
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Bio</label>
+                  <textarea 
+                    value={editingProfile.bio}
+                    onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
+                    placeholder="Tell the world about yourself..."
+                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold resize-none h-32 leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-12">
+                <button 
+                  onClick={handleUpdateProfile}
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  Synchronize Profile
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
