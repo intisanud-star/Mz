@@ -49,12 +49,8 @@ service cloud.firestore {
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
-        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && 
-          getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && 
-          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid) ||
-        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && 
-          getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
+          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
       );
     }
 
@@ -142,6 +138,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         (isSchoolManager(schoolId) && isValidInstitution(request.resource.data) && 
          request.resource.data.creatorUid == resource.data.creatorUid) ||
+        (isAdmin() && isValidInstitution(request.resource.data)) ||
         // Allow users to request follow (add to pending)
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
          request.auth.uid in request.resource.data.pendingFollowers &&
@@ -152,7 +149,7 @@ service cloud.firestore {
          !(request.auth.uid in request.resource.data.followers) &&
          !(request.auth.uid in request.resource.data.pendingFollowers))
       );
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin());
     }
 
     match /places/{placeId} {
@@ -161,6 +158,7 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         (isSchoolManager(placeId) && isValidInstitution(request.resource.data) && 
          request.resource.data.creatorUid == resource.data.creatorUid) ||
+        (isAdmin() && isValidInstitution(request.resource.data)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingFollowers']) &&
          request.auth.uid in request.resource.data.pendingFollowers &&
          request.resource.data.pendingFollowers.size() <= (resource.data.pendingFollowers.size() + 1)) ||
@@ -169,7 +167,7 @@ service cloud.firestore {
          !(request.auth.uid in request.resource.data.followers) &&
          !(request.auth.uid in request.resource.data.pendingFollowers))
       );
-      allow delete: if isAdmin();
+      allow delete: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin());
     }
 
     match /posts/{postId} {
