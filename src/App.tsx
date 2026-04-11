@@ -1700,9 +1700,9 @@ function ExonaApp() {
     switch (view) {
       case 'admin': {
         if (userDoc?.role !== 'admin') { setView('feed'); return null; }
-        const totalRevenue = allFinance.reduce((acc, f) => acc + (f.institutionBalance || 0), 0);
-        const totalPaid = allRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
-        const totalBalance = allRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
+        const schoolCount = schools.length;
+        const placeCount = places.length;
+        const totalMembers = allRecords.length;
 
         return (
           <div className="w-full max-w-[1600px] mx-auto py-12 px-8 pb-32 lg:pb-12">
@@ -1721,28 +1721,16 @@ function ExonaApp() {
                   transition={{ delay: 0.1 }}
                   className="text-muted text-[11px] font-bold uppercase tracking-[0.4em]"
                 >
-                  Global system oversight & management
+                  System Statistics & Oversight
                 </motion.p>
               </div>
-              <motion.button 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsSchoolModalOpen(true)}
-                className="flex items-center gap-3 px-10 py-5 bg-accent text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-accent/90 transition-all shadow-xl shadow-accent/20"
-              >
-                <Plus size={20} />
-                Register Institution
-              </motion.button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
               {[
-                { label: 'Total Schools', value: schools.length, color: 'accent' },
-                { label: `Total ${labels.students}`, value: allRecords.length, color: 'green-600' },
-                { label: 'Total Revenue', value: `₦${totalRevenue.toLocaleString()}`, color: 'ink' },
-                { label: 'Pending Balance', value: `₦${totalBalance.toLocaleString()}`, color: 'red-600' }
+                { label: 'Total Schools', value: schoolCount, color: 'accent' },
+                { label: 'Total Places', value: placeCount, color: 'purple-600' },
+                { label: 'Total Members', value: totalMembers, color: 'green-600' }
               ].map((stat, i) => (
                 <motion.div 
                   key={i}
@@ -1756,7 +1744,7 @@ function ExonaApp() {
                   <div className="mt-8 h-1.5 w-full bg-white border border-gray-100 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: '60%' }}
+                      animate={{ width: '100%' }}
                       transition={{ delay: 0.5 + i * 0.1, duration: 1 }}
                       className={`h-full bg-ink`}
                     />
@@ -1765,167 +1753,91 @@ function ExonaApp() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-              <div className="lg:col-span-2">
-                <motion.div 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 }}
-                  className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden"
-                >
-                  <div className="p-10 border-b border-gray-50 flex items-center justify-between">
-                    <h4 className="font-extrabold text-2xl text-ink tracking-tight">Registered Institutions</h4>
-                    <div className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted">
-                      <Search size={20} />
-                    </div>
+            <div className="grid grid-cols-1 gap-12">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden"
+              >
+                <div className="p-10 border-b border-gray-50 flex items-center justify-between">
+                  <h4 className="font-extrabold text-2xl text-ink tracking-tight">Institution Directory</h4>
+                  <div className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted">
+                    <LayoutGrid size={20} />
                   </div>
-                  <div className="overflow-x-auto hidden md:block">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-white border-b border-gray-100">
-                          <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">School</th>
-                          <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Balance</th>
-                          <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {[...schools, ...places].map(school => {
-                          const schoolFin = allFinance.find(f => f.schoolId === school.id || f.placeId === school.id);
-                          return (
-                            <tr key={school.id} className="hover:bg-white transition-colors group border-b border-gray-100">
-                              <td className="px-10 py-8">
-                                <div className="flex items-center gap-6">
-                                  <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
-                                    {school.logo ? (
-                                      <img src={school.logo} className="h-full w-full object-cover" />
-                                    ) : (
-                                      <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="font-bold text-ink text-[15px] tracking-tight">{school.name}</p>
-                                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">{school.id}</p>
-                                  </div>
+                </div>
+                <div className="overflow-x-auto hidden md:block">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-white border-b border-gray-100">
+                        <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institution</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Type</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Member Count</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {[...schools, ...places].map(school => {
+                        const memberCount = allRecords.filter(r => r.schoolId === school.id).length;
+                        return (
+                          <tr key={school.id} className="hover:bg-white transition-colors group border-b border-gray-100">
+                            <td className="px-10 py-8">
+                              <div className="flex items-center gap-6">
+                                <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
+                                  {school.logo ? (
+                                    <img src={school.logo} className="h-full w-full object-cover" />
+                                  ) : (
+                                    <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                                  )}
                                 </div>
-                              </td>
-                              <td className="px-10 py-8 font-mono font-bold text-ink text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</td>
-                              <td className="px-10 py-8">
-                                <div className="flex items-center gap-3">
-                                  <button 
-                                    onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                                    className="px-6 py-2.5 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-[0.2em] hover:bg-white hover:border-gray-300 transition-all"
-                                  >
-                                    Manage
-                                  </button>
-                                  <button 
-                                    onClick={() => {
-                                      setSchoolToDelete(school.id);
-                                      setIsDeleteSchoolModalOpen(true);
-                                    }}
-                                    className="p-2.5 bg-white border border-gray-100 text-red-600 rounded-xl hover:bg-red-50 transition-all"
-                                    title="Delete Institution"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                                <div>
+                                  <p className="font-bold text-ink text-[15px] tracking-tight">{school.name}</p>
+                                  <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">{school.id}</p>
                                 </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                            </td>
+                            <td className="px-10 py-8">
+                              <span className={`px-4 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${school.type === 'school' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                                {school.type}
+                              </span>
+                            </td>
+                            <td className="px-10 py-8 font-mono font-bold text-ink text-sm">{memberCount} Members</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-                  {/* Admin Mobile Card View */}
-                  <div className="md:hidden divide-y divide-gray-50">
-                    {[...schools, ...places].map(school => {
-                      const schoolFin = allFinance.find(f => f.schoolId === school.id || f.placeId === school.id);
-                      return (
-                        <div key={school.id} className="p-6">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="h-12 w-12 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                              {school.logo ? (
-                                <img src={school.logo} className="h-full w-full object-cover" />
-                              ) : (
-                                <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-bold text-ink text-sm truncate">{school.name}</p>
-                              <p className="text-[9px] text-muted font-bold uppercase tracking-widest">{school.id}</p>
-                            </div>
+                {/* Admin Mobile Card View */}
+                <div className="md:hidden divide-y divide-gray-50">
+                  {[...schools, ...places].map(school => {
+                    const memberCount = allRecords.filter(r => r.schoolId === school.id).length;
+                    return (
+                      <div key={school.id} className="p-6">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="h-12 w-12 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                            {school.logo ? (
+                              <img src={school.logo} className="h-full w-full object-cover" />
+                            ) : (
+                              <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                            )}
                           </div>
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Balance</p>
-                              <p className="font-mono font-bold text-ink text-sm">₦{schoolFin?.institutionBalance.toLocaleString() || '0'}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <button 
-                                onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                                className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-lg text-[9px] font-bold uppercase tracking-widest hover:border-gray-300 transition-all"
-                              >
-                                Manage
-                              </button>
-                              <button 
-                                onClick={() => {
-                                  setSchoolToDelete(school.id);
-                                  setIsDeleteSchoolModalOpen(true);
-                                }}
-                                className="p-2 bg-white border border-gray-100 text-red-600 rounded-lg hover:bg-red-50 transition-all"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </div>
+                          <div className="min-w-0">
+                            <p className="font-bold text-ink text-sm truncate">{school.name}</p>
+                            <p className="text-[9px] text-muted font-bold uppercase tracking-widest">{school.type}</p>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              </div>
-
-              <div className="lg:col-span-1">
-                <motion.div 
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.7 }}
-                  className="bg-white p-10 rounded-[3rem] border border-gray-100"
-                >
-                  <h4 className="font-extrabold text-2xl text-ink tracking-tight mb-10">System Activity</h4>
-                  <div className="space-y-10">
-                    {posts.slice(0, 5).map((post, i) => (
-                      <div key={post.id} className="flex gap-6 relative">
-                        {i < 4 && <div className="absolute left-6 top-10 bottom-[-2.5rem] w-px bg-gray-100"></div>}
-                        <div className="relative">
-                          {post.authorPhoto ? (
-                            <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover border border-gray-100" />
-                          ) : (
-                            <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-ink font-bold text-xs border border-gray-100">
-                              {post.authorName?.charAt(0)}
-                            </div>
-                          )}
-                          <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center border border-gray-100">
-                            <div className="h-2 w-2 bg-accent rounded-full"></div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Members</p>
+                            <p className="font-mono font-bold text-ink text-sm">{memberCount}</p>
                           </div>
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-bold text-ink leading-snug">
-                            {post.authorName} <span className="text-muted font-medium">broadcasted an update</span>
-                          </p>
-                          <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1.5 flex items-center gap-2">
-                            <Clock size={10} />
-                            {formatTime(post.timestamp)}
-                          </p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                  <button className="w-full mt-12 py-5 bg-gray-50 text-muted rounded-[1.5rem] text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-ink hover:text-white transition-all border border-gray-100">
-                    View Audit Logs
-                  </button>
-                </motion.div>
-              </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
             </div>
           </div>
         );
