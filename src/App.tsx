@@ -1921,10 +1921,10 @@ function ExonaApp() {
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div 
-                      className="flex items-center gap-4 cursor-pointer flex-1"
+                      className="flex items-center gap-3 cursor-pointer flex-1"
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                     >
-                      <div className={`h-16 w-16 rounded-2xl flex items-center justify-center text-white font-bold text-2xl overflow-hidden border border-gray-100 ${
+                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 ${
                         school.logo ? 'bg-white' : 'bg-white'
                       }`}>
                         {school.logo ? (
@@ -1935,14 +1935,14 @@ function ExonaApp() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1 mb-0.5">
-                          <h4 className="text-[16px] font-bold text-ink truncate">{school.name}</h4>
+                          <h4 className="text-[15px] font-bold text-ink truncate">{school.name}</h4>
                           <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
                         </div>
-                        <p className="text-[13px] text-muted line-clamp-1">{school.description}</p>
-                        <div className="flex items-center gap-3 mt-1.5">
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
+                        <p className="text-[12px] text-muted line-clamp-1">{school.description}</p>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
                           <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
+                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
                         </div>
                       </div>
                     </div>
@@ -1974,45 +1974,31 @@ function ExonaApp() {
                           )}
                         </>
                       )}
-                      {canManageInstitution(school) && (
-                        <>
-                          <button 
-                            onClick={() => {
-                              setSchoolToDelete(school.id);
-                              setIsDeleteSchoolModalOpen(true);
-                            }}
-                            className="p-2 text-muted hover:text-red-600 transition-colors"
-                            title="Delete Institution"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </>
-                      )}
                     </div>
                   </div>
 
                   {/* Institution Action Buttons */}
-                  <div className="flex items-center gap-2 ml-20">
+                  <div className="flex flex-wrap items-center gap-2 ml-15">
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('records'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
                     >
-                      <ClipboardList size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
+                      <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
                     </button>
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('attendance'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
                     >
-                      <Calendar size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Attendance</span>
+                      <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
                     </button>
                     <button 
                       onClick={() => { setSelectedSchool(school); setView('finance'); }}
-                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-xl transition-all duration-300 group/btn"
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
                     >
-                      <Wallet size={14} className="group-hover/btn:scale-110 transition-transform" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Finance</span>
+                      <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
                     </button>
                   </div>
                 </div>
@@ -4215,11 +4201,11 @@ function ExonaApp() {
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end mt-12">
+              <div className="flex flex-col sm:flex-row gap-4 mt-12">
                 <button 
                   onClick={handleCreateSchool}
                   disabled={!newSchool.name.trim() || isUploading}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                  className="flex-1 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
                   {isUploading ? (
                     <>
@@ -4230,6 +4216,18 @@ function ExonaApp() {
                     editingSchool ? 'Synchronize Updates' : 'Authorize Registration'
                   )}
                 </button>
+                {editingSchool && (
+                  <button 
+                    onClick={() => {
+                      setSchoolToDelete(editingSchool.id);
+                      setIsDeleteSchoolModalOpen(true);
+                    }}
+                    className="px-10 py-5 bg-red-50 text-red-600 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                  >
+                    <Trash2 size={18} />
+                    Delete Institution
+                  </button>
+                )}
               </div>
               {isUploading && (
                 <div className="mt-6">
