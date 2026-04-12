@@ -823,7 +823,7 @@ function ExonaApp() {
           schoolId: schoolId,
           placeId: schoolId, // For compatibility
           institutionBalance: 0,
-          bankName: 'Exona Trust Bank',
+          bankName: 'Exona trust wallet',
           accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
           accountName: `${newSchool.name} General`
         });
@@ -3017,14 +3017,14 @@ function ExonaApp() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20">
               <div className="space-y-8">
-                <h4 className="font-extrabold text-2xl text-ink border-b border-gray-100 pb-4">Bank Information</h4>
+                <h4 className="font-extrabold text-2xl text-ink border-b border-gray-100 pb-4">Wallet Information</h4>
                 <div className="space-y-6">
                   <div>
-                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Bank Name</p>
+                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Wallet Name</p>
                     <p className="font-bold text-ink text-sm">{finance?.bankName || '---'}</p>
                   </div>
                   <div>
-                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Account Number</p>
+                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Wallet ID</p>
                     <p className="font-mono font-bold text-ink text-xl tracking-widest">{finance?.accountNumber || '---'}</p>
                   </div>
                   <div>
