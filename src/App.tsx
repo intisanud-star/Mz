@@ -485,7 +485,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'icon-preview'>('icon-preview');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -3707,6 +3707,44 @@ function ExonaApp() {
           </div>
         );
       }
+      case 'icon-preview': {
+        return (
+          <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-8">
+            <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-gray-100 flex flex-col items-center max-w-2xl w-full">
+              <h2 className="text-3xl font-extrabold text-ink mb-2">App Icon Preview</h2>
+              <p className="text-muted text-sm font-bold uppercase tracking-[0.2em] mb-12">EAS Build Asset</p>
+              
+              <div className="relative group">
+                <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <img 
+                  src="/assets/icon.svg" 
+                  alt="App Icon" 
+                  className="w-64 h-64 rounded-[3.5rem] shadow-2xl relative z-10 border border-gray-100"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+              
+              <div className="mt-16 grid grid-cols-2 gap-8 w-full">
+                <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 text-center">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Format</p>
+                  <p className="text-sm font-bold text-ink">SVG (Vector)</p>
+                </div>
+                <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 text-center">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Location</p>
+                  <p className="text-sm font-bold text-ink">/assets/icon.svg</p>
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => setView('feed')}
+                className="mt-12 w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all active:scale-[0.98]"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      }
       default: return null;
     }
   };
@@ -4869,6 +4907,12 @@ function ExonaApp() {
                   label="Penalty System" 
                   active={view === 'penalty'} 
                   onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={ImageIcon} 
+                  label="App Icon" 
+                  active={view === 'icon-preview'} 
+                  onClick={() => { setView('icon-preview'); setSidebarOpen(false); }} 
                 />
 
                 <div className="px-4 py-4">
