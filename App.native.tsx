@@ -19,8 +19,8 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent={true} />
       <View style={styles.webviewContainer}>
         <WebView 
           source={{ uri: APP_URL }} 
@@ -30,7 +30,7 @@ export default function App() {
           scalesPageToFit={true}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
