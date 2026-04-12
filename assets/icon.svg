@@ -1,72 +1,10 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <!-- Ultra-Premium Deep Sapphire Gradient -->
-    <linearGradient id="mainBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f172a;stop-opacity:1" />
-      <stop offset="40%" style="stop-color:#1e1b4b;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#312e81;stop-opacity:1" />
-    </linearGradient>
-    
-    <!-- Chrome/Liquid Silver Gradient for the E -->
-    <linearGradient id="liquidSilver" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
-      <stop offset="20%" style="stop-color:#e2e8f0;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#94a3b8;stop-opacity:1" />
-      <stop offset="80%" style="stop-color:#cbd5e1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Neon Glow for the Orbit -->
-    <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="20" result="blur"/>
-      <feFlood flood-color="#818cf8" flood-opacity="0.6" result="color"/>
-      <feComposite in="color" in2="blur" operator="in" result="glow"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-
-    <!-- Deep Shadow for Floating Effect -->
-    <filter id="floatingShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="40" stdDeviation="40" flood-color="#000000" flood-opacity="0.7"/>
-    </filter>
-
-    <!-- Glass Overlay Gradient -->
-    <linearGradient id="glassShine" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.25" />
-      <stop offset="40%" style="stop-color:#ffffff;stop-opacity:0.05" />
-      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
-    </linearGradient>
-  </defs>
+  <rect width="1024" height="1024" fill="#ffffff"/>
   
-  <!-- Base Squircle with Deep Gradient -->
-  <rect width="1024" height="1024" rx="240" fill="url(#mainBg)"/>
+  <!-- Centered Layout for Splash -->
+  <text x="50%" y="450" font-family="sans-serif" font-size="160" font-weight="900" fill="#0f172a" text-anchor="middle" letter-spacing="-2">Exona</text>
+  <text x="50%" y="560" font-family="sans-serif" font-size="40" font-weight="700" fill="#94a3b8" text-anchor="middle" letter-spacing="12">MASTERING RECORDS</text>
   
-  <!-- Ambient Light (Top Left) -->
-  <circle cx="200" cy="200" r="600" fill="radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)" />
-
-  <!-- Concentric Depth Rings -->
-  <circle cx="512" cy="512" r="350" fill="none" stroke="#4f46e5" stroke-width="1.5" opacity="0.2"/>
-  <circle cx="512" cy="512" r="280" fill="none" stroke="#4f46e5" stroke-width="1" opacity="0.1"/>
-
-  <!-- The "E" with Liquid Silver Finish -->
-  <g transform="translate(342, 302) scale(1.3)" filter="url(#floatingShadow)">
-    <path d="M0 0 H220 V50 H70 V100 H190 V150 H70 V200 H220 V250 H0 Z" fill="url(#liquidSilver)"/>
-    <!-- Edge Highlight -->
-    <path d="M0 0 H220 V3 H3 V247 H220 V250 H0 Z" fill="#ffffff" opacity="0.4"/>
-  </g>
-  
-  <!-- Premium Orbit Ring with Neon Glow -->
-  <g transform="rotate(-25 512 512)" filter="url(#neonGlow)">
-    <ellipse cx="512" cy="512" rx="470" ry="85" fill="none" stroke="#ffffff" stroke-width="32" opacity="0.9"/>
-    <!-- Secondary Inner Orbit -->
-    <ellipse cx="512" cy="512" rx="470" ry="85" fill="none" stroke="#818cf8" stroke-width="4" opacity="0.5"/>
-  </g>
-  
-  <!-- Bottom Platform (Perspective Glow) -->
-  <path d="M370 790 L654 790 L610 850 L326 850 Z" fill="#ffffff" opacity="0.2" filter="url(#neonGlow)"/>
-  
-  <!-- Final Glass Shine Overlay -->
-  <path d="M240 0 H784 C916 0 1024 108 1024 240 V784 C1024 916 916 1024 784 1024 H240 C108 1024 0 916 0 784 V240 C0 108 108 0 240 0 Z" fill="url(#glassShine)" pointer-events="none"/>
+  <!-- Minimalist Accent -->
+  <rect x="462" y="620" width="100" height="6" rx="3" fill="#0f172a" opacity="0.1"/>
 </svg>

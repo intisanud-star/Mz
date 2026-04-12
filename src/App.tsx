@@ -485,7 +485,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'icon-preview'>('icon-preview');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -3707,55 +3707,17 @@ function ExonaApp() {
           </div>
         );
       }
-      case 'icon-preview': {
-        return (
-          <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-8">
-            <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-gray-100 flex flex-col items-center max-w-2xl w-full">
-              <h2 className="text-3xl font-extrabold text-ink mb-2">App Icon Preview</h2>
-              <p className="text-muted text-sm font-bold uppercase tracking-[0.2em] mb-12">EAS Build Asset</p>
-              
-              <div className="relative group">
-                <div className="absolute inset-0 bg-accent/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <img 
-                  src="/assets/icon.svg" 
-                  alt="App Icon" 
-                  className="w-64 h-64 rounded-[3.5rem] shadow-2xl relative z-10 border border-gray-100"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              
-              <div className="mt-16 grid grid-cols-2 gap-8 w-full">
-                <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 text-center">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Format</p>
-                  <p className="text-sm font-bold text-ink">SVG (Vector)</p>
-                </div>
-                <div className="p-6 bg-gray-50 rounded-3xl border border-gray-100 text-center">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Location</p>
-                  <p className="text-sm font-bold text-ink">/assets/icon.svg</p>
-                </div>
-              </div>
-              
-              <button 
-                onClick={() => setView('feed')}
-                className="mt-12 w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all active:scale-[0.98]"
-              >
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
-        );
-      }
       default: return null;
     }
   };
 
   if (view === 'splash') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-ink text-white overflow-hidden relative">
+      <div className="flex h-screen flex-col items-center justify-center bg-white text-ink overflow-hidden relative">
         {/* Immersive background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-accent/10 blur-[120px] rounded-full animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent/5 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gray-100 blur-[120px] rounded-full animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gray-50 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
         </div>
         
         <motion.div 
@@ -3770,8 +3732,8 @@ function ExonaApp() {
             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center"
           >
-            <h1 className="text-8xl font-bold tracking-tight text-white mb-2 font-display">Exona</h1>
-            <div className="h-px w-32 bg-gradient-to-r from-transparent via-white/20 to-transparent mb-8"></div>
+            <h1 className="text-8xl font-bold tracking-tight text-ink mb-2 font-display">Exona</h1>
+            <div className="h-px w-32 bg-gradient-to-r from-transparent via-ink/10 to-transparent mb-8"></div>
           </motion.div>
           
           <motion.div 
@@ -3780,23 +3742,14 @@ function ExonaApp() {
             transition={{ delay: 0.8, duration: 1 }}
             className="flex flex-col items-center"
           >
-            <p className="text-[11px] font-bold uppercase tracking-[0.8em] text-white/30 mb-12">Mastering Records</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.8em] text-muted mb-12">Mastering Records</p>
             
             <div className="flex items-center gap-3">
-              <div className="h-1 w-1 bg-white/20 rounded-full animate-bounce"></div>
-              <div className="h-1 w-1 bg-white/40 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-              <div className="h-1 w-1 bg-white/20 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+              <div className="h-1 w-1 bg-ink/10 rounded-full animate-bounce"></div>
+              <div className="h-1 w-1 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></div>
+              <div className="h-1 w-1 bg-ink/10 rounded-full animate-bounce [animation-delay:0.4s]"></div>
             </div>
           </motion.div>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.2 }}
-          transition={{ delay: 2, duration: 1 }}
-          className="absolute bottom-12 text-[9px] font-sans tracking-[0.4em] uppercase font-bold"
-        >
-          Preparing your workspace
         </motion.div>
       </div>
     );
@@ -4907,12 +4860,6 @@ function ExonaApp() {
                   label="Penalty System" 
                   active={view === 'penalty'} 
                   onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
-                />
-                <SidebarItem 
-                  icon={ImageIcon} 
-                  label="App Icon" 
-                  active={view === 'icon-preview'} 
-                  onClick={() => { setView('icon-preview'); setSidebarOpen(false); }} 
                 />
 
                 <div className="px-4 py-4">
