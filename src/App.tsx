@@ -56,6 +56,7 @@ interface Place {
   isOfficial?: boolean;
   followers?: string[];
   pendingFollowers?: string[];
+  replyPermission?: 'everyone' | 'followers' | 'none';
 }
 
 interface Post {
@@ -101,6 +102,7 @@ interface School {
   educationalLevels?: string[];
   followers?: string[];
   pendingFollowers?: string[];
+  replyPermission?: 'everyone' | 'followers' | 'none';
 }
 
 interface StudentRecord {
@@ -323,7 +325,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
   );
 };
 
-const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId, canManage }: any) => {
+const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId, canManage, canReply = true }: any) => {
   const [showMenu, setShowMenu] = useState(false);
   const isLiked = post.likedBy?.includes(currentUserId);
   const isOwnPost = post.authorUid === currentUserId;
@@ -442,8 +444,9 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
           {post.likes > 0 && <span>{post.likes}</span>}
         </button>
         <button 
-          onClick={() => onComment?.(post)}
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-accent transition-all"
+          onClick={() => canReply && onComment?.(post)}
+          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${canReply ? 'text-muted hover:text-accent' : 'text-muted/30 cursor-not-allowed'}`}
+          disabled={!canReply}
         >
           <MessageCircle size={14} />
           {post.commentsCount > 0 && <span>{post.commentsCount}</span>}
@@ -549,7 +552,8 @@ function ExonaApp() {
     logo: '', 
     type: 'school' as 'school' | 'place',
     category: 'School' as Place['category'],
-    educationalLevels: [] as string[]
+    educationalLevels: [] as string[],
+    replyPermission: 'everyone' as 'everyone' | 'followers' | 'none'
   });
   const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
 
@@ -737,6 +741,18 @@ function ExonaApp() {
     }
   };
 
+  const handleUpdateReplyPermission = async (schoolId: string, permission: 'everyone' | 'followers' | 'none') => {
+    try {
+      const collectionName = selectedSchool?.type === 'school' ? 'schools' : 'places';
+      await updateDoc(doc(db, collectionName, schoolId), {
+        replyPermission: permission
+      });
+      showNotification('Reply permissions updated');
+    } catch (error) {
+      showNotification('Failed to update permissions', 'error');
+    }
+  };
+
   const handleCreateSchool = async () => {
     console.log('handleCreateSchool started', { newSchool, user: user?.uid, editingSchool: editingSchool?.id });
     if (!newSchool.name.trim() || !user) {
@@ -778,7 +794,8 @@ function ExonaApp() {
           logo: logoUrl,
           type: newSchool.type,
           category: newSchool.type === 'place' ? newSchool.category : null,
-          educationalLevels: newSchool.type === 'school' ? newSchool.educationalLevels : []
+          educationalLevels: newSchool.type === 'school' ? newSchool.educationalLevels : [],
+          replyPermission: newSchool.replyPermission || 'everyone'
         }, { merge: true });
         console.log('Institution update queued');
       } else {
@@ -796,6 +813,7 @@ function ExonaApp() {
           educationalLevels: newSchool.type === 'school' ? (newSchool.educationalLevels || []) : [],
           creatorUid: user.uid,
           followers: [user.uid],
+          replyPermission: newSchool.replyPermission || 'everyone',
           timestamp: serverTimestamp()
         };
 
@@ -1737,6 +1755,36 @@ function ExonaApp() {
     }
   };
 
+  const canUserReply = (post: Post, school: any) => {
+    if (!user) return false;
+    if (canManageInstitution(school) || userDoc?.role === 'admin') return true;
+    const permission = school?.replyPermission || 'everyone';
+    if (permission === 'everyone') return true;
+    if (permission === 'followers') return school?.followers?.includes(user.uid);
+    return false;
+  };
+
+  const canAccessInstitutionData = (school: School | Place | null) => {
+    if (!user || !school) return false;
+    if (canManageInstitution(school) || userDoc?.role === 'admin') return true;
+    return school.followers?.includes(user.uid);
+  };
+
+  const handleNavigateToData = (targetView: string) => {
+    if (!selectedSchool) {
+      showNotification('Please select an institution first', 'error');
+      setView('schools');
+      setSidebarOpen(false);
+      return;
+    }
+    if (canAccessInstitutionData(selectedSchool)) {
+      setView(targetView as any);
+      setSidebarOpen(false);
+    } else {
+      showNotification('Access denied. You must be an approved member.', 'error');
+    }
+  };
+
   const renderView = () => {
     switch (view) {
       case 'admin': {
@@ -1994,21 +2042,21 @@ function ExonaApp() {
                       {/* Institution Action Buttons */}
                       <div className="flex flex-wrap items-center gap-2 ml-15">
                         <button 
-                          onClick={() => { setSelectedSchool(school); setView('records'); }}
+                          onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
                           className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
                         >
                           <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
                         </button>
                         <button 
-                          onClick={() => { setSelectedSchool(school); setView('attendance'); }}
+                          onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
                           className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
                         >
                           <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
                         </button>
                         <button 
-                          onClick={() => { setSelectedSchool(school); setView('finance'); }}
+                          onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
                           className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
                         >
                           <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
@@ -2029,21 +2077,25 @@ function ExonaApp() {
                     <p className="text-sm font-bold">No broadcasts yet from followed institutions.</p>
                   </div>
                 ) : (
-                  posts.map(post => (
-                    <FeedPost 
-                      key={post.id} 
-                      post={post} 
-                      onUserClick={handleUserClick}
-                      onLike={handleLikePost}
-                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                      onReshare={handleResharePost}
-                      onForward={handleForwardPost}
-                      onEdit={handleEditPost}
-                      onDelete={onDeletePostClick}
-                      currentUserId={user?.uid}
-                      canManage={userDoc?.role === 'admin'}
-                    />
-                  ))
+                  posts.map(post => {
+                    const school = schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId);
+                    return (
+                      <FeedPost 
+                        key={post.id} 
+                        post={post} 
+                        onUserClick={handleUserClick}
+                        onLike={handleLikePost}
+                        onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                        onReshare={handleResharePost}
+                        onForward={handleForwardPost}
+                        onEdit={handleEditPost}
+                        onDelete={onDeletePostClick}
+                        currentUserId={user?.uid}
+                        canManage={userDoc?.role === 'admin'}
+                        canReply={canUserReply(post, school)}
+                      />
+                    );
+                  })
                 )}
               </div>
             )}
@@ -2263,7 +2315,7 @@ function ExonaApp() {
                   <h3 className="text-xl font-extrabold text-ink mb-8">Quick Management</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <button 
-                      onClick={() => { setView('records'); setSidebarOpen(false); }}
+                      onClick={() => handleNavigateToData('records')}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
                     >
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
@@ -2272,7 +2324,7 @@ function ExonaApp() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Records</span>
                     </button>
                     <button 
-                      onClick={() => { setView('attendance'); setSidebarOpen(false); }}
+                      onClick={() => handleNavigateToData('attendance')}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
                     >
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
@@ -2281,7 +2333,7 @@ function ExonaApp() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Attendance</span>
                     </button>
                     <button 
-                      onClick={() => { setView('finance'); setSidebarOpen(false); }}
+                      onClick={() => handleNavigateToData('finance')}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
                     >
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
@@ -2294,6 +2346,26 @@ function ExonaApp() {
 
                 <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
                   <h3 className="text-xl font-extrabold text-ink mb-8">Institution Controls</h3>
+                  
+                  <div className="mb-8">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Who can reply to posts</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(['everyone', 'followers', 'none'] as const).map((perm) => (
+                        <button
+                          key={perm}
+                          onClick={() => handleUpdateReplyPermission(selectedSchool.id, perm)}
+                          className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                            (selectedSchool.replyPermission || 'everyone') === perm
+                              ? 'bg-ink text-white border-ink'
+                              : 'bg-white text-muted border-gray-100 hover:border-accent'
+                          }`}
+                        >
+                          {perm}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => handleEditSchool(selectedSchool)}
@@ -2332,6 +2404,7 @@ function ExonaApp() {
                       onDelete={onDeletePostClick}
                       currentUserId={user?.uid}
                       canManage={isManager || isAdmin}
+                      canReply={canUserReply(post, selectedSchool)}
                     />
                   ))}
                   {schoolPosts.length === 0 && (
@@ -2416,20 +2489,24 @@ function ExonaApp() {
             </div>
 
             <div className="divide-y divide-gray-100">
-              {profilePosts.map(post => (
-                <FeedPost 
-                  key={post.id} 
-                  post={post} 
-                  onUserClick={handleUserClick}
-                  onLike={handleLikePost}
-                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                  onReshare={handleResharePost}
-                  onForward={handleForwardPost}
-                  onEdit={handleEditPost}
-                  onDelete={onDeletePostClick}
-                  currentUserId={user?.uid}
-                />
-              ))}
+              {profilePosts.map(post => {
+                const school = post.schoolId ? (schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId)) : null;
+                return (
+                  <FeedPost 
+                    key={post.id} 
+                    post={post} 
+                    onUserClick={handleUserClick}
+                    onLike={handleLikePost}
+                    onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                    onReshare={handleResharePost}
+                    onForward={handleForwardPost}
+                    onEdit={handleEditPost}
+                    onDelete={onDeletePostClick}
+                    currentUserId={user?.uid}
+                    canReply={canUserReply(post, school)}
+                  />
+                );
+              })}
             </div>
           </div>
         );
@@ -2563,7 +2640,7 @@ function ExonaApp() {
                 </div>
               </button>
               <button 
-                onClick={() => setView('records')}
+                onClick={() => handleNavigateToData('records')}
                 className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
               >
                 <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
@@ -4771,19 +4848,19 @@ function ExonaApp() {
                   icon={ClipboardList} 
                   label={`${labels.student} Records`} 
                   active={view === 'records'} 
-                  onClick={() => { setView('records'); setSidebarOpen(false); }} 
+                  onClick={() => handleNavigateToData('records')} 
                 />
                 <SidebarItem 
                   icon={Calendar} 
                   label="Attendance" 
                   active={view === 'attendance'} 
-                  onClick={() => { setView('attendance'); setSidebarOpen(false); }} 
+                  onClick={() => handleNavigateToData('attendance')} 
                 />
                 <SidebarItem 
                   icon={Wallet} 
                   label="Finance Hub" 
                   active={view === 'finance'} 
-                  onClick={() => { setView('finance'); setSidebarOpen(false); }} 
+                  onClick={() => handleNavigateToData('finance')} 
                 />
                 <SidebarItem 
                   icon={Shield} 

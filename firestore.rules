@@ -65,6 +65,30 @@ service cloud.firestore {
         (id in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following);
     }
 
+    function isApprovedFollower(schoolId) {
+      return isAuthenticated() && (
+        (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
+         request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.followers) ||
+        (exists(/databases/$(database)/documents/places/$(schoolId)) && 
+         request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.followers)
+      );
+    }
+
+    function canReply(schoolId) {
+      let school = exists(/databases/$(database)/documents/schools/$(schoolId)) 
+        ? get(/databases/$(database)/documents/schools/$(schoolId)).data 
+        : (exists(/databases/$(database)/documents/places/$(schoolId)) 
+            ? get(/databases/$(database)/documents/places/$(schoolId)).data 
+            : null);
+      
+      return school != null && (
+        school.replyPermission == 'everyone' ||
+        (school.replyPermission == 'followers' && (isApprovedFollower(schoolId) || isSchoolManager(schoolId))) ||
+        (school.replyPermission == 'none' && isSchoolManager(schoolId)) ||
+        (!('replyPermission' in school)) // Default to everyone if field missing
+      );
+    }
+
     function isValidEmail(email) {
       return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
     }
@@ -88,7 +112,8 @@ service cloud.firestore {
     function isValidInstitution(data, isCreate) {
       return isAuthenticated() && 
              data.name is string && data.name.size() > 0 &&
-             (isCreate ? data.creatorUid == request.auth.uid : true);
+             (isCreate ? data.creatorUid == request.auth.uid : true) &&
+             (!('replyPermission' in data) || data.replyPermission in ['everyone', 'followers', 'none']);
     }
 
     function isValidPost(data) {
@@ -141,27 +166,27 @@ service cloud.firestore {
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuthenticated();
+        allow create: if isAuthenticated() && canReply(get(/databases/$(database)/documents/posts/$(postId)).data.schoolId);
         allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
       }
     }
 
     match /studentRecords/{recordId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow read: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
+      allow update: if isAuthenticated() && isSchoolManager(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /teacherAttendance/{attendanceId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
       allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId) || isApprovedFollower(schoolId));
+      allow create: if isAuthenticated() && isSchoolManager(schoolId);
       allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
   }

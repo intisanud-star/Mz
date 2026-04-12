@@ -30,7 +30,8 @@
         "educationalLevels": { "type": "array", "items": { "type": "string" } },
         "subAdmins": { "type": "array", "items": { "type": "string" } },
         "followers": { "type": "array", "items": { "type": "string" } },
-        "pendingFollowers": { "type": "array", "items": { "type": "string" } }
+        "pendingFollowers": { "type": "array", "items": { "type": "string" } },
+        "replyPermission": { "type": "string", "enum": ["everyone", "followers", "none"], "description": "Who can reply to posts" }
       },
       "required": ["id", "name", "creatorUid"]
     },
@@ -50,7 +51,8 @@
         "isOfficial": { "type": "boolean" },
         "subAdmins": { "type": "array", "items": { "type": "string" } },
         "followers": { "type": "array", "items": { "type": "string" } },
-        "pendingFollowers": { "type": "array", "items": { "type": "string" } }
+        "pendingFollowers": { "type": "array", "items": { "type": "string" } },
+        "replyPermission": { "type": "string", "enum": ["everyone", "followers", "none"], "description": "Who can reply to posts" }
       },
       "required": ["id", "name", "creatorUid"]
     },
