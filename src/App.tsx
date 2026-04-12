@@ -217,6 +217,7 @@ const getLabels = (type?: 'school' | 'place') => {
       teachers: 'Staff',
       books: 'Services',
       uniforms: 'Products',
+      general: 'General',
       school: 'Place',
       attendance: 'Presence Log',
       system: 'Official Management System',
@@ -224,16 +225,17 @@ const getLabels = (type?: 'school' | 'place') => {
     };
   }
   return {
-    student: 'Member',
-    students: 'Members',
+    student: 'Student',
+    students: 'Students',
     teacher: 'Teacher',
     teachers: 'Teachers',
     books: 'Books',
     uniforms: 'Uniforms',
+    general: 'General',
     school: 'School',
-    attendance: 'Teacher Presence Log',
-    system: 'Official Member Information System',
-    educationalLevel: 'Class'
+    attendance: 'Attendance',
+    system: 'School Management System',
+    educationalLevel: 'Class/Level'
   };
 };
 
@@ -2751,7 +2753,7 @@ function ExonaApp() {
                       onClick={() => setRecordTab(tab)}
                       className={`px-3 sm:px-4 py-1.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
                     >
-                      {tab === 'general' ? 'Home' : tab === 'books' ? labels.books : labels.uniforms}
+                      {tab === 'general' ? labels.general : tab === 'books' ? labels.books : labels.uniforms}
                     </button>
                   ))}
                 </div>
@@ -2782,7 +2784,7 @@ function ExonaApp() {
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
               <h1 className="text-4xl font-bold text-ink mb-2 font-display">{selectedSchool.name}</h1>
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{recordTab} Records • {new Date().toLocaleDateString()}</p>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
@@ -4179,8 +4181,8 @@ function ExonaApp() {
                 <div>
                   <h3 className="text-3xl font-extrabold text-ink mb-1">
                     {editingRecord 
-                      ? `Edit ${recordTab === 'general' ? 'General' : recordTab === 'books' ? labels.books : labels.uniforms} Record` 
-                      : `Add ${recordTab === 'general' ? 'General' : recordTab === 'books' ? labels.books : labels.uniforms} Record`}
+                      ? `Edit ${recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Record` 
+                      : `Add ${recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Record`}
                   </h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
