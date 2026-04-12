@@ -220,7 +220,7 @@ const getLabels = (type?: 'school' | 'place') => {
       general: 'General',
       school: 'Place',
       attendance: 'Presence Log',
-      system: 'Official Management System',
+      system: 'Management System',
       educationalLevel: 'Category'
     };
   }
@@ -344,9 +344,6 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
           <span className="text-[11px] font-bold text-accent uppercase tracking-widest">
             {post.authorName}
           </span>
-          {post.isOfficial && (
-            <BadgeCheck size={12} className="text-accent fill-accent/10" />
-          )}
         </div>
       )}
       
@@ -808,7 +805,7 @@ function ExonaApp() {
         const institutionData = {
           id: schoolId,
           name: newSchool.name.trim(),
-          description: newSchool.description.trim() || `Official space for ${newSchool.name}`,
+          description: newSchool.description.trim() || `Space for ${newSchool.name}`,
           logo: logoUrl,
           type: newSchool.type,
           category: newSchool.type === 'place' ? newSchool.category : null,
@@ -2003,70 +2000,63 @@ function ExonaApp() {
                       return s.followers?.includes(user?.uid || '') || 
                              s.creatorUid === user?.uid;
                     })
-                    .map(school => (
-                    <div 
-                      key={school.id}
-                      className="py-6 border-b border-gray-50 group"
-                    >
-                      <div className="flex items-start justify-between mb-4">
+                    .map(school => {
+                      const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
+                      return (
                         <div 
-                          className="flex items-center gap-3 cursor-pointer flex-1"
-                          onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                          key={school.id}
+                          className="py-6 border-b border-gray-50 group"
                         >
-                          <div className={`h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 ${
-                            school.logo ? 'bg-white' : 'bg-white'
-                          }`}>
-                            {school.logo ? (
-                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="text-ink">{school.name.charAt(0)}</span>
-                            )}
+                          <div 
+                            className="cursor-pointer mb-4 flex items-start gap-3"
+                            onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                          >
+                            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0">
+                              {school.logo ? (
+                                <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <span className="text-ink">{school.name.charAt(0)}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
+                              {latestAnnouncement ? (
+                                <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                                  {latestAnnouncement.content}
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 mb-0.5">
-                              <h4 className="text-[15px] font-bold text-ink truncate">{school.name}</h4>
-                              <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
-                            </div>
-                            <p className="text-[12px] text-muted line-clamp-1">{school.description}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{(school.followers?.length || 0).toLocaleString()} followers</p>
-                              <div className="h-1 w-1 bg-gray-200 rounded-full"></div>
-                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{school.type}</p>
-                            </div>
+                          
+                          {/* Institution Action Buttons */}
+                          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                            <button 
+                              onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+                            >
+                              <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
+                              <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
+                            </button>
+                            <button 
+                              onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+                            >
+                              <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
+                              <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
+                            </button>
+                            <button 
+                              onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+                            >
+                              <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
+                              <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
+                            </button>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          {/* Follow/Unfollow buttons removed from list view as per user request */}
-                        </div>
-                      </div>
-
-                      {/* Institution Action Buttons */}
-                      <div className="flex items-center gap-2 ml-15 overflow-x-auto no-scrollbar pb-1">
-                        <button 
-                          onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                        >
-                          <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
-                        </button>
-                        <button 
-                          onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                        >
-                          <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
-                        </button>
-                        <button 
-                          onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                        >
-                          <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
-                          <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               </>
             ) : (
@@ -2277,9 +2267,6 @@ function ExonaApp() {
                 <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
                   <div className="flex items-center justify-between mb-8">
                     <h3 className="text-xl font-extrabold text-ink">Approved Members</h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                      {selectedSchool.followers?.length || 0} Members
-                    </span>
                   </div>
                   
                   <div className="space-y-4">
@@ -2454,9 +2441,6 @@ function ExonaApp() {
                   <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-white border border-gray-100" />
                 ))}
               </div>
-              <p className="text-muted text-[14px] hover:underline cursor-pointer">
-                {selectedUserProfileDoc?.followers?.length || 0} followers
-              </p>
             </div>
 
             <div className="flex gap-3 mb-10">
@@ -3625,7 +3609,6 @@ function ExonaApp() {
                   <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-gray-200" />
                 ))}
               </div>
-              <p className="text-muted text-[14px] hover:underline cursor-pointer">1.2k followers</p>
             </div>
 
             <div className="flex gap-3 mb-10">
