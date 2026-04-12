@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "Exona",
-    "slug": "exona",
+    "slug": "exonapp-",
+    "owner": "exon00001",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.svg",
@@ -30,7 +31,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "your-eas-project-id"
+        "projectId": "7e031114-10b8-4592-a2bd-bf6908923725"
       }
     }
   }
