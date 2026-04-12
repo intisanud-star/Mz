@@ -27,7 +27,9 @@ export default function App() {
           style={styles.webview}
           javaScriptEnabled={true}
           domStorageEnabled={true}
-          scalesPageToFit={true}
+          scalesPageToFit={false}
+          setBuiltInZoomControls={false}
+          displayZoomControls={false}
         />
       </View>
     </View>

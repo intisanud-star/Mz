@@ -2042,24 +2042,24 @@ function ExonaApp() {
                       </div>
 
                       {/* Institution Action Buttons */}
-                      <div className="flex flex-wrap items-center gap-2 ml-15">
+                      <div className="flex items-center gap-2 ml-15 overflow-x-auto no-scrollbar pb-1">
                         <button 
                           onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
                         >
                           <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
                         </button>
                         <button 
                           onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
                         >
                           <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
                         </button>
                         <button 
                           onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
-                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn"
+                          className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
                         >
                           <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
