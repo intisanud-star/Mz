@@ -1385,29 +1385,15 @@ function ExonaApp() {
 
     let unsubPosts = () => {};
     if (user && userDoc) {
-      if (userDoc.role === 'admin') {
-        unsubPosts = onSnapshot(query(collection(db, 'posts'), orderBy('timestamp', 'desc')), (snap) => {
-          setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
-        }, (error) => {
-          if (!error.message.includes('insufficient permissions')) {
-            handleFirestoreError(error, OperationType.LIST, 'posts');
-          }
-        });
-      } else {
-        // Personalized Feed for regular users
-        const following = userDoc.following || [];
-        const managedIds = [
-          ...schools.filter(s => s.creatorUid === user.uid).map(s => s.id),
-          ...places.filter(p => p.creatorUid === user.uid).map(p => p.id)
-        ];
-        const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
-        
-        // We need to fetch:
-        // 1. Posts where authorUid is in relevantIds (covers own posts and followed users)
-        // 2. Posts where schoolId is in relevantIds (covers followed institutions)
-        
-        // Firestore 'in' limit is 30. If following > 29, we'd need to chunk.
-        // For now, we'll use the first 30 relevant IDs.
+      // Personalized Feed for all users (including admins by default)
+      const following = userDoc.following || [];
+      const managedIds = [
+        ...schools.filter(s => s.creatorUid === user.uid).map(s => s.id),
+        ...places.filter(p => p.creatorUid === user.uid).map(p => p.id)
+      ];
+      const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
+      
+      if (relevantIds.length > 0) {
         const limitedIds = relevantIds.slice(0, 30);
         
         const qAuthor = query(collection(db, 'posts'), where('authorUid', 'in', limitedIds), orderBy('timestamp', 'desc'));
@@ -1446,9 +1432,10 @@ function ExonaApp() {
         });
 
         unsubPosts = () => { unsubAuthor(); unsubSchool(); };
+      } else {
+        setPosts([]);
       }
     } else {
-      // Guest view: No posts or only public posts if we had a public flag
       setPosts([]);
     }
 
@@ -1476,7 +1463,7 @@ function ExonaApp() {
     }
 
     return () => { unsubSchools(); unsubPlaces(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); unsubAllMessages(); };
-  }, [user, userDoc]);
+  }, [user, userDoc, schools, places, selectedSchool]);
 
   useEffect(() => {
     if (!selectedSchool) return;
