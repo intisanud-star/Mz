@@ -219,7 +219,7 @@ const getLabels = (type?: 'school' | 'place') => {
       uniforms: 'Products',
       general: 'General',
       school: 'Place',
-      attendance: 'Presence Log',
+      attendance: 'Participation',
       system: 'Management System',
       educationalLevel: 'Category'
     };
@@ -299,10 +299,6 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
-            <div className="hidden sm:flex h-6 w-6 rounded-full bg-white border border-gray-100 items-center justify-center text-[10px] font-bold text-muted">?</div>
-            <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">_</div>
-            <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[10px] font-bold text-muted">□</div>
-            <div className="h-6 w-6 rounded-full bg-white border border-red-100 flex items-center justify-center text-[10px] font-bold text-red-400">×</div>
           </div>
         </div>
         {/* Toolbar / Ribbon Tabs */}
@@ -1257,7 +1253,7 @@ function ExonaApp() {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
       const result = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [{ role: 'user', parts: [{ text: `You are Exona AI, a helpful assistant for the Exona school management platform. Help the user with their queries about school records, finance, or general school life. User says: ${userMsg}` }] }]
+        contents: [{ role: 'user', parts: [{ text: `You are Exona AI, a helpful assistant for the Exona school management platform. Help the user with their queries about school records, wallet, or general school life. User says: ${userMsg}` }] }]
       });
       setAiMessages(prev => [...prev, { role: 'ai', text: result.text || "I'm not sure how to respond to that." }]);
     } catch (error) {
@@ -1444,6 +1440,8 @@ function ExonaApp() {
       });
       unsubAllFinance = onSnapshot(collection(db, 'finance'), (snap) => {
         setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.LIST, 'finance');
       });
     }
 
@@ -2044,15 +2042,15 @@ function ExonaApp() {
                               className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
                             >
                               <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
-                              <span className="text-[9px] font-bold uppercase tracking-widest">Attendance</span>
+                              <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).attendance}</span>
                             </button>
-                            <button 
-                              onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                            >
-                              <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
-                              <span className="text-[9px] font-bold uppercase tracking-widest">Finance</span>
-                            </button>
+            <button 
+              onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+            >
+              <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
+              <span className="text-[9px] font-bold uppercase tracking-widest">Wallet</span>
+            </button>
                           </div>
                         </div>
                       );
@@ -2319,7 +2317,7 @@ function ExonaApp() {
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
                         <Calendar size={20} />
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Attendance</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
                     </button>
                     <button 
                       onClick={() => handleNavigateToData('finance')}
@@ -2328,7 +2326,7 @@ function ExonaApp() {
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
                         <Wallet size={20} />
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Finance</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Wallet</span>
                     </button>
                   </div>
                 </div>
@@ -2950,7 +2948,7 @@ function ExonaApp() {
         }
         return (
           <WordLayout 
-            title={`${selectedSchool.name} Finance`}
+            title={`${selectedSchool.name} Wallet`}
             subtitle="Institutional Financial Terminal"
             icon={Wallet}
             toolbar={
@@ -2975,7 +2973,7 @@ function ExonaApp() {
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
               <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Financial Statement • {new Date().toLocaleDateString()}</p>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Wallet Statement • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="bg-ink rounded-sm p-12 text-white mb-12 relative overflow-hidden">
@@ -3021,7 +3019,7 @@ function ExonaApp() {
                 <div className="space-y-6">
                   <div>
                     <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Wallet Name</p>
-                    <p className="font-bold text-ink text-sm">{finance?.bankName || '---'}</p>
+                    <p className="font-bold text-ink text-sm">{(finance?.bankName === 'Exona Trust Bank' || !finance?.bankName) ? 'Exona trust wallet' : finance.bankName}</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Wallet ID</p>
@@ -3057,6 +3055,7 @@ function ExonaApp() {
       }
       case 'attendance': {
         if (!user) { setView('login'); return null; }
+        const labels = selectedSchool ? getLabels(selectedSchool.type) : getLabels();
         if (!selectedSchool) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center">
@@ -3065,7 +3064,7 @@ function ExonaApp() {
               </div>
               <h2 className="text-3xl font-extrabold text-ink mb-4">Select an Institution</h2>
               <p className="text-muted text-sm font-bold max-w-xs mb-10 leading-relaxed">
-                To view or record attendance, please first select an institution from your directory.
+                To view or record {labels.attendance.toLowerCase()}, please first select an institution from your directory.
               </p>
               <button 
                 onClick={() => setView('schools')}
@@ -3076,7 +3075,6 @@ function ExonaApp() {
             </div>
           );
         }
-        const labels = getLabels(selectedSchool.type);
         const filteredAttendance = attendance.filter(r => 
           r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase())
         );
@@ -3085,7 +3083,7 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title={`${selectedSchool.name} Attendance`}
+            title={`${selectedSchool.name} ${labels.attendance}`}
             subtitle={labels.attendance}
             icon={Compass}
             toolbar={
@@ -3101,15 +3099,15 @@ function ExonaApp() {
                       className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-32 sm:w-48" 
                     />
                   </div>
-                  {canManageInstitution(selectedSchool) && (
-                    <button 
-                      onClick={() => setIsAttendanceModalOpen(true)}
-                      className="flex items-center gap-2 px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all"
-                    >
-                      <Plus size={14} />
-                      Record Attendance
-                    </button>
-                  )}
+                      {canManageInstitution(selectedSchool) && (
+                        <button 
+                          onClick={() => setIsAttendanceModalOpen(true)}
+                          className="flex items-center gap-2 px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all"
+                        >
+                          <Plus size={14} />
+                          Record {labels.attendance}
+                        </button>
+                      )}
                 </div>
               </div>
             }
@@ -3139,7 +3137,7 @@ function ExonaApp() {
                   className="w-full flex items-center justify-center gap-3 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 active:scale-[0.98] transition-all"
                 >
                   <Plus size={20} />
-                  Record Attendance
+                  Record {labels.attendance}
                 </button>
               </div>
             )}
@@ -3158,7 +3156,7 @@ function ExonaApp() {
                   {filteredAttendance.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-20 text-center">
-                        <p className="font-bold text-lg text-muted">No attendance records found</p>
+                        <p className="font-bold text-lg text-muted">No {labels.attendance.toLowerCase()} records found</p>
                       </td>
                     </tr>
                   ) : (
@@ -3187,7 +3185,7 @@ function ExonaApp() {
             <div className="md:hidden space-y-4">
               {filteredAttendance.length === 0 ? (
                 <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <p className="font-bold text-muted">No attendance records found</p>
+                  <p className="font-bold text-muted">No {labels.attendance.toLowerCase()} records found</p>
                 </div>
               ) : (
                 filteredAttendance.map((record) => (
@@ -3227,7 +3225,7 @@ function ExonaApp() {
       }
       case 'ai': {
         const tools = [
-          { id: 'ai', name: 'Exona AI', description: 'Intelligent assistant for institutional queries', icon: Cpu, color: 'ink' },
+          { id: 'ai', name: 'Exona AI', description: 'Intelligent assistant for institutional queries', icon: Sparkles, color: 'ink' },
           { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
           { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
@@ -3240,7 +3238,7 @@ function ExonaApp() {
             <WordLayout 
               title="Exona AI"
               subtitle="Intelligent Institutional Intelligence"
-              icon={Cpu}
+              icon={Sparkles}
               toolbar={
                 <div className="flex items-center gap-4">
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
@@ -3256,7 +3254,7 @@ function ExonaApp() {
               <div className="space-y-8 mb-20">
                 {aiMessages.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-20 opacity-20">
-                    <Cpu size={64} strokeWidth={1} className="mb-6" />
+                    <Sparkles size={64} strokeWidth={1} className="mb-6" />
                     <p className="font-bold text-xl">System Ready</p>
                   </div>
                 )}
@@ -4606,7 +4604,7 @@ function ExonaApp() {
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-extrabold text-ink mb-1">Record Attendance</h3>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">Record {labels.attendance}</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Presence Log</p>
                 </div>
                 <button onClick={() => setIsAttendanceModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
@@ -4828,13 +4826,13 @@ function ExonaApp() {
                 />
                 <SidebarItem 
                   icon={Calendar} 
-                  label="Attendance" 
+                  label={labels.attendance} 
                   active={view === 'attendance'} 
                   onClick={() => handleNavigateToData('attendance')} 
                 />
                 <SidebarItem 
                   icon={Wallet} 
-                  label="Finance Hub" 
+                  label="Wallet Hub" 
                   active={view === 'finance'} 
                   onClick={() => handleNavigateToData('finance')} 
                 />
