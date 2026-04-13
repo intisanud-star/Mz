@@ -541,7 +541,7 @@ function ExonaApp() {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '' });
 
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
@@ -974,6 +974,7 @@ function ExonaApp() {
       await addDoc(collection(db, 'messages'), {
         senderUid: user.uid,
         receiverUid,
+        participants: [user.uid, receiverUid],
         text: text.trim(),
         timestamp: serverTimestamp(),
         chatId
@@ -1159,7 +1160,7 @@ function ExonaApp() {
       displayName: user?.displayName || '',
       bio: userDoc?.bio || ''
     });
-    setIsProfileModalOpen(true);
+    setIsEditingProfileInline(true);
   };
 
   const handleUpdateProfile = async () => {
@@ -1171,7 +1172,7 @@ function ExonaApp() {
         bio: editingProfile.bio
       }, { merge: true });
       showNotification('Profile updated');
-      setIsProfileModalOpen(false);
+      setIsEditingProfileInline(false);
     } catch (error) {
       console.error('Error updating profile:', error);
       showNotification('Failed to update profile', 'error');
@@ -1466,7 +1467,8 @@ function ExonaApp() {
           handleFirestoreError(error, OperationType.LIST, 'finance');
         });
       }
-      unsubAllMessages = onSnapshot(collection(db, 'messages'), (snap) => {
+      const messagesQuery = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
+      unsubAllMessages = onSnapshot(messagesQuery, (snap) => {
         setAllMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'messages');
@@ -2391,15 +2393,17 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Edit Details</span>
                     </button>
-                    <button 
-                      onClick={() => { setSchoolToDelete(selectedSchool.id); setIsDeleteSchoolModalOpen(true); }}
-                      className="flex flex-col items-center gap-3 p-6 bg-red-50/30 rounded-2xl border border-transparent hover:border-red-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-red-600 shadow-sm group-hover:scale-110 transition-transform">
-                        <Trash2 size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-red-600/70">Delete Space</span>
-                    </button>
+                    {selectedSchool.creatorUid === user?.uid && (
+                      <button 
+                        onClick={() => { setSchoolToDelete(selectedSchool.id); setIsDeleteSchoolModalOpen(true); }}
+                        className="flex flex-col items-center gap-3 p-6 bg-red-50/30 rounded-2xl border border-transparent hover:border-red-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-red-600 shadow-sm group-hover:scale-110 transition-transform">
+                          <Trash2 size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-red-600/70">Delete Space</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3723,14 +3727,43 @@ function ExonaApp() {
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
-                <div className="flex items-center gap-2">
-                  <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                  <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
-                </div>
+              <div className="flex-1 mr-4 min-h-[80px] flex flex-col justify-center">
+                <AnimatePresence mode="wait">
+                  {isEditingProfileInline ? (
+                    <motion.div 
+                      key="edit-name"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="space-y-2"
+                    >
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
+                      <input 
+                        type="text" 
+                        value={editingProfile.displayName}
+                        onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
+                        className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
+                        placeholder="Your name..."
+                        autoFocus
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="view-name"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
+                      <div className="flex items-center gap-2">
+                        <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
+                        <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="relative group h-20 w-20">
+              <div className="relative group h-20 w-20 shrink-0">
                 <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
                   {isUploadingProfile ? (
                     <div className="h-full w-full bg-white border border-gray-100 flex flex-col items-center justify-center">
@@ -3765,28 +3798,81 @@ function ExonaApp() {
               </div>
             </div>
 
-            <p className="text-ink text-[14px] mb-6 whitespace-pre-wrap">
-              {userDoc?.bio || "No bio yet."}
-            </p>
-
-            <div className="flex items-center gap-4 mb-8">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-gray-200" />
-                ))}
-              </div>
+            <div className="mb-6 min-h-[60px]">
+              <AnimatePresence mode="wait">
+                {isEditingProfileInline ? (
+                  <motion.div 
+                    key="edit-bio"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="space-y-2"
+                  >
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Bio</label>
+                    <textarea 
+                      value={editingProfile.bio}
+                      onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
+                      className="w-full text-ink text-[14px] bg-gray-50 border border-gray-100 outline-none rounded-xl p-4 h-32 resize-none focus:bg-white focus:border-accent/20 transition-all leading-relaxed"
+                      placeholder="Tell the world about yourself..."
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.p 
+                    key="view-bio"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="text-ink text-[14px] whitespace-pre-wrap"
+                  >
+                    {userDoc?.bio || "No bio yet."}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex gap-3 mb-10">
-              <button 
-                onClick={handleEditProfile}
-                className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
-              >
-                Edit profile
-              </button>
-              <button className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all">
-                Share profile
-              </button>
+              <AnimatePresence mode="wait">
+                {isEditingProfileInline ? (
+                  <motion.div 
+                    key="edit-actions"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex gap-3 w-full"
+                  >
+                    <button 
+                      onClick={handleUpdateProfile}
+                      className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 flex items-center justify-center gap-2"
+                    >
+                      <Check size={16} /> Save
+                    </button>
+                    <button 
+                      onClick={() => setIsEditingProfileInline(false)}
+                      className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      <X size={16} /> Cancel
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.div 
+                    key="view-actions"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="flex gap-3 w-full"
+                  >
+                    <button 
+                      onClick={handleEditProfile}
+                      className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10"
+                    >
+                      Edit profile
+                    </button>
+                    <button className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all">
+                      Share profile
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="space-y-12 mt-12">
@@ -4674,7 +4760,7 @@ function ExonaApp() {
                     editingSchool ? 'Synchronize Updates' : 'Authorize Registration'
                   )}
                 </button>
-                {editingSchool && (
+                {editingSchool && editingSchool.creatorUid === user?.uid && (
                   <button 
                     onClick={() => {
                       setSchoolToDelete(editingSchool.id);
@@ -4699,64 +4785,6 @@ function ExonaApp() {
                   <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-2 text-center">{Math.round(uploadProgress)}% Transmission Complete</p>
                 </div>
               )}
-            </motion.div>
-          </motion.div>
-        )}
-
-        {isProfileModalOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-lg rounded-[3rem] p-10 shadow-2xl relative"
-            >
-              <div className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 bg-ink rounded-2xl flex items-center justify-center text-white">
-                    <UserIcon size={24} />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-extrabold text-ink tracking-tight">Edit Profile</h2>
-                    <p className="text-muted text-[10px] font-bold uppercase tracking-[0.3em]">Personal Identity Terminal</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsProfileModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="space-y-8">
-                <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Display Name</label>
-                  <input 
-                    type="text" 
-                    value={editingProfile.displayName}
-                    onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
-                    placeholder="Your name..."
-                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
-                  />
-                </div>
-                <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Bio</label>
-                  <textarea 
-                    value={editingProfile.bio}
-                    onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
-                    placeholder="Tell the world about yourself..."
-                    className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold resize-none h-32 leading-relaxed"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-12">
-                <button 
-                  onClick={handleUpdateProfile}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-                >
-                  Synchronize Profile
-                </button>
-              </div>
             </motion.div>
           </motion.div>
         )}

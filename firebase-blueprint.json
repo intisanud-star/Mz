@@ -133,11 +133,12 @@
         "id": { "type": "string" },
         "senderUid": { "type": "string" },
         "receiverUid": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
         "text": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "chatId": { "type": "string" }
       },
-      "required": ["senderUid", "receiverUid", "text", "timestamp", "chatId"]
+      "required": ["senderUid", "receiverUid", "participants", "text", "timestamp", "chatId"]
     }
   },
   "firestore": {

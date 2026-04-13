@@ -124,6 +124,16 @@ service cloud.firestore {
       return isAuthenticated() && data.creatorUid == request.auth.uid;
     }
 
+    function isValidMessage(data) {
+      return isAuthenticated() && 
+             data.senderUid == request.auth.uid &&
+             data.participants is list &&
+             data.participants.size() == 2 &&
+             request.auth.uid in data.participants &&
+             data.receiverUid in data.participants &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 5000;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -134,18 +144,24 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /messages/{messageId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isValidMessage(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
     match /schools/{schoolId} {
       allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
-      allow delete: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
-      allow delete: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
     match /posts/{postId} {
