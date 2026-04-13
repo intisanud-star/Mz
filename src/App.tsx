@@ -478,7 +478,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -502,6 +502,10 @@ function ExonaApp() {
   const [records, setRecords] = useState<Record[]>([]);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
+  const [allMessages, setAllMessages] = useState<any[]>([]);
+  const [chatSearch, setChatSearch] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [activeChat, setActiveChat] = useState<any>(null);
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
   const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
@@ -960,6 +964,22 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleSendMessage = async (receiverUid: string, text: string) => {
+    if (!user || !text.trim()) return;
+    const chatId = [user.uid, receiverUid].sort().join('_');
+    try {
+      await addDoc(collection(db, 'messages'), {
+        senderUid: user.uid,
+        receiverUid,
+        text: text.trim(),
+        timestamp: serverTimestamp(),
+        chatId
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'messages');
     }
   };
 
@@ -1433,19 +1453,27 @@ function ExonaApp() {
 
     let unsubAllRecords = () => {};
     let unsubAllFinance = () => {};
+    let unsubAllMessages = () => {};
 
-    if (user && userDoc?.role === 'admin') {
-      unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
-        setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-      });
-      unsubAllFinance = onSnapshot(collection(db, 'finance'), (snap) => {
-        setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    if (user) {
+      if (userDoc?.role === 'admin') {
+        unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
+          setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+        });
+        unsubAllFinance = onSnapshot(collection(db, 'finance'), (snap) => {
+          setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        }, (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'finance');
+        });
+      }
+      unsubAllMessages = onSnapshot(collection(db, 'messages'), (snap) => {
+        setAllMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'finance');
+        handleFirestoreError(error, OperationType.LIST, 'messages');
       });
     }
 
-    return () => { unsubSchools(); unsubPlaces(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); };
+    return () => { unsubSchools(); unsubPlaces(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); unsubAllMessages(); };
   }, [user, userDoc]);
 
   useEffect(() => {
@@ -3223,6 +3251,146 @@ function ExonaApp() {
           </WordLayout>
         );
       }
+      case 'chat': {
+        if (!user) { setView('login'); return null; }
+        const followedInstitutions = [...schools, ...places].filter(s => s.followers?.includes(user.uid) || s.creatorUid === user.uid);
+        
+        if (activeChat) {
+          const chatMessages = allMessages
+            .filter(m => m.chatId === [user.uid, activeChat.creatorUid].sort().join('_'))
+            .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+
+          return (
+            <div className="flex flex-col h-full bg-white">
+              <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-md z-10">
+                <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+                  <ChevronRight size={24} className="rotate-180" />
+                </button>
+                <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
+                  {activeChat.logo ? (
+                    <img src={activeChat.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-muted text-[10px] font-bold">{activeChat.name.charAt(0)}</span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-ink text-sm leading-tight">{activeChat.name}</h3>
+                  <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Online</p>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-32">
+                {chatMessages.length === 0 ? (
+                  <div className="py-20 text-center opacity-30">
+                    <MessageSquare size={48} className="mx-auto mb-4" />
+                    <p className="text-sm font-bold">No messages yet. Say hi!</p>
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div key={msg.id} className={`flex ${msg.senderUid === user.uid ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium shadow-sm ${
+                        msg.senderUid === user.uid 
+                          ? 'bg-ink text-white rounded-tr-none' 
+                          : 'bg-gray-100 text-ink rounded-tl-none'
+                      }`}>
+                        {msg.text}
+                        <p className={`text-[9px] mt-1 opacity-50 ${msg.senderUid === user.uid ? 'text-right' : 'text-left'}`}>
+                          {formatTime(msg.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white border border-gray-100 p-2 rounded-2xl shadow-2xl flex items-center gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Type a message..." 
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.creatorUid, chatInput), setChatInput(''))}
+                  className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
+                />
+                <button 
+                  onClick={() => { handleSendMessage(activeChat.creatorUid, chatInput); setChatInput(''); }}
+                  className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="w-full max-w-xl mx-auto pb-32">
+            <div className="flex items-center justify-between py-8 px-4">
+              <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Chats</h2>
+            </div>
+            
+            <div className="px-4 mb-6">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search chats..." 
+                  value={chatSearch}
+                  onChange={(e) => setChatSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
+                />
+              </div>
+            </div>
+
+            <div className="divide-y divide-gray-100">
+              {followedInstitutions.length === 0 ? (
+                <div className="py-20 text-center px-8">
+                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
+                    <MessageSquare size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-ink mb-2">No chats yet</h3>
+                  <p className="text-sm text-muted">Follow institutions to start chatting with them.</p>
+                </div>
+              ) : (
+                followedInstitutions
+                  .filter(s => s.name.toLowerCase().includes(chatSearch.toLowerCase()))
+                  .map(school => {
+                    const lastMessage = allMessages
+                      .filter(m => m.chatId === [user.uid, school.creatorUid].sort().join('_'))
+                      .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
+
+                    return (
+                      <button 
+                        key={school.id}
+                        onClick={() => setActiveChat(school)}
+                        className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
+                      >
+                        <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                          {school.logo ? (
+                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-muted text-xs font-bold">{school.name.charAt(0)}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center mb-1">
+                            <h3 className="font-bold text-ink text-[15px] truncate">{school.name}</h3>
+                            <span className="text-[10px] text-muted font-medium">
+                              {lastMessage ? formatTime(lastMessage.timestamp) : ''}
+                            </span>
+                          </div>
+                          <p className="text-[13px] text-muted truncate">
+                            {lastMessage ? lastMessage.text : 'Start a conversation'}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
+              )}
+            </div>
+          </div>
+        );
+      }
       case 'ai': {
         const tools = [
           { id: 'ai', name: 'Exona AI', description: 'Intelligent assistant for institutional queries', icon: Sparkles, color: 'ink' },
@@ -4913,15 +5081,20 @@ function ExonaApp() {
           active={view === 'feed'} 
           onClick={() => setView('feed')} 
           icon={Home} 
-          label="Home"
+          label="Broadcast"
         />
         <NavButton 
           active={view === 'schools'} 
           onClick={() => setView('schools')} 
           icon={Circle} 
-          label="Status"
+          label="Institution"
         />
-        
+        <NavButton 
+          active={view === 'chat'} 
+          onClick={() => setView('chat')} 
+          icon={MessageSquare} 
+          label="Chat"
+        />
         <NavButton 
           active={view === 'ai'} 
           onClick={() => setView('ai')} 

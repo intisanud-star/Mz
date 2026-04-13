@@ -124,6 +124,20 @@
         "accountName": { "type": "string" }
       },
       "required": ["institutionBalance"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "receiverUid": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "chatId": { "type": "string" }
+      },
+      "required": ["senderUid", "receiverUid", "text", "timestamp", "chatId"]
     }
   },
   "firestore": {
@@ -134,6 +148,7 @@
     "/posts/{postId}/comments/{commentId}": { "schema": "object", "description": "Post comments" },
     "/studentRecords/{recordId}": { "schema": "StudentRecord", "description": "Student records" },
     "/teacherAttendance/{attendanceId}": { "schema": "TeacherAttendance", "description": "Teacher attendance" },
-    "/finance/{schoolId}": { "schema": "SchoolFinance", "description": "Institution finance" }
+    "/finance/{schoolId}": { "schema": "SchoolFinance", "description": "Institution finance" },
+    "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" }
   }
 }
