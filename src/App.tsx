@@ -5137,7 +5137,7 @@ function ExonaApp() {
             className="text-2xl font-bold text-ink cursor-pointer tracking-tight font-display" 
             onClick={() => setView('feed')}
           >
-            Exona
+            
           </motion.h1>
         </div>
 
