@@ -5131,14 +5131,25 @@ function ExonaApp() {
 
       {/* Top Navigation */}
       <header className="h-16 bg-card/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
-        <div className="flex items-center gap-4">
-          <motion.h1 
-            whileHover={{ scale: 1.02 }}
-            className="text-2xl font-bold text-ink cursor-pointer tracking-tight font-display" 
+        <div className="flex items-center gap-8 h-full">
+          <button 
             onClick={() => setView('feed')}
+            className={`h-full flex flex-col items-center justify-center gap-1 relative px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            
-          </motion.h1>
+            <span className={`text-[13px] font-bold tracking-tight ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Broadcast</span>
+            {view === 'feed' && (
+              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
+            )}
+          </button>
+          <button 
+            onClick={() => setView('schools')}
+            className={`h-full flex flex-col items-center justify-center gap-1 relative px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+          >
+            <span className={`text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Institution</span>
+            {view === 'schools' && (
+              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
+            )}
+          </button>
         </div>
 
         <div className="flex items-center gap-2 text-ink">
@@ -5160,19 +5171,7 @@ function ExonaApp() {
       </main>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-md">
-        <NavButton 
-          active={view === 'feed'} 
-          onClick={() => setView('feed')} 
-          icon={Home} 
-          label="Broadcast"
-        />
-        <NavButton 
-          active={view === 'schools'} 
-          onClick={() => setView('schools')} 
-          icon={Circle} 
-          label="Institution"
-        />
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-xs">
         <NavButton 
           active={view === 'chat'} 
           onClick={() => setView('chat')} 
