@@ -5136,7 +5136,7 @@ function ExonaApp() {
             onClick={() => setView('feed')}
             className={`h-full flex flex-col items-center justify-center gap-1 relative px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[13px] font-bold tracking-tight ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Broadcast</span>
+            <span className={`text-[13px] font-bold tracking-tight ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
             {view === 'feed' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
@@ -5145,7 +5145,7 @@ function ExonaApp() {
             onClick={() => setView('schools')}
             className={`h-full flex flex-col items-center justify-center gap-1 relative px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Institution</span>
+            <span className={`text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Story</span>
             {view === 'schools' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
