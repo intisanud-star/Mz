@@ -6,13 +6,50 @@
   --font-display: "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-paper: #F8FAFC;
-  --color-ink: #0F172A;
-  --color-accent: #6366F1;
+  --color-paper: var(--paper);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
   --color-premium-blue: #3B82F6;
   --color-premium-indigo: #6366F1;
-  --color-muted: #64748B;
-  --color-border: #E2E8F0;
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+}
+
+:root {
+  --paper: #F8FAFC;
+  --card: #FFFFFF;
+  --ink: #0F172A;
+  --accent: #6366F1;
+  --muted: #64748B;
+  --border: #E2E8F0;
+}
+
+[data-theme='dark'] {
+  --paper: #020617;
+  --card: #0F172A;
+  --ink: #F8FAFC;
+  --accent: #38BDF8;
+  --muted: #94A3B8;
+  --border: #1E293B;
+}
+
+[data-theme='blue'] {
+  --paper: #EFF6FF;
+  --card: #FFFFFF;
+  --ink: #1E3A8A;
+  --accent: #2563EB;
+  --muted: #60A5FA;
+  --border: #DBEAFE;
+}
+
+[data-theme='purple'] {
+  --paper: #FAF5FF;
+  --card: #FFFFFF;
+  --ink: #581C87;
+  --accent: #9333EA;
+  --muted: #C084FC;
+  --border: #F3E8FF;
 }
 
 @layer base {

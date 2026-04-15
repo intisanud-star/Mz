@@ -362,8 +362,8 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
         <div 
           className={`relative p-4 rounded-[1.5rem] border border-gray-100 shadow-sm ${
             isOwnPost 
-              ? 'bg-white rounded-tr-none text-ink' 
-              : 'bg-white rounded-tl-none text-ink'
+              ? 'bg-card rounded-tr-none text-ink' 
+              : 'bg-card rounded-tl-none text-ink'
           }`}
         >
           {post.mediaUrl && (
@@ -543,6 +543,8 @@ function ExonaApp() {
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '' });
+  const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ 
@@ -1346,6 +1348,10 @@ function ExonaApp() {
       if (userUnsubscribe) userUnsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+  }, [currentTheme]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -3869,10 +3875,14 @@ function ExonaApp() {
                   {[
                     { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-600' },
                     { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500' },
-                    { icon: Sparkles, label: 'Appearance', desc: 'Customize your visual experience', color: 'purple-600' },
+                    { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-600', onClick: () => setIsThemeModalOpen(true) },
                     { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'accent' }
                   ].map((item, i) => (
-                    <button key={i} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group">
+                    <button 
+                      key={i} 
+                      onClick={item.onClick}
+                      className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group"
+                    >
                       <div className="flex items-center gap-5">
                         <div className={`h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-${item.color} group-hover:scale-110 transition-transform`}>
                           <item.icon size={20} />
@@ -3935,7 +3945,7 @@ function ExonaApp() {
 
   if (view === 'splash') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-white text-ink overflow-hidden relative">
+      <div className="flex h-screen flex-col items-center justify-center bg-paper text-ink overflow-hidden relative">
         {/* Immersive background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gray-100 blur-[120px] rounded-full animate-pulse"></div>
@@ -4215,7 +4225,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-6xl bg-white rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-6xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -4352,7 +4362,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
+              className="w-full max-w-md bg-card rounded-[3rem] premium-shadow p-12 border border-gray-100 text-center"
             >
               <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-red-100">
                 <Trash2 size={32} />
@@ -4388,7 +4398,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-4xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -4599,7 +4609,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-4xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -4783,7 +4793,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-4xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -4839,6 +4849,65 @@ function ExonaApp() {
                     'Authorize Presence'
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isThemeModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-lg bg-card rounded-[3rem] p-10 shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-ink mb-1">Appearance</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Visual Interface Protocol</p>
+                </div>
+                <button onClick={() => setIsThemeModalOpen(false)} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { id: 'light', name: 'Classic', color: '#F8FAFC', border: '#E2E8F0', text: '#0F172A' },
+                  { id: 'dark', name: 'Midnight', color: '#020617', border: '#1E293B', text: '#F8FAFC' },
+                  { id: 'blue', name: 'Cobalt', color: '#EFF6FF', border: '#DBEAFE', text: '#1E3A8A' },
+                  { id: 'purple', name: 'Amethyst', color: '#FAF5FF', border: '#F3E8FF', text: '#581C87' }
+                ].map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      setCurrentTheme(theme.id as any);
+                      setIsThemeModalOpen(false);
+                      showNotification(`${theme.name} theme applied`);
+                    }}
+                    className={`p-6 rounded-[2rem] border-2 transition-all text-left relative overflow-hidden group ${
+                      currentTheme === theme.id ? 'border-accent bg-gray-50' : 'border-gray-100 bg-white hover:border-gray-200'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-4 relative z-10">
+                      <div 
+                        className="h-10 w-10 rounded-xl border border-gray-200/20 shadow-sm"
+                        style={{ backgroundColor: theme.color }}
+                      ></div>
+                      <div>
+                        <p className="text-sm font-bold text-ink">{theme.name}</p>
+                        <p className="text-[10px] text-muted font-medium">Interface Mode</p>
+                      </div>
+                    </div>
+                    {currentTheme === theme.id && (
+                      <div className="absolute top-4 right-4 h-6 w-6 bg-accent rounded-full flex items-center justify-center text-white">
+                        <Check size={12} />
+                      </div>
+                    )}
+                  </button>
+                ))}
               </div>
             </motion.div>
           </motion.div>
@@ -5061,7 +5130,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      <header className="h-16 bg-white/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
+      <header className="h-16 bg-card/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
         <div className="flex items-center gap-4">
           <motion.h1 
             whileHover={{ scale: 1.02 }}
@@ -5086,12 +5155,12 @@ function ExonaApp() {
       </header>
 
       {/* Main Area */}
-      <main className="flex-1 overflow-y-auto bg-white">
+      <main className="flex-1 overflow-y-auto bg-card">
         {renderView()}
       </main>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-md">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-md">
         <NavButton 
           active={view === 'feed'} 
           onClick={() => setView('feed')} 
