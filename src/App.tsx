@@ -143,10 +143,14 @@ interface UserDoc {
   role?: 'admin' | 'user';
   schoolId?: string;
   following?: string[];
+  followers?: string[];
+  pendingFollowers?: string[];
   invitesCount?: number;
   referredBy?: string | null;
   isLifetimeFree?: boolean;
   hasCreatedInstitution?: boolean;
+  bio?: string;
+  isPrivate?: boolean;
 }
 
 interface SchoolFinance {
@@ -504,6 +508,7 @@ function ExonaApp() {
   const [allFinance, setAllFinance] = useState<any[]>([]);
   const [allMessages, setAllMessages] = useState<any[]>([]);
   const [chatSearch, setChatSearch] = useState('');
+  const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
   const [chatInput, setChatInput] = useState('');
   const [activeChat, setActiveChat] = useState<any>(null);
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
@@ -542,9 +547,11 @@ function ExonaApp() {
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
-  const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '' });
+  const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
+  const [pendingFollowerProfiles, setPendingFollowerProfiles] = useState<UserDoc[]>([]);
 
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ 
@@ -571,6 +578,76 @@ function ExonaApp() {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
+
+  useEffect(() => {
+    if (!user || !userDoc?.following || userDoc.following.length === 0) {
+      setConnectedUsers([]);
+      return;
+    }
+
+    const fetchConnectedUsers = async () => {
+      try {
+        const followingUids = userDoc.following || [];
+        // Fetch all users the current user follows
+        const usersData: UserDoc[] = [];
+        
+        // Firestore 'in' query limit is 30
+        const chunks = [];
+        for (let i = 0; i < followingUids.length; i += 30) {
+          chunks.push(followingUids.slice(i, i + 30));
+        }
+
+        for (const chunk of chunks) {
+          const q = query(collection(db, 'users'), where('uid', 'in', chunk));
+          const snap = await getDocs(q);
+          snap.forEach(doc => {
+            const data = doc.data() as UserDoc;
+            // A user is "connected" if they also follow the current user back
+            if (data.following?.includes(user.uid)) {
+              usersData.push(data);
+            }
+          });
+        }
+        setConnectedUsers(usersData);
+      } catch (error) {
+        console.error('Error fetching connected users:', error);
+      }
+    };
+
+    fetchConnectedUsers();
+  }, [user, userDoc?.following]);
+
+  useEffect(() => {
+    if (!user || !userDoc?.pendingFollowers || userDoc.pendingFollowers.length === 0) {
+      setPendingFollowerProfiles([]);
+      return;
+    }
+
+    const fetchPendingFollowers = async () => {
+      try {
+        const pendingUids = userDoc.pendingFollowers || [];
+        const usersData: UserDoc[] = [];
+        
+        const chunks = [];
+        for (let i = 0; i < pendingUids.length; i += 30) {
+          chunks.push(pendingUids.slice(i, i + 30));
+        }
+
+        for (const chunk of chunks) {
+          const q = query(collection(db, 'users'), where('uid', 'in', chunk));
+          const snap = await getDocs(q);
+          snap.forEach(doc => {
+            usersData.push(doc.data() as UserDoc);
+          });
+        }
+        setPendingFollowerProfiles(usersData);
+      } catch (error) {
+        console.error('Error fetching pending followers:', error);
+      }
+    };
+
+    fetchPendingFollowers();
+  }, [user, userDoc?.pendingFollowers]);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1160,7 +1237,8 @@ function ExonaApp() {
   const handleEditProfile = () => {
     setEditingProfile({
       displayName: user?.displayName || '',
-      bio: userDoc?.bio || ''
+      bio: userDoc?.bio || '',
+      isPrivate: userDoc?.isPrivate || false
     });
     setIsEditingProfileInline(true);
   };
@@ -1171,7 +1249,8 @@ function ExonaApp() {
       await updateProfile(user, { displayName: editingProfile.displayName });
       await setDoc(doc(db, 'users', user.uid), {
         displayName: editingProfile.displayName,
-        bio: editingProfile.bio
+        bio: editingProfile.bio,
+        isPrivate: editingProfile.isPrivate
       }, { merge: true });
       showNotification('Profile updated');
       setIsEditingProfileInline(false);
@@ -1627,30 +1706,71 @@ function ExonaApp() {
     if (user.uid === targetUid) return;
 
     try {
-      const currentUserRef = doc(db, 'users', user.uid);
       const targetUserRef = doc(db, 'users', targetUid);
-
-      const currentFollowing = userDoc.following || [];
-      if (currentFollowing.includes(targetUid)) return;
-
-      const newFollowing = [...currentFollowing, targetUid];
-      await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
-      setUserDoc({ ...userDoc, following: newFollowing });
-
       const targetDoc = await getDoc(targetUserRef);
-      if (targetDoc.exists()) {
-        const targetData = targetDoc.data();
+      if (!targetDoc.exists()) return;
+      
+      const targetData = targetDoc.data() as UserDoc;
+      const isPrivate = targetData.isPrivate;
+
+      if (isPrivate) {
+        const pending = targetData.pendingFollowers || [];
+        if (pending.includes(user.uid)) {
+          showNotification('Request already sent');
+          return;
+        }
+        await setDoc(targetUserRef, { pendingFollowers: [...pending, user.uid] }, { merge: true });
+        showNotification('Follow request sent');
+      } else {
+        const currentUserRef = doc(db, 'users', user.uid);
+        const currentFollowing = userDoc.following || [];
+        if (currentFollowing.includes(targetUid)) return;
+
+        const newFollowing = [...currentFollowing, targetUid];
+        await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
+        setUserDoc({ ...userDoc, following: newFollowing });
+
         const targetFollowers = targetData.followers || [];
         const newTargetFollowers = [...targetFollowers, user.uid];
         await setDoc(targetUserRef, { followers: newTargetFollowers }, { merge: true });
+        
         if (selectedUserProfile?.uid === targetUid) {
           setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
         }
+        showNotification('Following user');
       }
-      showNotification('Following user');
     } catch (error) {
       showNotification('Failed to follow user', 'error');
       handleFirestoreError(error, OperationType.UPDATE, 'users');
+    }
+  };
+
+  const handleAcceptFollower = async (requesterUid: string) => {
+    if (!user || !userDoc) return;
+    try {
+      const currentUserRef = doc(db, 'users', user.uid);
+      const requesterRef = doc(db, 'users', requesterUid);
+
+      const newFollowers = [...(userDoc.followers || []), requesterUid];
+      const newPending = (userDoc.pendingFollowers || []).filter(uid => uid !== requesterUid);
+      
+      await setDoc(currentUserRef, { 
+        followers: newFollowers, 
+        pendingFollowers: newPending 
+      }, { merge: true });
+      setUserDoc({ ...userDoc, followers: newFollowers, pendingFollowers: newPending });
+
+      const requesterDoc = await getDoc(requesterRef);
+      if (requesterDoc.exists()) {
+        const requesterData = requesterDoc.data() as UserDoc;
+        const newFollowing = [...(requesterData.following || []), user.uid];
+        await setDoc(requesterRef, { following: newFollowing }, { merge: true });
+      }
+
+      showNotification('Follower accepted');
+    } catch (error) {
+      console.error('Error accepting follower:', error);
+      showNotification('Failed to accept follower', 'error');
     }
   };
 
@@ -1668,18 +1788,44 @@ function ExonaApp() {
 
       const targetDoc = await getDoc(targetUserRef);
       if (targetDoc.exists()) {
-        const targetData = targetDoc.data();
+        const targetData = targetDoc.data() as UserDoc;
         const targetFollowers = targetData.followers || [];
         const newTargetFollowers = targetFollowers.filter((id: string) => id !== user.uid);
-        await setDoc(targetUserRef, { followers: newTargetFollowers }, { merge: true });
+        
+        const targetPending = targetData.pendingFollowers || [];
+        const newTargetPending = targetPending.filter((id: string) => id !== user.uid);
+
+        await setDoc(targetUserRef, { 
+          followers: newTargetFollowers,
+          pendingFollowers: newTargetPending
+        }, { merge: true });
+        
         if (selectedUserProfile?.uid === targetUid) {
-          setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
+          setSelectedUserProfileDoc({ 
+            ...targetData, 
+            followers: newTargetFollowers,
+            pendingFollowers: newTargetPending
+          });
         }
       }
       showNotification('Unfollowed user');
     } catch (error) {
       showNotification('Failed to unfollow user', 'error');
       handleFirestoreError(error, OperationType.UPDATE, 'users');
+    }
+  };
+
+  const handleDeclineFollower = async (requesterUid: string) => {
+    if (!user || !userDoc) return;
+    try {
+      const currentUserRef = doc(db, 'users', user.uid);
+      const newPending = (userDoc.pendingFollowers || []).filter(uid => uid !== requesterUid);
+      await setDoc(currentUserRef, { pendingFollowers: newPending }, { merge: true });
+      setUserDoc({ ...userDoc, pendingFollowers: newPending });
+      showNotification('Follow request declined');
+    } catch (error) {
+      console.error('Error declining follower:', error);
+      showNotification('Failed to decline follower', 'error');
     }
   };
 
@@ -2486,6 +2632,20 @@ function ExonaApp() {
                   {userDoc?.following?.includes(selectedUserProfile.uid) ? 'Following' : 'Follow'}
                 </button>
               )}
+              {user && user.uid !== selectedUserProfile.uid && connectedUsers.some(u => u.uid === selectedUserProfile.uid) && (
+                <button 
+                  onClick={() => {
+                    const connectedUser = connectedUsers.find(u => u.uid === selectedUserProfile.uid);
+                    if (connectedUser) {
+                      setActiveChat(connectedUser);
+                      setView('chat');
+                    }
+                  }}
+                  className="flex-1 py-2 bg-accent text-white rounded-xl font-bold text-[14px] hover:bg-accent/90 transition-all"
+                >
+                  Message
+                </button>
+              )}
               <button className="flex-1 py-2 border border-gray-200 rounded-xl font-bold text-[14px] hover:bg-gray-50 transition-colors">
                 Mention
               </button>
@@ -3250,29 +3410,29 @@ function ExonaApp() {
       }
       case 'chat': {
         if (!user) { setView('login'); return null; }
-        const followedInstitutions = [...schools, ...places].filter(s => s.followers?.includes(user.uid) || s.creatorUid === user.uid);
         
         if (activeChat) {
+          // activeChat is now a UserDoc
           const chatMessages = allMessages
-            .filter(m => m.chatId === [user.uid, activeChat.creatorUid].sort().join('_'))
-            .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+            .filter(m => m.chatId === [user.uid, activeChat.uid].sort().join('_'))
+            .sort((a, b) => (a.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
 
           return (
-            <div className="flex flex-col h-full bg-white">
-              <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-white/80 backdrop-blur-md z-10">
-                <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <div className="flex flex-col h-full bg-card">
+              <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-10">
+                <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                   <ChevronRight size={24} className="rotate-180" />
                 </button>
                 <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
-                  {activeChat.logo ? (
-                    <img src={activeChat.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  {activeChat.photoURL ? (
+                    <img src={activeChat.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
-                    <span className="text-muted text-[10px] font-bold">{activeChat.name.charAt(0)}</span>
+                    <span className="text-muted text-[10px] font-bold">{activeChat.displayName?.charAt(0)}</span>
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-ink text-sm leading-tight">{activeChat.name}</h3>
-                  <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Online</p>
+                  <h3 className="font-bold text-ink text-sm leading-tight">{activeChat.displayName}</h3>
+                  <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Connected</p>
                 </div>
               </div>
 
@@ -3300,17 +3460,17 @@ function ExonaApp() {
                 )}
               </div>
 
-              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-white border border-gray-100 p-2 rounded-2xl shadow-2xl flex items-center gap-2">
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl shadow-2xl flex items-center gap-2">
                 <input 
                   type="text" 
                   placeholder="Type a message..." 
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.creatorUid, chatInput), setChatInput(''))}
+                  onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput), setChatInput(''))}
                   className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
                 />
                 <button 
-                  onClick={() => { handleSendMessage(activeChat.creatorUid, chatInput); setChatInput(''); }}
+                  onClick={() => { handleSendMessage(activeChat.uid, chatInput); setChatInput(''); }}
                   className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
                 >
                   <Send size={18} />
@@ -3326,65 +3486,129 @@ function ExonaApp() {
               <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Chats</h2>
             </div>
             
-            <div className="px-4 mb-6">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Search chats..." 
-                  value={chatSearch}
-                  onChange={(e) => setChatSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
-                />
-              </div>
+            <div className="flex border-b border-gray-100 mb-6 px-4">
+              <button 
+                onClick={() => setChatTab('chats')}
+                className={`flex-1 py-3 text-[14px] font-bold transition-all border-b-2 ${chatTab === 'chats' ? 'text-ink border-ink' : 'text-muted border-transparent'}`}
+              >
+                Messages
+              </button>
+              <button 
+                onClick={() => setChatTab('requests')}
+                className={`flex-1 py-3 text-[14px] font-bold transition-all border-b-2 relative ${chatTab === 'requests' ? 'text-ink border-ink' : 'text-muted border-transparent'}`}
+              >
+                Requests
+                {pendingFollowerProfiles.length > 0 && (
+                  <span className="absolute top-2 right-4 h-2 w-2 bg-accent rounded-full" />
+                )}
+              </button>
             </div>
 
-            <div className="divide-y divide-gray-100">
-              {followedInstitutions.length === 0 ? (
-                <div className="py-20 text-center px-8">
-                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
-                    <MessageSquare size={32} />
+            {chatTab === 'chats' ? (
+              <>
+                <div className="px-4 mb-6">
+                  <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Search connections..." 
+                      value={chatSearch}
+                      onChange={(e) => setChatSearch(e.target.value)}
+                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
+                    />
                   </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">No chats yet</h3>
-                  <p className="text-sm text-muted">Follow institutions to start chatting with them.</p>
                 </div>
-              ) : (
-                followedInstitutions
-                  .filter(s => s.name.toLowerCase().includes(chatSearch.toLowerCase()))
-                  .map(school => {
-                    const lastMessage = allMessages
-                      .filter(m => m.chatId === [user.uid, school.creatorUid].sort().join('_'))
-                      .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
 
-                    return (
-                      <button 
-                        key={school.id}
-                        onClick={() => setActiveChat(school)}
-                        className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
-                      >
-                        <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                          {school.logo ? (
-                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-muted text-xs font-bold">{school.name.charAt(0)}</span>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center mb-1">
-                            <h3 className="font-bold text-ink text-[15px] truncate">{school.name}</h3>
-                            <span className="text-[10px] text-muted font-medium">
-                              {lastMessage ? formatTime(lastMessage.timestamp) : ''}
-                            </span>
-                          </div>
-                          <p className="text-[13px] text-muted truncate">
-                            {lastMessage ? lastMessage.text : 'Start a conversation'}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })
-              )}
-            </div>
+                <div className="divide-y divide-gray-100">
+                  {connectedUsers.length === 0 ? (
+                    <div className="py-20 text-center px-8">
+                      <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
+                        <MessageSquare size={32} />
+                      </div>
+                      <h3 className="text-lg font-bold text-ink mb-2">No connections yet</h3>
+                      <p className="text-sm text-muted">Follow users and have them follow you back to start chatting.</p>
+                    </div>
+                  ) : (
+                    connectedUsers
+                      .filter(u => u.displayName?.toLowerCase().includes(chatSearch.toLowerCase()))
+                      .map(connectedUser => {
+                        const lastMessage = allMessages
+                          .filter(m => m.chatId === [user.uid, connectedUser.uid].sort().join('_'))
+                          .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
+
+                        return (
+                          <button 
+                            key={connectedUser.uid}
+                            onClick={() => setActiveChat(connectedUser)}
+                            className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
+                          >
+                            <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                              {connectedUser.photoURL ? (
+                                <img src={connectedUser.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <span className="text-muted text-xs font-bold">{connectedUser.displayName?.charAt(0)}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center mb-1">
+                                <h3 className="font-bold text-ink text-[15px] truncate">{connectedUser.displayName}</h3>
+                                <span className="text-[10px] text-muted font-medium">
+                                  {lastMessage ? formatTime(lastMessage.timestamp) : ''}
+                                </span>
+                              </div>
+                              <p className="text-[13px] text-muted truncate">
+                                {lastMessage ? lastMessage.text : 'Start a conversation'}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {pendingFollowerProfiles.length === 0 ? (
+                  <div className="py-20 text-center px-8">
+                    <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
+                      <Users size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-ink mb-2">No pending requests</h3>
+                    <p className="text-sm text-muted">When people request to follow you, they'll appear here.</p>
+                  </div>
+                ) : (
+                  pendingFollowerProfiles.map(profile => (
+                    <div key={profile.uid} className="w-full p-4 flex items-center gap-4">
+                      <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                        {profile.photoURL ? (
+                          <img src={profile.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-muted text-xs font-bold">{profile.displayName?.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-ink text-[15px] truncate">{profile.displayName}</h3>
+                        <p className="text-[12px] text-muted truncate">wants to follow you</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleAcceptFollower(profile.uid)}
+                          className="px-4 py-2 bg-ink text-white rounded-xl font-bold text-[12px] hover:bg-ink/90 transition-all"
+                        >
+                          Accept
+                        </button>
+                        <button 
+                          onClick={() => handleDeclineFollower(profile.uid)}
+                          className="px-4 py-2 border border-gray-200 rounded-xl font-bold text-[12px] hover:bg-gray-50 transition-all"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         );
       }
@@ -3831,20 +4055,37 @@ function ExonaApp() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
-                    className="flex gap-3 w-full"
+                    className="flex flex-col gap-4 w-full"
                   >
-                    <button 
-                      onClick={handleUpdateProfile}
-                      className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 flex items-center justify-center gap-2"
-                    >
-                      <Check size={16} /> Save
-                    </button>
-                    <button 
-                      onClick={() => setIsEditingProfileInline(false)}
-                      className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
-                    >
-                      <X size={16} /> Cancel
-                    </button>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                      <div>
+                        <p className="text-sm font-bold text-ink">Private Account</p>
+                        <p className="text-[10px] text-muted font-medium">Only followers can see your broadcasts</p>
+                      </div>
+                      <button 
+                        onClick={() => setEditingProfile({...editingProfile, isPrivate: !editingProfile.isPrivate} as any)}
+                        className={`w-12 h-6 rounded-full transition-all relative ${editingProfile.isPrivate ? 'bg-accent' : 'bg-gray-200'}`}
+                      >
+                        <motion.div 
+                          className="absolute top-1 left-1 h-4 w-4 bg-white rounded-full"
+                          animate={{ x: editingProfile.isPrivate ? 24 : 0 }}
+                        />
+                      </button>
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={handleUpdateProfile}
+                        className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-lg shadow-ink/10 flex items-center justify-center gap-2"
+                      >
+                        <Check size={16} /> Save
+                      </button>
+                      <button 
+                        onClick={() => setIsEditingProfileInline(false)}
+                        className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                      >
+                        <X size={16} /> Cancel
+                      </button>
+                    </div>
                   </motion.div>
                 ) : (
                   <motion.div 
