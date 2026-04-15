@@ -3,7 +3,7 @@ import {
   GraduationCap, ShieldCheck, LogOut, LogIn, User as UserIcon, 
   BookOpen, Calendar, Bell, Search, Menu, X, 
   Home, Users, MessageSquare, Wallet, Settings, 
-  AlertCircle, Cpu, ChevronDown, ChevronRight,
+  AlertCircle, Cpu, ChevronDown, ChevronRight, ChevronLeft,
   Heart, MessageCircle, Share2, Plus, Filter, Send, Repeat, PlusSquare,
   Image as ImageIcon, Video as VideoIcon, Paperclip,
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
@@ -36,7 +36,7 @@ import {
   deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit } from 'firebase/firestore';
 
 /**
  * @license
@@ -542,6 +542,9 @@ function ExonaApp() {
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schoolSearch, setSchoolSearch] = useState('');
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [globalSearchResults, setGlobalSearchResults] = useState<UserDoc[]>([]);
+  const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [recordSearch, setRecordSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
@@ -1698,6 +1701,36 @@ function ExonaApp() {
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
+    }
+  };
+
+  const handleSearchUsers = async (queryText: string) => {
+    setGlobalSearch(queryText);
+    if (!queryText.trim()) {
+      setGlobalSearchResults([]);
+      return;
+    }
+
+    setIsSearchingUsers(true);
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('displayName', '>=', queryText),
+        where('displayName', '<=', queryText + '\uf8ff'),
+        limit(20)
+      );
+      const snap = await getDocs(q);
+      const results: UserDoc[] = [];
+      snap.forEach(doc => {
+        if (doc.id !== user?.uid) {
+          results.push(doc.data() as UserDoc);
+        }
+      });
+      setGlobalSearchResults(results);
+    } catch (error) {
+      console.error('Error searching users:', error);
+    } finally {
+      setIsSearchingUsers(false);
     }
   };
 
@@ -3406,6 +3439,75 @@ function ExonaApp() {
               </div>
             </div>
           </WordLayout>
+        );
+      }
+      case 'search': {
+        return (
+          <div className="w-full max-w-xl mx-auto py-8 px-4">
+            <div className="flex items-center gap-4 mb-8">
+              <button 
+                onClick={() => setView('feed')}
+                className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <div className="flex-1 relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search for people..." 
+                  value={globalSearch}
+                  onChange={(e) => handleSearchUsers(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {isSearchingUsers ? (
+                <div className="py-20 text-center">
+                  <div className="h-8 w-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-sm text-muted font-medium">Searching for users...</p>
+                </div>
+              ) : globalSearchResults.length === 0 ? (
+                <div className="py-20 text-center px-8">
+                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
+                    <Users size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-ink mb-2">
+                    {globalSearch ? 'No users found' : 'Find your friends'}
+                  </h3>
+                  <p className="text-sm text-muted">
+                    {globalSearch ? 'Try searching for a different name' : 'Search by name to find and follow other users on Exona.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {globalSearchResults.map(result => (
+                    <button 
+                      key={result.uid}
+                      onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
+                      className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 rounded-2xl"
+                    >
+                      <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                        {result.photoURL ? (
+                          <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-muted text-xs font-bold">{result.displayName?.charAt(0)}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-ink text-[15px] truncate">{result.displayName}</h3>
+                        <p className="text-[12px] text-muted truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '')}</p>
+                      </div>
+                      <ChevronRight size={16} className="text-muted" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         );
       }
       case 'chat': {
@@ -5394,7 +5496,10 @@ function ExonaApp() {
         </div>
 
         <div className="flex items-center gap-2 text-ink">
-          <button className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink">
+          <button 
+            onClick={() => setView('search')}
+            className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+          >
             <Search size={20} />
           </button>
           <button 
