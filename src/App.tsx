@@ -3442,6 +3442,10 @@ function ExonaApp() {
         );
       }
       case 'search': {
+        const filteredInstitutions = [...schools, ...places].filter(inst => 
+          inst.name.toLowerCase().includes(globalSearch.toLowerCase())
+        );
+
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center gap-4 mb-8">
@@ -3455,9 +3459,9 @@ function ExonaApp() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Search for people..." 
+                  placeholder="Search institutions..." 
                   value={globalSearch}
-                  onChange={(e) => handleSearchUsers(e.target.value)}
+                  onChange={(e) => setGlobalSearch(e.target.value)}
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
                   autoFocus
                 />
@@ -3465,41 +3469,44 @@ function ExonaApp() {
             </div>
 
             <div className="space-y-4">
-              {isSearchingUsers ? (
-                <div className="py-20 text-center">
-                  <div className="h-8 w-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-sm text-muted font-medium">Searching for users...</p>
-                </div>
-              ) : globalSearchResults.length === 0 ? (
+              {filteredInstitutions.length === 0 ? (
                 <div className="py-20 text-center px-8">
                   <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
-                    <Users size={32} />
+                    <GraduationCap size={32} />
                   </div>
                   <h3 className="text-lg font-bold text-ink mb-2">
-                    {globalSearch ? 'No users found' : 'Find your friends'}
+                    {globalSearch ? 'No institutions found' : 'Find your school'}
                   </h3>
                   <p className="text-sm text-muted">
-                    {globalSearch ? 'Try searching for a different name' : 'Search by name to find and follow other users on Exona.'}
+                    {globalSearch ? 'Try searching for a different name' : 'Search by name to find schools, colleges, and other institutions.'}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {globalSearchResults.map(result => (
+                <div className="grid grid-cols-1 gap-3">
+                  {filteredInstitutions.map(inst => (
                     <button 
-                      key={result.uid}
-                      onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
-                      className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 rounded-2xl"
+                      key={inst.id}
+                      onClick={() => {
+                        if (inst.type === 'school') {
+                          setSelectedSchool(inst as School);
+                          setView('school-feed');
+                        } else {
+                          setSelectedPlace(inst as Place);
+                          setView('place-feed');
+                        }
+                      }}
+                      className="w-full p-5 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group flex items-center gap-5"
                     >
-                      <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                        {result.photoURL ? (
-                          <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden border border-gray-100">
+                        {inst.logo ? (
+                          <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <span className="text-muted text-xs font-bold">{result.displayName?.charAt(0)}</span>
+                          <GraduationCap size={24} />
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-ink text-[15px] truncate">{result.displayName}</h3>
-                        <p className="text-[12px] text-muted truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '')}</p>
+                      <div className="text-left flex-1 min-w-0">
+                        <p className="text-[15px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
+                        <p className="text-[11px] text-muted font-medium uppercase tracking-widest">{inst.type}</p>
                       </div>
                       <ChevronRight size={16} className="text-muted" />
                     </button>
@@ -3613,16 +3620,25 @@ function ExonaApp() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
                     <input 
                       type="text" 
-                      placeholder="Search connections..." 
+                      placeholder="Search people to message..." 
                       value={chatSearch}
-                      onChange={(e) => setChatSearch(e.target.value)}
+                      onChange={(e) => {
+                        setChatSearch(e.target.value);
+                        handleSearchUsers(e.target.value);
+                      }}
                       className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
                     />
                   </div>
                 </div>
 
                 <div className="divide-y divide-gray-100">
-                  {connectedUsers.length === 0 ? (
+                  {chatSearch && (
+                    <div className="px-4 py-2">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Connections</p>
+                    </div>
+                  )}
+                  
+                  {connectedUsers.filter(u => u.displayName?.toLowerCase().includes(chatSearch.toLowerCase())).length === 0 && !chatSearch ? (
                     <div className="py-20 text-center px-8">
                       <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
                         <MessageSquare size={32} />
@@ -3665,6 +3681,46 @@ function ExonaApp() {
                           </button>
                         );
                       })
+                  )}
+
+                  {chatSearch && (
+                    <>
+                      <div className="px-4 py-6 border-t border-gray-100">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Discover People</p>
+                      </div>
+                      {isSearchingUsers ? (
+                        <div className="p-8 text-center">
+                          <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+                        </div>
+                      ) : globalSearchResults.length === 0 ? (
+                        <div className="p-8 text-center text-xs text-muted font-medium">
+                          No other users found matching "{chatSearch}"
+                        </div>
+                      ) : (
+                        globalSearchResults
+                          .filter(u => !connectedUsers.some(cu => cu.uid === u.uid))
+                          .map(result => (
+                            <button 
+                              key={result.uid}
+                              onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
+                              className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
+                            >
+                              <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                                {result.photoURL ? (
+                                  <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <span className="text-muted text-xs font-bold">{result.displayName?.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-ink text-[15px] truncate">{result.displayName}</h3>
+                                <p className="text-[12px] text-muted truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '')}</p>
+                              </div>
+                              <ChevronRight size={16} className="text-muted" />
+                            </button>
+                          ))
+                      )}
+                    </>
                   )}
                 </div>
               </>
@@ -4429,20 +4485,6 @@ function ExonaApp() {
               className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 shadow-lg shadow-accent/20 transition-all mb-8 active:scale-[0.98]"
             >
               {authMode === 'signin' ? 'Sign In' : 'Create Account'}
-            </button>
-
-            <div className="w-full flex items-center gap-4 mb-6">
-              <div className="flex-1 h-px bg-border"></div>
-              <span className="text-xs font-bold text-muted uppercase">OR</span>
-              <div className="flex-1 h-px bg-border"></div>
-            </div>
-
-            <button 
-              onClick={handleGoogleSignIn} 
-              className="w-full py-4 bg-white border border-gray-100 text-ink rounded-2xl font-bold text-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-3 shadow-sm mb-6"
-            >
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-              {authMode === 'signin' ? 'Continue with Google' : 'Sign up with Google'}
             </button>
 
             {authMode === 'signin' && (
