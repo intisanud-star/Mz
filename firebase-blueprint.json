@@ -139,6 +139,18 @@
         "chatId": { "type": "string" }
       },
       "required": ["senderUid", "receiverUid", "participants", "text", "timestamp", "chatId"]
+    },
+    "TypingStatus": {
+      "title": "TypingStatus",
+      "description": "Real-time typing indicator status",
+      "type": "object",
+      "properties": {
+        "isTyping": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "chatId": { "type": "string" },
+        "uid": { "type": "string" }
+      },
+      "required": ["isTyping", "updatedAt", "chatId", "uid"]
     }
   },
   "firestore": {
@@ -150,6 +162,7 @@
     "/studentRecords/{recordId}": { "schema": "StudentRecord", "description": "Student records" },
     "/teacherAttendance/{attendanceId}": { "schema": "TeacherAttendance", "description": "Teacher attendance" },
     "/finance/{schoolId}": { "schema": "SchoolFinance", "description": "Institution finance" },
-    "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" }
+    "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
+    "/typingStates/{stateId}": { "schema": "TypingStatus", "description": "User typing statuses" }
   }
 }

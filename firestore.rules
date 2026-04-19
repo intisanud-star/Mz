@@ -147,7 +147,18 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
       allow create: if isValidMessage(request.resource.data);
-      allow update, delete: if isAdmin();
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.senderUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited'])) ||
+        (request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.senderUid || isAdmin());
+    }
+
+    match /typingStates/{stateId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.auth.uid == request.resource.data.uid;
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.uid;
     }
 
     match /schools/{schoolId} {

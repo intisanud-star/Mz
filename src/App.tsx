@@ -582,6 +582,70 @@ function ExonaApp() {
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
   const [pendingFollowerProfiles, setPendingFollowerProfiles] = useState<UserDoc[]>([]);
 
+  const [isOtherTyping, setIsOtherTyping] = useState(false);
+  const [typingState, setTypingState] = useState<{ [chatId: string]: boolean }>({});
+
+  const handleTyping = (chatId: string, isTyping: boolean) => {
+    if (!user) return;
+    const typingDocRef = doc(db, 'typingStates', `${chatId}_${user.uid}`);
+    setDoc(typingDocRef, {
+      isTyping,
+      updatedAt: serverTimestamp(),
+      chatId,
+      uid: user.uid
+    }, { merge: true }).catch(err => console.error("Typing state error:", err));
+  };
+
+  useEffect(() => {
+    let timeout: any;
+    if (chatInput.trim() && activeChat) {
+      const chatId = [user?.uid, activeChat.uid].sort().join('_');
+      handleTyping(chatId, true);
+      
+      timeout = setTimeout(() => {
+        handleTyping(chatId, false);
+      }, 3000);
+    }
+    return () => {
+      clearTimeout(timeout);
+      if (activeChat && user) {
+        const chatId = [user.uid, activeChat.uid].sort().join('_');
+        handleTyping(chatId, false);
+      }
+    };
+  }, [chatInput, view]);
+
+  useEffect(() => {
+    if (!user || !activeChat) {
+      setIsOtherTyping(false);
+      return;
+    }
+    const chatId = [user.uid, activeChat.uid].sort().join('_');
+    const q = query(
+      collection(db, 'typingStates'),
+      where('chatId', '==', chatId),
+      where('uid', '==', activeChat.uid)
+    );
+    
+    const unsub = onSnapshot(q, (snap) => {
+      let typingStatus = false;
+      snap.forEach(doc => {
+        const data = doc.data();
+        // Only show if updated recently (within 5 seconds)
+        if (data.isTyping) {
+          const now = new Date().getTime();
+          const lastUpdate = data.updatedAt?.toDate().getTime() || now; // Default to now if timestamp pending
+          if (now - lastUpdate < 5000) {
+            typingStatus = true;
+          }
+        }
+      });
+      setIsOtherTyping(typingStatus);
+    });
+    
+    return () => unsub();
+  }, [user?.uid, activeChat?.uid]);
+
   const recentChats = useMemo(() => {
     if (!user || allMessages.length === 0) return [];
     const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string } } = {};
@@ -3816,7 +3880,13 @@ function ExonaApp() {
                 </div>
                 <div>
                   <h3 className="font-bold text-ink text-sm leading-tight">{activeChat.displayName}</h3>
-                  <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Connected</p>
+                  <div className="flex items-center gap-1">
+                    {isOtherTyping ? (
+                      <p className="text-[10px] text-accent font-bold animate-pulse uppercase tracking-widest">Typing...</p>
+                    ) : (
+                      <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Connected</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -3909,21 +3979,33 @@ function ExonaApp() {
                 )}
               </div>
 
-              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl shadow-2xl flex items-center gap-2 z-40">
-                <input 
-                  type="text" 
-                  placeholder="Type a message..." 
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput), setChatInput(''))}
-                  className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
-                />
-                <button 
-                  onClick={() => { handleSendMessage(activeChat.uid, chatInput); setChatInput(''); }}
-                  className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
-                >
-                  <Send size={18} />
-                </button>
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl shadow-2xl flex flex-col gap-2 z-40">
+                {isOtherTyping && (
+                  <div className="px-4 py-1 flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="h-1 w-1 bg-accent rounded-full" />
+                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="h-1 w-1 bg-accent rounded-full" />
+                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="h-1 w-1 bg-accent rounded-full" />
+                    </div>
+                    <span className="text-[10px] font-bold text-accent uppercase tracking-widest italic">{activeChat.displayName} is typing...</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Type a message..." 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput), setChatInput(''))}
+                    className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
+                  />
+                  <button 
+                    onClick={() => { handleSendMessage(activeChat.uid, chatInput); setChatInput(''); }}
+                    className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           );
