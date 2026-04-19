@@ -142,6 +142,11 @@ service cloud.firestore {
       allow read: if isAuthenticated(); 
       allow create, update: if isOwner(userId);
       allow delete: if isAdmin();
+
+      match /notifications/{notifId} {
+        allow read, update, delete: if isOwner(userId);
+        allow create: if isAuthenticated();
+      }
     }
 
     match /messages/{messageId} {
@@ -194,6 +199,7 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isAuthenticated() && canReply(get(/databases/$(database)/documents/posts/$(postId)).data.schoolId);
+        allow update: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
         allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
       }
     }

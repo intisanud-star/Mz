@@ -147,6 +147,18 @@ interface Message {
   isEdited?: boolean;
 }
 
+interface Notification {
+  id: string;
+  type: 'message' | 'follower_request' | 'system' | 'like' | 'comment';
+  title: string;
+  text: string;
+  timestamp: any;
+  isRead: boolean;
+  link?: string;
+  senderUid?: string;
+  targetId?: string; // id of post, chat etc
+}
+
 interface UserDoc {
   uid: string;
   email: string;
@@ -349,134 +361,158 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onMessage, onReshare, 
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className={`flex flex-col mb-4 px-4 ${isOwnPost ? 'items-end' : 'items-start'}`}
+      className="flex gap-3 px-6 py-6 border-b border-gray-100 hover:bg-gray-50/50 transition-colors group relative"
     >
-      {!isOwnPost && (
-        <div className="flex items-center gap-1 ml-2 mb-1">
-          <span className="text-[11px] font-bold text-accent uppercase tracking-widest">
-            {post.authorName}
-          </span>
-        </div>
-      )}
-      
-      <div className="flex items-end gap-2 max-w-[85%]">
-        {!isOwnPost && (
+      {/* Left Column: Avatar */}
+      <button 
+        onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
+        className="shrink-0 pt-1"
+      >
+        {post.authorPhoto ? (
+          <img src={post.authorPhoto} className="h-10 w-10 md:h-12 md:w-12 rounded-full object-cover ring-2 ring-white shadow-sm hover:ring-accent/20 transition-all" referrerPolicy="no-referrer" />
+        ) : (
+          <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-accent font-bold text-sm md:text-base">
+            {post.authorName?.charAt(0)}
+          </div>
+        )}
+      </button>
+
+      {/* Right Column: Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1.5">
           <button 
             onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-            className="shrink-0 mb-1"
+            className="flex items-center gap-1.5 min-w-0 group/author"
           >
-            {post.authorPhoto ? (
-              <img src={post.authorPhoto} className="h-8 w-8 rounded-lg object-cover shadow-sm" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="h-8 w-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-accent font-bold text-[10px] shadow-sm">
-                {post.authorName?.charAt(0)}
-              </div>
-            )}
-          </button>
-        )}
-
-        <div 
-          className={`relative p-4 rounded-[1.5rem] border border-gray-100 shadow-sm ${
-            isOwnPost 
-              ? 'bg-card rounded-tr-none text-ink' 
-              : 'bg-card rounded-tl-none text-ink'
-          }`}
-        >
-          {post.mediaUrl && (
-            <div className="mb-2 rounded-lg overflow-hidden bg-white border border-gray-100 -mx-1 -mt-1">
-              {post.mediaType === 'image' ? (
-                <img src={post.mediaUrl} className="w-full h-auto object-cover max-h-[300px]" referrerPolicy="no-referrer" />
-              ) : (
-                <video src={post.mediaUrl} controls className="w-full h-auto max-h-[300px]" />
-              )}
-            </div>
-          )}
-
-          {post.resharedFrom && (
-            <div className="mb-2 p-2 bg-paper border border-gray-100 rounded-lg border-l-4 border-accent">
-              <p className="text-[11px] font-bold text-accent mb-0.5">{post.resharedFrom.authorName}</p>
-              <p className="text-[12px] text-muted leading-tight line-clamp-2">{post.resharedFrom.content}</p>
-            </div>
-          )}
-
-          <p className="text-[14px] leading-relaxed whitespace-pre-wrap pb-4 font-bold">
-            {post.content}
-          </p>
-
-          <div className="absolute bottom-1 right-2 flex items-center gap-1">
-            <span className="text-[10px] text-muted/70 font-medium">
+            <span className="text-[14px] font-extrabold text-ink truncate group-hover/author:text-accent transition-colors">
+              {post.authorName}
+            </span>
+            <span className="text-[12px] text-muted truncate">
+              @{post.authorName?.toLowerCase().replace(/\s+/g, '')}
+            </span>
+            <span className="text-muted/30 text-[12px] shrink-0">·</span>
+            <span className="text-[12px] text-muted/60 shrink-0">
               {formatTime(post.timestamp)}
             </span>
-            {isOwnPost && (
-              <div className="flex text-accent/20">
-                {/* Ticks removed as per user request */}
-              </div>
-            )}
-          </div>
+          </button>
 
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          <div className="relative">
             <button 
               onClick={() => setShowMenu(!showMenu)}
-              className="text-muted hover:text-ink p-1 bg-white/80 backdrop-blur-sm rounded-lg border border-gray-100"
+              className="p-2 text-muted hover:text-ink hover:bg-gray-100 rounded-full transition-all"
             >
-              <MoreHorizontal size={14} />
+              <MoreHorizontal size={16} />
             </button>
             
-            {showMenu && (
-              <div className="absolute right-0 mt-1 w-32 bg-white border border-gray-100 rounded-xl shadow-xl py-2 z-20">
-                {(isOwnPost || currentUserId === post.schoolId || canManage) && (
-                  <>
-                    <button 
-                      onClick={() => { onEdit?.(post); setShowMenu(false); }}
-                      className="w-full px-4 py-2 text-left text-[11px] font-bold text-ink hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <Edit2 size={12} /> Edit
-                    </button>
-                    <button 
-                      onClick={() => { onDelete?.(post); setShowMenu(false); }}
-                      className="w-full px-4 py-2 text-left text-[11px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
-                    >
-                      <Trash2 size={12} /> Delete
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            <AnimatePresence>
+              {showMenu && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                  className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-2xl shadow-2xl py-2 z-30 overflow-hidden"
+                >
+                  {(isOwnPost || canManage) && (
+                    <>
+                      <button 
+                        onClick={() => { onEdit?.(post); setShowMenu(false); }}
+                        className="w-full px-4 py-2 text-left text-xs font-bold text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                      >
+                        <Edit2 size={14} className="text-muted" /> Edit Post
+                      </button>
+                      <button 
+                        onClick={() => { onDelete?.(post); setShowMenu(false); }}
+                        className="w-full px-4 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                      >
+                        <Trash2 size={14} /> Delete
+                      </button>
+                      <div className="h-px bg-gray-50 my-2" />
+                    </>
+                  )}
+                  <button className="w-full px-4 py-2 text-left text-xs font-bold text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors">
+                    <Share2 size={14} className="text-muted" /> Share Post
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-6 mt-2 px-4">
-        <button 
-          onClick={() => onLike?.(post.id, post.likedBy || [])}
-          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${isLiked ? 'text-accent scale-110' : 'text-muted hover:text-accent'}`}
-        >
-          <Heart size={14} className={isLiked ? 'fill-accent' : ''} />
-          {post.likes > 0 && <span>{post.likes}</span>}
-        </button>
-        <button 
-          onClick={() => canReply && onComment?.(post)}
-          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${canReply ? 'text-muted hover:text-accent' : 'text-muted/30 cursor-not-allowed'}`}
-          disabled={!canReply}
-        >
-          <MessageCircle size={14} />
-          {post.commentsCount > 0 && <span>{post.commentsCount}</span>}
-        </button>
-        <button 
-          onClick={() => onForward?.(post)}
-          className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-accent transition-all"
-        >
-          <Send size={14} />
-        </button>
-        {!isOwnPost && (
-          <button 
-            onClick={() => onMessage?.(post)}
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-accent transition-all ml-auto"
-            title="Message Author"
-          >
-            <MessageSquare size={14} />
-          </button>
+        <p className="text-[15px] leading-relaxed text-ink whitespace-pre-wrap mb-4 font-medium tracking-tight">
+          {post.content}
+        </p>
+
+        {post.resharedFrom && (
+          <div className="mb-4 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl border-l-4 border-accent/30 group/repost hover:bg-gray-50 transition-colors">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-4 w-4 bg-accent/10 rounded-full flex items-center justify-center">
+                <Repeat size={8} className="text-accent" />
+              </div>
+              <p className="text-[11px] font-bold text-accent uppercase tracking-widest">{post.resharedFrom.authorName}</p>
+            </div>
+            <p className="text-[13px] text-muted leading-relaxed line-clamp-3">{post.resharedFrom.content}</p>
+          </div>
         )}
+
+        {post.mediaUrl && (
+          <div className="mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-black/5 aspect-video flex items-center justify-center">
+            {post.mediaType === 'image' ? (
+              <img src={post.mediaUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+            ) : (
+              <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between max-w-sm">
+          <button 
+            onClick={() => onLike?.(post.id, post.likedBy || [])}
+            className={`flex items-center gap-2 text-xs font-bold transition-all ${isLiked ? 'text-accent' : 'text-muted hover:text-accent'}`}
+          >
+            <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isLiked ? 'bg-accent/10' : 'hover:bg-accent/5'}`}>
+              <Heart size={18} className={isLiked ? 'fill-accent' : ''} />
+            </div>
+            {post.likes > 0 && <span className="tabular-nums">{post.likes}</span>}
+          </button>
+
+          <button 
+            onClick={() => canReply && onComment?.(post)}
+            className={`flex items-center gap-2 text-xs font-bold transition-all ${canReply ? 'text-muted hover:text-blue-500' : 'text-muted/30 cursor-not-allowed'}`}
+            disabled={!canReply}
+          >
+            <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${canReply ? 'hover:bg-blue-50' : ''}`}>
+              <MessageCircle size={18} />
+            </div>
+            {post.commentsCount > 0 && <span className="tabular-nums">{post.commentsCount}</span>}
+          </button>
+
+          <button 
+            onClick={() => onForward?.(post)}
+            className="flex items-center gap-2 text-xs font-bold text-muted hover:text-green-500 transition-all"
+          >
+            <div className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-green-50 transition-colors">
+              <Repeat size={18} />
+            </div>
+          </button>
+
+          <button 
+            className="flex items-center gap-2 text-xs font-bold text-muted hover:text-accent transition-all"
+          >
+            <div className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-accent/5 transition-colors">
+              <Share2 size={18} />
+            </div>
+          </button>
+
+          {!isOwnPost && (
+            <button 
+              onClick={() => onMessage?.(post)}
+              className="flex items-center text-muted hover:text-accent transition-all h-8 w-8 rounded-full flex items-center justify-center hover:bg-accent/5"
+              title="Message Author"
+            >
+              <MessageSquare size={18} />
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -503,7 +539,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -528,6 +564,7 @@ function ExonaApp() {
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
   const [allMessages, setAllMessages] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
   const [chatInput, setChatInput] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -561,6 +598,8 @@ function ExonaApp() {
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
   const [postComments, setPostComments] = useState<any[]>([]);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
@@ -754,6 +793,60 @@ function ExonaApp() {
   const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
 
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
+
+  const handleCreateNotification = async (targetUid: string, notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
+    try {
+      await addDoc(collection(db, `users/${targetUid}/notifications`), {
+        ...notification,
+        timestamp: serverTimestamp(),
+        isRead: false
+      });
+    } catch (error) {
+      console.error('Error creating notification:', error);
+    }
+  };
+
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, `users/${user.uid}/notifications`, notificationId), {
+        isRead: true
+      });
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    if (!user || notifications.length === 0) return;
+    const batch = writeBatch(db);
+    notifications.filter(n => !n.isRead).forEach(n => {
+      batch.update(doc(db, `users/${user.uid}/notifications`, n.id), { isRead: true });
+    });
+    try {
+      await batch.commit();
+      showNotification('All notifications seen');
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  const clearNotifications = async () => {
+    if (!user || notifications.length === 0) return;
+    const batch = writeBatch(db);
+    notifications.forEach(n => {
+      batch.delete(doc(db, `users/${user.uid}/notifications`, n.id));
+    });
+    try {
+      await batch.commit();
+      setNotifications([]);
+      showNotification('Inbox cleared');
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+    }
+  };
+
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
@@ -1285,6 +1378,14 @@ function ExonaApp() {
         chatId,
         status: 'sent'
       });
+      // Create notification for receiver
+      await handleCreateNotification(receiverUid, {
+        type: 'message',
+        title: 'New Message',
+        text: `${user.displayName}: ${text.trim().slice(0, 50)}...`,
+        senderUid: user.uid,
+        targetId: user.uid
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'messages');
     }
@@ -1510,6 +1611,20 @@ function ExonaApp() {
         likedBy: newLikedBy, 
         likes: newLikedBy.length 
       }, { merge: true });
+
+      if (!isLiked) {
+        // Trigger notification for post author
+        const post = posts.find(p => p.id === postId);
+        if (post && post.authorUid !== user.uid) {
+           await handleCreateNotification(post.authorUid, {
+              type: 'like',
+              title: 'New Like',
+              text: `${user.displayName} liked your broadcast`,
+              senderUid: user.uid,
+              targetId: postId
+           });
+        }
+      }
     } catch (error) {
       // Rollback
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, likedBy, likes: likedBy.length } : p));
@@ -1615,9 +1730,54 @@ function ExonaApp() {
       }, { merge: true });
       showNotification('Comment added');
       setCommentText('');
+
+      // Create notification for post author
+      if (activePostForComments.authorUid !== user.uid) {
+        await handleCreateNotification(activePostForComments.authorUid, {
+          type: 'comment',
+          title: 'New Comment',
+          text: `${user.displayName} commented on your broadcast`,
+          senderUid: user.uid,
+          targetId: activePostForComments.id
+        });
+      }
     } catch (error) {
       showNotification('Failed to add comment', 'error');
       handleFirestoreError(error, OperationType.CREATE, `posts/${activePostForComments.id}/comments`);
+    }
+  };
+
+  const handleUpdateComment = async (postId: string, commentId: string, newText: string) => {
+    if (!user || !newText.trim()) return;
+    try {
+      await updateDoc(doc(db, `posts/${postId}/comments`, commentId), {
+        text: newText.trim(),
+        isEdited: true,
+        updatedAt: serverTimestamp()
+      });
+      showNotification('Comment updated');
+      setEditingCommentId(null);
+      setEditingCommentText('');
+    } catch (error) {
+      showNotification('Failed to update comment', 'error');
+      handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}/comments/${commentId}`);
+    }
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, `posts/${postId}/comments`, commentId));
+      // Optionally decrement comment count on post
+      if (activePostForComments) {
+        await setDoc(doc(db, 'posts', activePostForComments.id), { 
+          commentsCount: Math.max(0, (activePostForComments.commentsCount || 0) - 1) 
+        }, { merge: true });
+      }
+      showNotification('Comment deleted');
+    } catch (error) {
+      showNotification('Failed to delete comment', 'error');
+      handleFirestoreError(error, OperationType.DELETE, `posts/${postId}/comments/${commentId}`);
     }
   };
 
@@ -1766,8 +1926,15 @@ function ExonaApp() {
     let unsubAllRecords = () => {};
     let unsubAllFinance = () => {};
     let unsubAllMessages = () => {};
+    let unsubNotifications = () => {};
 
     if (user && userDoc) {
+      // Notifications
+      const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
+      unsubNotifications = onSnapshot(qNotifications, (snap) => {
+        setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
+      });
+
       // Personalized Feed
       const following = userDoc.following || [];
       const managedIds = [
@@ -1871,6 +2038,17 @@ function ExonaApp() {
 
     return () => { unsubRecords(); unsubFinance(); unsubAttendance(); };
   }, [selectedSchool]);
+
+  const renderIconForNotification = (type: Notification['type']) => {
+    switch (type) {
+      case 'message': return <MessageSquare size={16} />;
+      case 'follower_request': return <Users size={16} />;
+      case 'like': return <Heart size={16} className="fill-red-500 text-red-500" />;
+      case 'comment': return <MessageCircle size={16} />;
+      case 'system': return <Settings size={16} />;
+      default: return <Bell size={16} />;
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setAuthError(null);
@@ -2176,6 +2354,17 @@ function ExonaApp() {
         pendingFollowers: arrayUnion(user.uid) 
       }, { merge: true });
       
+      // Notify institution owner
+      if (school.creatorUid !== user.uid) {
+        await handleCreateNotification(school.creatorUid, {
+          type: 'follower_request',
+          title: 'New Request',
+          text: `${user.displayName} wants to join ${school.name}`,
+          senderUid: user.uid,
+          targetId: school.id
+        });
+      }
+
       showNotification('Follow request sent');
     } catch (error) {
       console.error('Error following institution:', error);
@@ -2221,7 +2410,14 @@ function ExonaApp() {
         }, { merge: true }),
         setDoc(userRef, { 
           following: arrayUnion(school.id) 
-        }, { merge: true })
+        }, { merge: true }),
+        // Create notification for the new joiner
+        handleCreateNotification(followerUid, {
+          type: 'follower_request',
+          title: 'Request Approved',
+          text: `You have been approved by ${school.name}`,
+          targetId: school.id
+        })
       ]);
       showNotification('Member approved');
     } catch (error) {
@@ -2541,7 +2737,7 @@ function ExonaApp() {
                 </div>
               </>
             ) : (
-              <div className="space-y-6">
+              <div className="flex flex-col">
                 {posts.length === 0 ? (
                   <div className="py-20 text-center text-muted">
                     <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6">
@@ -2863,7 +3059,7 @@ function ExonaApp() {
               </div>
             ) : (
               <>
-                <div className="divide-y divide-gray-100">
+                <div className="flex flex-col">
                   {schoolPosts.map(post => (
                     <FeedPost 
                       key={post.id} 
@@ -2975,7 +3171,7 @@ function ExonaApp() {
               <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
             </div>
 
-            <div className="divide-y divide-gray-100">
+            <div className="flex flex-col">
               {profilePosts.map(post => {
                 const school = post.schoolId ? (schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId)) : null;
                 return (
@@ -5743,14 +5939,59 @@ function ExonaApp() {
                       <div className="flex-1">
                         <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-gray-200 transition-all duration-500">
                           <div className="flex items-center justify-between mb-3">
-                            <p className="text-[15px] font-bold text-ink tracking-tight">{comment.authorName}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[15px] font-bold text-ink tracking-tight">{comment.authorName}</p>
+                              {comment.isEdited && <span className="text-[9px] text-muted italic font-medium px-1.5 py-0.5 bg-gray-50 rounded-md ring-1 ring-gray-100">edited</span>}
+                            </div>
                             <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                               {comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                             </p>
                           </div>
-                          <p className="text-[14px] text-ink/70 leading-relaxed font-medium">{comment.text}</p>
+                          {editingCommentId === comment.id ? (
+                            <div className="space-y-4">
+                              <textarea
+                                value={editingCommentText}
+                                onChange={(e) => setEditingCommentText(e.target.value)}
+                                className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent/20 transition-all text-sm font-medium resize-none"
+                                rows={3}
+                                autoFocus
+                              />
+                              <div className="flex justify-end gap-3">
+                                <button 
+                                  onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }}
+                                  className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink transition-colors"
+                                >
+                                  Cancel
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateComment(activePostForComments.id, comment.id, editingCommentText)}
+                                  className="px-6 py-2 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-all"
+                                >
+                                  Update
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-[14px] text-ink/70 leading-relaxed font-medium">{comment.text}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-6 mt-4 ml-6">
+                          {user && user.uid === comment.authorUid && !editingCommentId && (
+                            <>
+                              <button 
+                                onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text); }}
+                                className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors flex items-center gap-1.5"
+                              >
+                                <Edit2 size={10} /> Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteComment(activePostForComments.id, comment.id)}
+                                className="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] hover:text-red-600 transition-colors flex items-center gap-1.5"
+                              >
+                                <Trash2 size={10} /> Delete
+                              </button>
+                            </>
+                          )}
                           <button className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors">Approve</button>
                           <button className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors">Reply</button>
                         </div>
@@ -5960,8 +6201,25 @@ function ExonaApp() {
 
         <div className="flex items-center gap-2 text-ink">
           <button 
+            onClick={() => {
+              if (user) {
+                setView('notifications');
+              } else {
+                setView('login');
+              }
+            }}
+            className={`relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'notifications' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
+          >
+            <Bell size={20} />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+              </span>
+            )}
+          </button>
+          <button 
             onClick={() => setView('search')}
-            className="md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+            className={`md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'search' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
           >
             <Search size={20} />
           </button>
