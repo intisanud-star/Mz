@@ -507,7 +507,6 @@ function ExonaApp() {
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
   const [allMessages, setAllMessages] = useState<any[]>([]);
-  const [chatSearch, setChatSearch] = useState('');
   const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
   const [chatInput, setChatInput] = useState('');
   const [activeChat, setActiveChat] = useState<any>(null);
@@ -541,7 +540,6 @@ function ExonaApp() {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
-  const [schoolSearch, setSchoolSearch] = useState('');
   const [globalSearch, setGlobalSearch] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState<UserDoc[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
@@ -549,6 +547,8 @@ function ExonaApp() {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
@@ -617,40 +617,86 @@ function ExonaApp() {
       }
     };
 
-    fetchConnectedUsers();
+      fetchConnectedUsers();
   }, [user, userDoc?.following]);
 
+  const fetchConnectedUsers = async () => {
+    if (!user || !userDoc?.following || userDoc.following.length === 0) {
+      setConnectedUsers([]);
+      return;
+    }
+    try {
+      const followingUids = userDoc.following || [];
+      const usersData: UserDoc[] = [];
+      const chunks = [];
+      for (let i = 0; i < followingUids.length; i += 30) {
+        chunks.push(followingUids.slice(i, i + 30));
+      }
+      for (const chunk of chunks) {
+        const q = query(collection(db, 'users'), where('uid', 'in', chunk));
+        const snap = await getDocs(q);
+        snap.forEach(doc => {
+          const data = doc.data() as UserDoc;
+          if (data.following?.includes(user.uid)) {
+            usersData.push(data);
+          }
+        });
+      }
+      setConnectedUsers(usersData);
+    } catch (error) {
+      console.error('Error fetching connected users:', error);
+    }
+  };
+
   useEffect(() => {
+    fetchPendingFollowers();
+  }, [user, userDoc?.pendingFollowers]);
+
+  const fetchPendingFollowers = async () => {
     if (!user || !userDoc?.pendingFollowers || userDoc.pendingFollowers.length === 0) {
       setPendingFollowerProfiles([]);
       return;
     }
-
-    const fetchPendingFollowers = async () => {
-      try {
-        const pendingUids = userDoc.pendingFollowers || [];
-        const usersData: UserDoc[] = [];
-        
-        const chunks = [];
-        for (let i = 0; i < pendingUids.length; i += 30) {
-          chunks.push(pendingUids.slice(i, i + 30));
-        }
-
-        for (const chunk of chunks) {
-          const q = query(collection(db, 'users'), where('uid', 'in', chunk));
-          const snap = await getDocs(q);
-          snap.forEach(doc => {
-            usersData.push(doc.data() as UserDoc);
-          });
-        }
-        setPendingFollowerProfiles(usersData);
-      } catch (error) {
-        console.error('Error fetching pending followers:', error);
+    try {
+      const pendingUids = userDoc.pendingFollowers || [];
+      const usersData: UserDoc[] = [];
+      const chunks = [];
+      for (let i = 0; i < pendingUids.length; i += 30) {
+        chunks.push(pendingUids.slice(i, i + 30));
       }
-    };
+      for (const chunk of chunks) {
+        const q = query(collection(db, 'users'), where('uid', 'in', chunk));
+        const snap = await getDocs(q);
+        snap.forEach(doc => {
+          usersData.push(doc.data() as UserDoc);
+        });
+      }
+      setPendingFollowerProfiles(usersData);
+    } catch (error) {
+      console.error('Error fetching pending followers:', error);
+    }
+  };
 
-    fetchPendingFollowers();
-  }, [user, userDoc?.pendingFollowers]);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setPullDistance(0);
+    try {
+      // Re-fetch all non-realtime or critical data
+      if (user) {
+        await Promise.all([
+          fetchConnectedUsers(),
+          fetchPendingFollowers()
+        ]);
+      }
+      // Add a small delay for UX
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      showNotification('Content refreshed');
+    } catch (error) {
+      console.error('Refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1103,9 +1149,17 @@ function ExonaApp() {
   }, [selectedFile]);
 
   const handleCreatePost = async () => {
-    console.log('handleCreatePost started', { user: !!user, content: !!newPostContent.trim() });
     if (!user) { setView('login'); return; }
     if (!newPostContent.trim()) return;
+
+    const isEditing = !!editingPost;
+    const content = newPostContent.trim();
+    if (!selectedFile) {
+      setIsPostModalOpen(false);
+      setNewPostContent('');
+      setPreviewUrl(null);
+      setEditingPost(null);
+    }
     const path = 'posts';
     setIsUploading(true);
     setUploadProgress(0);
@@ -1145,21 +1199,19 @@ function ExonaApp() {
       const isOfficial = canManageInstitution(view === 'school-feed' ? selectedSchool : null);
       const schoolId = (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon';
       
-      if (editingPost) {
-        console.log('Updating post', editingPost.id);
-        await setDoc(doc(db, 'posts', editingPost.id), {
-          content: newPostContent.trim(),
+      if (isEditing) {
+        await setDoc(doc(db, 'posts', editingPost!.id), {
+          content,
           mediaUrl: mediaUrl || null,
           mediaType: mediaType || null,
           timestamp: serverTimestamp(),
         }, { merge: true });
       } else {
-        console.log('Adding new post');
         await addDoc(collection(db, path), {
           authorUid: user.uid,
           authorName: isOfficial && selectedSchool ? selectedSchool.name : (user.displayName || 'Anonymous'),
           authorPhoto: isOfficial && selectedSchool ? selectedSchool.logo : (user.photoURL || ''),
-          content: newPostContent.trim(),
+          content,
           mediaUrl: mediaUrl || null,
           mediaType: mediaType || null,
           likes: 0,
@@ -1171,20 +1223,22 @@ function ExonaApp() {
           schoolId
         });
       }
-      console.log('Post operation successful');
-      showNotification(editingPost ? 'Broadcast updated' : 'Broadcast transmitted');
-      setNewPostContent('');
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      setUploadProgress(0);
-      setIsPostModalOpen(false);
-      setEditingPost(null);
+      if (selectedFile) {
+        setNewPostContent('');
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setEditingPost(null);
+        setIsPostModalOpen(false);
+      }
+      showNotification(isEditing ? 'Broadcast updated' : 'Broadcast transmitted');
     } catch (error) {
       console.error('Post operation failed', error);
-      showNotification('Transmission failed. Please check connection.', 'error');
-      handleFirestoreError(error, editingPost ? OperationType.UPDATE : OperationType.CREATE, path);
+      showNotification('Transmission failed. Re-opening editor...', 'error');
+      setNewPostContent(content);
+      setIsPostModalOpen(true);
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -1225,13 +1279,19 @@ function ExonaApp() {
     if (!user) { setView('login'); return; }
     const isLiked = likedBy.includes(user.uid);
     const newLikedBy = isLiked ? likedBy.filter(id => id !== user.uid) : [...likedBy, user.uid];
+    
+    // Optimistic Update
+    setPosts(prev => prev.map(p => p.id === postId ? { ...p, likedBy: newLikedBy, likes: newLikedBy.length } : p));
+    showNotification(isLiked ? 'Unliked' : 'Liked');
+
     try {
       await setDoc(doc(db, 'posts', postId), { 
         likedBy: newLikedBy, 
         likes: newLikedBy.length 
       }, { merge: true });
-      showNotification(isLiked ? 'Unliked' : 'Liked');
     } catch (error) {
+      // Rollback
+      setPosts(prev => prev.map(p => p.id === postId ? { ...p, likedBy, likes: likedBy.length } : p));
       showNotification('Failed to update like', 'error');
       handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}`);
     }
@@ -1265,7 +1325,11 @@ function ExonaApp() {
 
   const handleResharePost = async (post: Post) => {
     if (!user) { setView('login'); return; }
+    showNotification('Broadcasting reshare...');
     try {
+      // Optimistically update reshare count on original post
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, reshares: (p.reshares || 0) + 1 } : p));
+
       await addDoc(collection(db, 'posts'), {
         authorUid: user.uid,
         authorName: user.displayName,
@@ -1289,6 +1353,8 @@ function ExonaApp() {
       }, { merge: true });
       showNotification('Broadcast reshared');
     } catch (error) {
+      // Rollback
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, reshares: (p.reshares || 0) } : p));
       showNotification('Failed to reshare', 'error');
       handleFirestoreError(error, OperationType.CREATE, 'posts');
     }
@@ -1739,12 +1805,17 @@ function ExonaApp() {
     if (user.uid === targetUid) return;
 
     try {
-      const targetUserRef = doc(db, 'users', targetUid);
-      const targetDoc = await getDoc(targetUserRef);
-      if (!targetDoc.exists()) return;
+      // Quick check if we have data to avoid unnecessary delay if it's already in view
+      let targetData = selectedUserProfile?.uid === targetUid ? selectedUserProfileDoc : null;
+      let isPrivate = false;
+
+      if (!targetData) {
+        const targetDoc = await getDoc(doc(db, 'users', targetUid));
+        if (!targetDoc.exists()) return;
+        targetData = targetDoc.data() as UserDoc;
+      }
       
-      const targetData = targetDoc.data() as UserDoc;
-      const isPrivate = targetData.isPrivate;
+      isPrivate = targetData.isPrivate || false;
 
       if (isPrivate) {
         const pending = targetData.pendingFollowers || [];
@@ -1752,25 +1823,24 @@ function ExonaApp() {
           showNotification('Request already sent');
           return;
         }
-        await setDoc(targetUserRef, { pendingFollowers: [...pending, user.uid] }, { merge: true });
+        await setDoc(doc(db, 'users', targetUid), { pendingFollowers: [...pending, user.uid] }, { merge: true });
         showNotification('Follow request sent');
       } else {
-        const currentUserRef = doc(db, 'users', user.uid);
         const currentFollowing = userDoc.following || [];
         if (currentFollowing.includes(targetUid)) return;
 
         const newFollowing = [...currentFollowing, targetUid];
-        await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
-        setUserDoc({ ...userDoc, following: newFollowing });
+        const newTargetFollowers = [...(targetData.followers || []), user.uid];
 
-        const targetFollowers = targetData.followers || [];
-        const newTargetFollowers = [...targetFollowers, user.uid];
-        await setDoc(targetUserRef, { followers: newTargetFollowers }, { merge: true });
-        
+        // Optimistic update
+        setUserDoc({ ...userDoc, following: newFollowing });
         if (selectedUserProfile?.uid === targetUid) {
           setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
         }
         showNotification('Following user');
+
+        await setDoc(doc(db, 'users', user.uid), { following: newFollowing }, { merge: true });
+        await setDoc(doc(db, 'users', targetUid), { followers: newTargetFollowers }, { merge: true });
       }
     } catch (error) {
       showNotification('Failed to follow user', 'error');
@@ -1816,32 +1886,23 @@ function ExonaApp() {
 
       const currentFollowing = userDoc.following || [];
       const newFollowing = currentFollowing.filter((id: string) => id !== targetUid);
-      await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
+      
+      // Optimistic update
       setUserDoc({ ...userDoc, following: newFollowing });
-
-      const targetDoc = await getDoc(targetUserRef);
-      if (targetDoc.exists()) {
-        const targetData = targetDoc.data() as UserDoc;
-        const targetFollowers = targetData.followers || [];
-        const newTargetFollowers = targetFollowers.filter((id: string) => id !== user.uid);
-        
-        const targetPending = targetData.pendingFollowers || [];
-        const newTargetPending = targetPending.filter((id: string) => id !== user.uid);
-
-        await setDoc(targetUserRef, { 
-          followers: newTargetFollowers,
-          pendingFollowers: newTargetPending
-        }, { merge: true });
-        
-        if (selectedUserProfile?.uid === targetUid) {
-          setSelectedUserProfileDoc({ 
-            ...targetData, 
-            followers: newTargetFollowers,
-            pendingFollowers: newTargetPending
-          });
-        }
+      if (selectedUserProfile?.uid === targetUid && selectedUserProfileDoc) {
+        setSelectedUserProfileDoc({ 
+          ...selectedUserProfileDoc, 
+          followers: (selectedUserProfileDoc.followers || []).filter(id => id !== user.uid),
+          pendingFollowers: (selectedUserProfileDoc.pendingFollowers || []).filter(id => id !== user.uid)
+        });
       }
       showNotification('Unfollowed user');
+
+      await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
+      await setDoc(targetUserRef, { 
+        followers: arrayRemove(user.uid),
+        pendingFollowers: arrayRemove(user.uid)
+      }, { merge: true });
     } catch (error) {
       showNotification('Failed to unfollow user', 'error');
       handleFirestoreError(error, OperationType.UPDATE, 'users');
@@ -2160,17 +2221,6 @@ function ExonaApp() {
 
             {feedTab === 'institutions' ? (
               <>
-                <div className="relative mb-8 group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
-                  <input 
-                    type="text" 
-                    placeholder="Search institutions..." 
-                    value={schoolSearch}
-                    onChange={(e) => setSchoolSearch(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-[1.5rem] focus:ring-2 focus:ring-accent/5 focus:border-accent/20 outline-none transition-all text-ink font-bold placeholder:text-gray-400 shadow-sm" 
-                  />
-                </div>
-
                 <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
                   {['all', 'school', 'place'].map((f) => (
                     <button
@@ -2189,11 +2239,11 @@ function ExonaApp() {
 
                 <div className="divide-y divide-gray-100">
                   {[...schools, ...places]
-                    .filter(s => s.name.toLowerCase().includes(schoolSearch.toLowerCase()))
+                    .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
                     .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
                     .filter(s => {
                       // If searching, show all matching
-                      if (schoolSearch.trim() !== '') return true;
+                      if (globalSearch.trim() !== '') return true;
                       // Admins see all
                       if (userDoc?.role === 'admin') return true;
                       // Otherwise only show followed or created
@@ -3442,15 +3492,16 @@ function ExonaApp() {
         );
       }
       case 'search': {
+        const query = globalSearch.toLowerCase();
         const filteredInstitutions = [...schools, ...places].filter(inst => 
-          inst.name.toLowerCase().includes(globalSearch.toLowerCase())
+          inst.name.toLowerCase().includes(query)
         );
 
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
-            <div className="flex items-center gap-4 mb-8">
+            <div className="md:hidden flex items-center gap-4 mb-8">
               <button 
-                onClick={() => setView('feed')}
+                onClick={() => { setView('feed'); setGlobalSearch(''); }}
                 className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
               >
                 <ChevronLeft size={20} />
@@ -3459,58 +3510,104 @@ function ExonaApp() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Search institutions..." 
+                  placeholder="Search..." 
                   value={globalSearch}
-                  onChange={(e) => setGlobalSearch(e.target.value)}
+                  onChange={(e) => {
+                    setGlobalSearch(e.target.value);
+                    handleSearchUsers(e.target.value);
+                  }}
                   className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
                   autoFocus
                 />
               </div>
             </div>
 
-            <div className="space-y-4">
-              {filteredInstitutions.length === 0 ? (
+            <div className="space-y-8">
+              {/* Institutions Section */}
+              {filteredInstitutions.length > 0 && (
+                <section>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">Institutions</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {filteredInstitutions.map(inst => (
+                      <button 
+                        key={inst.id}
+                        onClick={() => {
+                          if (inst.type === 'school') {
+                            setSelectedSchool(inst as School);
+                            setView('school-feed');
+                          } else {
+                            setSelectedPlace(inst as Place);
+                            setView('place-feed');
+                          }
+                        }}
+                        className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group flex items-center gap-4"
+                      >
+                        <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden border border-gray-100">
+                          {inst.logo ? (
+                            <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <GraduationCap size={20} />
+                          )}
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <p className="text-[14px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
+                          <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{inst.type}</p>
+                        </div>
+                        <ChevronRight size={14} className="text-muted" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* People Section */}
+              {(globalSearchResults.length > 0 || isSearchingUsers) && (
+                <section>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">People</p>
+                  {isSearchingUsers ? (
+                    <div className="p-8 text-center">
+                      <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {globalSearchResults.map(result => (
+                        <button 
+                          key={result.uid}
+                          onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
+                          className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group flex items-center gap-4"
+                        >
+                          <div className="h-12 w-12 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                            {result.photoURL ? (
+                              <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="h-full w-full bg-gray-50 flex items-center justify-center text-muted">
+                                <UserIcon size={20} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-left flex-1 min-w-0">
+                            <p className="text-[14px] font-bold text-ink tracking-tight truncate">{result.displayName}</p>
+                            <p className="text-[10px] text-muted font-medium truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '')}</p>
+                          </div>
+                          <ChevronRight size={14} className="text-muted" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {filteredInstitutions.length === 0 && globalSearchResults.length === 0 && !isSearchingUsers && (
                 <div className="py-20 text-center px-8">
                   <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
-                    <GraduationCap size={32} />
+                    <Search size={32} />
                   </div>
                   <h3 className="text-lg font-bold text-ink mb-2">
-                    {globalSearch ? 'No institutions found' : 'Find your school'}
+                    {globalSearch ? `No results for "${globalSearch}"` : 'Search for anything'}
                   </h3>
                   <p className="text-sm text-muted">
-                    {globalSearch ? 'Try searching for a different name' : 'Search by name to find schools, colleges, and other institutions.'}
+                    {globalSearch ? 'Try a different keyword' : 'Search for schools, colleges, institutions, or people on Exona.'}
                   </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {filteredInstitutions.map(inst => (
-                    <button 
-                      key={inst.id}
-                      onClick={() => {
-                        if (inst.type === 'school') {
-                          setSelectedSchool(inst as School);
-                          setView('school-feed');
-                        } else {
-                          setSelectedPlace(inst as Place);
-                          setView('place-feed');
-                        }
-                      }}
-                      className="w-full p-5 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group flex items-center gap-5"
-                    >
-                      <div className="h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden border border-gray-100">
-                        {inst.logo ? (
-                          <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <GraduationCap size={24} />
-                        )}
-                      </div>
-                      <div className="text-left flex-1 min-w-0">
-                        <p className="text-[15px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
-                        <p className="text-[11px] text-muted font-medium uppercase tracking-widest">{inst.type}</p>
-                      </div>
-                      <ChevronRight size={16} className="text-muted" />
-                    </button>
-                  ))}
                 </div>
               )}
             </div>
@@ -3614,116 +3711,51 @@ function ExonaApp() {
             </div>
 
             {chatTab === 'chats' ? (
-              <>
-                <div className="px-4 mb-6">
-                  <div className="relative group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder="Search people to message..." 
-                      value={chatSearch}
-                      onChange={(e) => {
-                        setChatSearch(e.target.value);
-                        handleSearchUsers(e.target.value);
-                      }}
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
-                    />
+              <div className="divide-y divide-gray-100">
+                {connectedUsers.length === 0 ? (
+                  <div className="py-20 text-center px-8">
+                    <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
+                      <MessageSquare size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-ink mb-2">No connections yet</h3>
+                    <p className="text-sm text-muted">Follow users and have them follow you back to start chatting. Find people using the search bar above!</p>
                   </div>
-                </div>
+                ) : (
+                  connectedUsers
+                    .map(connectedUser => {
+                      const lastMessage = allMessages
+                        .filter(m => m.chatId === [user.uid, connectedUser.uid].sort().join('_'))
+                        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
 
-                <div className="divide-y divide-gray-100">
-                  {chatSearch && (
-                    <div className="px-4 py-2">
-                      <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Connections</p>
-                    </div>
-                  )}
-                  
-                  {connectedUsers.filter(u => u.displayName?.toLowerCase().includes(chatSearch.toLowerCase())).length === 0 && !chatSearch ? (
-                    <div className="py-20 text-center px-8">
-                      <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
-                        <MessageSquare size={32} />
-                      </div>
-                      <h3 className="text-lg font-bold text-ink mb-2">No connections yet</h3>
-                      <p className="text-sm text-muted">Follow users and have them follow you back to start chatting.</p>
-                    </div>
-                  ) : (
-                    connectedUsers
-                      .filter(u => u.displayName?.toLowerCase().includes(chatSearch.toLowerCase()))
-                      .map(connectedUser => {
-                        const lastMessage = allMessages
-                          .filter(m => m.chatId === [user.uid, connectedUser.uid].sort().join('_'))
-                          .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
-
-                        return (
-                          <button 
-                            key={connectedUser.uid}
-                            onClick={() => setActiveChat(connectedUser)}
-                            className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
-                          >
-                            <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                              {connectedUser.photoURL ? (
-                                <img src={connectedUser.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-muted text-xs font-bold">{connectedUser.displayName?.charAt(0)}</span>
-                              )}
+                      return (
+                        <button 
+                          key={connectedUser.uid}
+                          onClick={() => setActiveChat(connectedUser)}
+                          className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
+                        >
+                          <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                            {connectedUser.photoURL ? (
+                              <img src={connectedUser.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="text-muted text-xs font-bold">{connectedUser.displayName?.charAt(0)}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-center mb-1">
+                              <h3 className="font-bold text-ink text-[15px] truncate">{connectedUser.displayName}</h3>
+                              <span className="text-[10px] text-muted font-medium">
+                                {lastMessage ? formatTime(lastMessage.timestamp) : ''}
+                              </span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-center mb-1">
-                                <h3 className="font-bold text-ink text-[15px] truncate">{connectedUser.displayName}</h3>
-                                <span className="text-[10px] text-muted font-medium">
-                                  {lastMessage ? formatTime(lastMessage.timestamp) : ''}
-                                </span>
-                              </div>
-                              <p className="text-[13px] text-muted truncate">
-                                {lastMessage ? lastMessage.text : 'Start a conversation'}
-                              </p>
-                            </div>
-                          </button>
-                        );
-                      })
-                  )}
-
-                  {chatSearch && (
-                    <>
-                      <div className="px-4 py-6 border-t border-gray-100">
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Discover People</p>
-                      </div>
-                      {isSearchingUsers ? (
-                        <div className="p-8 text-center">
-                          <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
-                        </div>
-                      ) : globalSearchResults.length === 0 ? (
-                        <div className="p-8 text-center text-xs text-muted font-medium">
-                          No other users found matching "{chatSearch}"
-                        </div>
-                      ) : (
-                        globalSearchResults
-                          .filter(u => !connectedUsers.some(cu => cu.uid === u.uid))
-                          .map(result => (
-                            <button 
-                              key={result.uid}
-                              onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
-                              className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
-                            >
-                              <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                                {result.photoURL ? (
-                                  <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <span className="text-muted text-xs font-bold">{result.displayName?.charAt(0)}</span>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-ink text-[15px] truncate">{result.displayName}</h3>
-                                <p className="text-[12px] text-muted truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '')}</p>
-                              </div>
-                              <ChevronRight size={16} className="text-muted" />
-                            </button>
-                          ))
-                      )}
-                    </>
-                  )}
-                </div>
-              </>
+                            <p className="text-[13px] text-muted truncate">
+                              {lastMessage ? lastMessage.text : 'Start a conversation'}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })
+                )}
+              </div>
             ) : (
               <div className="divide-y divide-gray-100">
                 {pendingFollowerProfiles.length === 0 ? (
@@ -5537,10 +5569,29 @@ function ExonaApp() {
           </button>
         </div>
 
+        <div className="flex-1 max-w-md mx-4 relative group hidden md:block">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
+          <input 
+            type="text" 
+            placeholder="Search institutions or people..." 
+            value={globalSearch}
+            onChange={(e) => {
+              const val = e.target.value;
+              setGlobalSearch(val);
+              handleSearchUsers(val);
+              if (val.trim()) setView('search');
+            }}
+            onFocus={() => {
+              if (globalSearch) setView('search');
+            }}
+            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-accent/20 outline-none transition-all text-xs font-medium" 
+          />
+        </div>
+
         <div className="flex items-center gap-2 text-ink">
           <button 
             onClick={() => setView('search')}
-            className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+            className="md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
           >
             <Search size={20} />
           </button>
@@ -5554,8 +5605,64 @@ function ExonaApp() {
       </header>
 
       {/* Main Area */}
-      <main className="flex-1 overflow-y-auto bg-card">
-        {renderView()}
+      <main 
+        className="flex-1 overflow-y-auto bg-card relative"
+        onScroll={(e) => {
+          if (refreshing) return;
+          const target = e.currentTarget;
+          if (target.scrollTop === 0) {
+            // Can start pull
+          }
+        }}
+      >
+        <AnimatePresence>
+          {(refreshing || pullDistance > 0) && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ 
+                height: refreshing ? 80 : Math.min(pullDistance, 100),
+                opacity: 1 
+              }}
+              exit={{ height: 0, opacity: 0 }}
+              className="w-full flex items-center justify-center overflow-hidden bg-gray-50/50"
+            >
+              <div className="flex flex-col items-center gap-2">
+                <motion.div 
+                  animate={{ rotate: refreshing ? 360 : pullDistance * 2 }}
+                  transition={{ repeat: refreshing ? Infinity : 0, duration: 1, ease: "linear" }}
+                  className="text-accent"
+                >
+                  <Repeat size={24} className={refreshing ? "animate-pulse" : ""} />
+                </motion.div>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
+                  {refreshing ? 'Updating Terminal...' : pullDistance > 70 ? 'Release to refresh' : 'Pull to update'}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={0.7}
+          onDrag={(e, info) => {
+            const mainElement = document.querySelector('main');
+            if (mainElement && mainElement.scrollTop === 0 && info.offset.y > 0) {
+              setPullDistance(info.offset.y);
+            }
+          }}
+          onDragEnd={(e, info) => {
+            if (pullDistance > 70 && !refreshing) {
+              handleRefresh();
+            } else {
+              setPullDistance(0);
+            }
+          }}
+          style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
+        >
+          {renderView()}
+        </motion.div>
       </main>
 
       {/* Bottom Nav */}
