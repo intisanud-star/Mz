@@ -584,6 +584,24 @@ function ExonaApp() {
 
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [typingState, setTypingState] = useState<{ [chatId: string]: boolean }>({});
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      showNotification('Reconnected to internet');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      showNotification('Running in offline mode', 'error');
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const handleTyping = (chatId: string, isTyping: boolean) => {
     if (!user) return;
@@ -651,13 +669,14 @@ function ExonaApp() {
     const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string } } = {};
     allMessages.forEach(msg => {
       const existing = chatsMap[msg.chatId];
-      if (!existing || (msg.timestamp?.seconds || 0) > (existing.lastMessage.timestamp?.seconds || 0)) {
+      const msgTime = (msg.timestamp?.seconds || Date.now() / 1000);
+      if (!existing || msgTime > (existing.lastMessage.timestamp?.seconds || 0)) {
         const otherUid = msg.participants.find(p => p !== user.uid) || user.uid;
         chatsMap[msg.chatId] = { lastMessage: msg, otherUid };
       }
     });
     return Object.values(chatsMap).sort((a, b) => 
-      (b.lastMessage.timestamp?.seconds || 0) - (a.lastMessage.timestamp?.seconds || 0)
+      ((b.lastMessage.timestamp?.seconds || Date.now() / 1000) - (a.lastMessage.timestamp?.seconds || Date.now() / 1000))
     );
   }, [allMessages, user?.uid]);
 
@@ -1768,8 +1787,8 @@ function ExonaApp() {
           setPosts(prev => {
             const otherPosts = prev.filter(p => !authorPosts.find(ap => ap.id === p.id));
             return [...otherPosts, ...authorPosts].sort((a, b) => {
-              const tA = (a.timestamp as any)?.toMillis?.() || 0;
-              const tB = (b.timestamp as any)?.toMillis?.() || 0;
+              const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
+              const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
               return tB - tA;
             });
           });
@@ -1784,8 +1803,8 @@ function ExonaApp() {
           setPosts(prev => {
             const otherPosts = prev.filter(p => !schoolPosts.find(sp => sp.id === p.id));
             return [...otherPosts, ...schoolPosts].sort((a, b) => {
-              const tA = (a.timestamp as any)?.toMillis?.() || 0;
-              const tB = (b.timestamp as any)?.toMillis?.() || 0;
+              const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
+              const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
               return tB - tA;
             });
           });
@@ -4910,6 +4929,16 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Modals */}
+      {!isOnline && (
+        <motion.div 
+          initial={{ y: 50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[500] bg-orange-500 text-white px-6 py-2 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] shadow-xl flex items-center gap-2"
+        >
+          <Clock size={12} className="animate-spin" />
+          Offline Mode: Data will sync when back online
+        </motion.div>
+      )}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <motion.div 
