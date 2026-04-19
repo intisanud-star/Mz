@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useEffect, useState, Component, ErrorInfo, ReactNode, useMemo } from 'react';
 import { 
   GraduationCap, ShieldCheck, LogOut, LogIn, User as UserIcon, 
   BookOpen, Calendar, Bell, Search, Menu, X, 
@@ -11,7 +11,7 @@ import {
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -133,6 +133,18 @@ interface Record {
   creatorUid: string;
   addedBy: string;
   timestamp: any;
+}
+
+interface Message {
+  id: string;
+  senderUid: string;
+  receiverUid: string;
+  participants: string[];
+  text: string;
+  timestamp: any;
+  chatId: string;
+  status: 'sent' | 'delivered' | 'read';
+  isEdited?: boolean;
 }
 
 interface UserDoc {
@@ -289,9 +301,9 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
 
 const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title: string, subtitle: string, icon: any, children: React.ReactNode, toolbar?: React.ReactNode }) => {
   return (
-    <div className="flex flex-col h-full bg-white overflow-hidden">
+    <div className="flex flex-col bg-white">
       {/* Ribbon Header */}
-      <div className="bg-white border-b border-gray-200 z-20">
+      <div className="bg-white border-b border-gray-200 z-20 sticky top-0">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="h-8 w-8 bg-ink rounded-lg flex items-center justify-center text-white shrink-0">
@@ -312,7 +324,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
       </div>
 
       {/* Canvas Area */}
-      <div className="flex-1 overflow-y-auto p-0 md:p-8 lg:p-12 flex justify-center custom-scrollbar">
+      <div className="p-0 md:p-8 lg:p-12 flex justify-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -327,7 +339,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
   );
 };
 
-const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, onEdit, onDelete, currentUserId, canManage, canReply = true }: any) => {
+const FeedPost = ({ post, onUserClick, onLike, onComment, onMessage, onReshare, onForward, onEdit, onDelete, currentUserId, canManage, canReply = true }: any) => {
   const [showMenu, setShowMenu] = useState(false);
   const isLiked = post.likedBy?.includes(currentUserId);
   const isOwnPost = post.authorUid === currentUserId;
@@ -456,6 +468,15 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onReshare, onForward, 
         >
           <Send size={14} />
         </button>
+        {!isOwnPost && (
+          <button 
+            onClick={() => onMessage?.(post)}
+            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted hover:text-accent transition-all ml-auto"
+            title="Message Author"
+          >
+            <MessageSquare size={14} />
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -509,7 +530,10 @@ function ExonaApp() {
   const [allMessages, setAllMessages] = useState<any[]>([]);
   const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
   const [chatInput, setChatInput] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingMessageText, setEditingMessageText] = useState('');
   const [activeChat, setActiveChat] = useState<any>(null);
+  const [activeMessageMenuId, setActiveMessageMenuId] = useState<string | null>(null);
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
   const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
   const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
@@ -555,7 +579,76 @@ function ExonaApp() {
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
+  const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
   const [pendingFollowerProfiles, setPendingFollowerProfiles] = useState<UserDoc[]>([]);
+
+  const recentChats = useMemo(() => {
+    if (!user || allMessages.length === 0) return [];
+    const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string } } = {};
+    allMessages.forEach(msg => {
+      const existing = chatsMap[msg.chatId];
+      if (!existing || (msg.timestamp?.seconds || 0) > (existing.lastMessage.timestamp?.seconds || 0)) {
+        const otherUid = msg.participants.find(p => p !== user.uid) || user.uid;
+        chatsMap[msg.chatId] = { lastMessage: msg, otherUid };
+      }
+    });
+    return Object.values(chatsMap).sort((a, b) => 
+      (b.lastMessage.timestamp?.seconds || 0) - (a.lastMessage.timestamp?.seconds || 0)
+    );
+  }, [allMessages, user?.uid]);
+
+  useEffect(() => {
+    if (!user || recentChats.length === 0) return;
+    const fetchChatUsers = async () => {
+      const uidsToFetch = recentChats
+        .map(c => c.otherUid)
+        .filter(uid => !chatUsers.find(u => u.uid === uid) && !connectedUsers.find(u => u.uid === uid));
+      
+      if (uidsToFetch.length === 0) return;
+
+      const chunks = [];
+      for (let i = 0; i < uidsToFetch.length; i += 30) {
+        chunks.push(uidsToFetch.slice(i, i + 30));
+      }
+
+      for (const chunk of chunks) {
+        try {
+          const q = query(collection(db, 'users'), where('uid', 'in', chunk));
+          const snap = await getDocs(q);
+          const newUsers = snap.docs.map(d => d.data() as UserDoc);
+          setChatUsers(prev => [...prev, ...newUsers]);
+        } catch (error) {
+          console.error('Error fetching chat users:', error);
+        }
+      }
+    };
+    fetchChatUsers();
+  }, [recentChats, user?.uid]);
+
+  useEffect(() => {
+    if (view === 'chat' && activeChat && allMessages.length > 0) {
+      markChatAsRead(activeChat.uid);
+    }
+  }, [view, activeChat?.uid, allMessages.length]);
+
+  useEffect(() => {
+    if (!user || allMessages.length === 0) return;
+    const sentMessagesForMe = allMessages.filter(m => m.receiverUid === user.uid && m.status === 'sent');
+    if (sentMessagesForMe.length === 0) return;
+
+    const updateDelivered = async () => {
+      try {
+        const batch = writeBatch(db);
+        sentMessagesForMe.forEach(msg => {
+          batch.update(doc(db, 'messages', msg.id), { status: 'delivered' });
+        });
+        await batch.commit();
+      } catch (error) {
+        console.error('Error updating delivered status:', error);
+      }
+    };
+    updateDelivered();
+  }, [allMessages.length, user?.uid]);
 
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [newSchool, setNewSchool] = useState({ 
@@ -1106,10 +1199,54 @@ function ExonaApp() {
         participants: [user.uid, receiverUid],
         text: text.trim(),
         timestamp: serverTimestamp(),
-        chatId
+        chatId,
+        status: 'sent'
       });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'messages');
+    }
+  };
+
+  const handleUpdateMessage = async (messageId: string, newText: string) => {
+    if (!user || !newText.trim()) return;
+    try {
+      await updateDoc(doc(db, 'messages', messageId), {
+        text: newText.trim(),
+        isEdited: true
+      });
+      setEditingMessageId(null);
+      setEditingMessageText('');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `messages/${messageId}`);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, 'messages', messageId));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `messages/${messageId}`);
+    }
+  };
+
+  const markChatAsRead = async (otherUid: string) => {
+    if (!user) return;
+    const chatId = [user.uid, otherUid].sort().join('_');
+    const unreadMessages = allMessages.filter(
+      m => m.chatId === chatId && m.receiverUid === user.uid && m.status !== 'read'
+    );
+    
+    if (unreadMessages.length === 0) return;
+
+    try {
+      const batch = writeBatch(db);
+      unreadMessages.forEach(msg => {
+        batch.update(doc(db, 'messages', msg.id), { status: 'read' });
+      });
+      await batch.commit();
+    } catch (error) {
+      console.error('Error marking as read:', error);
     }
   };
 
@@ -1772,6 +1909,15 @@ function ExonaApp() {
     }
   };
 
+  const handleMessageAuthor = (post: any) => {
+    setActiveChat({
+      uid: post.authorUid,
+      displayName: post.authorName,
+      photoURL: post.authorPhoto
+    });
+    setView('chat');
+  };
+
   const handleSearchUsers = async (queryText: string) => {
     setGlobalSearch(queryText);
     if (!queryText.trim()) {
@@ -2330,6 +2476,7 @@ function ExonaApp() {
                         onUserClick={handleUserClick}
                         onLike={handleLikePost}
                         onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                        onMessage={handleMessageAuthor}
                         onReshare={handleResharePost}
                         onForward={handleForwardPost}
                         onEdit={handleEditPost}
@@ -2641,6 +2788,7 @@ function ExonaApp() {
                       onUserClick={handleUserClick}
                       onLike={handleLikePost}
                       onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                      onMessage={handleMessageAuthor}
                       onReshare={handleResharePost}
                       onForward={handleForwardPost}
                       onEdit={handleEditPost}
@@ -2717,17 +2865,19 @@ function ExonaApp() {
                   {userDoc?.following?.includes(selectedUserProfile.uid) ? 'Following' : 'Follow'}
                 </button>
               )}
-              {user && user.uid !== selectedUserProfile.uid && connectedUsers.some(u => u.uid === selectedUserProfile.uid) && (
+              {user && user.uid !== selectedUserProfile.uid && (
                 <button 
                   onClick={() => {
-                    const connectedUser = connectedUsers.find(u => u.uid === selectedUserProfile.uid);
-                    if (connectedUser) {
-                      setActiveChat(connectedUser);
-                      setView('chat');
-                    }
+                    setActiveChat({
+                      uid: selectedUserProfile.uid,
+                      displayName: selectedUserProfile.name,
+                      photoURL: selectedUserProfile.photo
+                    });
+                    setView('chat');
                   }}
-                  className="flex-1 py-2 bg-accent text-white rounded-xl font-bold text-[14px] hover:bg-accent/90 transition-all"
+                  className="flex-1 py-2 bg-accent text-white rounded-xl font-bold text-[14px] hover:bg-accent/90 transition-all flex items-center justify-center gap-2"
                 >
+                  <MessageSquare size={16} />
                   Message
                 </button>
               )}
@@ -2752,6 +2902,7 @@ function ExonaApp() {
                     onUserClick={handleUserClick}
                     onLike={handleLikePost}
                     onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                    onMessage={handleMessageAuthor}
                     onReshare={handleResharePost}
                     onForward={handleForwardPost}
                     onEdit={handleEditPost}
@@ -3646,14 +3797,13 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         
         if (activeChat) {
-          // activeChat is now a UserDoc
           const chatMessages = allMessages
             .filter(m => m.chatId === [user.uid, activeChat.uid].sort().join('_'))
-            .sort((a, b) => (a.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+            .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
           return (
-            <div className="flex flex-col h-full bg-card">
-              <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-10">
+            <div className="flex flex-col bg-card">
+              <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-30">
                 <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                   <ChevronRight size={24} className="rotate-180" />
                 </button>
@@ -3670,7 +3820,7 @@ function ExonaApp() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar pb-32">
+              <div className="p-4 space-y-4 pb-48">
                 {chatMessages.length === 0 ? (
                   <div className="py-20 text-center opacity-30">
                     <MessageSquare size={48} className="mx-auto mb-4" />
@@ -3679,22 +3829,87 @@ function ExonaApp() {
                 ) : (
                   chatMessages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.senderUid === user.uid ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] p-4 rounded-2xl text-sm font-medium shadow-sm ${
-                        msg.senderUid === user.uid 
-                          ? 'bg-ink text-white rounded-tr-none' 
-                          : 'bg-gray-100 text-ink rounded-tl-none'
-                      }`}>
-                        {msg.text}
-                        <p className={`text-[9px] mt-1 opacity-50 ${msg.senderUid === user.uid ? 'text-right' : 'text-left'}`}>
-                          {formatTime(msg.timestamp)}
-                        </p>
+                      <div className="relative group max-w-[80%]">
+                        <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm relative ${
+                          msg.senderUid === user.uid 
+                            ? 'bg-ink text-white rounded-tr-none' 
+                            : 'bg-gray-100 text-ink rounded-tl-none'
+                        }`}>
+                          {editingMessageId === msg.id ? (
+                            <div className="flex flex-col gap-2">
+                              <textarea
+                                value={editingMessageText}
+                                onChange={(e) => setEditingMessageText(e.target.value)}
+                                className="bg-white/10 text-white border-none outline-none rounded-lg p-2 resize-none h-20"
+                                autoFocus
+                              />
+                              <div className="flex gap-2 justify-end">
+                                <button onClick={() => { setEditingMessageId(null); setEditingMessageText(''); }} className="text-[10px] font-bold uppercase py-1 px-2 border border-white/20 rounded">Cancel</button>
+                                <button onClick={() => handleUpdateMessage(msg.id, editingMessageText)} className="text-[10px] font-bold uppercase py-1 px-2 bg-white text-black rounded">Save</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                              <div className={`flex items-center gap-1 mt-1 opacity-70 ${msg.senderUid === user.uid ? 'justify-end' : 'justify-start'}`}>
+                                {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
+                                <span className="text-[9px]">{formatTime(msg.timestamp)}</span>
+                                {msg.senderUid === user.uid && (
+                                  <span className={msg.status === 'read' ? 'text-blue-400' : 'text-gray-400'}>
+                                    {msg.status === 'sent' ? <Check size={12} /> : <CheckCheck size={12} />}
+                                  </span>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {msg.senderUid === user.uid && editingMessageId !== msg.id && (
+                          <div className="absolute top-1/2 -left-10 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => {
+                                if (activeMessageMenuId === msg.id) {
+                                  setActiveMessageMenuId(null);
+                                } else {
+                                  setActiveMessageMenuId(msg.id);
+                                }
+                              }}
+                              className="p-1.5 text-muted hover:text-ink hover:bg-gray-100 rounded-full"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                            {activeMessageMenuId === msg.id && (
+                              <div className="absolute bottom-full mb-2 left-0 w-32 bg-white border border-gray-100 rounded-xl shadow-2xl z-50 overflow-hidden">
+                                <button 
+                                  onClick={() => {
+                                    setEditingMessageId(msg.id);
+                                    setEditingMessageText(msg.text);
+                                    setActiveMessageMenuId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-ink hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <Edit2 size={12} /> Edit
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    handleDeleteMessage(msg.id);
+                                    setActiveMessageMenuId(null);
+                                  }}
+                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                >
+                                  <Trash2 size={12} /> Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
                 )}
               </div>
 
-              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl shadow-2xl flex items-center gap-2">
+              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl shadow-2xl flex items-center gap-2 z-40">
                 <input 
                   type="text" 
                   placeholder="Type a message..." 
@@ -3740,48 +3955,64 @@ function ExonaApp() {
 
             {chatTab === 'chats' ? (
               <div className="divide-y divide-gray-100">
-                {connectedUsers.length === 0 ? (
+                {recentChats.length === 0 ? (
                   <div className="py-20 text-center px-8">
                     <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
                       <MessageSquare size={32} />
                     </div>
-                    <h3 className="text-lg font-bold text-ink mb-2">No connections yet</h3>
-                    <p className="text-sm text-muted">Follow users and have them follow you back to start chatting. Find people using the search bar above!</p>
+                    <h3 className="text-lg font-bold text-ink mb-2">No messages yet</h3>
+                    <p className="text-sm text-muted">Start a conversation by finding someone in the search bar or visiting their profile.</p>
                   </div>
                 ) : (
-                  connectedUsers
-                    .map(connectedUser => {
-                      const lastMessage = allMessages
-                        .filter(m => m.chatId === [user.uid, connectedUser.uid].sort().join('_'))
-                        .sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
+                  recentChats.map(chat => {
+                    const otherUser = connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null };
+                    const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === user.uid && m.status !== 'read').length;
 
-                      return (
-                        <button 
-                          key={connectedUser.uid}
-                          onClick={() => setActiveChat(connectedUser)}
-                          className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4"
-                        >
-                          <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                            {connectedUser.photoURL ? (
-                              <img src={connectedUser.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="text-muted text-xs font-bold">{connectedUser.displayName?.charAt(0)}</span>
+                    return (
+                      <button 
+                        key={chat.lastMessage.chatId}
+                        onClick={() => setActiveChat({
+                          uid: otherUser.uid,
+                          displayName: otherUser.displayName || (otherUser as any).name,
+                          photoURL: otherUser.photoURL || (otherUser as any).photo
+                        })}
+                        className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 group"
+                      >
+                        <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                          {(otherUser.photoURL || (otherUser as any).photo) ? (
+                            <img src={otherUser.photoURL || (otherUser as any).photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <span className="text-muted text-xs font-bold">{(otherUser.displayName || (otherUser as any).name)?.charAt(0)}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-center mb-1">
+                            <h3 className="font-bold text-ink text-[15px] truncate">{otherUser.displayName || (otherUser as any).name}</h3>
+                            <span className="text-[10px] text-muted font-medium ml-2">
+                              {formatTime(chat.lastMessage.timestamp)}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1 flex-1 truncate">
+                              {chat.lastMessage.senderUid === user.uid && (
+                                <span className={chat.lastMessage.status === 'read' ? 'text-blue-400' : 'text-gray-400'}>
+                                  {chat.lastMessage.status === 'sent' ? <Check size={12} /> : <CheckCheck size={12} />}
+                                </span>
+                              )}
+                              <p className={`text-[13px] truncate ${unreadCount > 0 ? 'text-ink font-bold' : 'text-muted'}`}>
+                                {chat.lastMessage.text}
+                              </p>
+                            </div>
+                            {unreadCount > 0 && (
+                              <span className="h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-accent text-white text-[10px] font-bold rounded-full ml-2">
+                                {unreadCount}
+                              </span>
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-center mb-1">
-                              <h3 className="font-bold text-ink text-[15px] truncate">{connectedUser.displayName}</h3>
-                              <span className="text-[10px] text-muted font-medium">
-                                {lastMessage ? formatTime(lastMessage.timestamp) : ''}
-                              </span>
-                            </div>
-                            <p className="text-[13px] text-muted truncate">
-                              {lastMessage ? lastMessage.text : 'Start a conversation'}
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })
+                        </div>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             ) : (
@@ -5671,22 +5902,6 @@ function ExonaApp() {
         </AnimatePresence>
 
         <motion.div
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={0.7}
-          onDrag={(e, info) => {
-            const mainElement = document.querySelector('main');
-            if (mainElement && mainElement.scrollTop === 0 && info.offset.y > 0) {
-              setPullDistance(info.offset.y);
-            }
-          }}
-          onDragEnd={(e, info) => {
-            if (pullDistance > 70 && !refreshing) {
-              handleRefresh();
-            } else {
-              setPullDistance(0);
-            }
-          }}
           style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
         >
           {renderView()}
