@@ -11,7 +11,7 @@ import {
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -546,6 +546,7 @@ function ExonaApp() {
   const [recordSearch, setRecordSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
+  const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date'>('alphabet');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -1518,9 +1519,8 @@ function ExonaApp() {
     }
   }, [splashDone, loading, user, userDoc, view]);
 
-  // Data listeners
+  // Data listeners - Master data (Schools/Places)
   useEffect(() => {
-    // Public data listeners (no user check)
     const unsubSchools = onSnapshot(collection(db, 'schools'), (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
     }, (error) => {
@@ -1537,9 +1537,18 @@ function ExonaApp() {
       }
     });
 
+    return () => { unsubSchools(); unsubPlaces(); };
+  }, []);
+
+  // Data listeners - Personalized data (Posts, Admin data, Messages)
+  useEffect(() => {
     let unsubPosts = () => {};
+    let unsubAllRecords = () => {};
+    let unsubAllFinance = () => {};
+    let unsubAllMessages = () => {};
+
     if (user && userDoc) {
-      // Personalized Feed for all users (including admins by default)
+      // Personalized Feed
       const following = userDoc.following || [];
       const managedIds = [
         ...schools.filter(s => s.creatorUid === user.uid).map(s => s.id),
@@ -1558,8 +1567,8 @@ function ExonaApp() {
           setPosts(prev => {
             const otherPosts = prev.filter(p => !authorPosts.find(ap => ap.id === p.id));
             return [...otherPosts, ...authorPosts].sort((a, b) => {
-              const tA = a.timestamp?.toMillis?.() || 0;
-              const tB = b.timestamp?.toMillis?.() || 0;
+              const tA = (a.timestamp as any)?.toMillis?.() || 0;
+              const tB = (b.timestamp as any)?.toMillis?.() || 0;
               return tB - tA;
             });
           });
@@ -1574,8 +1583,8 @@ function ExonaApp() {
           setPosts(prev => {
             const otherPosts = prev.filter(p => !schoolPosts.find(sp => sp.id === p.id));
             return [...otherPosts, ...schoolPosts].sort((a, b) => {
-              const tA = a.timestamp?.toMillis?.() || 0;
-              const tB = b.timestamp?.toMillis?.() || 0;
+              const tA = (a.timestamp as any)?.toMillis?.() || 0;
+              const tB = (b.timestamp as any)?.toMillis?.() || 0;
               return tB - tA;
             });
           });
@@ -1586,19 +1595,10 @@ function ExonaApp() {
         });
 
         unsubPosts = () => { unsubAuthor(); unsubSchool(); };
-      } else {
-        setPosts([]);
       }
-    } else {
-      setPosts([]);
-    }
 
-    let unsubAllRecords = () => {};
-    let unsubAllFinance = () => {};
-    let unsubAllMessages = () => {};
-
-    if (user) {
-      if (userDoc?.role === 'admin') {
+      // Admin Data
+      if (userDoc.role === 'admin') {
         unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
           setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
         });
@@ -1608,6 +1608,8 @@ function ExonaApp() {
           handleFirestoreError(error, OperationType.LIST, 'finance');
         });
       }
+
+      // Messages
       const messagesQuery = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
       unsubAllMessages = onSnapshot(messagesQuery, (snap) => {
         setAllMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -1616,8 +1618,8 @@ function ExonaApp() {
       });
     }
 
-    return () => { unsubSchools(); unsubPlaces(); unsubPosts(); unsubAllRecords(); unsubAllFinance(); unsubAllMessages(); };
-  }, [user, userDoc, schools, places, selectedSchool]);
+    return () => { unsubPosts(); unsubAllRecords(); unsubAllFinance(); unsubAllMessages(); };
+  }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id]);
 
   useEffect(() => {
     if (!selectedSchool) return;
@@ -2985,7 +2987,19 @@ function ExonaApp() {
         const labels = getLabels(selectedSchool?.type);
         const filteredRecords = records
           .filter(r => r.type === recordTab)
-          .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()));
+          .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()))
+          .sort((a, b) => {
+            if (recordSort === 'alphabet') {
+              return a.studentName.localeCompare(b.studentName);
+            } else if (recordSort === 'amount') {
+              return (b.paid || 0) - (a.paid || 0);
+            } else if (recordSort === 'date') {
+              const dateA = a.timestamp?.seconds || 0;
+              const dateB = b.timestamp?.seconds || 0;
+              return dateB - dateA;
+            }
+            return 0;
+          });
         const totalPaid = filteredRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
         const totalBalance = filteredRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
 
@@ -3009,6 +3023,20 @@ function ExonaApp() {
                 </div>
                 <div className="hidden sm:block h-6 w-[1px] bg-gray-100" />
                 <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center bg-white border border-gray-100 p-1 rounded-lg">
+                    <div className="px-2 text-muted mr-1 border-r border-gray-50">
+                      <ArrowUpDown size={10} />
+                    </div>
+                    {(['alphabet', 'amount', 'date'] as const).map(s => (
+                      <button 
+                        key={s}
+                        onClick={() => setRecordSort(s)}
+                        className={`px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all ${recordSort === s ? 'bg-gray-50 text-ink' : 'text-muted hover:text-ink'}`}
+                      >
+                        {s === 'alphabet' ? 'A-Z' : s === 'amount' ? 'Paid' : 'Date'}
+                      </button>
+                    ))}
+                  </div>
                   <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
                     <input 
