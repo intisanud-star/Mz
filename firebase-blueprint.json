@@ -1,5 +1,22 @@
 {
   "entities": {
+    "Notification": {
+      "title": "Notification",
+      "description": "User notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["message", "follower_request", "system", "like", "comment"] },
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" },
+        "link": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "targetId": { "type": "string" }
+      },
+      "required": ["type", "title", "text", "isRead"]
+    },
     "User": {
       "title": "User",
       "description": "User profile and settings",
@@ -163,6 +180,7 @@
     "/teacherAttendance/{attendanceId}": { "schema": "TeacherAttendance", "description": "Teacher attendance" },
     "/finance/{schoolId}": { "schema": "SchoolFinance", "description": "Institution finance" },
     "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
-    "/typingStates/{stateId}": { "schema": "TypingStatus", "description": "User typing statuses" }
+    "/typingStates/{stateId}": { "schema": "TypingStatus", "description": "User typing statuses" },
+    "/users/{userId}/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" }
   }
 }

@@ -105,7 +105,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-export async function ensureUserDocument(user: User, referredBy?: string | null) {
+export async function ensureUserDocument(user: User, referredBy?: string | null, additionalData?: { country?: string, currency?: string }) {
   const userRef = doc(db, 'users', user.uid);
   const isAdminEmail = user.email === 'musstaphamusa@gmail.com';
   
@@ -124,11 +124,16 @@ export async function ensureUserDocument(user: User, referredBy?: string | null)
         invitesCount: 0,
         isLifetimeFree: false,
         hasCreatedInstitution: false,
+        ...additionalData
       };
       await setDoc(userRef, data);
       return data;
     } else {
       const data = userSnap.data();
+      if (additionalData) {
+        await setDoc(userRef, additionalData, { merge: true });
+        return { ...data, ...additionalData };
+      }
       if (isAdminEmail && data.role !== 'admin') {
         await setDoc(userRef, { role: 'admin' }, { merge: true });
         return { ...data, role: 'admin' };

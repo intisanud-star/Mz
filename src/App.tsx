@@ -11,7 +11,7 @@ import {
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -176,6 +176,8 @@ interface UserDoc {
   hasCreatedInstitution?: boolean;
   bio?: string;
   isPrivate?: boolean;
+  country?: string;
+  currency?: string;
 }
 
 interface SchoolFinance {
@@ -224,6 +226,18 @@ class ErrorBoundary extends Component<any, any> {
 }
 
 // --- UTILS ---
+const COUNTRIES = [
+  { name: 'Nigeria', code: 'NG', currency: '₦' },
+  { name: 'United States', code: 'US', currency: '$' },
+  { name: 'United Kingdom', code: 'GB', currency: '£' },
+  { name: 'Ghana', code: 'GH', currency: 'GH₵' },
+  { name: 'Kenya', code: 'KE', currency: 'KSh' },
+  { name: 'South Africa', code: 'ZA', currency: 'R' },
+  { name: 'Canada', code: 'CA', currency: '$' },
+  { name: 'India', code: 'IN', currency: '₹' },
+  { name: 'European Union', code: 'EU', currency: '€' },
+];
+
 const formatTime = (timestamp: any) => {
   if (!timestamp) return 'Just now';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -594,8 +608,10 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
+  const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -608,6 +624,7 @@ function ExonaApp() {
   const [selectedUserProfile, setSelectedUserProfile] = useState<{ uid: string, name: string, photo: string } | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
+  const currencySymbol = useMemo(() => userDoc?.currency || '₦', [userDoc?.currency]);
   const [selectedUserProfileDoc, setSelectedUserProfileDoc] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
@@ -1949,13 +1966,21 @@ function ExonaApp() {
         try {
           // Ensure doc exists and role is correct
           const storedRef = localStorage.getItem('exona_ref');
-          await ensureUserDocument(currentUser, storedRef);
+          const docData = await ensureUserDocument(currentUser, storedRef);
+          
+          if (!docData?.country) {
+            setView('onboarding');
+          }
           
           // Listen real-time to user document
           userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
             if (docSnap.exists()) {
               const data = docSnap.data();
               setUserDoc(data);
+              
+              if (!data.country && view !== 'splash') {
+                setView('onboarding');
+              }
               
               // Bootstrap admin role for owner email if not set
               if (currentUser.email === 'musstaphamusa@gmail.com' && data.role !== 'admin') {
@@ -2193,6 +2218,10 @@ function ExonaApp() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
+      await ensureUserDocument(userCredential.user, localStorage.getItem('exona_ref'), {
+        country: selectedSignupCountry.name,
+        currency: selectedSignupCountry.currency
+      });
       await sendEmailVerification(userCredential.user);
       setVerificationSent(true);
     } catch (e: any) {
@@ -3622,8 +3651,8 @@ function ExonaApp() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
               {[
                 { label: `Total ${labels.students}`, value: filteredRecords.length, icon: Users },
-                { label: 'Total Paid', value: `₦${totalPaid.toLocaleString()}`, icon: CreditCard },
-                { label: 'Total Balance', value: `₦${totalBalance.toLocaleString()}`, icon: Wallet }
+                { label: 'Total Paid', value: `${currencySymbol}${totalPaid.toLocaleString()}`, icon: CreditCard },
+                { label: 'Total Balance', value: `${currencySymbol}${totalBalance.toLocaleString()}`, icon: Wallet }
               ].map((stat, i) => (
                 <div key={i} className="border-l-2 border-accent/20 pl-6">
                   <p className="text-[9px] font-bold text-muted uppercase tracking-[0.3em] mb-2">{stat.label}</p>
@@ -3673,8 +3702,8 @@ function ExonaApp() {
                         <td className="px-6 py-4">
                           <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{record.category}</span>
                         </td>
-                        <td className="px-6 py-4 font-mono font-bold text-green-600 text-[13px]">₦{record.paid.toLocaleString()}</td>
-                        <td className="px-6 py-4 font-mono font-bold text-red-600 text-[13px]">₦{record.balance.toLocaleString()}</td>
+                        <td className="px-6 py-4 font-mono font-bold text-green-600 text-[13px]">{currencySymbol}{record.paid.toLocaleString()}</td>
+                        <td className="px-6 py-4 font-mono font-bold text-red-600 text-[13px]">{currencySymbol}{record.balance.toLocaleString()}</td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[8px] font-bold text-ink">
@@ -3752,11 +3781,11 @@ function ExonaApp() {
                     <div className="grid grid-cols-2 gap-4 mb-3">
                       <div>
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Paid</p>
-                        <p className="font-mono font-bold text-green-600 text-sm">₦{record.paid.toLocaleString()}</p>
+                        <p className="font-mono font-bold text-green-600 text-sm">{currencySymbol}{record.paid.toLocaleString()}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Balance</p>
-                        <p className="font-mono font-bold text-red-600 text-sm">₦{record.balance.toLocaleString()}</p>
+                        <p className="font-mono font-bold text-red-600 text-sm">{currencySymbol}{record.balance.toLocaleString()}</p>
                       </div>
                     </div>
                     <div className="flex justify-between items-center pt-3 border-t border-gray-50">
@@ -3842,7 +3871,7 @@ function ExonaApp() {
             <div className="bg-ink rounded-sm p-12 text-white mb-12 relative overflow-hidden">
               <div className="relative z-10">
                 <p className="text-white/40 text-[10px] font-bold uppercase tracking-[0.4em] mb-4">Institution Balance</p>
-                <h3 className="text-6xl font-mono font-medium tracking-tighter mb-8">₦{finance?.institutionBalance.toLocaleString() || '0'}</h3>
+                <h3 className="text-6xl font-mono font-medium tracking-tighter mb-8">{currencySymbol}{finance?.institutionBalance.toLocaleString() || '0'}</h3>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-2 text-white/60 text-[9px] font-bold uppercase tracking-widest bg-white/5 px-4 py-2 rounded-lg border border-white/10">
                     <ShieldCheck size={14} className="text-green-400" />
@@ -4735,21 +4764,21 @@ function ExonaApp() {
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Total Tuition Fee</label>
                     <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">₦</span>
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">{currencySymbol}</span>
                       <input type="number" className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="0.00" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Amount Paid</label>
                     <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">₦</span>
+                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">{currencySymbol}</span>
                       <input type="number" className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="0.00" />
                     </div>
                   </div>
                   <div className="pt-8 border-t border-gray-50">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-muted uppercase tracking-widest">Outstanding Balance</p>
-                      <p className="text-3xl font-extrabold text-red-600">₦0.00</p>
+                      <p className="text-3xl font-extrabold text-red-600">{currencySymbol}0.00</p>
                     </div>
                     <button className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all">Generate Invoice Preview</button>
                   </div>
@@ -4815,7 +4844,7 @@ function ExonaApp() {
                   </div>
                   <div className="p-6 bg-accent/5 rounded-2xl border border-accent/10">
                     <p className="text-xs font-bold text-accent leading-relaxed">
-                      Share this link with other institutions. For every successful registration, you earn ₦5,000 in credits.
+                      Share this link with other institutions. For every successful registration, you earn {currencySymbol}5,000 in credits.
                     </p>
                   </div>
                 </div>
@@ -4828,7 +4857,7 @@ function ExonaApp() {
                     </div>
                     <div className="flex justify-between items-center p-6 bg-gray-50 rounded-2xl">
                       <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Earned Rewards</p>
-                      <p className="text-2xl font-extrabold text-green-600">₦0.00</p>
+                      <p className="text-2xl font-extrabold text-green-600">{currencySymbol}0.00</p>
                     </div>
                   </div>
                 </div>
@@ -5256,6 +5285,80 @@ function ExonaApp() {
 
   if (loading) return null;
 
+  if (view === 'onboarding') {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }} 
+          animate={{ opacity: 1, scale: 1 }} 
+          className="w-full max-w-sm text-center"
+        >
+          <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl shadow-ink/5">
+             <div className="h-20 w-20 bg-accent/10 text-accent rounded-3xl flex items-center justify-center mx-auto mb-8">
+               <Compass size={32} />
+             </div>
+             <h2 className="text-3xl font-black text-ink mb-2 tracking-tight">Final Step</h2>
+             <p className="text-muted text-sm font-medium mb-10 leading-relaxed uppercase tracking-[0.05em]">
+               Initialize your localization preferences to complete registration.
+             </p>
+             
+             <div className="space-y-4 mb-10 text-left">
+               <div className="relative group">
+                  <label className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-4">Country & Base Currency</label>
+                  <select 
+                    value={onboardingCountry.code}
+                    onChange={(e) => {
+                      const country = COUNTRIES.find(c => c.code === e.target.value);
+                      if (country) setOnboardingCountry(country);
+                    }}
+                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold appearance-none cursor-pointer"
+                  >
+                    {COUNTRIES.map(c => (
+                      <option key={c.code} value={c.code}>{c.name} ({c.currency})</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-6 top-[38px] pointer-events-none text-muted">
+                    <ChevronDown size={18} />
+                  </div>
+               </div>
+             </div>
+
+             <button 
+               onClick={async () => {
+                 if (!user) return;
+                 setIsUploading(true);
+                 try {
+                   await setDoc(doc(db, 'users', user.uid), { 
+                     country: onboardingCountry.name,
+                     currency: onboardingCountry.currency
+                   }, { merge: true });
+                   setView('feed');
+                   showNotification('Globalization protocol finalized');
+                 } catch (error) {
+                   showNotification('Handshake failed', 'error');
+                 } finally {
+                   setIsUploading(false);
+                 }
+               }}
+               disabled={isUploading}
+               className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-ink/90 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+             >
+               {isUploading ? (
+                 <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+               ) : (
+                 <BadgeCheck size={18} />
+               )}
+               Authorize Profile
+             </button>
+          </div>
+          <div className="mt-8 text-center">
+            <button onClick={handleLogout} className="text-xs font-bold text-muted hover:text-ink transition-colors uppercase tracking-[0.2em]">Abort & Sign Out</button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (view === 'login') {
     if (verificationSent || (user && !user.emailVerified && user.providerData.some(p => p.providerId === 'password'))) {
       return (
@@ -5324,13 +5427,33 @@ function ExonaApp() {
 
             <div className="w-full space-y-3 mb-6">
               {authMode === 'signup' && (
-                <input 
-                  type="text" 
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Full Name"
-                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
-                />
+                <>
+                  <input 
+                    type="text" 
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Full Name"
+                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                  />
+                  <div className="relative group">
+                    <label className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-4">Select Country (Currency)</label>
+                    <select 
+                      value={selectedSignupCountry.code}
+                      onChange={(e) => {
+                        const country = COUNTRIES.find(c => c.code === e.target.value);
+                        if (country) setSelectedSignupCountry(country);
+                      }}
+                      className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold appearance-none cursor-pointer"
+                    >
+                      {COUNTRIES.map(c => (
+                        <option key={c.code} value={c.code}>{c.name} ({c.currency})</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-[38px] pointer-events-none text-muted">
+                      <ChevronDown size={16} />
+                    </div>
+                  </div>
+                </>
               )}
                 <input 
                   type="email" 
@@ -5739,7 +5862,7 @@ function ExonaApp() {
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   <div className="group">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Paid (₦)</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Paid ({currencySymbol})</label>
                     <input 
                       type="number" 
                       value={newRecord.paid}
@@ -5748,7 +5871,7 @@ function ExonaApp() {
                     />
                   </div>
                   <div className="group">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Balance (₦)</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Balance ({currencySymbol})</label>
                     <input 
                       type="number" 
                       value={newRecord.balance}
@@ -6376,11 +6499,11 @@ function ExonaApp() {
                   <div className="bg-gray-50 rounded-2xl p-6 space-y-4 mb-10 border border-gray-100">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Amount Paid</span>
-                      <span className="text-lg font-mono font-bold text-green-600">₦{recordForReceipt.paid.toLocaleString()}</span>
+                      <span className="text-lg font-mono font-bold text-green-600">{currencySymbol}{recordForReceipt.paid.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                       <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Balance</span>
-                      <span className="text-sm font-mono font-bold text-red-600">₦{recordForReceipt.balance.toLocaleString()}</span>
+                      <span className="text-sm font-mono font-bold text-red-600">{currencySymbol}{recordForReceipt.balance.toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -6400,18 +6523,28 @@ function ExonaApp() {
                 </div>
               </div>
 
-              <button 
-                onClick={handleDownloadReceipt}
-                disabled={isExporting}
-                className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-              >
-                {isExporting ? (
-                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Download size={18} />
-                )}
-                {isExporting ? 'Generating...' : 'Save as Image'}
-              </button>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handleDownloadReceipt}
+                  disabled={isExporting}
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                  {isExporting ? (
+                    <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Download size={18} />
+                  )}
+                  {isExporting ? 'Generating...' : 'Save as Image'}
+                </button>
+                <button 
+                  onClick={() => setIsReceiptModalOpen(false)}
+                  disabled={isExporting}
+                  className="w-full py-5 bg-white/10 text-white border border-white/20 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                  <ArrowLeft size={18} />
+                  Back to Records
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}
