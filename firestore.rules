@@ -205,14 +205,14 @@ service cloud.firestore {
     }
 
     match /studentRecords/{recordId} {
-      allow read: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
       allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
       allow update: if isAuthenticated() && isSchoolManager(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /teacherAttendance/{attendanceId} {
-      allow read: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
       allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
       allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }

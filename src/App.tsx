@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Component, ErrorInfo, ReactNode, useMemo } from 'react';
+import React, { useEffect, useState, Component, ErrorInfo, ReactNode, useMemo, useRef } from 'react';
 import { 
   GraduationCap, ShieldCheck, LogOut, LogIn, User as UserIcon, 
   BookOpen, Calendar, Bell, Search, Menu, X, 
@@ -11,8 +11,9 @@ import {
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download
 } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   auth, 
@@ -312,10 +313,38 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
 );
 
 const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title: string, subtitle: string, icon: any, children: React.ReactNode, toolbar?: React.ReactNode }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleSaveAsImage = async () => {
+    if (!contentRef.current) return;
+    setIsExporting(true);
+    try {
+      const dataUrl = await toPng(contentRef.current, {
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          width: contentRef.current.offsetWidth + 'px',
+          height: contentRef.current.offsetHeight + 'px',
+        }
+      });
+      const link = document.createElement('a');
+      link.download = `exona-${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to save as image:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-white">
       {/* Ribbon Header */}
-      <div className="bg-white border-b border-gray-200 z-20 sticky top-0">
+      <div className="bg-white border-b border-gray-200 z-20 sticky top-0 no-print">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="h-8 w-8 bg-ink rounded-lg flex items-center justify-center text-white shrink-0">
@@ -327,6 +356,18 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
+            <button 
+              onClick={handleSaveAsImage}
+              disabled={isExporting}
+              className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all disabled:opacity-50"
+            >
+              {isExporting ? (
+                <div className="h-3 w-3 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+              ) : (
+                <Download size={14} />
+              )}
+              {isExporting ? 'Exporting...' : 'Save as Image'}
+            </button>
           </div>
         </div>
         {/* Toolbar / Ribbon Tabs */}
@@ -336,14 +377,28 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
       </div>
 
       {/* Canvas Area */}
-      <div className="p-0 md:p-8 lg:p-12 flex justify-center">
+      <div className="p-0 md:p-8 lg:p-12 flex justify-center bg-gray-50/30">
         <motion.div 
+          ref={contentRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-4 sm:p-8 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20"
+          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-4 sm:p-8 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 shadow-2xl shadow-gray-200/50"
         >
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
+          <div className="flex justify-between items-start mb-20">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-xl">E</div>
+              <div>
+                <h1 className="text-xl font-black text-ink tracking-tighter leading-none">EXONA</h1>
+                <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Receipt ID</div>
+              <div className="text-sm font-mono font-bold text-ink">#{Math.random().toString(36).substring(2, 8).toUpperCase()}</div>
+            </div>
+          </div>
           {children}
         </motion.div>
       </div>
@@ -565,6 +620,8 @@ function ExonaApp() {
   const [allFinance, setAllFinance] = useState<any[]>([]);
   const [allMessages, setAllMessages] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationTypeFilter, setNotificationTypeFilter] = useState<'all' | 'message' | 'follower_request' | 'system' | 'like' | 'comment'>('all');
+  const [notificationReadFilter, setNotificationReadFilter] = useState<'all' | 'unread'>('all');
   const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
   const [chatInput, setChatInput] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -581,6 +638,8 @@ function ExonaApp() {
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
@@ -619,6 +678,28 @@ function ExonaApp() {
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
+  const receiptRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleDownloadReceipt = async () => {
+    if (!receiptRef.current) return;
+    setIsExporting(true);
+    try {
+      const dataUrl = await toPng(receiptRef.current, {
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        pixelRatio: 4, // High quality
+      });
+      const link = document.createElement('a');
+      link.download = `exona-receipt-${recordForReceipt?.studentName.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Failed to generate receipt:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const [pendingFollowerProfiles, setPendingFollowerProfiles] = useState<UserDoc[]>([]);
 
   const [isOtherTyping, setIsOtherTyping] = useState(false);
@@ -795,6 +876,35 @@ function ExonaApp() {
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
+  const groupedNotifications = useMemo(() => {
+    let filtered = notifications;
+    if (notificationReadFilter === 'unread') {
+      filtered = filtered.filter(n => !n.isRead);
+    }
+    if (notificationTypeFilter !== 'all') {
+      filtered = filtered.filter(n => n.type === notificationTypeFilter);
+    }
+
+    const groups: { [key: string]: Notification[] } = {};
+    filtered.forEach(notif => {
+      let key = 'single_' + notif.id;
+      if (notif.type === 'like' || notif.type === 'comment') {
+        key = `${notif.type}_${notif.targetId}`;
+      } else if (notif.type === 'message') {
+        key = `message_${notif.senderUid}`;
+      }
+      
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(notif);
+    });
+
+    return Object.values(groups).sort((a, b) => {
+      const timeA = a[0].timestamp?.seconds || 0;
+      const timeB = b[0].timestamp?.seconds || 0;
+      return timeB - timeA;
+    });
+  }, [notifications, notificationReadFilter, notificationTypeFilter]);
+
   const handleCreateNotification = async (targetUid: string, notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
     try {
       await addDoc(collection(db, `users/${targetUid}/notifications`), {
@@ -829,6 +939,15 @@ function ExonaApp() {
       showNotification('All notifications seen');
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  const handleDismissNotification = async (notificationId: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, `users/${user.uid}/notifications`, notificationId));
+    } catch (error) {
+      console.error('Error dismissing notification:', error);
     }
   };
 
@@ -1933,6 +2052,11 @@ function ExonaApp() {
       const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
       unsubNotifications = onSnapshot(qNotifications, (snap) => {
         setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
+      }, (error) => {
+        console.error('Notifications listener error:', error);
+        if (user) {
+          handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/notifications`);
+        }
       });
 
       // Personalized Feed
@@ -3568,6 +3692,13 @@ function ExonaApp() {
                           <div className="flex items-center justify-end gap-1">
                             {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
                               <>
+                                <button 
+                                  onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                                  className="p-2 text-muted hover:text-accent transition-all"
+                                  title="Export Receipt"
+                                >
+                                  <FileText size={14} />
+                                </button>
                                 <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
                                   <Edit2 size={14} />
                                 </button>
@@ -3600,6 +3731,12 @@ function ExonaApp() {
                         <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</p>
                       </div>
                       <div className="flex gap-1">
+                        <button 
+                          onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                          className="p-2 text-muted hover:text-accent transition-all"
+                        >
+                          <FileText size={14} />
+                        </button>
                         {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
                           <>
                             <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
@@ -4355,6 +4492,149 @@ function ExonaApp() {
                 )}
               </div>
             )}
+          </div>
+        );
+      }
+      case 'notifications': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <div className="w-full max-w-xl mx-auto py-8">
+            <div className="px-4 mb-8 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center">
+                  <Bell size={24} />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Notice Center</h2>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{unreadNotificationsCount} unread alerts</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handleMarkAllNotificationsRead}
+                  className="p-2.5 text-muted hover:text-ink hover:bg-gray-100 rounded-xl transition-all"
+                  title="Mark all as read"
+                >
+                  <CheckCheck size={20} />
+                </button>
+                <button 
+                  onClick={clearNotifications}
+                  className="p-2.5 text-muted hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                  title="Clear all"
+                >
+                  <Trash2 size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="px-4 mb-6 space-y-4">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                {(['all', 'message', 'like', 'comment', 'follower_request'] as const).map(f => (
+                  <button
+                    key={f}
+                    onClick={() => setNotificationTypeFilter(f)}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+                      notificationTypeFilter === f 
+                        ? 'bg-ink text-white shadow-lg' 
+                        : 'bg-white border border-gray-100 text-muted hover:border-gray-300'
+                    }`}
+                  >
+                    {f === 'all' ? 'All' : f.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => setNotificationReadFilter('all')}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${
+                      notificationReadFilter === 'all' ? 'bg-gray-100 text-ink' : 'text-muted'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button 
+                    onClick={() => setNotificationReadFilter('unread')}
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${
+                      notificationReadFilter === 'unread' ? 'bg-gray-100 text-ink' : 'text-muted'
+                    }`}
+                  >
+                    Unread
+                  </button>
+              </div>
+            </div>
+
+            <div className="divide-y divide-gray-50 border-t border-gray-50">
+              {groupedNotifications.length === 0 ? (
+                <div className="py-32 text-center flex flex-col items-center">
+                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mb-6 text-muted/20">
+                    <Bell size={40} />
+                  </div>
+                  <p className="text-muted font-bold">No notifications found.</p>
+                </div>
+              ) : (
+                groupedNotifications.map((group, groupIdx) => {
+                  const firstNotif = group[0];
+                  const count = group.length;
+                  const isRead = group.every(n => n.isRead);
+
+                  return (
+                    <div 
+                      key={groupIdx}
+                      className={`p-5 transition-all flex items-start gap-4 relative group ${!isRead ? 'bg-accent/5' : 'hover:bg-gray-50/50'}`}
+                    >
+                      <div className="shrink-0 pt-1">
+                        {firstNotif.type === 'like' && <Heart className="text-red-500 fill-red-500" size={20} />}
+                        {firstNotif.type === 'comment' && <MessageCircle className="text-blue-500" size={20} />}
+                        {firstNotif.type === 'message' && <MessageSquare className="text-accent" size={20} />}
+                        {firstNotif.type === 'follower_request' && <UserPlus className="text-purple-500" size={20} />}
+                        {firstNotif.type === 'system' && <Settings className="text-gray-500" size={20} />}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className={`text-[15px] ${!isRead ? 'font-bold' : 'font-medium'} text-ink truncate`}>
+                            {firstNotif.title} {count > 1 && <span className="text-muted text-[13px] font-medium ml-1">and {count - 1} more</span>}
+                          </h4>
+                          <span className="text-[10px] text-muted font-medium shrink-0 ml-2">
+                            {formatTime(firstNotif.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                          {firstNotif.text}
+                        </p>
+                        
+                        <div className="mt-3 flex items-center gap-3">
+                          {!isRead && (
+                            <button 
+                              onClick={() => {
+                                group.forEach(n => handleMarkNotificationRead(n.id));
+                              }}
+                              className="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline"
+                            >
+                              Mark seen
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => {
+                              group.forEach(n => handleDismissNotification(n.id));
+                            }}
+                            className="text-[10px] font-bold text-muted uppercase tracking-widest hover:text-red-600"
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dot for unread */}
+                      {!isRead && (
+                        <div className="absolute top-6 left-2 w-2 h-2 bg-accent rounded-full" />
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         );
       }
@@ -6025,6 +6305,113 @@ function ExonaApp() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isReceiptModalOpen && recordForReceipt && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[300] flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-sm flex flex-col gap-6"
+            >
+              <div className="flex justify-between items-center px-4">
+                <h3 className="text-white font-bold text-sm uppercase tracking-[0.2em]">Preview Receipt</h3>
+                <button 
+                  onClick={() => setIsReceiptModalOpen(false)}
+                  className="h-10 w-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-all font-display"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* The Receipt Captured Area */}
+              <div ref={receiptRef} className="bg-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+                {/* Background Decor */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-ink/5 rounded-full -ml-24 -mb-24" />
+                
+                <div className="relative z-10">
+                  <div className="flex flex-col items-center mb-10 text-center">
+                    <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl shadow-ink/20">E</div>
+                    <h2 className="text-xl font-black text-ink tracking-tighter">EXONA</h2>
+                    <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
+                  </div>
+
+                  <div className="flex justify-between items-end mb-8 pb-8 border-b border-gray-100">
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Receipt Number</p>
+                      <p className="text-sm font-mono font-bold text-ink">#REC-{Math.random().toString(36).substring(2, 9).toUpperCase()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Date Issued</p>
+                      <p className="text-[11px] font-bold text-ink">{new Date().toLocaleDateString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 mb-12">
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Institution</p>
+                      <p className="text-sm font-bold text-ink">{selectedSchool?.name || 'Institutional Record'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
+                      <p className="text-sm font-bold text-ink underline decoration-ink/10 underline-offset-4">{recordForReceipt.studentName}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Class/Level' : 'Category'}</p>
+                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{recordForReceipt.category}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Payment For</p>
+                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{(recordForReceipt as any).type || 'General'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-2xl p-6 space-y-4 mb-10 border border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Amount Paid</span>
+                      <span className="text-lg font-mono font-bold text-green-600">₦{recordForReceipt.paid.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Balance</span>
+                      <span className="text-sm font-mono font-bold text-red-600">₦{recordForReceipt.balance.toLocaleString()}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-4 pt-6 border-t border-dashed border-gray-200">
+                    <div className="flex items-center gap-2">
+                       <CheckCircle2 size={16} className="text-green-500" />
+                       <span className="text-[10px] font-bold text-ink uppercase tracking-widest">Verified Payment</span>
+                    </div>
+                    <div className="h-10 w-full flex items-center justify-center opacity-30">
+                       <ShieldCheck size={24} />
+                    </div>
+                    <p className="text-[7px] text-center text-muted uppercase tracking-[0.2em] leading-relaxed">
+                      This receipt is electronically generated and verified by Exona. <br />
+                      Valid for institutional records authentication.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleDownloadReceipt}
+                disabled={isExporting}
+                className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+              >
+                {isExporting ? (
+                  <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Download size={18} />
+                )}
+                {isExporting ? 'Generating...' : 'Save as Image'}
+              </button>
             </motion.div>
           </motion.div>
         )}

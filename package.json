@@ -26,6 +26,7 @@
     "expo-status-bar": "~2.0.1",
     "express": "^4.21.2",
     "firebase": "^12.11.0",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.546.0",
     "motion": "^12.4.7",
     "react": "18.3.1",
