@@ -326,7 +326,21 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   </motion.button>
 );
 
-const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title: string, subtitle: string, icon: any, children: React.ReactNode, toolbar?: React.ReactNode }) => {
+const WordLayout = ({ 
+  title, 
+  subtitle, 
+  icon: Icon, 
+  children, 
+  toolbar,
+  branding
+}: { 
+  title: string, 
+  subtitle: string, 
+  icon: any, 
+  children: React.ReactNode, 
+  toolbar?: React.ReactNode,
+  branding?: { logo?: string, name?: string }
+}) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -345,7 +359,7 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
         }
       });
       const link = document.createElement('a');
-      link.download = `exona-${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
+      link.download = `${branding?.name?.toLowerCase().replace(/\s+/g, '-') || 'exona'}-${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -402,14 +416,26 @@ const WordLayout = ({ title, subtitle, icon: Icon, children, toolbar }: { title:
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
           <div className="flex justify-between items-start mb-20">
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-xl">E</div>
+              {branding?.logo ? (
+                <img src={branding.logo} className="h-12 w-12 rounded-2xl object-cover shrink-0" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="h-12 w-12 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-xl shrink-0">
+                  {branding?.name?.charAt(0) || 'E'}
+                </div>
+              )}
               <div>
-                <h1 className="text-xl font-black text-ink tracking-tighter leading-none">EXONA</h1>
+                <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || 'EXONA'}</h1>
                 <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>
+                {branding && (
+                  <div className="flex items-center gap-1 mt-2">
+                    <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
+                    <span className="text-[7px] font-black text-ink tracking-tighter">EXONA</span>
+                  </div>
+                )}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Receipt ID</div>
+              <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Document ID</div>
               <div className="text-sm font-mono font-bold text-ink">#{Math.random().toString(36).substring(2, 8).toUpperCase()}</div>
             </div>
           </div>
@@ -649,6 +675,9 @@ function ExonaApp() {
   const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
   const [calcTuition, setCalcTuition] = useState<string>('');
   const [calcPaid, setCalcPaid] = useState<string>('');
+  const [exportStartDate, setExportStartDate] = useState<string>('');
+  const [exportEndDate, setExportEndDate] = useState<string>('');
+  const [exportCategory, setExportCategory] = useState<'all' | 'general' | 'books' | 'uniforms' | 'services' | 'products'>('all');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
@@ -2109,7 +2138,7 @@ function ExonaApp() {
         unsubPosts = () => { unsubAuthor(); unsubSchool(); };
       }
 
-      // Admin Data
+      // Data for Download Center / Reports
       if (userDoc.role === 'admin') {
         unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
           setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
@@ -2119,6 +2148,15 @@ function ExonaApp() {
         }, (error) => {
           handleFirestoreError(error, OperationType.LIST, 'finance');
         });
+      } else {
+        // Non-admins see records for all institutions they own
+        const ownedIds = [...schools, ...places].filter(s => s.creatorUid === user.uid).map(s => s.id);
+        if (ownedIds.length > 0) {
+          const q = query(collection(db, 'studentRecords'), where('schoolId', 'in', ownedIds));
+          unsubAllRecords = onSnapshot(q, (snap) => {
+            setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+          });
+        }
       }
 
       // Messages
@@ -4644,8 +4682,10 @@ function ExonaApp() {
         );
       }
       case 'tools': {
+        const userInstitution = schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
         const tools = [
           { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
+          { id: 'export', name: 'Download Center', description: 'Download complete institutional records and full history', icon: Download, color: 'blue-600' },
           { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
           { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
@@ -4659,6 +4699,7 @@ function ExonaApp() {
               title="Fee Calculator"
               subtitle="Institutional Financial Utility"
               icon={Calculator}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -4709,12 +4750,171 @@ function ExonaApp() {
           );
         }
 
+        if (activeTool === 'export') {
+          const baseRecords = allRecords.length > 0 ? allRecords : records;
+          const filteredRecords = baseRecords.filter(r => {
+            // Category Filter
+            if (exportCategory !== 'all' && r.type !== exportCategory) return false;
+            
+            // Date Filter
+            if (!exportStartDate && !exportEndDate) return true;
+            const recordDate = r.timestamp?.toDate ? r.timestamp.toDate() : new Date(r.timestamp);
+            if (exportStartDate && recordDate < new Date(exportStartDate)) return false;
+            if (exportEndDate) {
+              const end = new Date(exportEndDate);
+              end.setHours(23, 59, 59, 999);
+              if (recordDate > end) return false;
+            }
+            return true;
+          });
+
+          const categories: { id: typeof exportCategory, label: string }[] = [
+            { id: 'all', label: 'All Records' },
+            { id: 'general', label: 'General' },
+            { id: 'books', label: 'Books' },
+            { id: 'uniforms', label: 'Uniforms' },
+            { id: 'services', label: 'Services' },
+            { id: 'products', label: 'Products' },
+          ];
+
+          return (
+            <WordLayout 
+              title="Download Center"
+              subtitle="Data Export & Archival"
+              icon={Download}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              toolbar={
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+                  <button 
+                    onClick={() => { setExportStartDate(''); setExportEndDate(''); }} 
+                    className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-sm"
+                  >
+                    Load Full Record
+                  </button>
+                </div>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Institutional Record Summary</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Exona Data Terminal • Generated on {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 mb-12 no-print flex flex-col gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-[0.2em]">Filter by Category</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setExportCategory(cat.id)}
+                        className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
+                          exportCategory === cat.id 
+                            ? 'bg-ink text-white shadow-lg shadow-ink/20' 
+                            : 'bg-white text-muted border border-gray-100 hover:border-accent/20 hover:text-ink'
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col md:flex-row md:items-end gap-6">
+                  <div className="flex-1 space-y-6">
+                    <h3 className="text-xs font-bold text-muted uppercase tracking-[0.2em]">Filter by Duration</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2 block">Start Date</label>
+                        <input 
+                          type="date" 
+                          value={exportStartDate}
+                          onChange={(e) => setExportStartDate(e.target.value)}
+                          className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2 block">End Date</label>
+                        <input 
+                          type="date" 
+                          value={exportEndDate}
+                          onChange={(e) => setExportEndDate(e.target.value)}
+                          className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { setExportStartDate(''); setExportEndDate(''); setExportCategory('all'); }} 
+                    className="px-8 py-4 bg-white border border-gray-200 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all shadow-sm"
+                  >
+                    Reset All Filters
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-ink">
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink">Date</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink">Name</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink">Category</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink text-right">Paid</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink text-right">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="py-20 text-center text-muted font-medium italic">No records found for the selected period</td>
+                      </tr>
+                    ) : (
+                      filteredRecords.map((record, i) => (
+                        <tr key={record.id} className="border-b border-gray-100">
+                          <td className="py-4 text-xs font-mono text-muted">{new Date(record.timestamp?.toDate?.() || record.timestamp).toLocaleDateString()}</td>
+                          <td className="py-4 text-sm font-bold text-ink">{record.studentName}</td>
+                          <td className="py-4 text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</td>
+                          <td className="py-4 text-sm font-bold text-ink text-right tabular-nums">{currencySymbol}{record.paid.toLocaleString()}</td>
+                          <td className="py-4 text-sm font-bold text-red-600 text-right tabular-nums">{currencySymbol}{record.balance.toLocaleString()}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  {filteredRecords.length > 0 && (
+                    <tfoot>
+                      <tr className="bg-gray-50">
+                        <td colSpan={3} className="py-4 px-4 text-[10px] font-bold uppercase tracking-widest text-ink">Institutional Total</td>
+                        <td className="py-4 px-4 text-base font-black text-ink text-right tabular-nums">
+                          {currencySymbol}{filteredRecords.reduce((acc, r) => acc + r.paid, 0).toLocaleString()}
+                        </td>
+                        <td className="py-4 px-4 text-base font-black text-red-600 text-right tabular-nums">
+                          {currencySymbol}{filteredRecords.reduce((acc, r) => acc + r.balance, 0).toLocaleString()}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
+
+              <div className="mt-20 pt-10 border-t border-gray-100 text-center">
+                <p className="text-[10px] font-medium text-muted uppercase tracking-[0.4em] mb-2">End of Official Record</p>
+                <div className="flex items-center justify-center gap-2 opacity-50">
+                  <div className="h-6 w-6 bg-ink rounded-lg flex items-center justify-center text-white font-black text-[10px]">E</div>
+                  <span className="text-[10px] font-black text-ink tracking-tighter">EXONA SYSTEM CERTIFIED</span>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
         if (activeTool === 'penalty') {
           return (
             <WordLayout 
               title="Penalty Board"
               subtitle="Disciplinary Records & Notices"
               icon={ShieldAlert}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -4743,6 +4943,7 @@ function ExonaApp() {
               title="Referral Hub"
               subtitle="Growth & Rewards Program"
               icon={Gift}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -4793,6 +4994,7 @@ function ExonaApp() {
               title="ID Generator"
               subtitle="Institutional Identity Utility"
               icon={IdCard}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -4821,6 +5023,7 @@ function ExonaApp() {
               title="Report Center"
               subtitle="Analytical Intelligence Utility"
               icon={FileBarChart}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -6380,9 +6583,28 @@ function ExonaApp() {
                 
                 <div className="relative z-10">
                   <div className="flex flex-col items-center mb-10 text-center">
-                    <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl shadow-ink/20">E</div>
-                    <h2 className="text-xl font-black text-ink tracking-tighter">EXONA</h2>
-                    <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
+                    {(() => {
+                      const userInstitution = schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+                      return (
+                        <>
+                          {userInstitution?.logo ? (
+                            <img src={userInstitution.logo} className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl shadow-ink/20">
+                              {userInstitution?.name?.charAt(0) || 'E'}
+                            </div>
+                          )}
+                          <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{userInstitution?.name || 'EXONA'}</h2>
+                          <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
+                          {userInstitution && (
+                            <div className="flex items-center gap-1 mt-4 opacity-50">
+                              <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
+                              <span className="text-[7px] font-black text-ink tracking-tighter">EXONA</span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex justify-between items-end mb-8 pb-8 border-b border-gray-100">
