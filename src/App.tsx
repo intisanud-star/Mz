@@ -918,10 +918,15 @@ function ExonaApp() {
 
   const labels = getLabels(selectedSchool?.type);
 
+  const isRecentlyActive = (institutionId: string) => {
+    const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
+    return posts.some(p => p.schoolId === institutionId && (p.timestamp?.seconds * 1000 || 0) > twentyFourHoursAgo);
+  };
+
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [uploadingInstitutionId, setUploadingInstitutionId] = useState<string | null>(null);
-  const [pendingFollowerNames, setPendingFollowerNames] = useState<{[uid: string]: string}>({});
+  const [pendingFollowerProfilesMap, setPendingFollowerProfilesMap] = useState<{[uid: string]: { displayName: string, photoURL?: string }}>({});
   const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
 
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
@@ -1152,21 +1157,96 @@ function ExonaApp() {
   const managedInstitutions = [...schools, ...places].filter(s => s.creatorUid === user?.uid);
 
   useEffect(() => {
-    const pendingUids = managedInstitutions.flatMap(s => s.pendingFollowers || []);
-    const uniqueUids = [...new Set(pendingUids)].filter(uid => !pendingFollowerNames[uid]);
-    
-    uniqueUids.forEach(async (uid) => {
-      try {
-        const userSnap = await getDoc(doc(db, 'users', uid as string));
-        if (userSnap.exists()) {
-          const data = userSnap.data();
-          setPendingFollowerNames(prev => ({ ...prev, [uid as string]: data.displayName || 'Anonymous' }));
+    const fetchProfiles = async () => {
+      const pendingUids = managedInstitutions.flatMap(s => [
+        ...(s.pendingFollowers || []),
+        ...((s as any).pendingAuditors || [])
+      ]);
+      const uniqueUids = [...new Set(pendingUids)].filter(uid => !pendingFollowerProfilesMap[uid]);
+      
+      if (uniqueUids.length === 0) return;
+
+      const newProfiles: {[uid: string]: { displayName: string, photoURL?: string }} = {};
+      
+      for (const uid of uniqueUids) {
+        try {
+          const userSnap = await getDoc(doc(db, 'users', uid as string));
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            newProfiles[uid as string] = { 
+              displayName: data.displayName || 'Anonymous',
+              photoURL: data.photoURL 
+            };
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
         }
-      } catch (error) {
-        console.error('Error fetching user name:', error);
       }
-    });
+
+      if (Object.keys(newProfiles).length > 0) {
+        setPendingFollowerProfilesMap(prev => ({ ...prev, ...newProfiles }));
+      }
+    };
+
+    fetchProfiles();
   }, [managedInstitutions]);
+
+  const unifiedFollowRequests = useMemo(() => {
+    const list: any[] = [];
+    
+    // 1. Personal Follow Requests
+    pendingFollowerProfiles.forEach(p => {
+      list.push({
+        id: `user_${p.uid}`,
+        type: 'user_follow',
+        requesterUid: p.uid,
+        requesterName: p.displayName,
+        requesterPhoto: p.photoURL,
+        timestamp: Date.now()
+      });
+    });
+
+    // 2. Institution Follow Requests
+    managedInstitutions.forEach(inst => {
+      if (inst.pendingFollowers) {
+        inst.pendingFollowers.forEach(uid => {
+          const profile = pendingFollowerProfilesMap[uid];
+          list.push({
+            id: `inst_${inst.id}_${uid}`,
+            type: 'institution_follow',
+            requesterUid: uid,
+            requesterName: profile?.displayName || 'Loading...',
+            requesterPhoto: profile?.photoURL,
+            institutionId: inst.id,
+            institutionName: inst.name,
+            institution: inst,
+            timestamp: Date.now()
+          });
+        });
+      }
+
+      // 3. Management (Auditor) Requests
+      const pendingAuditors = (inst as any).pendingAuditors || [];
+      pendingAuditors.forEach((uid: string) => {
+        const profile = pendingFollowerProfilesMap[uid];
+        list.push({
+          id: `audit_${inst.id}_${uid}`,
+          type: 'auditor_request',
+          requesterUid: uid,
+          requesterName: profile?.displayName || 'Loading...',
+          requesterPhoto: profile?.photoURL,
+          institutionId: inst.id,
+          institutionName: inst.name,
+          institution: inst,
+          timestamp: Date.now()
+        });
+      });
+    });
+
+    return list.sort((a, b) => b.timestamp - a.timestamp);
+  }, [pendingFollowerProfiles, managedInstitutions, pendingFollowerProfilesMap]);
+
+  const unreadRequestsCount = useMemo(() => unifiedFollowRequests.length, [unifiedFollowRequests]);
 
   const handleEditSchool = (school: School | Place) => {
     setEditingSchool(school as School);
@@ -2678,6 +2758,78 @@ function ExonaApp() {
     }
   };
 
+  const handleRequestAuditorAccess = async (school: School | Place) => {
+    if (!user) { setView('login'); return; }
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      
+      // We'll use a new field 'pendingAuditors' to store these requests
+      await updateDoc(schoolRef, {
+        pendingAuditors: arrayUnion(user.uid)
+      });
+      
+      showNotification('Management request sent');
+      
+      // Also notify the creator
+      if (school.creatorUid) {
+        await handleCreateNotification(school.creatorUid, {
+          type: 'message', 
+          title: 'Auditor Request',
+          text: `${user.displayName || 'A user'} requested auditor access for ${school.name}`,
+          senderUid: user.uid,
+          targetId: school.id,
+          link: 'manage'
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting auditor access:', error);
+      handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
+    }
+  };
+
+  const handleApproveAuditor = async (school: School | Place, applicantUid: string) => {
+    if (!user) return;
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      
+      await updateDoc(schoolRef, {
+        pendingAuditors: arrayRemove(applicantUid),
+        administrativeViewers: arrayUnion(applicantUid)
+      });
+      
+      showNotification('Auditor approved');
+      
+      await handleCreateNotification(applicantUid, {
+        type: 'message',
+        title: 'Auditor Approved',
+        text: `Your auditor request for ${school.name} was approved!`,
+        senderUid: user.uid,
+        targetId: school.id,
+        link: 'records'
+      });
+    } catch (error) {
+      console.error('Error approving auditor:', error);
+    }
+  };
+
+  const handleRejectAuditor = async (school: School | Place, applicantUid: string) => {
+    if (!user) return;
+    try {
+      const collectionName = school.type === 'school' ? 'schools' : 'places';
+      const schoolRef = doc(db, collectionName, school.id);
+      
+      await updateDoc(schoolRef, {
+        pendingAuditors: arrayRemove(applicantUid)
+      });
+      
+      showNotification('Request rejected');
+    } catch (error) {
+      console.error('Error rejecting auditor:', error);
+    }
+  };
+
   const canUserReply = (post: Post, school: any) => {
     if (!user) return false;
     if (canManageInstitution(school) || userDoc?.role === 'admin') return true;
@@ -2689,8 +2841,8 @@ function ExonaApp() {
 
   const canAccessInstitutionData = (school: School | Place | null) => {
     if (!user || !school) return false;
-    if (canManageInstitution(school) || userDoc?.role === 'admin') return true;
-    return school.followers?.includes(user.uid);
+    // Only creators, administrative viewers, and system admins can see sensitive institutional data
+    return canManageInstitution(school) || userDoc?.role === 'admin';
   };
 
   const handleNavigateToData = (targetView: string) => {
@@ -2924,11 +3076,14 @@ function ExonaApp() {
                             className="cursor-pointer mb-4 flex items-start gap-3"
                             onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
                           >
-                            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0">
+                            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
                               {school.logo ? (
                                 <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                               ) : (
                                 <span className="text-ink">{school.name.charAt(0)}</span>
+                              )}
+                              {isRecentlyActive(school.id) && (
+                                <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse shadow-lg shadow-green-500/50" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -3124,12 +3279,25 @@ function ExonaApp() {
                 <h3 className="text-xl font-bold text-ink mb-2">Follow to see content</h3>
                 <p className="text-sm text-muted font-bold mb-8">This institution's posts are only visible to approved followers.</p>
                 {!selectedSchool.pendingFollowers?.includes(user?.uid || '') && (
-                  <button 
-                    onClick={() => handleFollowInstitution(selectedSchool)}
-                    className="px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all"
-                  >
-                    Request Access
-                  </button>
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => handleFollowInstitution(selectedSchool)}
+                      className="w-full px-8 py-3 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all"
+                    >
+                      Request to Join
+                    </button>
+                    {!selectedSchool.administrativeViewers?.includes(user?.uid || '') && !(selectedSchool as any).pendingAuditors?.includes(user?.uid || '') && (
+                      <button 
+                        onClick={() => handleRequestAuditorAccess(selectedSchool)}
+                        className="w-full px-8 py-3 bg-white border border-gray-100 text-muted rounded-2xl font-bold text-sm hover:bg-gray-50 transition-all"
+                      >
+                        Request Management Access
+                      </button>
+                    )}
+                    {(selectedSchool as any).pendingAuditors?.includes(user?.uid || '') && (
+                      <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Management Request Pending</p>
+                    )}
+                  </div>
                 )}
               </div>
             ) : schoolFeedTab === 'manage' ? (
@@ -3152,11 +3320,15 @@ function ExonaApp() {
                       selectedSchool.pendingFollowers.map(uid => (
                         <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100">
-                              {pendingFollowerNames[uid]?.charAt(0) || '?'}
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
+                              {pendingFollowerProfilesMap[uid]?.photoURL ? (
+                                <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
+                              )}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-ink">{pendingFollowerNames[uid] || 'Loading...'}</p>
+                              <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
                               <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Wants to follow</p>
                             </div>
                           </div>
@@ -3195,11 +3367,15 @@ function ExonaApp() {
                       selectedSchool.followers.map(uid => (
                         <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
                           <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100">
-                              {pendingFollowerNames[uid]?.charAt(0) || '?'}
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
+                              {pendingFollowerProfilesMap[uid]?.photoURL ? (
+                                <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
+                              )}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-ink">{pendingFollowerNames[uid] || 'Loading...'}</p>
+                              <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
                               <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Member</p>
                             </div>
                           </div>
@@ -4548,8 +4724,8 @@ function ExonaApp() {
                 className={`flex-1 py-3 text-[14px] font-bold transition-all border-b-2 relative ${chatTab === 'requests' ? 'text-ink border-ink' : 'text-muted border-transparent'}`}
               >
                 Requests
-                {pendingFollowerProfiles.length > 0 && (
-                  <span className="absolute top-2 right-4 h-2 w-2 bg-accent rounded-full" />
+                {unreadRequestsCount > 0 && (
+                  <span className="absolute top-2 right-4 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
                 )}
               </button>
             </div>
@@ -4618,38 +4794,50 @@ function ExonaApp() {
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {pendingFollowerProfiles.length === 0 ? (
+                {unifiedFollowRequests.length === 0 ? (
                   <div className="py-20 text-center px-8">
                     <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
                       <Users size={32} />
                     </div>
-                    <h3 className="text-lg font-bold text-ink mb-2">No pending requests</h3>
-                    <p className="text-sm text-muted">When people request to follow you, they'll appear here.</p>
+                    <h3 className="text-lg font-bold text-ink mb-2">Inbox is empty</h3>
+                    <p className="text-sm text-muted">Follow requests for you and your institutions will appear here.</p>
                   </div>
                 ) : (
-                  pendingFollowerProfiles.map(profile => (
-                    <div key={profile.uid} className="w-full p-4 flex items-center gap-4">
+                  unifiedFollowRequests.map(req => (
+                    <div key={req.id} className="w-full p-4 flex items-center gap-4">
                       <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                        {profile.photoURL ? (
-                          <img src={profile.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        {req.requesterPhoto ? (
+                          <img src={req.requesterPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                         ) : (
-                          <span className="text-muted text-xs font-bold">{profile.displayName?.charAt(0)}</span>
+                          <span className="text-muted text-xs font-bold">{req.requesterName?.charAt(0)}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-ink text-[15px] truncate">{profile.displayName}</h3>
-                        <p className="text-[12px] text-muted truncate">wants to follow you</p>
+                        <h3 className="font-bold text-ink text-[15px] truncate">{req.requesterName}</h3>
+                        <p className="text-[12px] text-muted truncate">
+                          {req.type === 'user_follow' ? 'wants to follow you' : 
+                           req.type === 'institution_follow' ? `wants to join ${req.institutionName}` :
+                           `wants management access for ${req.institutionName}`}
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <button 
-                          onClick={() => handleAcceptFollower(profile.uid)}
+                          onClick={() => {
+                            if (req.type === 'user_follow') handleAcceptFollower(req.requesterUid);
+                            else if (req.type === 'institution_follow') handleApproveFollower(req.institution, req.requesterUid);
+                            else handleApproveAuditor(req.institution, req.requesterUid);
+                          }}
                           className="px-4 py-2 bg-ink text-white rounded-xl font-bold text-[12px] hover:bg-ink/90 transition-all"
                         >
                           Accept
                         </button>
                         <button 
-                          onClick={() => handleDeclineFollower(profile.uid)}
-                          className="px-4 py-2 border border-gray-200 rounded-xl font-bold text-[12px] hover:bg-gray-50 transition-all"
+                          onClick={() => {
+                            if (req.type === 'user_follow') handleDeclineFollower(req.requesterUid);
+                            else if (req.type === 'institution_follow') handleRejectFollower(req.institution, req.requesterUid);
+                            else handleRejectAuditor(req.institution, req.requesterUid);
+                          }}
+                          className="px-4 py-2 border border-gray-200 rounded-xl font-bold text-[12px] hover:bg-red-50 hover:text-red-600 transition-all"
                         >
                           Decline
                         </button>
