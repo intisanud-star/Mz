@@ -168,10 +168,10 @@ service cloud.firestore {
 
     match /messages/{messageId} {
       allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
-      allow create: if isVerified() && isValidMessage(request.resource.data);
+      allow create: if isAuthenticated() && isValidMessage(request.resource.data);
       allow update: if isAuthenticated() && (
-        (isVerified() && request.auth.uid == resource.data.senderUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited'])) ||
-        (isVerified() && request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+        (request.auth.uid == resource.data.senderUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited'])) ||
+        (request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.senderUid || isAdmin());
@@ -185,15 +185,15 @@ service cloud.firestore {
 
     match /schools/{schoolId} {
       allow read: if true;
-      allow create: if isVerified();
-      allow update: if isVerified() && (isSchoolManager(schoolId) || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
-      allow create: if isVerified();
-      allow update: if isVerified() && (isSchoolManager(placeId) || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
@@ -201,14 +201,14 @@ service cloud.firestore {
       // Allow all authenticated users to read posts to ensure visibility for followers
       allow read: if isAuthenticated();
       
-      allow create: if isVerified() && isValidPost(request.resource.data);
+      allow create: if isAuthenticated() && isValidPost(request.resource.data);
       
       allow update: if isAuthenticated() && (
-        (isVerified() && resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 
+        (resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 
          request.resource.data.authorUid == resource.data.authorUid) || 
         isAdmin() ||
-        // Allow liking - non verified can still like? Maybe best if verified too.
-        (isVerified() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']))
+        // Allow liking
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']))
       );
       
       allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
@@ -223,21 +223,21 @@ service cloud.firestore {
 
     match /studentRecords/{recordId} {
       allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId));
-      allow create: if isVerified() && isSchoolManager(request.resource.data.schoolId);
-      allow update: if isVerified() && isSchoolManager(resource.data.schoolId);
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
+      allow update: if isAuthenticated() && isSchoolManager(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /teacherAttendance/{attendanceId} {
       allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId));
-      allow create: if isVerified() && isSchoolManager(request.resource.data.schoolId);
-      allow update, delete: if isVerified() && (isSchoolManager(resource.data.schoolId) || isAdmin());
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
+      allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
       allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
-      allow create: if isVerified() && isSchoolManager(schoolId);
-      allow update, delete: if isVerified() && (isAdmin() || isSchoolManager(schoolId));
+      allow create: if isAuthenticated() && isSchoolManager(schoolId);
+      allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
   }
 }

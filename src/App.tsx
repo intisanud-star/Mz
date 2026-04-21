@@ -1531,7 +1531,7 @@ function ExonaApp() {
 
       await batch.commit();
       console.log('Batch committed successfully');
-      showNotification(editingSchool ? 'Institution updated successfully' : 'Institution authorized successfully');
+      showNotification(editingSchool ? 'Institution updated successfully' : 'Institution created successfully');
 
       // Check for referral qualification after commit
       if (userDoc) {
@@ -2386,8 +2386,7 @@ function ExonaApp() {
         country: selectedSignupCountry.name,
         currency: selectedSignupCountry.currency
       });
-      await sendEmailVerification(userCredential.user);
-      setVerificationSent(true);
+      // Email verification is no longer mandatory for core features
     } catch (e: any) {
       console.error('Sign Up Error:', e);
       if (e.code === 'auth/email-already-in-use') {
@@ -6614,8 +6613,8 @@ function ExonaApp() {
             >
               <div className="flex items-center justify-between mb-10">
                 <div>
-                  <h3 className="text-3xl font-extrabold text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Register Institution'}</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Global Network Expansion</p>
+                  <h3 className="text-3xl font-extrabold text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Create Institution'}</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Profile Setup</p>
                 </div>
                 <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
                   <X size={20} />
@@ -6752,10 +6751,10 @@ function ExonaApp() {
                   {isUploading ? (
                     <>
                       <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                      {editingSchool ? 'Synchronizing...' : 'Authorizing...'}
+                      {editingSchool ? 'Synchronizing...' : 'Designing...'}
                     </>
                   ) : (
-                    editingSchool ? 'Synchronize Updates' : 'Authorize Registration'
+                    editingSchool ? 'Synchronize Updates' : 'Start Institution'
                   )}
                 </button>
                 {editingSchool && editingSchool.creatorUid === user?.uid && (
