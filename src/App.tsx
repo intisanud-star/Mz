@@ -58,6 +58,7 @@ interface Place {
   followers?: string[];
   pendingFollowers?: string[];
   replyPermission?: 'everyone' | 'followers' | 'none';
+  administrativeViewers?: string[];
 }
 
 interface Post {
@@ -104,6 +105,7 @@ interface School {
   followers?: string[];
   pendingFollowers?: string[];
   replyPermission?: 'everyone' | 'followers' | 'none';
+  administrativeViewers?: string[];
 }
 
 interface StudentRecord {
@@ -679,6 +681,9 @@ function ExonaApp() {
   const [exportStartDate, setExportStartDate] = useState<string>('');
   const [exportEndDate, setExportEndDate] = useState<string>('');
   const [exportCategory, setExportCategory] = useState<'all' | 'general' | 'books' | 'uniforms' | 'services' | 'products'>('all');
+  const [auditorSearch, setAuditorSearch] = useState('');
+  const [auditorResults, setAuditorResults] = useState<UserDoc[]>([]);
+  const [isAuditorSearching, setIsAuditorSearching] = useState(false);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
@@ -1312,6 +1317,44 @@ function ExonaApp() {
       showNotification('Reply permissions updated');
     } catch (error) {
       showNotification('Failed to update permissions', 'error');
+    }
+  };
+
+  const handleUpdateAdminPermission = async (institutionId: string, permission: 'owner' | 'followers' | 'everyone') => {
+    // Deprecated in favor of handleToggleAdminViewer
+  };
+
+  const handleToggleAdminViewer = async (institutionId: string, viewerUid: string, action: 'add' | 'remove') => {
+    if (!selectedSchool) return;
+    try {
+      const collectionName = selectedSchool.type === 'school' ? 'schools' : 'places';
+      const docRef = doc(db, collectionName, institutionId);
+      await updateDoc(docRef, {
+        administrativeViewers: action === 'add' ? arrayUnion(viewerUid) : arrayRemove(viewerUid)
+      });
+      showNotification(action === 'add' ? 'Access granted' : 'Access revoked');
+    } catch (error) {
+      showNotification('Failed to update access', 'error');
+    }
+  };
+
+  const handleSearchAuditors = async (term: string) => {
+    setAuditorSearch(term);
+    if (term.length < 3) { setAuditorResults([]); return; }
+    setIsAuditorSearching(true);
+    try {
+      const q = query(
+        collection(db, 'users'), 
+        where('displayName', '>=', term), 
+        where('displayName', '<=', term + '\uf8ff'),
+        limit(5)
+      );
+      const snap = await getDocs(q);
+      setAuditorResults(snap.docs.map(d => d.data() as UserDoc).filter(u => u.uid !== user?.uid));
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsAuditorSearching(false);
     }
   };
 
@@ -2151,15 +2194,24 @@ function ExonaApp() {
           handleFirestoreError(error, OperationType.LIST, 'finance');
         });
       } else {
-        // Non-admins see records for all institutions they own
+        // Non-admins see records for all institutions they own OR are specifically authorized to view
         const ownedIds = [...schools, ...places].filter(s => s.creatorUid === user.uid).map(s => s.id);
-        if (ownedIds.length > 0) {
-          const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', ownedIds));
+        const authorizedIds = [...ownedIds];
+        
+        if (selectedSchool && !authorizedIds.includes(selectedSchool.id)) {
+          const isAuthorized = selectedSchool.administrativeViewers?.includes(user.uid);
+          if (isAuthorized) {
+            authorizedIds.push(selectedSchool.id);
+          }
+        }
+
+        if (authorizedIds.length > 0) {
+          const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', authorizedIds));
           unsubAllRecords = onSnapshot(qRecords, (snap) => {
             setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
           });
 
-          const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', ownedIds));
+          const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', authorizedIds));
           unsubAllAttendance = onSnapshot(qAttendance, (snap) => {
             setAllAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
           });
@@ -2180,13 +2232,24 @@ function ExonaApp() {
 
   useEffect(() => {
     if (!selectedSchool) return;
+
+    // Only set up listeners if user is authorized to see this data
+    const canAccess = selectedSchool.creatorUid === user?.uid || 
+                     userDoc?.role === 'admin' || 
+                     selectedSchool.administrativeViewers?.includes(user?.uid || '');
+
+    if (!canAccess) {
+      setRecords([]);
+      setFinance(null);
+      setAttendance([]);
+      return;
+    }
     
     const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
     const unsubRecords = onSnapshot(q, (snap) => {
       setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
     }, (error) => {
       console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
-      // Only show error if it's not a permission error (which might happen if some records are private)
       if (!error.message.includes('insufficient permissions')) {
         handleFirestoreError(error, OperationType.LIST, 'studentRecords');
       }
@@ -2207,7 +2270,7 @@ function ExonaApp() {
     });
 
     return () => { unsubRecords(); unsubFinance(); unsubAttendance(); };
-  }, [selectedSchool]);
+  }, [selectedSchool, user?.uid, userDoc?.role]);
 
   const renderIconForNotification = (type: Notification['type']) => {
     switch (type) {
@@ -2510,8 +2573,7 @@ function ExonaApp() {
     if (!user || !userDoc) return false;
     if (userDoc.role === 'admin') return true;
     if (!school) return false;
-    if (school.creatorUid === user.uid) return true;
-    return false;
+    return school.creatorUid === user.uid || school.administrativeViewers?.includes(user.uid);
   };
 
 
@@ -2882,29 +2944,31 @@ function ExonaApp() {
                           </div>
                           
                           {/* Institution Action Buttons */}
-                          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                            <button 
-                              onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                            >
-                              <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
-                              <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
-                            </button>
-                            <button 
-                              onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                            >
-                              <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
-                              <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).attendance}</span>
-                            </button>
-            <button 
-              onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-            >
-              <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
-              <span className="text-[9px] font-bold uppercase tracking-widest">Wallet</span>
-            </button>
-                          </div>
+                          {(school.creatorUid === user?.uid || userDoc?.role === 'admin' || school.administrativeViewers?.includes(user?.uid || '')) && (
+                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                              <button 
+                                onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+                              >
+                                <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
+                              </button>
+                              <button 
+                                onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+                              >
+                                <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).attendance}</span>
+                              </button>
+                              <button 
+                                onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
+                              >
+                                <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">Wallet</span>
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -3207,6 +3271,56 @@ function ExonaApp() {
                     </div>
                   </div>
 
+                  <div className="mb-8">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Grant Data Access (Specific Owner)</p>
+                    <div className="relative mb-4">
+                      <input 
+                        type="text" 
+                        placeholder="Search account name..."
+                        value={auditorSearch}
+                        onChange={(e) => handleSearchAuditors(e.target.value)}
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-accent/20"
+                      />
+                      {isAuditorSearching && <div className="absolute right-6 top-1/2 -translate-y-1/2"><Search className="animate-pulse text-muted" size={14} /></div>}
+                    </div>
+
+                    {auditorResults.length > 0 && (
+                      <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden mb-6">
+                        {auditorResults.map(u => (
+                          <button
+                            key={u.uid}
+                            onClick={() => { handleToggleAdminViewer(selectedSchool!.id, u.uid, 'add'); setAuditorResults([]); setAuditorSearch(''); }}
+                            className="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-100 transition-colors border-b border-gray-50 last:border-0"
+                          >
+                            <img src={u.photoURL} alt="" className="h-8 w-8 rounded-full border border-white" referrerPolicy="no-referrer" />
+                            <div className="text-left">
+                              <p className="text-[10px] font-bold text-ink">{u.displayName}</p>
+                              <p className="text-[9px] text-muted uppercase tracking-wider">{u.email.split('@')[0]}</p>
+                            </div>
+                            <Plus size={14} className="ml-auto text-accent" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedSchool.administrativeViewers && selectedSchool.administrativeViewers.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest ml-4">Current Authorized Viewers</p>
+                        {selectedSchool.administrativeViewers.map(uid => (
+                          <div key={uid} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+                            <span className="text-[10px] font-bold text-ink font-mono">{uid.substring(0, 8)}...</span>
+                            <button 
+                              onClick={() => handleToggleAdminViewer(selectedSchool.id, uid, 'remove')}
+                              className="text-[9px] font-bold text-red-600 uppercase tracking-widest hover:underline"
+                            >
+                              Revoke Access
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => handleEditSchool(selectedSchool)}
@@ -3481,37 +3595,40 @@ function ExonaApp() {
                 </div>
               </button>
 
-              {/* Special Items */}
-              <button 
-                onClick={() => setView('feed')}
-                className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
-              >
-                <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
-                  <GraduationCap size={24} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">Institutions Directory</h3>
-                    <span className="text-[10px] text-muted font-medium">9:41 AM</span>
-                  </div>
-                  <p className="text-[13px] text-muted truncate">Explore and follow schools</p>
-                </div>
-              </button>
-              <button 
-                onClick={() => handleNavigateToData('records')}
-                className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
-              >
-                <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
-                  <Search size={24} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
-                    <span className="text-[10px] text-muted font-medium">Yesterday</span>
-                  </div>
-                  <p className="text-[13px] text-muted truncate">Access all digitized profiles</p>
-                </div>
-              </button>
+               {/* Special Items */}
+               <button 
+                 onClick={() => setView('feed')}
+                 className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
+               >
+                 <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
+                   <GraduationCap size={24} />
+                 </div>
+                 <div className="flex-1">
+                   <div className="flex justify-between items-center">
+                     <h3 className="font-bold text-ink text-[15px]">Institutions Directory</h3>
+                     <span className="text-[10px] text-muted font-medium">9:41 AM</span>
+                   </div>
+                   <p className="text-[13px] text-muted truncate">Explore and follow schools</p>
+                 </div>
+               </button>
+
+               {(myInstitutions.length > 0 || userDoc?.role === 'admin' || schools.some(s => s.administrativeViewers?.includes(user?.uid || '')) || places.some(s => s.administrativeViewers?.includes(user?.uid || ''))) && (
+                 <button 
+                   onClick={() => handleNavigateToData('records')}
+                   className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
+                 >
+                   <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
+                     <Search size={24} />
+                   </div>
+                   <div className="flex-1">
+                     <div className="flex justify-between items-center">
+                       <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
+                       <span className="text-[10px] text-muted font-medium">Yesterday</span>
+                     </div>
+                     <p className="text-[13px] text-muted truncate">Access all digitized profiles</p>
+                   </div>
+                 </button>
+               )}
 
               {/* Followed & Managed Institutions as Home Feed */}
               {[...schools, ...places].filter(s => 
@@ -4689,7 +4806,11 @@ function ExonaApp() {
         );
       }
       case 'tools': {
-        const userInstitution = schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+        const isOwner = selectedSchool?.creatorUid === user?.uid;
+        const canAccessAdmin = isOwner || selectedSchool?.administrativeViewers?.includes(user?.uid || '');
+
+        const userInstitution = canAccessAdmin ? selectedSchool : (schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid));
+        
         const tools = [
           { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
           { id: 'export', name: 'Download Center', description: 'Download complete institutional records and full history', icon: Download, color: 'blue-600' },
@@ -5227,13 +5348,16 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title="Tools Hub"
-            subtitle="Institutional Utility Suite"
+            title={userInstitution ? userInstitution.name : "Tools Hub"}
+            subtitle={canAccessAdmin && !isOwner ? "Authorized Access" : "Institutional Utility Suite"}
             icon={LayoutGrid}
+            branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
               <h1 className="text-4xl font-extrabold text-ink mb-2">Utility Terminal</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">System Tools • {new Date().toLocaleDateString()}</p>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">
+                {userInstitution ? `${userInstitution.name} Operations` : 'System Tools'} • {new Date().toLocaleDateString()}
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -6806,6 +6930,7 @@ function ExonaApp() {
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
                       <p className="text-sm font-bold text-ink underline decoration-ink/10 underline-offset-4">{recordForReceipt.studentName}</p>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Class/Level' : 'Category'}</p>
@@ -6937,33 +7062,39 @@ function ExonaApp() {
                   onClick={() => { setView('tools'); setSidebarOpen(false); }} 
                 />
                 
-                <div className="px-4 py-4">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
-                </div>
-                <SidebarItem 
-                  icon={ClipboardList} 
-                  label={`${labels.student} Records`} 
-                  active={view === 'records'} 
-                  onClick={() => handleNavigateToData('records')} 
-                />
-                <SidebarItem 
-                  icon={Calendar} 
-                  label={labels.attendance} 
-                  active={view === 'attendance'} 
-                  onClick={() => handleNavigateToData('attendance')} 
-                />
-                <SidebarItem 
-                  icon={Wallet} 
-                  label="Wallet Hub" 
-                  active={view === 'finance'} 
-                  onClick={() => handleNavigateToData('finance')} 
-                />
-                <SidebarItem 
-                  icon={Shield} 
-                  label="Penalty System" 
-                  active={view === 'penalty'} 
-                  onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
-                />
+                {(schools.some(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')) || 
+                  places.some(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')) || 
+                  userDoc?.role === 'admin') && (
+                  <>
+                    <div className="px-4 py-4">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
+                    </div>
+                    <SidebarItem 
+                      icon={ClipboardList} 
+                      label={`${labels.student} Records`} 
+                      active={view === 'records'} 
+                      onClick={() => handleNavigateToData('records')} 
+                    />
+                    <SidebarItem 
+                      icon={Calendar} 
+                      label={labels.attendance} 
+                      active={view === 'attendance'} 
+                      onClick={() => handleNavigateToData('attendance')} 
+                    />
+                    <SidebarItem 
+                      icon={Wallet} 
+                      label="Wallet Hub" 
+                      active={view === 'finance'} 
+                      onClick={() => handleNavigateToData('finance')} 
+                    />
+                    <SidebarItem 
+                      icon={Shield} 
+                      label="Penalty System" 
+                      active={view === 'penalty'} 
+                      onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
+                    />
+                  </>
+                )}
 
                 <div className="px-4 py-4">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">System</p>

@@ -56,14 +56,22 @@ service cloud.firestore {
     function isSchoolManager(schoolId) {
       return isAuthenticated() && (
         isAdmin() ||
-        (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
-          get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
-        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && 
-          getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
-        (exists(/databases/$(database)/documents/places/$(schoolId)) && 
-          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid) ||
-        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && 
-          getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
+        (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
+          get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.administrativeViewers
+        )) ||
+        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && (
+          getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
+          request.auth.uid in getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.administrativeViewers
+        )) ||
+        (exists(/databases/$(database)/documents/places/$(schoolId)) && (
+          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.administrativeViewers
+        )) ||
+        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && (
+          getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
+          request.auth.uid in getAfter(/databases/$(database)/documents/places/$(schoolId)).data.administrativeViewers
+        ))
       );
     }
 
@@ -130,7 +138,7 @@ service cloud.firestore {
     }
 
     function isValidRecord(data) {
-      return isAuthenticated() && data.creatorUid == request.auth.uid;
+      return isAuthenticated() && (isSchoolManager(data.schoolId) || isAdmin());
     }
 
     function isValidMessage(data) {
@@ -178,14 +186,14 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if true;
       allow create: if isVerified();
-      allow update: if isVerified();
+      allow update: if isVerified() && (isSchoolManager(schoolId) || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isVerified();
-      allow update: if isVerified();
+      allow update: if isVerified() && (isSchoolManager(placeId) || isAdmin());
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
@@ -214,20 +222,20 @@ service cloud.firestore {
     }
 
     match /studentRecords/{recordId} {
-      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId));
       allow create: if isVerified() && isSchoolManager(request.resource.data.schoolId);
       allow update: if isVerified() && isSchoolManager(resource.data.schoolId);
       allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /teacherAttendance/{attendanceId} {
-      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId) || isApprovedFollower(resource.data.schoolId));
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(resource.data.schoolId));
       allow create: if isVerified() && isSchoolManager(request.resource.data.schoolId);
       allow update, delete: if isVerified() && (isSchoolManager(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
-      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId) || isApprovedFollower(schoolId));
+      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
       allow create: if isVerified() && isSchoolManager(schoolId);
       allow update, delete: if isVerified() && (isAdmin() || isSchoolManager(schoolId));
     }
