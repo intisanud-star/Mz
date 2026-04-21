@@ -608,7 +608,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'ai' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -647,9 +647,8 @@ function ExonaApp() {
   const [activeMessageMenuId, setActiveMessageMenuId] = useState<string | null>(null);
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
   const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
-  const [aiMessages, setAiMessages] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
-  const [aiInput, setAiInput] = useState('');
-  const [isAiTyping, setIsAiTyping] = useState(false);
+  const [calcTuition, setCalcTuition] = useState<string>('');
+  const [calcPaid, setCalcPaid] = useState<string>('');
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
@@ -1928,29 +1927,6 @@ function ExonaApp() {
     });
   }, [activePostForComments]);
 
-  const handleAiSend = async () => {
-    if (!user) { setView('login'); return; }
-    if (!aiInput.trim()) return;
-    const userMsg = aiInput.trim();
-    setAiMessages(prev => [...prev, { role: 'user', text: userMsg }]);
-    setAiInput('');
-    setIsAiTyping(true);
-
-    try {
-      const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      const result = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: [{ role: 'user', parts: [{ text: `You are Exona AI, a helpful assistant for the Exona school management platform. Help the user with their queries about school records, wallet, or general school life. User says: ${userMsg}` }] }]
-      });
-      setAiMessages(prev => [...prev, { role: 'ai', text: result.text || "I'm not sure how to respond to that." }]);
-    } catch (error) {
-      console.error('AI Error:', error);
-      setAiMessages(prev => [...prev, { role: 'ai', text: "I'm sorry, I'm having trouble connecting right now. Please try again later." }]);
-    } finally {
-      setIsAiTyping(false);
-    }
-  };
 
   useEffect(() => {
     let userUnsubscribe: (() => void) | null = null;
@@ -4667,9 +4643,8 @@ function ExonaApp() {
           </div>
         );
       }
-      case 'ai': {
+      case 'tools': {
         const tools = [
-          { id: 'ai', name: 'Exona AI', description: 'Intelligent assistant for institutional queries', icon: Sparkles, color: 'ink' },
           { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
           { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
@@ -4677,74 +4652,8 @@ function ExonaApp() {
           { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
         ];
 
-        if (activeTool === 'ai') {
-          return (
-            <WordLayout 
-              title="Exona AI"
-              subtitle="Intelligent Institutional Intelligence"
-              icon={Sparkles}
-              toolbar={
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
-                  <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">New Chat</button>
-                </div>
-              }
-            >
-              <div className="mb-16 border-b border-gray-100 pb-12">
-                <h1 className="text-4xl font-extrabold text-ink mb-2">Exona AI Terminal</h1>
-                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Active Session • {new Date().toLocaleDateString()}</p>
-              </div>
-
-              <div className="space-y-8 mb-20">
-                {aiMessages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-20 opacity-20">
-                    <Sparkles size={64} strokeWidth={1} className="mb-6" />
-                    <p className="font-bold text-xl">System Ready</p>
-                  </div>
-                )}
-                {aiMessages.map((msg, i) => (
-                  <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-2">{msg.role === 'user' ? 'User Query' : 'AI Response'}</p>
-                    <div className={`max-w-[85%] p-6 border ${
-                      msg.role === 'user' ? 'bg-white border-gray-200 text-ink' : 'bg-white border-ink/10 text-ink font-extrabold text-lg'
-                    }`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {isAiTyping && (
-                  <div className="flex gap-1.5">
-                    <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce"></span>
-                    <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></span>
-                    <span className="h-1.5 w-1.5 bg-ink/20 rounded-full animate-bounce [animation-delay:0.4s]"></span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-auto pt-12 border-t border-gray-100">
-                <div className="flex gap-4">
-                  <input 
-                    type="text" 
-                    value={aiInput}
-                    onChange={(e) => setAiInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAiSend()}
-                    placeholder="Type your inquiry here..." 
-                    className="flex-1 px-6 py-4 bg-white border border-gray-200 rounded-sm outline-none focus:border-ink transition-all text-sm font-bold"
-                  />
-                  <button 
-                    onClick={handleAiSend}
-                    disabled={!aiInput.trim() || isAiTyping}
-                    className="px-8 py-4 bg-ink text-white rounded-sm font-bold text-xs uppercase tracking-widest hover:bg-ink/90 transition-all disabled:opacity-50"
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            </WordLayout>
-          );
-        }
-
         if (activeTool === 'calculator') {
+          const balance = (Number(calcTuition) || 0) - (Number(calcPaid) || 0);
           return (
             <WordLayout 
               title="Fee Calculator"
@@ -4765,20 +4674,32 @@ function ExonaApp() {
                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Total Tuition Fee</label>
                     <div className="relative">
                       <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">{currencySymbol}</span>
-                      <input type="number" className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="0.00" />
+                      <input 
+                        type="number" 
+                        value={calcTuition}
+                        onChange={(e) => setCalcTuition(e.target.value)}
+                        className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" 
+                        placeholder="0.00" 
+                      />
                     </div>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Amount Paid</label>
                     <div className="relative">
                       <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-ink">{currencySymbol}</span>
-                      <input type="number" className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" placeholder="0.00" />
+                      <input 
+                        type="number" 
+                        value={calcPaid}
+                        onChange={(e) => setCalcPaid(e.target.value)}
+                        className="w-full pl-12 pr-6 py-4 bg-gray-50 border-none rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20 transition-all" 
+                        placeholder="0.00" 
+                      />
                     </div>
                   </div>
                   <div className="pt-8 border-t border-gray-50">
                     <div className="flex justify-between items-center mb-4">
                       <p className="text-sm font-bold text-muted uppercase tracking-widest">Outstanding Balance</p>
-                      <p className="text-3xl font-extrabold text-red-600">{currencySymbol}0.00</p>
+                      <p className="text-3xl font-extrabold text-red-600">{currencySymbol}{balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                     <button className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 transition-all">Generate Invoice Preview</button>
                   </div>
@@ -6611,8 +6532,8 @@ function ExonaApp() {
                 <SidebarItem 
                   icon={LayoutGrid} 
                   label="Tools Hub" 
-                  active={view === 'ai'} 
-                  onClick={() => { setView('ai'); setSidebarOpen(false); }} 
+                  active={view === 'tools'} 
+                  onClick={() => { setView('tools'); setSidebarOpen(false); }} 
                 />
                 
                 <div className="px-4 py-4">
@@ -6806,8 +6727,8 @@ function ExonaApp() {
           label="Chat"
         />
         <NavButton 
-          active={view === 'ai'} 
-          onClick={() => setView('ai')} 
+          active={view === 'tools'} 
+          onClick={() => setView('tools')} 
           icon={LayoutGrid} 
           label="Tools"
         />
