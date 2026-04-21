@@ -660,6 +660,7 @@ function ExonaApp() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [records, setRecords] = useState<Record[]>([]);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
+  const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
   const [allMessages, setAllMessages] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -2073,6 +2074,7 @@ function ExonaApp() {
   useEffect(() => {
     let unsubPosts = () => {};
     let unsubAllRecords = () => {};
+    let unsubAllAttendance = () => {};
     let unsubAllFinance = () => {};
     let unsubAllMessages = () => {};
     let unsubNotifications = () => {};
@@ -2152,9 +2154,14 @@ function ExonaApp() {
         // Non-admins see records for all institutions they own
         const ownedIds = [...schools, ...places].filter(s => s.creatorUid === user.uid).map(s => s.id);
         if (ownedIds.length > 0) {
-          const q = query(collection(db, 'studentRecords'), where('schoolId', 'in', ownedIds));
-          unsubAllRecords = onSnapshot(q, (snap) => {
+          const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', ownedIds));
+          unsubAllRecords = onSnapshot(qRecords, (snap) => {
             setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+          });
+
+          const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', ownedIds));
+          unsubAllAttendance = onSnapshot(qAttendance, (snap) => {
+            setAllAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
           });
         }
       }
@@ -2168,7 +2175,7 @@ function ExonaApp() {
       });
     }
 
-    return () => { unsubPosts(); unsubAllRecords(); unsubAllFinance(); unsubAllMessages(); };
+    return () => { unsubPosts(); unsubAllRecords(); unsubAllAttendance(); unsubAllFinance(); unsubAllMessages(); };
   }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id]);
 
   useEffect(() => {
@@ -4686,11 +4693,183 @@ function ExonaApp() {
         const tools = [
           { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
           { id: 'export', name: 'Download Center', description: 'Download complete institutional records and full history', icon: Download, color: 'blue-600' },
+          { id: 'export-attendance', name: 'Participation Hub', description: 'Export attendance and participation records', icon: Users, color: 'orange-600' },
+          { id: 'export-wallet', name: 'Wallet Center', description: 'Download wallet statements and financial history', icon: Wallet, color: 'green-600' },
           { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
           { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
           { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
         ];
+
+        if (activeTool === 'export-attendance') {
+          const baseAttendance = allAttendance.length > 0 ? allAttendance : attendance;
+          const filteredAttendance = baseAttendance.filter(a => {
+            if (!exportStartDate && !exportEndDate) return true;
+            const recordDate = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.date);
+            if (exportStartDate && recordDate < new Date(exportStartDate)) return false;
+            if (exportEndDate) {
+              const end = new Date(exportEndDate);
+              end.setHours(23, 59, 59, 999);
+              if (recordDate > end) return false;
+            }
+            return true;
+          });
+
+          return (
+            <WordLayout 
+              title="Participation records"
+              subtitle="Attendance & Activity Export"
+              icon={Users}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              toolbar={
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+                  <button 
+                    onClick={() => { setExportStartDate(''); setExportEndDate(''); }} 
+                    className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-sm"
+                  >
+                    All Participation
+                  </button>
+                </div>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Participation Archive</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Exona Attendance System • Generated on {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 mb-12 no-print">
+                <div className="flex flex-col md:flex-row md:items-end gap-6">
+                  <div className="flex-1 space-y-6">
+                    <h3 className="text-xs font-bold text-muted uppercase tracking-[0.2em]">Filter by Duration</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2 block">Start Date</label>
+                        <input 
+                          type="date" 
+                          value={exportStartDate}
+                          onChange={(e) => setExportStartDate(e.target.value)}
+                          className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-2 block">End Date</label>
+                        <input 
+                          type="date" 
+                          value={exportEndDate}
+                          onChange={(e) => setExportEndDate(e.target.value)}
+                          className="w-full px-6 py-4 bg-white border border-gray-200 rounded-2xl font-bold text-ink outline-none focus:ring-2 focus:ring-accent/20" 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => { setExportStartDate(''); setExportEndDate(''); }} 
+                    className="px-8 py-4 bg-white border border-gray-200 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all shadow-sm"
+                  >
+                    Reset Filter
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-ink">
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink">Date</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink">Name</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAttendance.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-20 text-center text-muted font-medium italic">No participation records found</td>
+                      </tr>
+                    ) : (
+                      filteredAttendance.map((a, i) => (
+                        <tr key={a.id} className="border-b border-gray-100">
+                          <td className="py-4 text-xs font-mono text-muted">{new Date(a.timestamp?.toDate?.() || a.date).toLocaleDateString()}</td>
+                          <td className="py-4 text-sm font-bold text-ink">{a.teacherName}</td>
+                          <td className="py-4 text-right">
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                              a.status === 'present' ? 'bg-green-100 text-green-600' :
+                              a.status === 'late' ? 'bg-yellow-100 text-yellow-600' :
+                              'bg-red-100 text-red-600'
+                            }`}>
+                              {a.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeTool === 'export-wallet') {
+          return (
+            <WordLayout 
+              title="Wallet statement"
+              subtitle="Financial Position & Account Summary"
+              icon={Wallet}
+              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Wallet Summary Statement</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Institutional Wallet Terminal • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm mb-12">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Total Balance</p>
+                    <p className="text-4xl font-black text-ink">{currencySymbol}{finance?.institutionBalance?.toLocaleString() || '0.00'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Account Name</p>
+                    <p className="text-lg font-bold text-ink uppercase tracking-tight">{finance?.accountName || 'Not Set'}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Wallet ID</p>
+                    <p className="text-sm font-mono font-bold text-ink">{finance?.accountNumber || '---'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-accent">
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink">Asset Description</th>
+                      <th className="py-4 text-[10px] font-bold uppercase tracking-widest text-ink text-right">Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-4 text-sm font-bold text-ink">Locked Balance (Fees Pending)</td>
+                      <td className="py-4 text-sm font-bold text-ink text-right">{currencySymbol}{allRecords.reduce((acc, r) => acc + r.balance, 0).toLocaleString()}</td>
+                    </tr>
+                    <tr className="border-b border-gray-100">
+                      <td className="py-4 text-sm font-bold text-ink">Settled Balance (Withdrawal Ready)</td>
+                      <td className="py-4 text-sm font-bold text-green-600 text-right">{currencySymbol}{(finance?.institutionBalance || 0).toLocaleString()}</td>
+                    </tr>
+                    <tr className="bg-ink text-white">
+                      <td className="py-6 px-6 text-xs font-black uppercase tracking-widest">Gross Institutional Worth</td>
+                      <td className="py-6 px-6 text-xl font-black text-right">{currencySymbol}{( (finance?.institutionBalance || 0) + allRecords.reduce((acc, r) => acc + r.balance, 0) ).toLocaleString()}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </WordLayout>
+          );
+        }
 
         if (activeTool === 'calculator') {
           const balance = (Number(calcTuition) || 0) - (Number(calcPaid) || 0);
