@@ -364,7 +364,9 @@ const WordLayout = ({
   toolbar,
   branding,
   showNotification,
-  handlePrint
+  handlePrint,
+  hideOfficialBadge = false,
+  hideSaveImage = false
 }: { 
   title: string, 
   subtitle: string, 
@@ -373,7 +375,9 @@ const WordLayout = ({
   toolbar?: React.ReactNode,
   branding?: { logo?: string, name?: string },
   showNotification: (msg: string, type?: 'success' | 'error') => void,
-  handlePrint: () => void
+  handlePrint: () => void,
+  hideOfficialBadge?: boolean,
+  hideSaveImage?: boolean
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -452,18 +456,20 @@ const WordLayout = ({
               <Printer size={14} />
               Print
             </button>
-            <button 
-              onClick={handleSaveAsImage}
-              disabled={isExporting}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all disabled:opacity-50"
-            >
-              {isExporting ? (
-                <div className="h-3 w-3 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
-              ) : (
-                <Download size={14} />
-              )}
-              {isExporting ? 'Exporting...' : 'Save as Image'}
-            </button>
+            {!hideSaveImage && (
+              <button 
+                onClick={handleSaveAsImage}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all disabled:opacity-50"
+              >
+                {isExporting ? (
+                  <div className="h-3 w-3 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+                ) : (
+                  <Download size={14} />
+                )}
+                {isExporting ? 'Exporting...' : 'Save as Image'}
+              </button>
+            )}
           </div>
         </div>
         {/* Toolbar / Ribbon Tabs */}
@@ -493,7 +499,7 @@ const WordLayout = ({
               )}
               <div>
                 <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || 'EXONA'}</h1>
-                <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>
+                {!hideOfficialBadge && <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>}
                 {branding && (
                   <div className="flex items-center gap-1 mt-2">
                     <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
@@ -4449,6 +4455,8 @@ function ExonaApp() {
             icon={Wallet}
             showNotification={showNotification}
             handlePrint={handlePrint}
+            hideOfficialBadge={true}
+            hideSaveImage={true}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap items-center gap-2">
@@ -5738,6 +5746,8 @@ function ExonaApp() {
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
