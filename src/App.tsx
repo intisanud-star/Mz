@@ -354,6 +354,7 @@ const WordLayout = ({
         cacheBust: true,
         backgroundColor: '#ffffff',
         pixelRatio: 2,
+        skipFonts: false,
         style: {
           transform: 'scale(1)',
           transformOrigin: 'top left',
@@ -367,6 +368,7 @@ const WordLayout = ({
       link.click();
     } catch (err) {
       console.error('Failed to save as image:', err);
+      showNotification('Failed to save as image. Please try the Print option.', 'error');
     } finally {
       setIsExporting(false);
     }
@@ -752,6 +754,7 @@ function ExonaApp() {
         cacheBust: true,
         backgroundColor: '#ffffff',
         pixelRatio: 4, // High quality
+        skipFonts: false,
       });
       const link = document.createElement('a');
       link.download = `exona-receipt-${recordForReceipt?.studentName.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
@@ -759,6 +762,7 @@ function ExonaApp() {
       link.click();
     } catch (err) {
       console.error('Failed to generate receipt:', err);
+      showNotification('Failed to generate receipt image. Try the Print option.', 'error');
     } finally {
       setIsExporting(false);
     }
@@ -2286,17 +2290,13 @@ function ExonaApp() {
           handleFirestoreError(error, OperationType.LIST, 'finance');
         });
       } else {
-        // Non-admins see records for all institutions they own OR are specifically authorized to view
+        // Non-admins see records for institutions they own, manage, OR follow (for complete access)
         const ownedIds = [...schools, ...places].filter(s => s.creatorUid === user.uid).map(s => s.id);
-        const authorizedIds = [...ownedIds];
+        const followedIds = [...schools, ...places].filter(s => s.followers?.includes(user.uid)).map(s => s.id);
+        const viewerIds = [...schools, ...places].filter(s => s.administrativeViewers?.includes(user.uid)).map(s => s.id);
         
-        if (selectedSchool && !authorizedIds.includes(selectedSchool.id)) {
-          const isAuthorized = selectedSchool.administrativeViewers?.includes(user.uid);
-          if (isAuthorized) {
-            authorizedIds.push(selectedSchool.id);
-          }
-        }
-
+        const authorizedIds = Array.from(new Set([...ownedIds, ...followedIds, ...viewerIds]));
+        
         if (authorizedIds.length > 0) {
           const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', authorizedIds));
           unsubAllRecords = onSnapshot(qRecords, (snap) => {
@@ -2664,7 +2664,10 @@ function ExonaApp() {
     if (!user || !userDoc) return false;
     if (userDoc.role === 'admin') return true;
     if (!school) return false;
-    return school.creatorUid === user.uid || school.administrativeViewers?.includes(user.uid);
+    // EXTENDED ACCESS: Creators, Administrative Viewers, and Approved Followers have access
+    return school.creatorUid === user.uid || 
+           school.administrativeViewers?.includes(user.uid) || 
+           school.followers?.includes(user.uid);
   };
 
 
@@ -5278,17 +5281,17 @@ function ExonaApp() {
               r.type
             ]);
             
-            const csvContent = "data:text/csv;charset=utf-8," 
-              + headers.join(",") + "\n"
-              + rows.map(e => e.join(",")).join("\n");
-              
-            const encodedUri = encodeURI(csvContent);
+            const csvContent = headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `exona_records_${new Date().getTime()}.csv`);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `${userInstitution?.name?.toLowerCase().replace(/\s+/g, '-') || 'exona'}-records-${new Date().getTime()}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(url);
           };
 
           const categories: { id: typeof exportCategory, label: string }[] = [
@@ -7121,7 +7124,7 @@ function ExonaApp() {
                       return (
                         <>
                           {userInstitution?.logo ? (
-                            <img src={userInstitution.logo} className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" referrerPolicy="no-referrer" />
+                            <img src={userInstitution.logo} className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                           ) : (
                             <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl shadow-ink/20">
                               {userInstitution?.name?.charAt(0) || 'E'}
@@ -7213,14 +7216,24 @@ function ExonaApp() {
                   )}
                   {isExporting ? 'Generating...' : 'Save as Image'}
                 </button>
-                <button 
-                  onClick={() => setIsReceiptModalOpen(false)}
-                  disabled={isExporting}
-                  className="w-full py-5 bg-white/10 text-white border border-white/20 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
-                >
-                  <ArrowLeft size={18} />
-                  Back to Records
-                </button>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => { window.print(); }}
+                    disabled={isExporting}
+                    className="py-5 bg-white text-ink border border-gray-200 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                  >
+                    <Printer size={18} />
+                    Print
+                  </button>
+                  <button 
+                    onClick={() => setIsReceiptModalOpen(false)}
+                    disabled={isExporting}
+                    className="py-5 bg-white/10 text-white border border-white/20 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                  >
+                    <X size={18} />
+                    Close
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
