@@ -353,6 +353,7 @@ const WordLayout = ({
       const dataUrl = await toPng(contentRef.current, {
         cacheBust: true,
         backgroundColor: '#ffffff',
+        pixelRatio: 2,
         style: {
           transform: 'scale(1)',
           transformOrigin: 'top left',
@@ -371,6 +372,10 @@ const WordLayout = ({
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="flex flex-col bg-white">
       {/* Ribbon Header */}
@@ -386,6 +391,13 @@ const WordLayout = ({
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-2 shrink-0">
+            <button 
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-3 py-1.5 bg-white text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all"
+            >
+              <Printer size={14} />
+              Print
+            </button>
             <button 
               onClick={handleSaveAsImage}
               disabled={isExporting}
@@ -419,7 +431,7 @@ const WordLayout = ({
           <div className="flex justify-between items-start mb-20">
             <div className="flex items-center gap-3">
               {branding?.logo ? (
-                <img src={branding.logo} className="h-12 w-12 rounded-2xl object-cover shrink-0" referrerPolicy="no-referrer" />
+                <img src={branding.logo} className="h-12 w-12 rounded-2xl object-cover shrink-0" referrerPolicy="no-referrer" crossOrigin="anonymous" />
               ) : (
                 <div className="h-12 w-12 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-xl shrink-0">
                   {branding?.name?.charAt(0) || 'E'}
@@ -5255,6 +5267,30 @@ function ExonaApp() {
             return true;
           });
 
+          const downloadCSV = () => {
+            const headers = ['Date', 'Student Name', 'Category', 'Paid', 'Balance', 'Type'];
+            const rows = filteredRecords.map(r => [
+              new Date(r.timestamp?.toDate?.() || r.timestamp).toLocaleDateString(),
+              r.studentName,
+              r.category,
+              r.paid,
+              r.balance,
+              r.type
+            ]);
+            
+            const csvContent = "data:text/csv;charset=utf-8," 
+              + headers.join(",") + "\n"
+              + rows.map(e => e.join(",")).join("\n");
+              
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `exona_records_${new Date().getTime()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
           const categories: { id: typeof exportCategory, label: string }[] = [
             { id: 'all', label: 'All Records' },
             { id: 'general', label: 'General' },
@@ -5275,9 +5311,16 @@ function ExonaApp() {
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
                   <button 
                     onClick={() => { setExportStartDate(''); setExportEndDate(''); }} 
-                    className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-sm"
+                    className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
                   >
                     Load Full Record
+                  </button>
+                  <button 
+                    onClick={downloadCSV}
+                    className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-sm flex items-center gap-2"
+                  >
+                    <FileText size={14} />
+                    Download CSV
                   </button>
                 </div>
               }
