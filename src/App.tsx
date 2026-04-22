@@ -334,14 +334,18 @@ const WordLayout = ({
   icon: Icon, 
   children, 
   toolbar,
-  branding
+  branding,
+  showNotification,
+  handlePrint
 }: { 
   title: string, 
   subtitle: string, 
   icon: any, 
   children: React.ReactNode, 
   toolbar?: React.ReactNode,
-  branding?: { logo?: string, name?: string }
+  branding?: { logo?: string, name?: string },
+  showNotification: (msg: string, type?: 'success' | 'error') => void,
+  handlePrint: () => void
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -398,10 +402,6 @@ const WordLayout = ({
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <div className="flex flex-col bg-white">
       {/* Ribbon Header */}
@@ -450,7 +450,7 @@ const WordLayout = ({
           ref={contentRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-4 sm:p-8 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 shadow-2xl shadow-gray-200/50"
+          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-4 sm:p-8 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 shadow-2xl shadow-gray-200/50 print-content"
         >
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
@@ -1084,6 +1084,16 @@ function ExonaApp() {
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  const handlePrint = () => {
+    // Check if we are in Telegram Mini App
+    const isTelegram = (window as any).Telegram?.WebApp?.initData;
+    if (isTelegram) {
+      showNotification('Printing is restricted in Telegram. Please use Save as Image or take a screenshot.', 'error');
+      return;
+    }
+    window.print();
   };
 
   useEffect(() => {
@@ -3962,6 +3972,8 @@ function ExonaApp() {
             title={`${selectedSchool.name} Records`}
             subtitle={labels.system}
             icon={Database}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
@@ -4214,6 +4226,8 @@ function ExonaApp() {
             title={`${selectedSchool.name} Wallet`}
             subtitle="Institutional Financial Terminal"
             icon={Wallet}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap items-center gap-2">
@@ -4349,6 +4363,8 @@ function ExonaApp() {
             title={`${selectedSchool.name} ${labels.attendance}`}
             subtitle={labels.attendance}
             icon={Compass}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap items-center gap-2">
@@ -5087,6 +5103,8 @@ function ExonaApp() {
               subtitle="Attendance & Activity Export"
               icon={Users}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <div className="flex items-center gap-4">
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
@@ -5183,6 +5201,8 @@ function ExonaApp() {
               subtitle="Financial Position & Account Summary"
               icon={Wallet}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5245,6 +5265,8 @@ function ExonaApp() {
               subtitle="Institutional Financial Utility"
               icon={Calculator}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5369,6 +5391,8 @@ function ExonaApp() {
               subtitle="Data Export & Archival"
               icon={Download}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <div className="flex items-center gap-4">
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
@@ -5508,6 +5532,8 @@ function ExonaApp() {
               subtitle="Disciplinary Records & Notices"
               icon={ShieldAlert}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5537,6 +5563,8 @@ function ExonaApp() {
               subtitle="Growth & Rewards Program"
               icon={Gift}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5588,6 +5616,8 @@ function ExonaApp() {
               subtitle="Institutional Identity Utility"
               icon={IdCard}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5617,6 +5647,8 @@ function ExonaApp() {
               subtitle="Analytical Intelligence Utility"
               icon={FileBarChart}
               branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5645,6 +5677,8 @@ function ExonaApp() {
             subtitle={canAccessAdmin && !isOwner ? "Authorized Access" : "Institutional Utility Suite"}
             icon={LayoutGrid}
             branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
               <h1 className="text-4xl font-extrabold text-ink mb-2">Utility Terminal</h1>
@@ -5679,6 +5713,8 @@ function ExonaApp() {
             title="Penalty Board"
             subtitle="Disciplinary Records & Notices"
             icon={ShieldCheck}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
             toolbar={
               <div className="flex items-center gap-4">
                 <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all">Filter</button>
@@ -7172,7 +7208,7 @@ function ExonaApp() {
               </div>
 
               {/* The Receipt Captured Area */}
-              <div ref={receiptRef} className="bg-white p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+              <div ref={receiptRef} className="bg-white p-8 rounded-3xl shadow-2xl relative overflow-hidden print-content">
                 {/* Background Decor */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16" />
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-ink/5 rounded-full -ml-24 -mb-24" />
@@ -7278,7 +7314,7 @@ function ExonaApp() {
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   <button 
-                    onClick={() => { window.print(); }}
+                    onClick={handlePrint}
                     disabled={isExporting}
                     className="py-5 bg-white text-ink border border-gray-200 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
                   >
@@ -7299,7 +7335,7 @@ function ExonaApp() {
           </motion.div>
         )}
 
-        {/* Sidebar Navigation */}
+      {/* Sidebar Navigation */}
         {sidebarOpen && (
           <>
             <motion.div 
@@ -7307,14 +7343,14 @@ function ExonaApp() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 bg-ink/20 backdrop-blur-sm z-[150]"
+              className="fixed inset-0 bg-ink/20 backdrop-blur-sm z-[150] no-print"
             />
             <motion.div 
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-80 bg-white z-[160] flex flex-col border-r border-gray-100"
+              className="fixed inset-y-0 left-0 w-80 bg-white z-[160] flex flex-col border-r border-gray-100 no-print"
             >
               <div className="p-6 bg-ink text-white flex flex-col gap-4">
                 <div className="flex items-center justify-between">
@@ -7434,7 +7470,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      <header className="h-16 bg-card/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100">
+      <header className="h-16 bg-card/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 no-print">
         <div className="flex items-center gap-8 h-full">
           <button 
             onClick={() => setView('feed')}
@@ -7554,7 +7590,7 @@ function ExonaApp() {
       </main>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-xs">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-xs no-print">
         <NavButton 
           active={view === 'chat'} 
           onClick={() => setView('chat')} 

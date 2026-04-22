@@ -118,3 +118,30 @@
     background: #D1D5DB;
   }
 }
+
+@media print {
+  .no-print,
+  aside,
+  nav,
+  button,
+  .sidebar-container,
+  .mobile-top-nav,
+  .bottom-nav {
+    display: none !important;
+  }
+  
+  body {
+    background-color: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
