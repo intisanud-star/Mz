@@ -698,6 +698,9 @@ function ExonaApp() {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [postsLimit, setPostsLimit] = useState(10);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [records, setRecords] = useState<Record[]>([]);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
@@ -2294,20 +2297,29 @@ function ExonaApp() {
       if (relevantIds.length > 0) {
         const limitedIds = relevantIds.slice(0, 30);
         
-        const qAuthor = query(collection(db, 'posts'), where('authorUid', 'in', limitedIds), orderBy('timestamp', 'desc'));
-        const qSchool = query(collection(db, 'posts'), where('schoolId', 'in', limitedIds), orderBy('timestamp', 'desc'));
+        const qAuthor = query(collection(db, 'posts'), where('authorUid', 'in', limitedIds), orderBy('timestamp', 'desc'), limit(postsLimit));
+        const qSchool = query(collection(db, 'posts'), where('schoolId', 'in', limitedIds), orderBy('timestamp', 'desc'), limit(postsLimit));
         
         const unsubAuthor = onSnapshot(qAuthor, (snap) => {
           const authorPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
           setPosts(prev => {
             const otherPosts = prev.filter(p => !authorPosts.find(ap => ap.id === p.id));
-            return [...otherPosts, ...authorPosts].sort((a, b) => {
+            const merged = [...otherPosts, ...authorPosts].sort((a, b) => {
               const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
               const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
               return tB - tA;
             });
+            return merged;
           });
+          setIsLoadingMore(false);
+          // Simple check for more posts: if we get fewer than limit, we might be at the end
+          if (authorPosts.length < postsLimit) {
+            setHasMorePosts(false);
+          } else {
+            setHasMorePosts(true);
+          }
         }, (error) => {
+          setIsLoadingMore(false);
           if (!error.message.includes('insufficient permissions')) {
             handleFirestoreError(error, OperationType.LIST, 'posts (author)');
           }
@@ -2317,13 +2329,19 @@ function ExonaApp() {
           const schoolPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
           setPosts(prev => {
             const otherPosts = prev.filter(p => !schoolPosts.find(sp => sp.id === p.id));
-            return [...otherPosts, ...schoolPosts].sort((a, b) => {
+            const merged = [...otherPosts, ...schoolPosts].sort((a, b) => {
               const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
               const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
               return tB - tA;
             });
+            return merged;
           });
+          setIsLoadingMore(false);
+          if (schoolPosts.length < postsLimit && hasMorePosts) {
+            // Only set false if authorPosts was also short (approximated)
+          }
         }, (error) => {
+          setIsLoadingMore(false);
           if (!error.message.includes('insufficient permissions')) {
             handleFirestoreError(error, OperationType.LIST, 'posts (school)');
           }
@@ -2373,7 +2391,32 @@ function ExonaApp() {
     }
 
     return () => { unsubPosts(); unsubAllRecords(); unsubAllAttendance(); unsubAllFinance(); unsubAllMessages(); };
-  }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id]);
+  }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id, postsLimit]);
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMorePosts) return;
+    setIsLoadingMore(true);
+    setPostsLimit(prev => prev + 10);
+  };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (view !== 'feed') return;
+      
+      const scrollHeight = document.documentElement.scrollHeight;
+      const scrollTop = document.documentElement.scrollTop;
+      const clientHeight = document.documentElement.clientHeight;
+      
+      if (scrollTop + clientHeight >= scrollHeight - 300) {
+        if (!isLoadingMore && hasMorePosts) {
+          handleLoadMore();
+        }
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isLoadingMore, hasMorePosts, view]);
 
   useEffect(() => {
     if (!selectedSchool) return;
@@ -3128,9 +3171,9 @@ function ExonaApp() {
                       if (globalSearch.trim() !== '') return true;
                       // Admins see all
                       if (userDoc?.role === 'admin') return true;
-                      // Otherwise only show followed or created
-                      return s.followers?.includes(user?.uid || '') || 
-                             s.creatorUid === user?.uid;
+                      // Otherwise only show created or where user is an administrative viewer
+                      return s.creatorUid === user?.uid || 
+                             s.administrativeViewers?.includes(user?.uid || '');
                     })
                     .map(school => {
                       const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -3226,6 +3269,30 @@ function ExonaApp() {
                       />
                     );
                   })
+                )}
+
+                {posts.length > 0 && hasMorePosts && (
+                  <div className="py-12 flex flex-col items-center">
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                      className={`px-10 py-5 bg-white border border-gray-100 text-ink rounded-3xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-gray-50 transition-all flex items-center gap-3 disabled:opacity-50 ${isLoadingMore ? 'cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
+                    >
+                      {isLoadingMore ? (
+                        <div className="h-4 w-4 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+                      ) : (
+                        <ChevronDown size={18} />
+                      )}
+                      {isLoadingMore ? 'Synchronizing...' : 'Show More Broadcasts'}
+                    </button>
+                  </div>
+                )}
+
+                {!hasMorePosts && posts.length > 0 && (
+                  <div className="py-16 text-center">
+                    <div className="h-1 w-12 bg-gray-100 mx-auto rounded-full mb-6" />
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">End of Transmission</p>
+                  </div>
                 )}
               </div>
             )}
