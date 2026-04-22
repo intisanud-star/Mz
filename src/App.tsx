@@ -11,7 +11,7 @@ import {
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
