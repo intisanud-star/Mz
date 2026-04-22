@@ -486,7 +486,21 @@ const WordLayout = ({
   );
 };
 
-const FeedPost = ({ post, onUserClick, onLike, onComment, onMessage, onReshare, onForward, onEdit, onDelete, currentUserId, canManage, canReply = true }: any) => {
+const FeedPost = ({ 
+  post, 
+  onUserClick, 
+  onInstitutionClick,
+  onLike, 
+  onComment, 
+  onMessage, 
+  onReshare, 
+  onForward, 
+  onEdit, 
+  onDelete, 
+  currentUserId, 
+  canManage, 
+  canReply = true 
+}: any) => {
   const [showMenu, setShowMenu] = useState(false);
   const isLiked = post.likedBy?.includes(currentUserId);
   const isOwnPost = post.authorUid === currentUserId;
@@ -530,6 +544,15 @@ const FeedPost = ({ post, onUserClick, onLike, onComment, onMessage, onReshare, 
               {formatTime(post.timestamp)}
             </span>
           </button>
+
+          {post.schoolId && (
+            <button 
+              onClick={() => onInstitutionClick?.(post.schoolId)}
+              className="ml-auto px-2 py-0.5 rounded-md bg-gray-50 text-[10px] font-bold text-accent uppercase tracking-widest hover:bg-accent/5 transition-colors max-w-[100px] truncate"
+            >
+              {post.schoolName || 'Institution'}
+            </button>
+          )}
 
           <div className="relative">
             <button 
@@ -674,7 +697,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -754,6 +777,7 @@ function ExonaApp() {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [selectedInstitutionForProfile, setSelectedInstitutionForProfile] = useState<School | Place | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState<UserDoc[]>([]);
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
@@ -2594,6 +2618,14 @@ function ExonaApp() {
     }
   };
 
+  const handleInstitutionClick = (id: string) => {
+    const inst = [...schools, ...places].find(i => i.id === id);
+    if (inst) {
+      setSelectedInstitutionForProfile(inst);
+      setView('institution-profile');
+    }
+  };
+
   const handleMessageAuthor = (post: any) => {
     setActiveChat({
       uid: post.authorUid,
@@ -3184,7 +3216,7 @@ function ExonaApp() {
                         >
                           <div 
                             className="cursor-pointer mb-4 flex items-start gap-3"
-                            onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                            onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
                           >
                             <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
                               {school.logo ? (
@@ -3256,6 +3288,7 @@ function ExonaApp() {
                         key={post.id} 
                         post={post} 
                         onUserClick={handleUserClick}
+                        onInstitutionClick={handleInstitutionClick}
                         onLike={handleLikePost}
                         onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                         onMessage={handleMessageAuthor}
@@ -3264,7 +3297,7 @@ function ExonaApp() {
                         onEdit={handleEditPost}
                         onDelete={onDeletePostClick}
                         currentUserId={user?.uid}
-                        canManage={userDoc?.role === 'admin'}
+                        canManage={userDoc?.role === 'admin' || (post.schoolId && [...schools, ...places].find(s => s.id === post.schoolId)?.creatorUid === user?.uid)}
                         canReply={canUserReply(post, school)}
                       />
                     );
@@ -3663,6 +3696,7 @@ function ExonaApp() {
                       key={post.id} 
                       post={post} 
                       onUserClick={handleUserClick}
+                      onInstitutionClick={handleInstitutionClick}
                       onLike={handleLikePost}
                       onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                       onMessage={handleMessageAuthor}
@@ -3777,6 +3811,7 @@ function ExonaApp() {
                     key={post.id} 
                     post={post} 
                     onUserClick={handleUserClick}
+                    onInstitutionClick={handleInstitutionClick}
                     onLike={handleLikePost}
                     onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                     onMessage={handleMessageAuthor}
@@ -3785,7 +3820,8 @@ function ExonaApp() {
                     onEdit={handleEditPost}
                     onDelete={onDeletePostClick}
                     currentUserId={user?.uid}
-                    canReply={canUserReply(post, school)}
+                    canManage={userDoc?.role === 'admin' || (post.schoolId && [...schools, ...places].find(s => s.id === post.schoolId)?.creatorUid === user?.uid)}
+                    canReply={canUserReply(post, school || undefined)}
                   />
                 );
               })}
@@ -4569,6 +4605,169 @@ function ExonaApp() {
           </WordLayout>
         );
       }
+      case 'institution-profile': {
+        const inst = selectedInstitutionForProfile;
+        if (!inst) { setView('feed'); return null; }
+
+        const institutionPosts = posts.filter(p => p.schoolId === inst.id);
+        const isFollowing = userDoc?.following?.includes(inst.id);
+        const canManage = userDoc?.role === 'admin' || inst.creatorUid === user?.uid || inst.administrativeViewers?.includes(user?.uid || '');
+        const instLabels = getLabels(inst.type);
+
+        return (
+          <div className="flex flex-col bg-card pb-32">
+            {/* Header / Cover area */}
+            <div className="relative h-48 bg-gray-50 flex items-center justify-center border-b border-gray-100">
+              <button 
+                onClick={() => setView('feed')}
+                className="absolute top-6 left-6 h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm z-10"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white shadow-2xl flex items-center justify-center overflow-hidden">
+                {inst.logo ? (
+                  <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="text-3xl font-black text-accent">{inst.name.charAt(0)}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="px-6 pt-16">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex-1 min-w-0 pr-4">
+                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate">{inst.name}</h2>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent bg-accent/5 px-2 py-0.5 rounded-full">{inst.type}</span>
+                    {inst.type === 'place' && (inst as Place).category && (
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted bg-gray-50 px-2 py-0.5 rounded-full">{(inst as Place).category}</span>
+                    )}
+                  </div>
+                  <p className="text-[14px] text-muted leading-relaxed whitespace-pre-wrap">{inst.description || "No description provided."}</p>
+                </div>
+                
+                <div className="flex flex-col gap-2 shrink-0">
+                  {user && user.uid !== inst.creatorUid && (
+                    <>
+                      {isFollowing ? (
+                        <button 
+                          onClick={() => handleUnfollowInstitution(inst)}
+                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-ink text-white shadow-ink/20 hover:bg-red-600 transition-all shadow-xl group"
+                        >
+                          <span className="group-hover:hidden">Following</span>
+                          <span className="hidden group-hover:inline">Unfollow</span>
+                        </button>
+                      ) : inst.pendingFollowers?.includes(user.uid) ? (
+                        <button 
+                          disabled
+                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-gray-100 text-muted/50 cursor-not-allowed shadow-sm"
+                        >
+                          Pending
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleFollowInstitution(inst)}
+                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-accent text-white shadow-accent/20 hover:scale-105 active:scale-95 transition-all shadow-xl"
+                        >
+                          Follow
+                        </button>
+                      )}
+                    </>
+                  )}
+                  {canManage && (
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); setView('school-feed'); }}
+                      className="px-8 py-3 rounded-2xl text-sm font-bold bg-white border border-gray-200 text-ink hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Settings size={16} /> Manage
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Stats / Info */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="p-4 bg-gray-50 rounded-2xl">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Followers</p>
+                  <p className="text-xl font-black text-ink">{(inst.followers?.length || 0).toLocaleString()}</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-2xl">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Posts</p>
+                  <p className="text-xl font-black text-ink">{institutionPosts.length.toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Admin Quick Actions */}
+              {canManage && (
+                <div className="mb-10">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">Administrative Access</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records'); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 hover:shadow-xl hover:shadow-gray-100 rounded-2xl transition-all group"
+                    >
+                      <ClipboardList size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.student} Records</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance'); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 hover:shadow-xl hover:shadow-gray-100 rounded-2xl transition-all group"
+                    >
+                      <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('finance'); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 hover:shadow-xl hover:shadow-gray-100 rounded-2xl transition-all group"
+                    >
+                      <Wallet size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">Wallet</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Posts Section */}
+              <div className="border-t border-gray-100 pt-10">
+                <div className="flex items-center justify-between mb-8">
+                  <h3 className="text-xl font-black text-ink tracking-tight">Recent Broadcasts</h3>
+                  <div className="h-0.5 flex-1 mx-6 bg-gray-50" />
+                </div>
+
+                {institutionPosts.length === 0 ? (
+                  <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
+                    <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-muted border border-gray-100">
+                      <MessageSquare size={24} className="opacity-20" />
+                    </div>
+                    <p className="text-sm font-bold text-muted">No broadcasts from this institution yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {institutionPosts.map(post => (
+                      <FeedPost 
+                        key={post.id} 
+                        post={post} 
+                        onUserClick={handleUserClick}
+                        onInstitutionClick={handleInstitutionClick}
+                        onLike={handleLikePost}
+                        onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                        onMessage={handleMessageAuthor}
+                        onReshare={handleResharePost}
+                        onForward={handleForwardPost}
+                        onEdit={handleEditPost}
+                        onDelete={onDeletePostClick}
+                        currentUserId={user?.uid}
+                        canManage={canManage}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
       case 'search': {
         const query = globalSearch.toLowerCase();
         const filteredInstitutions = [...schools, ...places].filter(inst => 
@@ -4610,13 +4809,8 @@ function ExonaApp() {
                       <button 
                         key={inst.id}
                         onClick={() => {
-                          if (inst.type === 'school') {
-                            setSelectedSchool(inst as School);
-                            setView('school-feed');
-                          } else {
-                            setSelectedPlace(inst as Place);
-                            setView('place-feed');
-                          }
+                          setSelectedInstitutionForProfile(inst);
+                          setView('institution-profile');
                         }}
                         className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group flex items-center gap-4"
                       >
