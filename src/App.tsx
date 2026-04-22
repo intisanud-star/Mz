@@ -346,6 +346,33 @@ const WordLayout = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
 
+  const triggerDownload = (url: string, fileName: string) => {
+    // Check if we are in Telegram Mini App
+    const isTelegram = (window as any).Telegram?.WebApp?.initData;
+    
+    if (isTelegram && url.startsWith('data:')) {
+      // In Telegram, direct blob/base64 downloads often fail
+      // We'll try to show it in a new window or use Telegram's openLink if it's a real URL
+      // For images, showing them in a new window allows long-press "Save to Gallery"
+      const newWin = window.open();
+      if (newWin) {
+        newWin.document.write(`<img src="${url}" style="width: 100%; height: auto;" />`);
+        newWin.document.title = fileName;
+        showNotification('Image opened. Long-press to save to your device.');
+      } else {
+        showNotification('Please allow popups to save images');
+      }
+      return;
+    }
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleSaveAsImage = async () => {
     if (!contentRef.current) return;
     setIsExporting(true);
@@ -353,7 +380,7 @@ const WordLayout = ({
       const dataUrl = await toPng(contentRef.current, {
         cacheBust: true,
         backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        pixelRatio: 1.5, // Lower for mobile memory
         skipFonts: false,
         style: {
           transform: 'scale(1)',
@@ -362,13 +389,10 @@ const WordLayout = ({
           height: contentRef.current.offsetHeight + 'px',
         }
       });
-      const link = document.createElement('a');
-      link.download = `${branding?.name?.toLowerCase().replace(/\s+/g, '-') || 'exona'}-${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
-      link.href = dataUrl;
-      link.click();
+      triggerDownload(dataUrl, `${branding?.name?.toLowerCase().replace(/\s+/g, '-') || 'exona'}-${title.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`);
     } catch (err) {
       console.error('Failed to save as image:', err);
-      showNotification('Failed to save as image. Please try the Print option.', 'error');
+      showNotification('Failed to save image. Try the Print option or Screenshot.', 'error');
     } finally {
       setIsExporting(false);
     }
@@ -753,16 +777,35 @@ function ExonaApp() {
       const dataUrl = await toPng(receiptRef.current, {
         cacheBust: true,
         backgroundColor: '#ffffff',
-        pixelRatio: 4, // High quality
+        pixelRatio: 2, // Slightly lower for mobile stability
         skipFonts: false,
       });
-      const link = document.createElement('a');
-      link.download = `exona-receipt-${recordForReceipt?.studentName.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
-      link.href = dataUrl;
-      link.click();
+      
+      const fileName = `exona-receipt-${recordForReceipt?.studentName.toLowerCase().replace(/\s+/g, '-')}-${new Date().getTime()}.png`;
+      
+      // Check if we are in Telegram Mini App
+      const isTelegram = (window as any).Telegram?.WebApp?.initData;
+      if (isTelegram) {
+        // Open in new tab for gallery save
+        const newWin = window.open();
+        if (newWin) {
+          newWin.document.write(`<img src="${dataUrl}" style="width: 100%; height: auto;" />`);
+          newWin.document.title = fileName;
+          showNotification('Receipt ready. Long-press to save.');
+        } else {
+          showNotification('Popup blocked. Please check settings.');
+        }
+      } else {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (err) {
       console.error('Failed to generate receipt:', err);
-      showNotification('Failed to generate receipt image. Try the Print option.', 'error');
+      showNotification('Failed to generate receipt image. Try Print or Screenshot.', 'error');
     } finally {
       setIsExporting(false);
     }
@@ -5285,12 +5328,29 @@ function ExonaApp() {
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `${userInstitution?.name?.toLowerCase().replace(/\s+/g, '-') || 'exona'}-records-${new Date().getTime()}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const fileName = `${userInstitution?.name?.toLowerCase().replace(/\s+/g, '-') || 'exona'}-records-${new Date().getTime()}.csv`;
+            
+            // Check if we are in Telegram Mini App
+            const isTelegram = (window as any).Telegram?.WebApp?.initData;
+            if (isTelegram) {
+               // For CSV in Telegram, we can't easily "download". 
+               // Best is to open as text in new window or provide a copyable version
+               const newWin = window.open();
+               if (newWin) {
+                 newWin.document.write(`<pre style="word-wrap: break-word; white-space: pre-wrap;">${csvContent}</pre>`);
+                 newWin.document.title = fileName;
+                 showNotification('Data opened. You can select all and copy.');
+               } else {
+                 showNotification('Popup blocked. Accessing records via Vercel browser is recommended for downloads.');
+               }
+            } else {
+              const link = document.createElement("a");
+              link.setAttribute("href", url);
+              link.setAttribute("download", fileName);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
             URL.revokeObjectURL(url);
           };
 
