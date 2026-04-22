@@ -4462,16 +4462,8 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
-                  <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
-                  <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Institutional Wallet Terminal • {new Date().toLocaleDateString()}</p>
-                </div>
-                <div className="bg-ink text-white px-8 py-6 rounded-3xl min-w-[240px]">
-                  <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">Available Balance</p>
-                  <h3 className="text-4xl font-mono font-medium tracking-tighter">{currencySymbol}{finance?.institutionBalance?.toLocaleString() || '0'}</h3>
-                </div>
-              </div>
+              <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Institutional Wallet Terminal • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
@@ -5756,11 +5748,7 @@ function ExonaApp() {
               </div>
 
               <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm mb-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Total Balance</p>
-                    <p className="text-4xl font-black text-ink">{currencySymbol}{finance?.institutionBalance?.toLocaleString() || '0.00'}</p>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-12">
                   <div className="space-y-2">
                     <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Account Name</p>
                     <p className="text-lg font-bold text-ink uppercase tracking-tight">{finance?.accountName || 'Not Set'}</p>
@@ -5785,13 +5773,9 @@ function ExonaApp() {
                       <td className="py-4 text-sm font-bold text-ink">Locked Balance (Fees Pending)</td>
                       <td className="py-4 text-sm font-bold text-ink text-right">{currencySymbol}{allRecords.reduce((acc, r) => acc + r.balance, 0).toLocaleString()}</td>
                     </tr>
-                    <tr className="border-b border-gray-100">
-                      <td className="py-4 text-sm font-bold text-ink">Settled Balance (Withdrawal Ready)</td>
-                      <td className="py-4 text-sm font-bold text-green-600 text-right">{currencySymbol}{(finance?.institutionBalance || 0).toLocaleString()}</td>
-                    </tr>
                     <tr className="bg-ink text-white">
-                      <td className="py-6 px-6 text-xs font-black uppercase tracking-widest">Gross Institutional Worth</td>
-                      <td className="py-6 px-6 text-xl font-black text-right">{currencySymbol}{( (finance?.institutionBalance || 0) + allRecords.reduce((acc, r) => acc + r.balance, 0) ).toLocaleString()}</td>
+                      <td className="py-6 px-6 text-xs font-black uppercase tracking-widest">Gross Institutional Worth (Pending)</td>
+                      <td className="py-6 px-6 text-xl font-black text-right">{currencySymbol}{allRecords.reduce((acc, r) => acc + r.balance, 0).toLocaleString()}</td>
                     </tr>
                   </tbody>
                 </table>
