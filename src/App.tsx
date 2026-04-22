@@ -366,7 +366,9 @@ const WordLayout = ({
   showNotification,
   handlePrint,
   hideOfficialBadge = false,
-  hideSaveImage = false
+  hideSaveImage = false,
+  hideBranding = false,
+  hideIcon = false
 }: { 
   title: string, 
   subtitle: string, 
@@ -377,7 +379,9 @@ const WordLayout = ({
   showNotification: (msg: string, type?: 'success' | 'error') => void,
   handlePrint: () => void,
   hideOfficialBadge?: boolean,
-  hideSaveImage?: boolean
+  hideSaveImage?: boolean,
+  hideBranding?: boolean,
+  hideIcon?: boolean
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -440,9 +444,11 @@ const WordLayout = ({
       <div className="bg-white border-b border-gray-200 z-20 sticky top-0 no-print">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="h-8 w-8 bg-ink rounded-lg flex items-center justify-center text-white shrink-0">
-              <Icon size={18} />
-            </div>
+            {!hideIcon && (
+              <div className="h-8 w-8 bg-ink rounded-lg flex items-center justify-center text-white shrink-0">
+                <Icon size={18} />
+              </div>
+            )}
             <div className="min-w-0">
               <h2 className="text-sm font-bold text-ink leading-none truncate font-display">{title}</h2>
               <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1 truncate">{subtitle}</p>
@@ -489,25 +495,33 @@ const WordLayout = ({
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
           <div className="flex justify-between items-start mb-20">
-            <div className="flex items-center gap-3">
-              {branding?.logo ? (
-                <img src={branding.logo} className="h-12 w-12 rounded-2xl object-cover shrink-0" referrerPolicy="no-referrer" crossOrigin="anonymous" />
-              ) : (
-                <div className="h-12 w-12 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-xl shrink-0">
-                  {branding?.name?.charAt(0) || 'E'}
-                </div>
-              )}
-              <div>
-                <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || 'EXONA'}</h1>
-                {!hideOfficialBadge && <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>}
-                {branding && (
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
-                    <span className="text-[7px] font-black text-ink tracking-tighter">EXONA</span>
+            {!hideBranding ? (
+              <div className="flex items-center gap-3">
+                {branding?.logo ? (
+                  <img src={branding.logo} className="h-12 w-12 rounded-2xl object-cover shrink-0" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                ) : (
+                  <div className="h-12 w-12 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-xl shrink-0">
+                    {branding?.name?.charAt(0) || 'E'}
                   </div>
                 )}
+                <div>
+                  <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || 'EXONA'}</h1>
+                  {!hideOfficialBadge && <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>}
+                  {branding && (
+                    <div className="flex items-center gap-1 mt-2">
+                      <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
+                      <span className="text-[7px] font-black text-ink tracking-tighter">EXONA</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div>
+                  <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || ''}</h1>
+                </div>
+              </div>
+            )}
             <div className="text-right">
               <div className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Document ID</div>
               <div className="text-sm font-mono font-bold text-ink">#{Math.random().toString(36).substring(2, 8).toUpperCase()}</div>
@@ -4196,8 +4210,13 @@ function ExonaApp() {
             title={`${selectedSchool.name} Records`}
             subtitle={labels.system}
             icon={Database}
+            branding={{ name: selectedSchool.name }}
             showNotification={showNotification}
             handlePrint={handlePrint}
+            hideOfficialBadge={true}
+            hideSaveImage={true}
+            hideBranding={true}
+            hideIcon={true}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
@@ -4453,10 +4472,13 @@ function ExonaApp() {
             title={`${selectedSchool.name} Wallet`}
             subtitle="Institutional Financial Terminal"
             icon={Wallet}
+            branding={{ name: selectedSchool.name }}
             showNotification={showNotification}
             handlePrint={handlePrint}
             hideOfficialBadge={true}
             hideSaveImage={true}
+            hideBranding={true}
+            hideIcon={true}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap items-center gap-2">
@@ -4748,8 +4770,13 @@ function ExonaApp() {
             title={`${selectedSchool.name} ${labels.attendance}`}
             subtitle={labels.attendance}
             icon={Compass}
+            branding={{ name: selectedSchool.name }}
             showNotification={showNotification}
             handlePrint={handlePrint}
+            hideOfficialBadge={true}
+            hideSaveImage={true}
+            hideBranding={true}
+            hideIcon={true}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap items-center gap-2">
@@ -5645,9 +5672,13 @@ function ExonaApp() {
               title="Participation records"
               subtitle="Attendance & Activity Export"
               icon={Users}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <div className="flex items-center gap-4">
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
@@ -5662,7 +5693,7 @@ function ExonaApp() {
             >
               <div className="mb-16 border-b border-gray-100 pb-12">
                 <h1 className="text-4xl font-extrabold text-ink mb-2">Participation Archive</h1>
-                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Exona Attendance System • Generated on {new Date().toLocaleDateString()}</p>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Institutional Attendance System • Generated on {new Date().toLocaleDateString()}</p>
               </div>
 
               <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 mb-12 no-print">
@@ -5743,11 +5774,13 @@ function ExonaApp() {
               title="Wallet statement"
               subtitle="Financial Position & Account Summary"
               icon={Wallet}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
               hideOfficialBadge={true}
               hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5801,9 +5834,13 @@ function ExonaApp() {
               title="Fee Calculator"
               subtitle="Institutional Financial Utility"
               icon={Calculator}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -5927,9 +5964,13 @@ function ExonaApp() {
               title="Download Center"
               subtitle="Data Export & Archival"
               icon={Download}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <div className="flex items-center gap-4">
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
@@ -5951,7 +5992,7 @@ function ExonaApp() {
             >
               <div className="mb-16 border-b border-gray-100 pb-12">
                 <h1 className="text-4xl font-extrabold text-ink mb-2">Institutional Record Summary</h1>
-                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Exona Data Terminal • Generated on {new Date().toLocaleDateString()}</p>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Institutional Data Terminal • Generated on {new Date().toLocaleDateString()}</p>
               </div>
 
               <div className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 mb-12 no-print flex flex-col gap-8">
@@ -6053,10 +6094,6 @@ function ExonaApp() {
 
               <div className="mt-20 pt-10 border-t border-gray-100 text-center">
                 <p className="text-[10px] font-medium text-muted uppercase tracking-[0.4em] mb-2">End of Official Record</p>
-                <div className="flex items-center justify-center gap-2 opacity-50">
-                  <div className="h-6 w-6 bg-ink rounded-lg flex items-center justify-center text-white font-black text-[10px]">E</div>
-                  <span className="text-[10px] font-black text-ink tracking-tighter">EXONA SYSTEM CERTIFIED</span>
-                </div>
               </div>
             </WordLayout>
           );
@@ -6068,9 +6105,13 @@ function ExonaApp() {
               title="Penalty Board"
               subtitle="Disciplinary Records & Notices"
               icon={ShieldAlert}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -6099,9 +6140,13 @@ function ExonaApp() {
               title="Referral Hub"
               subtitle="Growth & Rewards Program"
               icon={Gift}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -6152,9 +6197,13 @@ function ExonaApp() {
               title="ID Generator"
               subtitle="Institutional Identity Utility"
               icon={IdCard}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -6183,9 +6232,13 @@ function ExonaApp() {
               title="Report Center"
               subtitle="Analytical Intelligence Utility"
               icon={FileBarChart}
-              branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
+              branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
               toolbar={
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
@@ -6250,8 +6303,13 @@ function ExonaApp() {
             title="Penalty Board"
             subtitle="Disciplinary Records & Notices"
             icon={ShieldCheck}
+            branding={{ name: selectedSchool?.name || 'Institution' }}
             showNotification={showNotification}
             handlePrint={handlePrint}
+            hideOfficialBadge={true}
+            hideSaveImage={true}
+            hideBranding={true}
+            hideIcon={true}
             toolbar={
               <div className="flex items-center gap-4">
                 <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all">Filter</button>
@@ -6276,7 +6334,7 @@ function ExonaApp() {
 
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
               <div>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona Security</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Institutional Document</p>
                 <p className="text-[10px] text-muted">{new Date().toLocaleString()}</p>
               </div>
               <div className="text-right">
@@ -6522,7 +6580,7 @@ function ExonaApp() {
                   <LogOut size={20} />
                   Sign Out from Exona
                 </button>
-                <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Exona Terminal v1.0.4</p>
+                <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Operations Terminal v1.0.4</p>
               </div>
             </div>
           </div>
