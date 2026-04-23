@@ -317,7 +317,7 @@ const getLabels = (type?: 'school' | 'place') => {
   const NavIcon = ({ icon: Icon, active, onClick, label }: { icon: any, active: boolean, onClick: () => void, label: string }) => (
     <button 
       onClick={onClick}
-      className={`p-4 rounded-2xl transition-all relative group ${active ? 'text-ink' : 'text-muted hover:text-ink hover:bg-white border border-transparent hover:border-gray-100'}`}
+      className={`p-3 sm:p-4 rounded-2xl transition-all relative group ${active ? 'text-ink' : 'text-muted hover:text-ink hover:bg-white border border-transparent hover:border-gray-100'}`}
       title={label}
     >
       <Icon size={24} strokeWidth={active ? 2.5 : 2} />
@@ -485,12 +485,12 @@ const WordLayout = ({
       </div>
 
       {/* Canvas Area */}
-      <div className="p-0 md:p-8 lg:p-12 flex justify-center bg-gray-50/30">
+      <div className="p-0 sm:p-4 md:p-8 lg:p-12 flex justify-center bg-gray-50/30">
         <motion.div 
           ref={contentRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-4 sm:p-8 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 shadow-2xl shadow-gray-200/50 print-content"
+          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-6 sm:p-10 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 shadow-2xl shadow-gray-200/50 print-content"
         >
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
@@ -1149,6 +1149,18 @@ function ExonaApp() {
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
+  // Reset work-in-progress when switching institutions
+  useEffect(() => {
+    setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private', sharedWith: '' });
+    setActiveTool(null);
+    setCalcTuition('');
+    setCalcPaid('');
+    setExportStartDate('');
+    setExportEndDate('');
+    setRecordSearch('');
+    setEditingRecord(null);
+  }, [selectedSchool?.id]);
+
   const groupedNotifications = useMemo(() => {
     let filtered = notifications;
     if (notificationReadFilter === 'unread') {
@@ -1242,6 +1254,46 @@ function ExonaApp() {
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  /**
+   * Compresses and resizes an image to fit within safe limits.
+   */
+  const compressImage = async (file: File, maxWidth = 1024, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // Constraints
+          if (width > height) {
+            if (width > maxWidth) {
+              height *= maxWidth / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxWidth) {
+              width *= maxWidth / height;
+              height = maxWidth;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = error => reject(error);
+      };
+      reader.onerror = error => reject(error);
+    });
   };
 
   const handlePrint = () => {
@@ -1530,18 +1582,18 @@ function ExonaApp() {
     try {
       console.log('Hyper-Reliable Profile Update Start:', file.name, file.size);
       
-      // 1. Reader for Base64 (fallback and small files)
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
+      // 1. Compress Image (aim for ~600px for storage)
+      const compressedBase64 = await compressImage(file, 600, 0.7);
+      
+      // 2. Micro-thumbnail for Auth photoURL (Firebase Auth limit is tiny ~2KB)
+      const tinyThumb = await compressImage(file, 40, 0.5);
 
-      // 2. If the file is small (under 500KB), use Base64 directly in Firestore to bypass Storage hangs
-      if (file.size < 500 * 1024) {
-        console.log('Optimized: Small file detected, using direct Firestore sync.');
-        await updateProfile(user, { photoURL: base64 });
-        await setDoc(doc(db, 'users', user.uid), { photoURL: base64 }, { merge: true });
+      // 3. If the file is small or easily compressed, use direct sync
+      // We check the length of the string rather than the file size
+      if (compressedBase64.length < 100 * 1024) {
+        console.log('Optimized: Small image detected, using direct Firestore sync.');
+        await updateProfile(user, { photoURL: tinyThumb });
+        await setDoc(doc(db, 'users', user.uid), { photoURL: compressedBase64 }, { merge: true });
         
         const updatedDoc = await getDoc(doc(db, 'users', user.uid));
         if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
@@ -1549,9 +1601,13 @@ function ExonaApp() {
         return;
       }
 
-      // 3. For larger files, use Cloud Storage with a safety timeout
-      const fileRef = ref(storage, `users/${user.uid}/profile_${Date.now()}_${file.name}`);
-      const uploadPromise = uploadBytes(fileRef, file);
+      // 4. For larger images, use Cloud Storage with compression
+      // Convert base64 back to blob for uploadBytes
+      const response = await fetch(compressedBase64);
+      const blob = await response.blob();
+      
+      const fileRef = ref(storage, `users/${user.uid}/profile_${Date.now()}_thumb.jpg`);
+      const uploadPromise = uploadBytes(fileRef, blob);
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Cloud Storage Timeout. Use a smaller image if possible.')), 25000)
       );
@@ -1587,21 +1643,23 @@ function ExonaApp() {
     setUploadProgress(0);
     try {
       const collectionName = institution.type === 'school' ? 'schools' : 'places';
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
+      
+      // Compress Logo
+      const compressedBase64 = await compressImage(file, 400, 0.7);
 
-      // Bypassing Storage for small logos
-      if (file.size < 500 * 1024) {
-        await setDoc(doc(db, collectionName, institution.id), { logo: base64 }, { merge: true });
+      // Bypassing Storage for compressed logos (usually under 100kb)
+      if (compressedBase64.length < 500 * 1024) {
+        await setDoc(doc(db, collectionName, institution.id), { logo: compressedBase64 }, { merge: true });
         showNotification('Institutional logo updated (Direct)');
         return;
       }
 
-      const fileRef = ref(storage, `${collectionName}/${institution.id}/logo_${Date.now()}_${file.name}`);
-      const uploadPromise = uploadBytes(fileRef, file);
+      // Convert back to blob for storage upload
+      const response = await fetch(compressedBase64);
+      const blob = await response.blob();
+
+      const fileRef = ref(storage, `${collectionName}/${institution.id}/logo_${Date.now()}.jpg`);
+      const uploadPromise = uploadBytes(fileRef, blob);
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Logo Upload Timeout.')), 25000)
       );
@@ -1683,18 +1741,19 @@ function ExonaApp() {
       
       if (selectedFile) {
         console.log('Hyper-Reliable Logo Upload (Creation):', selectedFile.name);
-        const reader = new FileReader();
-        const base64 = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(selectedFile);
-        });
+        
+        // Compress Logo
+        const compressedBase64 = await compressImage(selectedFile, 400, 0.7);
 
-        if (selectedFile.size < 500 * 1024) {
-          logoUrl = base64;
-          console.log('Optimized creation: Using Base64 logo.');
+        if (compressedBase64.length < 500 * 1024) {
+          logoUrl = compressedBase64;
+          console.log('Optimized creation: Using Compressed logo.');
         } else {
-          const fileRef = ref(storage, `${newSchool.type === 'school' ? 'schools' : 'places'}/${user.uid}/${Date.now()}_${selectedFile.name}`);
-          const uploadPromise = uploadBytes(fileRef, selectedFile);
+          const response = await fetch(compressedBase64);
+          const blob = await response.blob();
+          
+          const fileRef = ref(storage, `${newSchool.type === 'school' ? 'schools' : 'places'}/${user.uid}/${Date.now()}_thumb.jpg`);
+          const uploadPromise = uploadBytes(fileRef, blob);
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Logo Upload Timeout (25s). Use a smaller image.')), 25000)
           );
@@ -2022,8 +2081,21 @@ function ExonaApp() {
       if (selectedFile) {
         console.log('Uploading media', selectedFile.name);
         mediaType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
+        
+        let fileToUpload: Blob | File = selectedFile;
+        if (mediaType === 'image') {
+          try {
+            console.log('Compressing post image...');
+            const compressedBase64 = await compressImage(selectedFile, 1200, 0.7);
+            const response = await fetch(compressedBase64);
+            fileToUpload = await response.blob();
+          } catch (compErr) {
+            console.error('Compression failed, using original', compErr);
+          }
+        }
+
         const fileRef = ref(storage, `posts/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        const uploadTask = uploadBytesResumable(fileRef, selectedFile);
+        const uploadTask = uploadBytesResumable(fileRef, fileToUpload);
 
         await new Promise((resolve, reject) => {
           uploadTask.on('state_changed', 
@@ -2555,7 +2627,14 @@ function ExonaApp() {
       });
     }
 
-    return () => { unsubPosts(); unsubAllRecords(); unsubAllAttendance(); unsubAllFinance(); unsubAllMessages(); };
+    return () => { 
+      unsubPosts(); 
+      unsubAllRecords(); 
+      unsubAllAttendance(); 
+      unsubAllFinance(); 
+      unsubAllMessages(); 
+      unsubNotifications();
+    };
   }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id, postsLimit]);
 
   const handleLoadMore = () => {
@@ -3152,13 +3231,13 @@ function ExonaApp() {
         const totalMembers = allRecords.length;
 
         return (
-          <div className="w-full max-w-[1600px] mx-auto py-12 px-8 pb-32 lg:pb-12">
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16">
+          <div className="w-full max-w-[1600px] mx-auto py-8 sm:py-12 px-4 sm:px-8 pb-32 lg:pb-12">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 sm:gap-8 mb-10 sm:mb-16">
               <div>
                 <motion.h2 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-5xl font-bold text-ink tracking-tight mb-2 font-display"
+                  className="text-3xl sm:text-5xl font-bold text-ink tracking-tight mb-2 font-display"
                 >
                   Admin Terminal
                 </motion.h2>
@@ -3184,10 +3263,10 @@ function ExonaApp() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + i * 0.1 }}
-                  className="bg-white p-10 rounded-[2.5rem] border border-gray-100 group hover:border-accent/20 transition-all"
+                  className="bg-white p-6 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-gray-100 group hover:border-accent/20 transition-all shadow-sm"
                 >
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4">{stat.label}</p>
-                  <h3 className={`text-3xl font-bold font-display text-${stat.color}`}>{stat.value}</h3>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-3 sm:mb-4">{stat.label}</p>
+                  <h3 className={`text-2xl sm:text-3xl font-bold font-display text-${stat.color}`}>{stat.value}</h3>
                   <div className="mt-8 h-1.5 w-full bg-white border border-gray-100 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
@@ -3205,11 +3284,11 @@ function ExonaApp() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="bg-white rounded-[3rem] border border-gray-100 overflow-hidden"
+                className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm"
               >
-                <div className="p-10 border-b border-gray-50 flex items-center justify-between">
-                  <h4 className="font-extrabold text-2xl text-ink tracking-tight">Institution Directory</h4>
-                  <div className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted">
+                <div className="p-6 sm:p-10 border-b border-gray-50 flex items-center justify-between">
+                  <h4 className="font-extrabold text-xl sm:text-2xl text-ink tracking-tight">Institution Directory</h4>
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white border border-gray-100 rounded-xl sm:rounded-2xl flex items-center justify-center text-muted">
                     <LayoutGrid size={20} />
                   </div>
                 </div>
@@ -3256,29 +3335,32 @@ function ExonaApp() {
                 </div>
 
                 {/* Admin Mobile Card View */}
-                <div className="md:hidden divide-y divide-gray-50">
+                <div className="md:hidden">
                   {[...schools, ...places].map(school => {
                     const memberCount = allRecords.filter(r => r.schoolId === school.id).length;
                     return (
-                      <div key={school.id} className="p-6">
+                      <div key={school.id} className="p-5 border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50 transition-colors">
                         <div className="flex items-center gap-4 mb-4">
-                          <div className="h-12 w-12 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                          <div className="h-11 w-11 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shadow-sm shrink-0">
                             {school.logo ? (
                               <img src={school.logo} className="h-full w-full object-cover" />
                             ) : (
-                              <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                              <span className="text-muted text-[10px] font-black">{school.name.charAt(0)}</span>
                             )}
                           </div>
-                          <div className="min-w-0">
-                            <p className="font-bold text-ink text-sm truncate">{school.name}</p>
-                            <p className="text-[9px] text-muted font-bold uppercase tracking-widest">{school.type}</p>
+                          <div className="min-w-0 pr-2">
+                            <p className="font-black text-ink text-[13px] truncate tracking-tight mb-0.5">{school.name}</p>
+                            <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${school.type === 'school' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                              {school.type}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100/50">
                           <div>
-                            <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-1">Members</p>
-                            <p className="font-mono font-bold text-ink text-sm">{memberCount}</p>
+                            <p className="text-[8px] font-black text-muted uppercase tracking-widest mb-0.5">Community Size</p>
+                            <p className="font-mono font-black text-ink text-xs">{memberCount} Members</p>
                           </div>
+                          <ChevronRight size={14} className="text-muted/30" />
                         </div>
                       </div>
                     );
@@ -3293,16 +3375,16 @@ function ExonaApp() {
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-8">
-              <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100">
+              <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
                   onClick={() => setFeedTab('institutions')}
-                  className={`px-6 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${feedTab === 'institutions' ? 'bg-ink text-white shadow-lg' : 'text-muted hover:bg-white'}`}
+                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'institutions' ? 'bg-ink text-white shadow-lg' : 'text-muted hover:bg-white'}`}
                 >
                   Institutions
                 </button>
                 <button 
                   onClick={() => setFeedTab('broadcasts')}
-                  className={`px-6 py-2 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${feedTab === 'broadcasts' ? 'bg-ink text-white shadow-lg' : 'text-muted hover:bg-white'}`}
+                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'broadcasts' ? 'bg-ink text-white shadow-lg' : 'text-muted hover:bg-white'}`}
                 >
                   Broadcasts
                 </button>
@@ -4509,7 +4591,7 @@ function ExonaApp() {
                 </div>
 
                 {/* Monnify Section */}
-                <div className="bg-gray-50/50 rounded-3xl p-8 border border-gray-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-gray-100/50">
+                <div className="bg-gray-50/50 rounded-3xl p-6 sm:p-8 border border-gray-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-gray-100/50">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="h-10 w-10 bg-[#002f5c] text-white rounded-xl flex items-center justify-center font-black text-xs uppercase">M</div>
                     <h5 className="font-black text-lg text-ink tracking-tight">Monnify Payment</h5>
@@ -6287,7 +6369,7 @@ function ExonaApp() {
                   whileHover={{ scale: 1.02, y: -5 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setActiveTool(tool.id)}
-                  className="bg-white p-8 rounded-[2.5rem] border border-gray-100 text-left group hover:border-accent/20 transition-all"
+                  className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-gray-100 text-left group hover:border-accent/20 transition-all"
                 >
                   <div className={`h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-${tool.color} mb-6 group-hover:scale-110 transition-transform`}>
                     <tool.icon size={28} />
@@ -6695,7 +6777,7 @@ function ExonaApp() {
           animate={{ opacity: 1, scale: 1 }} 
           className="w-full max-w-sm text-center"
         >
-          <div className="bg-white border border-gray-100 p-12 rounded-[3.5rem] shadow-2xl shadow-ink/5">
+          <div className="bg-white border border-gray-100 p-8 sm:p-12 rounded-[3.5rem] shadow-2xl shadow-ink/5">
              <div className="h-20 w-20 bg-accent/10 text-accent rounded-3xl flex items-center justify-center mx-auto mb-8">
                <Compass size={32} />
              </div>
@@ -6818,8 +6900,8 @@ function ExonaApp() {
           animate={{ opacity: 1, y: 0 }} 
           className="w-full max-w-sm"
         >
-          <div className="bg-white border border-gray-100 p-12 rounded-[2.5rem] mb-4 flex flex-col items-center shadow-xl shadow-ink/5">
-            <h1 className="text-6xl font-bold mb-12 mt-4 font-display">Exona</h1>
+          <div className="bg-white border border-gray-100 p-8 sm:p-12 rounded-[2.5rem] mb-4 flex flex-col items-center shadow-xl shadow-ink/5">
+            <h1 className="text-5xl sm:text-6xl font-bold mb-8 sm:mb-12 mt-4 font-display">Exona</h1>
             
             {authError && (
               <div className="mb-6 p-4 w-full bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs text-center font-bold">
@@ -6948,7 +7030,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100"
+              className="w-full max-w-md bg-white rounded-[3rem] p-8 sm:p-12 border border-gray-100"
             >
               <div className="h-20 w-20 bg-red-50 rounded-[1.5rem] flex items-center justify-center text-red-600 mb-8">
                 <AlertTriangle size={32} />
@@ -7186,19 +7268,19 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-4xl bg-card rounded-[2.5rem] sm:rounded-[3.5rem] p-6 sm:p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center justify-between mb-8 sm:mb-10">
                 <div>
-                  <h3 className="text-3xl font-extrabold text-ink mb-1">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">
                     {editingRecord 
                       ? `Edit ${recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Record` 
                       : `Add ${recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Record`}
                   </h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
-                <button onClick={() => setIsRecordModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
-                  <X size={20} />
+                <button onClick={() => setIsRecordModalOpen(false)} className="h-10 w-10 sm:h-12 sm:w-12 bg-white text-muted rounded-xl sm:rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={18} />
                 </button>
               </div>
               <div className="space-y-6">
@@ -7393,19 +7475,19 @@ function ExonaApp() {
         {isSchoolModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-4xl bg-card rounded-3xl sm:rounded-[3.5rem] p-6 sm:p-8 md:p-12 border border-gray-100 my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar"
             >
-              <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center justify-between mb-8 sm:mb-10">
                 <div>
-                  <h3 className="text-3xl font-extrabold text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Create Institution'}</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Profile Setup</p>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Create Institution'}</h3>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Profile Setup</p>
                 </div>
-                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
-                  <X size={20} />
+                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="h-10 w-10 sm:h-12 sm:w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={18} />
                 </button>
               </div>
               <div className="space-y-6">
@@ -7577,19 +7659,19 @@ function ExonaApp() {
         {isAttendanceModalOpen && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto"
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-card rounded-[3.5rem] p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="w-full max-w-4xl bg-card rounded-3xl sm:rounded-[3.5rem] p-6 sm:p-8 md:p-12 border border-gray-100 my-auto max-h-[95vh] sm:max-h-[90vh] overflow-y-auto no-scrollbar"
             >
-              <div className="flex items-center justify-between mb-10">
+              <div className="flex items-center justify-between mb-8 sm:mb-10">
                 <div>
-                  <h3 className="text-3xl font-extrabold text-ink mb-1">Record {labels.attendance}</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Presence Log</p>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">Record {labels.attendance}</h3>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Presence Log</p>
                 </div>
-                <button onClick={() => setIsAttendanceModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
-                  <X size={20} />
+                <button onClick={() => setIsAttendanceModalOpen(false)} className="h-10 w-10 sm:h-12 sm:w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                  <X size={18} />
                 </button>
               </div>
               <div className="space-y-8">
@@ -7863,19 +7945,23 @@ function ExonaApp() {
                   <div className="flex flex-col items-center mb-10 text-center">
                     {(() => {
                       const recordInstitution = schools.find(s => s.id === recordForReceipt?.schoolId) || 
-                                              places.find(p => p.id === recordForReceipt?.schoolId) ||
-                                              schools.find(s => s.creatorUid === user?.uid) || 
-                                              places.find(p => p.creatorUid === user?.uid);
+                                              places.find(p => p.id === recordForReceipt?.schoolId);
+                      const displayTitle = recordInstitution?.name || selectedSchool?.name || 'Institutional Record';
                       return (
                         <>
-                          {recordInstitution?.logo ? (
-                            <img src={recordInstitution.logo} className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                          {(recordInstitution?.logo || selectedSchool?.logo) ? (
+                            <img 
+                              src={recordInstitution?.logo || selectedSchool?.logo} 
+                              className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" 
+                              referrerPolicy="no-referrer" 
+                              crossOrigin="anonymous" 
+                            />
                           ) : (
                             <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl shadow-ink/20">
-                              {recordInstitution?.name?.charAt(0) || 'E'}
+                              {displayTitle.charAt(0)}
                             </div>
                           )}
-                          <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{recordInstitution?.name || 'Institutional Record'}</h2>
+                          <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{displayTitle}</h2>
                           <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
                         </>
                       );
@@ -7897,11 +7983,11 @@ function ExonaApp() {
                     <div>
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Institution</p>
                       <p className="text-sm font-bold text-ink">
-                        {(schools.find(s => s.id === recordForReceipt?.schoolId) || 
-                          places.find(p => p.id === recordForReceipt?.schoolId))?.name || 
-                          selectedSchool?.name || 
-                          'Institutional Record'}
-                      </p>
+                      {(schools.find(s => s.id === recordForReceipt?.schoolId) || 
+                        places.find(p => p.id === recordForReceipt?.schoolId))?.name || 
+                        selectedSchool?.name || 
+                        'Institutional Record'}
+                    </p>
                     </div>
                     <div>
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
@@ -8118,22 +8204,22 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      <header className="h-16 bg-card/80 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 no-print">
-        <div className="flex items-center gap-8 h-full">
+      <header className="h-14 sm:h-16 bg-card/80 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 no-print">
+        <div className="flex items-center gap-4 sm:gap-8 h-full">
           <button 
             onClick={() => setView('feed')}
-            className={`h-full flex flex-col items-center justify-center gap-1 relative px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+            className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[13px] font-bold tracking-tight ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
+            <span className={`text-[12px] sm:text-[13px] font-bold tracking-tight ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
             {view === 'feed' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
           </button>
           <button 
             onClick={() => setView('schools')}
-            className={`h-full flex flex-col items-center justify-center gap-1 relative px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+            className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Story</span>
+            <span className={`text-[12px] sm:text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Story</span>
             {view === 'schools' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
@@ -8238,7 +8324,7 @@ function ExonaApp() {
       </main>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 px-4 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/5 w-[90%] max-w-xs no-print">
+      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/10 w-[92%] sm:w-auto sm:min-w-[320px] no-print">
         <NavButton 
           active={view === 'chat'} 
           onClick={() => setView('chat')} 
