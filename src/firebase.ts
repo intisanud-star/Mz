@@ -36,7 +36,7 @@ if (typeof window !== 'undefined') {
 }
 
 export const auth = getAuth(app);
-export const storage = getStorage(app);
+export const storage = getStorage(app, firebaseConfig.storageBucket);
 export const googleProvider = new GoogleAuthProvider();
 export { 
   ref, 

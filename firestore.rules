@@ -236,7 +236,11 @@ service cloud.firestore {
 
     match /finance/{schoolId} {
       allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
-      allow create: if isAuthenticated() && isSchoolManager(schoolId);
+      allow create: if isAuthenticated() && (
+        isSchoolManager(schoolId) || 
+        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
+        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
+      );
       allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
   }

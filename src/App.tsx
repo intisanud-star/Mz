@@ -505,13 +505,9 @@ const WordLayout = ({
                   </div>
                 )}
                 <div>
-                  <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || 'EXONA'}</h1>
-                  {!hideOfficialBadge && <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Official Document</p>}
-                  {branding && (
-                    <div className="flex items-center gap-1 mt-2">
-                      <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
-                      <span className="text-[7px] font-black text-ink tracking-tighter">EXONA</span>
-                    </div>
+                  <h1 className="text-xl font-black text-ink tracking-tighter leading-none uppercase">{branding?.name || ''}</h1>
+                  {!hideOfficialBadge && (
+                    <p className="text-[8px] font-bold text-muted uppercase tracking-[0.4em] mt-1">Institutional Record</p>
                   )}
                 </div>
               </div>
@@ -1524,47 +1520,54 @@ function ExonaApp() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
     setIsUploadingProfile(true);
     setUploadProgress(0);
     try {
-      const fileRef = ref(storage, `users/${user.uid}/profile_${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, file);
+      console.log('Hyper-Reliable Profile Update Start:', file.name, file.size);
       
-      await new Promise((resolve, reject) => {
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          }, 
-          (error) => reject(error), 
-          () => resolve(null)
-        );
+      // 1. Reader for Base64 (fallback and small files)
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
       });
 
-      const photoURL = await getDownloadURL(fileRef);
+      // 2. If the file is small (under 500KB), use Base64 directly in Firestore to bypass Storage hangs
+      if (file.size < 500 * 1024) {
+        console.log('Optimized: Small file detected, using direct Firestore sync.');
+        await updateProfile(user, { photoURL: base64 });
+        await setDoc(doc(db, 'users', user.uid), { photoURL: base64 }, { merge: true });
+        
+        const updatedDoc = await getDoc(doc(db, 'users', user.uid));
+        if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
+        showNotification('Profile updated successfully');
+        return;
+      }
+
+      // 3. For larger files, use Cloud Storage with a safety timeout
+      const fileRef = ref(storage, `users/${user.uid}/profile_${Date.now()}_${file.name}`);
+      const uploadPromise = uploadBytes(fileRef, file);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Cloud Storage Timeout. Use a smaller image if possible.')), 25000)
+      );
       
-      // Update Firebase Auth profile
+      const snapshot = await Promise.race([uploadPromise, timeoutPromise]) as any;
+      const photoURL = await getDownloadURL(snapshot.ref);
+      
       await updateProfile(user, { photoURL });
-      
-      // Update Firestore user document
       await setDoc(doc(db, 'users', user.uid), { photoURL }, { merge: true });
       
-      // Refresh userDoc state
       const updatedDoc = await getDoc(doc(db, 'users', user.uid));
       if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
-
-      // Update user's posts with new photoURL for consistency
-      const userPostsQuery = query(collection(db, 'posts'), where('authorUid', '==', user.uid));
-      const userPostsSnap = await getDocs(userPostsQuery);
-      const updatePromises = userPostsSnap.docs.map(postDoc => 
-        setDoc(postDoc.ref, { authorPhoto: photoURL }, { merge: true })
-      );
-      await Promise.all(updatePromises);
-      showNotification('Profile picture updated');
-    } catch (error) {
-      console.error('Error updating profile picture:', error);
-      showNotification('Failed to update picture', 'error');
-      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}`);
+      showNotification('Profile picture updated successfully');
+    } catch (error: any) {
+      console.error('Upload failure:', error);
+      alert('UPDATE NOTICE:\n' + (error.message || 'The update could not be completed. Please try a smaller image.'));
     } finally {
       setIsUploadingProfile(false);
       setUploadProgress(0);
@@ -1575,13 +1578,6 @@ function ExonaApp() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file.');
-      return;
-    }
-
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       alert('File size must be less than 5MB.');
       return;
@@ -1591,28 +1587,33 @@ function ExonaApp() {
     setUploadProgress(0);
     try {
       const collectionName = institution.type === 'school' ? 'schools' : 'places';
-      const fileRef = ref(storage, `${collectionName}/${institution.id}/logo_${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(fileRef, file);
-      
-      await new Promise((resolve, reject) => {
-        uploadTask.on('state_changed', 
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          }, 
-          (error) => reject(error), 
-          () => resolve(null)
-        );
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
       });
 
-      const logoURL = await getDownloadURL(fileRef);
+      // Bypassing Storage for small logos
+      if (file.size < 500 * 1024) {
+        await setDoc(doc(db, collectionName, institution.id), { logo: base64 }, { merge: true });
+        showNotification('Institutional logo updated (Direct)');
+        return;
+      }
+
+      const fileRef = ref(storage, `${collectionName}/${institution.id}/logo_${Date.now()}_${file.name}`);
+      const uploadPromise = uploadBytes(fileRef, file);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Logo Upload Timeout.')), 25000)
+      );
       
-      // Update Firestore institution document
+      const snapshot = await Promise.race([uploadPromise, timeoutPromise]) as any;
+      const logoURL = await getDownloadURL(snapshot.ref);
+      
       await setDoc(doc(db, collectionName, institution.id), { logo: logoURL }, { merge: true });
-      
-    } catch (error) {
-      console.error('Error updating institution logo:', error);
-      handleFirestoreError(error, OperationType.UPDATE, `${institution.type === 'school' ? 'schools' : 'places'}/${institution.id}`);
+      showNotification('Institutional logo updated');
+    } catch (error: any) {
+      console.error('Logo update failure:', error);
+      alert('LOGO ERROR:\n' + (error.message || 'Upload failed.'));
     } finally {
       setUploadingInstitutionId(null);
       setUploadProgress(0);
@@ -1681,21 +1682,26 @@ function ExonaApp() {
       let logoUrl = newSchool.logo.trim();
       
       if (selectedFile) {
-        console.log('Uploading logo file...', selectedFile.name);
-        const fileRef = ref(storage, `${newSchool.type === 'school' ? 'schools' : 'places'}/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        const uploadTask = uploadBytesResumable(fileRef, selectedFile);
-        await new Promise((resolve, reject) => {
-          uploadTask.on('state_changed', (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          }, (error) => {
-            console.error('Upload failed:', error);
-            reject(error);
-          }, () => {
-            resolve(null);
-          });
+        console.log('Hyper-Reliable Logo Upload (Creation):', selectedFile.name);
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(selectedFile);
         });
-        logoUrl = await getDownloadURL(fileRef);
+
+        if (selectedFile.size < 500 * 1024) {
+          logoUrl = base64;
+          console.log('Optimized creation: Using Base64 logo.');
+        } else {
+          const fileRef = ref(storage, `${newSchool.type === 'school' ? 'schools' : 'places'}/${user.uid}/${Date.now()}_${selectedFile.name}`);
+          const uploadPromise = uploadBytes(fileRef, selectedFile);
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Logo Upload Timeout (25s). Use a smaller image.')), 25000)
+          );
+          
+          const snapshot = await Promise.race([uploadPromise, timeoutPromise]) as any;
+          logoUrl = await getDownloadURL(snapshot.ref);
+        }
       }
 
       const collectionName = newSchool.type === 'school' ? 'schools' : 'places';
@@ -4207,7 +4213,7 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title={`${selectedSchool.name} Records`}
+            title="Institutional Records"
             subtitle={labels.system}
             icon={Database}
             branding={{ name: selectedSchool.name }}
@@ -4270,7 +4276,6 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-bold text-ink mb-2 font-display">{selectedSchool.name}</h1>
               <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
@@ -4469,7 +4474,7 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title={`${selectedSchool.name} Wallet`}
+            title="Institutional Wallet"
             subtitle="Institutional Financial Terminal"
             icon={Wallet}
             branding={{ name: selectedSchool.name }}
@@ -4492,7 +4497,6 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
               <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Institutional Wallet Terminal • {new Date().toLocaleDateString()}</p>
             </div>
 
@@ -4767,7 +4771,7 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title={`${selectedSchool.name} ${labels.attendance}`}
+            title="Participation Records"
             subtitle={labels.attendance}
             icon={Compass}
             branding={{ name: selectedSchool.name }}
@@ -5692,7 +5696,6 @@ function ExonaApp() {
               }
             >
               <div className="mb-16 border-b border-gray-100 pb-12">
-                <h1 className="text-4xl font-extrabold text-ink mb-2">Participation Archive</h1>
                 <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Institutional Attendance System • Generated on {new Date().toLocaleDateString()}</p>
               </div>
 
@@ -6380,7 +6383,7 @@ function ExonaApp() {
                       <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
                       <div className="flex items-center gap-2">
                         <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                        <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
+                        <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
                       </div>
                     </motion.div>
                   )}
@@ -6390,17 +6393,11 @@ function ExonaApp() {
                 <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
                   {isUploadingProfile ? (
                     <div className="h-full w-full bg-white border border-gray-100 flex flex-col items-center justify-center">
-                      <div className="w-12 h-1 bg-gray-100 rounded-full overflow-hidden">
-                        <motion.div 
-                          className="h-full bg-ink"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <p className="text-[8px] font-bold text-ink mt-2">{Math.round(uploadProgress)}%</p>
+                      <div className="h-5 w-5 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+                      <p className="text-[8px] font-bold text-ink mt-2">Uploading...</p>
                     </div>
-                  ) : user.photoURL ? (
-                    <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  ) : userDoc?.photoURL || user.photoURL ? (
+                    <img src={userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : (
                     <div className="h-full w-full bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
                       {user.displayName?.charAt(0)}
@@ -6408,8 +6405,8 @@ function ExonaApp() {
                   )}
                 </div>
                 {!isUploadingProfile && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full">
-                    <Upload size={20} />
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer rounded-full">
+                    <Camera size={20} />
                     <input 
                       type="file" 
                       className="hidden" 
@@ -6516,6 +6513,60 @@ function ExonaApp() {
             </div>
 
             <div className="space-y-12 mt-12">
+              {/* Institutional Profile Management */}
+              {(() => {
+                const myInstitutions = [...schools, ...places].filter(inst => inst.creatorUid === user?.uid);
+                if (myInstitutions.length === 0) return null;
+                return (
+                  <section>
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Managed Institutions</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      {myInstitutions.map((inst) => (
+                        <div key={inst.id} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-card group hover:border-accent/10 transition-all">
+                          <div className="flex items-center gap-5">
+                            <div className="relative h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white group-hover:scale-105 transition-transform">
+                              {uploadingInstitutionId === inst.id ? (
+                                <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center gap-1">
+                                  <div className="h-5 w-5 border-2 border-accent/20 border-t-accent rounded-full animate-spin" />
+                                </div>
+                              ) : inst.logo ? (
+                                <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="h-full w-full bg-gray-50 flex items-center justify-center text-muted font-bold text-xl uppercase">
+                                  {inst.name.charAt(0)}
+                                </div>
+                              )}
+                              <label className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer">
+                                <Camera size={18} />
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/*"
+                                  onChange={(e) => handleUpdateInstitutionLogo(inst, e)}
+                                />
+                              </label>
+                            </div>
+                            <div className="text-left">
+                              <p className="text-[15px] font-bold text-ink tracking-tight">{inst.name}</p>
+                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">{inst.type}</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => {
+                              setEditingSchool(inst as any);
+                              setIsSchoolModalOpen(true);
+                            }}
+                            className="h-10 px-4 bg-gray-50 text-ink rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })()}
+
               <section>
                 <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
                 <div className="grid grid-cols-1 gap-3">
@@ -6578,9 +6629,9 @@ function ExonaApp() {
                   className="w-full py-5 bg-red-50 text-red-600 rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-red-100 transition-all flex items-center justify-center gap-4 active:scale-[0.98]"
                 >
                   <LogOut size={20} />
-                  Sign Out from Exona
+                  Sign Out
                 </button>
-                <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Operations Terminal v1.0.4</p>
+                <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Operations Terminal v1.0.5</p>
               </div>
             </div>
           </div>
