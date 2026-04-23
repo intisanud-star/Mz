@@ -7862,24 +7862,21 @@ function ExonaApp() {
                 <div className="relative z-10">
                   <div className="flex flex-col items-center mb-10 text-center">
                     {(() => {
-                      const userInstitution = schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+                      const recordInstitution = schools.find(s => s.id === recordForReceipt?.schoolId) || 
+                                              places.find(p => p.id === recordForReceipt?.schoolId) ||
+                                              schools.find(s => s.creatorUid === user?.uid) || 
+                                              places.find(p => p.creatorUid === user?.uid);
                       return (
                         <>
-                          {userInstitution?.logo ? (
-                            <img src={userInstitution.logo} className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" referrerPolicy="no-referrer" crossOrigin="anonymous" />
+                          {recordInstitution?.logo ? (
+                            <img src={recordInstitution.logo} className="h-14 w-14 rounded-2xl object-cover mb-4 shadow-xl shadow-ink/10" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                           ) : (
                             <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4 shadow-xl shadow-ink/20">
-                              {userInstitution?.name?.charAt(0) || 'E'}
+                              {recordInstitution?.name?.charAt(0) || 'E'}
                             </div>
                           )}
-                          <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{userInstitution?.name || 'EXONA'}</h2>
+                          <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{recordInstitution?.name || 'Institutional Record'}</h2>
                           <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
-                          {userInstitution && (
-                            <div className="flex items-center gap-1 mt-4 opacity-50">
-                              <span className="text-[7px] font-bold text-muted uppercase tracking-widest">Powered by</span>
-                              <span className="text-[7px] font-black text-ink tracking-tighter">EXONA</span>
-                            </div>
-                          )}
                         </>
                       );
                     })()}
@@ -7899,7 +7896,12 @@ function ExonaApp() {
                   <div className="space-y-6 mb-12">
                     <div>
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Institution</p>
-                      <p className="text-sm font-bold text-ink">{selectedSchool?.name || 'Institutional Record'}</p>
+                      <p className="text-sm font-bold text-ink">
+                        {(schools.find(s => s.id === recordForReceipt?.schoolId) || 
+                          places.find(p => p.id === recordForReceipt?.schoolId))?.name || 
+                          selectedSchool?.name || 
+                          'Institutional Record'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
@@ -7938,7 +7940,7 @@ function ExonaApp() {
                        <ShieldCheck size={24} />
                     </div>
                     <p className="text-[7px] text-center text-muted uppercase tracking-[0.2em] leading-relaxed">
-                      This receipt is electronically generated and verified by Exona. <br />
+                      This receipt is electronically generated and verified. <br />
                       Valid for institutional records authentication.
                     </p>
                   </div>
