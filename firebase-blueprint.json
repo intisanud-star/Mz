@@ -168,6 +168,24 @@
         "uid": { "type": "string" }
       },
       "required": ["isTyping", "updatedAt", "chatId", "uid"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "User or institution status story",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhoto": { "type": "string", "format": "uri" },
+        "mediaUrl": { "type": "string", "format": "uri" },
+        "mediaType": { "type": "string", "enum": ["image", "video"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "schoolId": { "type": "string" },
+        "viewers": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["authorUid", "authorName", "mediaUrl", "mediaType", "timestamp", "expiresAt"]
     }
   },
   "firestore": {
@@ -181,6 +199,7 @@
     "/finance/{schoolId}": { "schema": "SchoolFinance", "description": "Institution finance" },
     "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
     "/typingStates/{stateId}": { "schema": "TypingStatus", "description": "User typing statuses" },
-    "/users/{userId}/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" }
+    "/users/{userId}/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" },
+    "/stories/{storyId}": { "schema": "Story", "description": "Status stories" }
   }
 }

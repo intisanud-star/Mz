@@ -149,6 +149,15 @@ service cloud.firestore {
              data.text is string && data.text.size() > 0 && data.text.size() < 5000;
     }
 
+    function isValidStory(data) {
+      return isAuthenticated() &&
+             data.authorUid == request.auth.uid &&
+             data.authorName is string && data.authorName.size() > 0 &&
+             data.mediaUrl is string && data.mediaUrl.size() > 0 &&
+             data.mediaType in ['image', 'video'] &&
+             ('schoolId' in data ? (isSchoolManager(data.schoolId) || isAdmin()) : true);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -242,6 +251,17 @@ service cloud.firestore {
         (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
       );
       allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
+    }
+
+    match /stories/{storyId} {
+      allow read: if isAuthenticated();
+      allow create: if isValidStory(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (resource.data.authorUid == request.auth.uid && isValidStory(request.resource.data)) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewers'])) ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
     }
   }
 }

@@ -136,6 +136,19 @@ interface School {
   }[];
 }
 
+interface Story {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  authorPhoto: string;
+  mediaUrl: string;
+  mediaType: 'image' | 'video';
+  timestamp: any;
+  expiresAt: any;
+  schoolId?: string;
+  viewers?: string[];
+}
+
 interface StudentRecord {
   id: string;
   studentName: string;
@@ -927,6 +940,12 @@ function ExonaApp() {
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
+  const [selectedStoryGroup, setSelectedStoryGroup] = useState<Story[] | null>(null);
+  const [activeStoryIndex, setActiveStoryIndex] = useState(0);
+  const [isCreatingStory, setIsCreatingStory] = useState(false);
 
   const handleDownloadReceipt = async () => {
     if (!receiptRef.current) return;
@@ -1295,6 +1314,16 @@ function ExonaApp() {
       reader.onerror = error => reject(error);
     });
   };
+
+  const storyGroups = useMemo(() => {
+    const groups: { [key: string]: Story[] } = {};
+    stories.forEach(story => {
+      const key = story.schoolId || story.authorUid;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(story);
+    });
+    return groups;
+  }, [stories]);
 
   const handlePrint = () => {
     // Check if we are in Telegram Mini App
@@ -2054,6 +2083,61 @@ function ExonaApp() {
     return () => URL.revokeObjectURL(url);
   }, [selectedFile]);
 
+  const handleCreateStory = async (file: File, schoolId?: string) => {
+    if (!user) { setView('login'); return; }
+    setIsCreatingStory(true);
+    try {
+      showNotification('Broadcasting to Story...');
+      const mediaType = file.type.startsWith('image/') ? 'image' : 'video';
+      
+      let mediaUrl = '';
+      if (mediaType === 'image') {
+        const compressedBase64 = await compressImage(file, 1080, 0.6);
+        const folder = schoolId ? 'institution_stories' : 'user_stories';
+        const fileRef = ref(storage, `${folder}/${user.uid}/${Date.now()}_story.jpg`);
+        const response = await fetch(compressedBase64);
+        const blob = await response.blob();
+        await uploadBytes(fileRef, blob);
+        mediaUrl = await getDownloadURL(fileRef);
+      } else {
+        const fileRef = ref(storage, `stories_video/${user.uid}/${Date.now()}_${file.name}`);
+        await uploadBytes(fileRef, file);
+        mediaUrl = await getDownloadURL(fileRef);
+      }
+
+      const school = schoolId ? [...schools, ...places].find(s => s.id === schoolId) : null;
+
+      await addDoc(collection(db, 'stories'), {
+        authorUid: user.uid,
+        authorName: school ? school.name : (user.displayName || 'Anonymous'),
+        authorPhoto: school ? school.logo : (user.photoURL || ''),
+        mediaUrl,
+        mediaType,
+        timestamp: serverTimestamp(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        schoolId: schoolId || null,
+        viewers: []
+      });
+      showNotification('Story shared successfully!');
+    } catch (error) {
+      console.error('Story failed', error);
+      showNotification('Story failed to upload', 'error');
+    } finally {
+      setIsCreatingStory(false);
+    }
+  };
+
+  const handleMarkStoryAsSeen = async (storyId: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'stories', storyId), {
+        viewers: arrayUnion(user.uid)
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleCreatePost = async () => {
     if (!user) { setView('login'); return; }
     if (!newPostContent.trim()) return;
@@ -2510,6 +2594,7 @@ function ExonaApp() {
     let unsubAllFinance = () => {};
     let unsubAllMessages = () => {};
     let unsubNotifications = () => {};
+    let unsubStories = () => {};
 
     if (user && userDoc) {
       // Notifications
@@ -2625,6 +2710,15 @@ function ExonaApp() {
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, 'messages');
       });
+
+      // Stories listener
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const qStories = query(collection(db, 'stories'), where('timestamp', '>', yesterday), orderBy('timestamp', 'desc'));
+      unsubStories = onSnapshot(qStories, (snap) => {
+        setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)));
+      }, (error) => {
+        console.error('Stories listener error:', error);
+      });
     }
 
     return () => { 
@@ -2633,7 +2727,8 @@ function ExonaApp() {
       unsubAllAttendance(); 
       unsubAllFinance(); 
       unsubAllMessages(); 
-      unsubNotifications();
+      unsubNotifications(); 
+      unsubStories();
     };
   }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id, postsLimit]);
 
@@ -2664,6 +2759,12 @@ function ExonaApp() {
 
   useEffect(() => {
     if (!selectedSchool) return;
+
+    // Reset record entry states when switching institutions
+    setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+    setEditingRecord(null);
+    setCalcTuition('');
+    setCalcPaid('');
 
     // Only set up listeners if user is authorized to see this data
     const canAccess = selectedSchool.creatorUid === user?.uid || 
@@ -4060,42 +4161,119 @@ function ExonaApp() {
 
         return (
           <div className="w-full max-w-xl mx-auto pb-32">
-            <div className="flex items-center justify-between py-8 px-4">
-              <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Institutions</h2>
-              {user && (
-                <button 
-                  onClick={() => setIsSchoolModalOpen(true)}
-                  className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 transition-transform shadow-lg shadow-accent/20"
-                >
-                  <Plus size={24} />
+            <div className="flex items-center justify-between py-6 px-5">
+              <h2 className="text-[28px] font-black text-ink tracking-tight font-display">Status</h2>
+              <div className="flex gap-2">
+                <button className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
+                  <Search size={18} />
                 </button>
-              )}
+                <button className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
+                  <MoreHorizontal size={18} />
+                </button>
+              </div>
             </div>
 
-            {/* WhatsApp Style Chat List */}
-            <div className="bg-white">
-              {myInstitutions.length > 0 && (
-                <div className="py-4 px-4 border-b border-gray-100 bg-accent/5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[13px] font-bold text-accent uppercase tracking-widest">My Institutions</h2>
+            {/* Stories Row */}
+            <div className="px-5 mb-8">
+              <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
+                {/* My Story Add Button */}
+                <div className="flex-shrink-0 text-center">
+                  <div className="relative group">
+                    <button 
+                      onClick={() => setIsStoryModalOpen(true)}
+                      className="h-[72px] w-[72px] rounded-[2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center group-hover:border-accent transition-all duration-500 overflow-hidden"
+                    >
+                      {user?.photoURL ? (
+                        <img src={user.photoURL} className="h-full w-full object-cover opacity-50 group-hover:opacity-70 grayscale transition-all" />
+                      ) : (
+                        <UserIcon size={24} className="text-gray-300" />
+                      )}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-8 w-8 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg shadow-accent/40 group-hover:scale-110 transition-transform">
+                          <Plus size={20} />
+                        </div>
+                      </div>
+                    </button>
+                    <p className="text-[10px] font-black text-ink tracking-tight mt-2 opacity-70">My Status</p>
                   </div>
-                  <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
+                </div>
+
+                {/* Active Stories */}
+                {(Object.entries(storyGroups) as [string, Story[]][]).map(([id, group]) => {
+                  const firstStory = group[0];
+                  const hasUnseen = !group.every(s => s.viewers?.includes(user?.uid || ''));
+                  return (
+                    <button 
+                      key={id}
+                      onClick={() => { setSelectedStoryGroup(group); setActiveStoryIndex(0); setIsStoryViewerOpen(true); }}
+                      className="flex-shrink-0 text-center group"
+                    >
+                      <div className={`h-[72px] w-[72px] p-1 rounded-[2rem] border-2 transition-all duration-500 ${hasUnseen ? 'border-accent animate-pulse shadow-lg shadow-accent/10' : 'border-gray-100 grayscale-[0.5]'}`}>
+                        <div className="h-full w-full rounded-[1.8rem] overflow-hidden bg-gray-100 border border-white">
+                          <img src={firstStory.authorPhoto || firstStory.mediaUrl} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-black text-ink tracking-tight mt-2 truncate w-[72px]">{firstStory.authorName.split(' ')[0]}</p>
+                    </button>
+                  );
+                })}
+
+                {/* Followed Institutions without stories */}
+                {[...schools, ...places]
+                  .filter(s => s.followers?.includes(user?.uid || '') && !storyGroups[s.id])
+                  .map(school => (
+                    <button 
+                      key={school.id}
+                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
+                      className="flex-shrink-0 text-center opacity-40 hover:opacity-100 grayscale hover:grayscale-0 transition-all group"
+                    >
+                      <div className="h-[72px] w-[72px] p-1 rounded-[2.2rem] border-2 border-gray-50 bg-white">
+                        <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gray-50 flex items-center justify-center">
+                          {school.logo ? (
+                            <img src={school.logo} className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-bold text-gray-400">{school.name.charAt(0)}</span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-bold text-muted tracking-tight mt-2 truncate w-[72px]">{school.name.split(' ')[0]}</p>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            {/* Premium Sections */}
+            <div className="space-y-1">
+              {myInstitutions.length > 0 && (
+                <div className="px-5 mb-8">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[11px] font-black text-accent uppercase tracking-[0.3em]">Institutional Control</h2>
+                    <span className="text-[10px] font-bold text-muted bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">{myInstitutions.length} Active</span>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3">
                     {myInstitutions.map(school => (
                       <button 
                         key={school.id}
                         onClick={() => { setSelectedSchool(school); setView('school-feed'); setSchoolFeedTab('manage'); }}
-                        className="flex-shrink-0 w-16 text-center group"
+                        className="flex items-center gap-4 p-4 bg-white border border-gray-100 rounded-[1.8rem] hover:border-accent/20 hover:bg-accent/[0.02] transition-all group shadow-sm text-left"
                       >
-                        <div className="h-14 w-14 p-0.5 rounded-2xl border-2 border-accent flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white shadow-sm">
+                        <div className="h-16 w-16 p-0.5 rounded-2xl border-2 border-accent/20 flex items-center justify-center group-hover:scale-105 transition-all overflow-hidden bg-white">
                           <div className="h-full w-full rounded-[0.85rem] overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
                             {school.logo ? (
                               <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
-                              <span className="text-lg font-bold text-gray-300">{school.name.charAt(0)}</span>
+                              <span className="text-lg font-black text-gray-200">{school.name.charAt(0)}</span>
                             )}
                           </div>
                         </div>
-                        <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-black text-ink text-[16px] tracking-tight mb-0.5 group-hover:text-accent transition-colors">{school.name}</h3>
+                          <div className="flex gap-2">
+                            <span className="text-[9px] font-black text-muted uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">Portal ID: {school.id}</span>
+                            <span className="text-[9px] font-black text-accent uppercase tracking-wider bg-accent/5 px-1.5 py-0.5 rounded border border-accent/10">Administrator</span>
+                          </div>
+                        </div>
+                        <ChevronRight size={18} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
                       </button>
                     ))}
                   </div>
@@ -8344,6 +8522,197 @@ function ExonaApp() {
           label="Settings"
         />
       </div>
+
+      {/* Story Viewer */}
+      <AnimatePresence>
+        {isStoryViewerOpen && selectedStoryGroup && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[300] flex flex-col no-print"
+          >
+            {/* Progress Bars */}
+            <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
+              {selectedStoryGroup.map((_, i) => (
+                <div key={i} className="flex-1 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: i === activeStoryIndex ? '100%' : i < activeStoryIndex ? '100%' : '0%' }}
+                    transition={{ duration: i === activeStoryIndex ? 5 : 0, ease: 'linear' }}
+                    onAnimationStart={() => {
+                      if (i === activeStoryIndex) {
+                        handleMarkStoryAsSeen(selectedStoryGroup[i].id);
+                      }
+                    }}
+                    onAnimationComplete={() => {
+                      if (i === activeStoryIndex) {
+                        if (activeStoryIndex < selectedStoryGroup.length - 1) {
+                          setActiveStoryIndex(prev => prev + 1);
+                        } else {
+                          setIsStoryViewerOpen(false);
+                        }
+                      }
+                    }}
+                    className="h-full bg-white"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Header */}
+            <div className="absolute top-8 left-4 right-4 flex items-center justify-between z-10">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full overflow-hidden border border-white/20 bg-white/10">
+                  <img src={selectedStoryGroup[activeStoryIndex].authorPhoto} className="h-full w-full object-cover" />
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm shadow-sm">{selectedStoryGroup[activeStoryIndex].authorName}</p>
+                  <p className="text-white/60 text-[10px] font-medium uppercase tracking-widest">
+                    {new Date(selectedStoryGroup[activeStoryIndex].timestamp?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsStoryViewerOpen(false)}
+                className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 flex items-center justify-center relative">
+              {selectedStoryGroup[activeStoryIndex].mediaType === 'image' ? (
+                <img 
+                  src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
+                  className="max-h-full max-w-full object-contain" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <video 
+                  src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
+                  className="max-h-full max-w-full object-contain" 
+                  autoPlay
+                  controls={false}
+                />
+              )}
+              
+              {/* Navigation Zones */}
+              <div 
+                className="absolute inset-y-0 left-0 w-1/3" 
+                onClick={() => setActiveStoryIndex(prev => Math.max(0, prev - 1))}
+              />
+              <div 
+                className="absolute inset-y-0 right-0 w-1/3" 
+                onClick={() => {
+                  if (activeStoryIndex < selectedStoryGroup.length - 1) {
+                    setActiveStoryIndex(prev => prev + 1);
+                  } else {
+                    setIsStoryViewerOpen(false);
+                  }
+                }}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Story Upload Modal */}
+      <AnimatePresence>
+        {isStoryModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[300] flex items-center justify-center p-6"
+            onClick={(e) => e.target === e.currentTarget && setIsStoryModalOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-accent/20" />
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-ink mb-1">New Status</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">{isCreatingStory ? 'Transmitting to network...' : 'Share a moment with others'}</p>
+                </div>
+                <button onClick={() => setIsStoryModalOpen(false)} className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {isCreatingStory ? (
+                  <div className="py-12 flex flex-col items-center gap-4">
+                    <div className="h-16 w-16 border-4 border-accent/20 border-t-accent rounded-full animate-spin" />
+                    <p className="text-[11px] font-black text-ink uppercase tracking-widest animate-pulse">Uploading Media...</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-[11px] font-bold text-muted uppercase tracking-widest text-center">Post as Author:</p>
+                    <div className="flex flex-wrap gap-4 justify-center">
+                      {/* Post as Personal */}
+                      <button 
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*,video/*';
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) {
+                              handleCreateStory(file);
+                              setIsStoryModalOpen(false);
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-[2rem] border border-gray-100 hover:border-accent hover:bg-accent/[0.02] transition-all group shrink-0 w-[120px]"
+                      >
+                        <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          {user?.photoURL ? (
+                            <img src={user.photoURL} className="h-full w-full object-cover rounded-2xl" />
+                          ) : (
+                            <UserIcon size={24} className="text-gray-300" />
+                          )}
+                        </div>
+                        <span className="text-[9px] font-black text-ink uppercase tracking-widest">Personal</span>
+                      </button>
+
+                      {/* Post as Institution */}
+                      {[...schools, ...places].filter(s => s.creatorUid === user?.uid).map(s => (
+                        <button 
+                          key={s.id}
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*,video/*';
+                            input.onchange = (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                handleCreateStory(file, s.id);
+                                setIsStoryModalOpen(false);
+                              }
+                            };
+                            input.click();
+                          }}
+                          className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-[2rem] border border-gray-100 hover:border-accent hover:bg-accent/[0.02] transition-all group shrink-0 w-[120px]"
+                        >
+                          <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
+                            {s.logo ? (
+                              <img src={s.logo} className="h-full w-full object-cover" />
+                            ) : (
+                              <LayoutGrid size={24} className="text-gray-300" />
+                            )}
+                          </div>
+                          <span className="text-[9px] font-black text-ink uppercase tracking-widest truncate w-full text-center">{s.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
     );
   }
