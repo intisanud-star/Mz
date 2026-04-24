@@ -12,7 +12,7 @@ import {
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer,
-  Copy, Banknote, Smartphone, Globe, Receipt, Lock
+  Copy, Banknote, Smartphone, Globe, Receipt, Lock, TableProperties, LayoutList
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -857,6 +857,8 @@ function ExonaApp() {
   };
 
   const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
+  const [recordViewMode, setRecordViewMode] = useState<'classic' | 'microsoft' | 'bento'>('classic');
+  const [hasChosenView, setHasChosenView] = useState(false);
   const [calcTuition, setCalcTuition] = useState<string>('');
   const [calcPaid, setCalcPaid] = useState<string>('');
   const [exportStartDate, setExportStartDate] = useState<string>('');
@@ -4548,6 +4550,52 @@ function ExonaApp() {
         const totalPaid = filteredRecords.reduce((acc, r) => acc + (r.paid || 0), 0);
         const totalBalance = filteredRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
 
+        if (!hasChosenView && filteredRecords.length > 0) {
+          return (
+            <WordLayout 
+              title="View Configuration"
+              subtitle="Personalize your workflow"
+              icon={LayoutGrid}
+              branding={{ name: selectedSchool.name }}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+            >
+              <div className="py-20 max-w-4xl mx-auto text-center">
+                <div className="inline-flex items-center justify-center p-4 bg-accent/5 rounded-3xl text-accent mb-8">
+                  <Sparkles size={40} />
+                </div>
+                <h2 className="text-4xl font-black text-ink mb-4 tracking-tight">How would you like to see your records?</h2>
+                <p className="text-muted font-bold text-lg mb-16 max-w-xl mx-auto leading-relaxed">
+                  We've prepared three distinct layouts for your data. Choose the one that suits your management style.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { mode: 'classic', title: 'Classic View', desc: 'Standard professional table with mobile optimized cards.', icon: LayoutList, color: 'bg-indigo-50 text-indigo-600' },
+                    { mode: 'microsoft', title: 'Microsoft View', desc: 'Dense, high-productivity grid design for heavy data entry.', icon: TableProperties, color: 'bg-blue-50 text-blue-600' },
+                    { mode: 'bento', title: 'Bento Grid', desc: 'Modern, card-based layout with visual status indicators.', icon: LayoutGrid, color: 'bg-emerald-50 text-emerald-600' }
+                  ].map((option) => (
+                    <button 
+                      key={option.mode}
+                      onClick={() => { setRecordViewMode(option.mode as any); setHasChosenView(true); }}
+                      className="group flex flex-col items-center p-8 bg-white border-2 border-gray-100 rounded-[2.5rem] hover:border-accent hover:shadow-2xl hover:shadow-accent/10 transition-all text-center relative"
+                    >
+                      <div className={`h-16 w-16 ${option.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                        <option.icon size={28} strokeWidth={2.5} />
+                      </div>
+                      <h3 className="text-xl font-black text-ink mb-3">{option.title}</h3>
+                      <p className="text-xs text-muted font-bold leading-relaxed">{option.desc}</p>
+                      <div className="mt-8 flex items-center gap-2 text-[10px] font-black text-accent uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                        Select View <ChevronRight size={12} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
         return (
           <WordLayout 
             title="Institutional Records"
@@ -4589,6 +4637,22 @@ function ExonaApp() {
                       </button>
                     ))}
                   </div>
+
+                  <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
+                    {(['classic', 'microsoft', 'bento'] as const).map(mode => (
+                      <button 
+                        key={mode}
+                        onClick={() => setRecordViewMode(mode)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${recordViewMode === mode ? 'bg-white text-accent shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-ink'}`}
+                      >
+                        {mode === 'classic' && <LayoutList size={12} strokeWidth={2.5} />}
+                        {mode === 'microsoft' && <TableProperties size={12} strokeWidth={2.5} />}
+                        {mode === 'bento' && <LayoutGrid size={12} strokeWidth={2.5} />}
+                        <span className="hidden lg:inline">{mode}</span>
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
                     <input 
@@ -4641,61 +4705,103 @@ function ExonaApp() {
               </div>
             )}
 
-            <div className="hidden md:block overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
-              <table className="w-full text-left border-collapse min-w-[800px]">
-                <thead>
-                  <tr className="bg-white border-b border-gray-200">
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.student}</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Balance</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Added By</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
+            {recordViewMode === 'classic' ? (
+              <>
+                <div className="hidden md:block overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
+                    <thead>
+                      <tr className="bg-white border-b border-gray-200">
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.student}</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Balance</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Added By</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {filteredRecords.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="px-6 py-20 text-center">
+                            <p className="font-bold text-lg text-muted">No records found in this section</p>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredRecords.map((record) => (
+                          <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
+                            <td className="px-6 py-4">
+                              <span className="font-bold text-ink text-sm">{record.studentName}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{record.category}</span>
+                            </td>
+                            <td className="px-6 py-4 font-mono font-bold text-green-600 text-[13px]">{currencySymbol}{record.paid.toLocaleString()}</td>
+                            <td className="px-6 py-4 font-mono font-bold text-red-600 text-[13px]">{currencySymbol}{record.balance.toLocaleString()}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[8px] font-bold text-ink">
+                                  {record.addedBy?.charAt(0) || 'A'}
+                                </div>
+                                <span className="text-[10px] font-medium text-ink">{record.addedBy || 'Admin'}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-[10px] font-medium text-muted">
+                                {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
+                                  <>
+                                    <button 
+                                      onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                                      className="p-2 text-muted hover:text-accent transition-all"
+                                      title="Export Receipt"
+                                    >
+                                      <FileText size={14} />
+                                    </button>
+                                    <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
+                                      <Edit2 size={14} />
+                                    </button>
+                                    <button onClick={() => { setRecordToDelete(record.id); setIsDeleteRecordModalOpen(true); }} className="p-2 text-muted hover:text-red-600 transition-all">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
                   {filteredRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-20 text-center">
-                        <p className="font-bold text-lg text-muted">No records found in this section</p>
-                      </td>
-                    </tr>
+                    <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      <p className="font-bold text-muted">No records found</p>
+                    </div>
                   ) : (
                     filteredRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
-                        <td className="px-6 py-4">
-                          <span className="font-bold text-ink text-sm">{record.studentName}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{record.category}</span>
-                        </td>
-                        <td className="px-6 py-4 font-mono font-bold text-green-600 text-[13px]">{currencySymbol}{record.paid.toLocaleString()}</td>
-                        <td className="px-6 py-4 font-mono font-bold text-red-600 text-[13px]">{currencySymbol}{record.balance.toLocaleString()}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded-full bg-white border border-gray-100 flex items-center justify-center text-[8px] font-bold text-ink">
-                              {record.addedBy?.charAt(0) || 'A'}
-                            </div>
-                            <span className="text-[10px] font-medium text-ink">{record.addedBy || 'Admin'}</span>
+                      <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
+                        <div className="flex justify-between items-start mb-3">
+                          <div>
+                            <h4 className="font-bold text-ink">{record.studentName}</h4>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</p>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-[10px] font-medium text-muted">
-                            {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex gap-1">
+                            <button 
+                              onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                              className="p-2 text-muted hover:text-accent transition-all"
+                            >
+                              <FileText size={14} />
+                            </button>
                             {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
                               <>
-                                <button 
-                                  onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
-                                  className="p-2 text-muted hover:text-accent transition-all"
-                                  title="Export Receipt"
-                                >
-                                  <FileText size={14} />
-                                </button>
                                 <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
                                   <Edit2 size={14} />
                                 </button>
@@ -4705,72 +4811,139 @@ function ExonaApp() {
                               </>
                             )}
                           </div>
-                        </td>
-                      </tr>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mb-3">
+                          <div>
+                            <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Paid</p>
+                            <p className="font-mono font-bold text-green-600 text-sm">{currencySymbol}{record.paid.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Balance</p>
+                            <p className="font-mono font-bold text-red-600 text-sm">{currencySymbol}{record.balance.toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                          <div className="flex items-center gap-2">
+                            <div className="h-5 w-5 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[7px] font-bold text-ink">
+                              {record.addedBy?.charAt(0) || 'A'}
+                            </div>
+                            <span className="text-[10px] font-medium text-muted">{record.addedBy || 'Admin'}</span>
+                          </div>
+                          <span className="text-[10px] font-medium text-muted">
+                            {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
                     ))
                   )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-4">
-              {filteredRecords.length === 0 ? (
-                <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <p className="font-bold text-muted">No records found</p>
                 </div>
-              ) : (
-                filteredRecords.map((record) => (
-                  <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-bold text-ink">{record.studentName}</h4>
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</p>
-                      </div>
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
-                          className="p-2 text-muted hover:text-accent transition-all"
-                        >
-                          <FileText size={14} />
-                        </button>
-                        {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
-                          <>
-                            <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink transition-all">
-                              <Edit2 size={14} />
-                            </button>
-                            <button onClick={() => { setRecordToDelete(record.id); setIsDeleteRecordModalOpen(true); }} className="p-2 text-muted hover:text-red-600 transition-all">
-                              <Trash2 size={14} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 mb-3">
-                      <div>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Paid</p>
-                        <p className="font-mono font-bold text-green-600 text-sm">{currencySymbol}{record.paid.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Balance</p>
-                        <p className="font-mono font-bold text-red-600 text-sm">{currencySymbol}{record.balance.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex justify-between items-center pt-3 border-t border-gray-50">
-                      <div className="flex items-center gap-2">
-                        <div className="h-5 w-5 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-[7px] font-bold text-ink">
-                          {record.addedBy?.charAt(0) || 'A'}
+              </>
+            ) : recordViewMode === 'microsoft' ? (
+              <div className="overflow-hidden border border-gray-200 rounded-[2px] bg-white shadow-sm">
+                <table className="w-full text-left border-collapse text-[11px]">
+                  <thead className="bg-[#f3f2f1] border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">{labels.student}</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Category</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Amount Paid</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Pending Balance</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Recorder</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Last Modified</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 italic md:not-italic">
+                    {filteredRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-muted italic">There are no items to show in this view.</td>
+                      </tr>
+                    ) : (
+                      filteredRecords.map((record) => (
+                        <tr key={record.id} className="hover:bg-[#f3f2f1]/50 border-b border-gray-50 group">
+                          <td className="px-4 py-2.5 font-semibold text-[#0078d4] border-r border-gray-50">{record.studentName}</td>
+                          <td className="px-4 py-2.5 border-r border-gray-50">
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-gray-100 text-[9px] font-semibold text-gray-600 uppercase">
+                              {record.category}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 font-bold text-green-700 border-r border-gray-50 bg-green-50/20">{currencySymbol}{record.paid.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 font-bold text-red-700 border-r border-gray-50 bg-red-50/20">{currencySymbol}{record.balance.toLocaleString()}</td>
+                          <td className="px-4 py-2.5 border-r border-gray-50 text-gray-500">{record.addedBy || 'N/A'}</td>
+                          <td className="px-4 py-2.5 border-r border-gray-50 text-gray-500">
+                             {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : '—'}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button onClick={() => handleEditRecord(record)} className="p-1 hover:bg-gray-200 rounded text-gray-600"><Edit2 size={12} /></button>
+                              <button onClick={() => { setRecordToDelete(record.id); setIsDeleteRecordModalOpen(true); }} className="p-1 hover:bg-red-100 rounded text-red-600"><Trash2 size={12} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+                <div className="bg-[#f3f2f1] px-4 py-1 border-t border-gray-200 text-[9px] text-gray-500 font-medium">
+                  {filteredRecords.length} items found
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredRecords.length === 0 ? (
+                   <div className="col-span-full py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                     <p className="font-bold text-muted">No record entries available</p>
+                   </div>
+                ) : (
+                  filteredRecords.map(record => (
+                    <div key={record.id} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:border-accent/20 transition-all group relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-full -mr-12 -mt-12 transition-transform group-hover:scale-150 duration-700" />
+                      
+                      <div className="relative">
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="h-10 w-10 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
+                            <Users size={20} strokeWidth={2.5} />
+                          </div>
+                          <div className="flex gap-1 translate-x-2">
+                             <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink hover:bg-gray-50 rounded-full transition-all"><Edit2 size={14} /></button>
+                             <button onClick={() => { setRecordToDelete(record.id); setIsDeleteRecordModalOpen(true); }} className="p-2 text-muted hover:text-red-500 hover:bg-red-50 rounded-full transition-all"><Trash2 size={14} /></button>
+                          </div>
                         </div>
-                        <span className="text-[10px] font-medium text-muted">{record.addedBy || 'Admin'}</span>
+
+                        <h4 className="text-lg font-black text-ink mb-1 truncate">{record.studentName}</h4>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-6">{record.category}</p>
+
+                        <div className="space-y-3 mb-6">
+                          <div className="flex items-center justify-between p-3 bg-green-50/50 rounded-2xl ring-1 ring-green-100">
+                            <span className="text-[9px] font-black text-green-800 uppercase tracking-wider">Paid</span>
+                            <span className="text-sm font-black text-green-600">{currencySymbol}{record.paid.toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between p-3 bg-red-50/50 rounded-2xl ring-1 ring-red-100">
+                            <span className="text-[9px] font-black text-red-800 uppercase tracking-wider">Balance</span>
+                            <span className="text-sm font-black text-red-600">{currencySymbol}{record.balance.toLocaleString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-lg bg-gray-100 flex items-center justify-center text-[8px] font-black text-muted">
+                              {record.addedBy?.charAt(0) || 'A'}
+                            </div>
+                            <span className="text-[10px] font-bold text-muted truncate max-w-[80px]">{record.addedBy || 'System'}</span>
+                          </div>
+                          <button 
+                            onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent rounded-full text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
+                          >
+                            <FileText size={12} />
+                            Receipt
+                          </button>
+                        </div>
                       </div>
-                      <span className="text-[10px] font-medium text-muted">
-                        {record.timestamp?.toDate ? record.timestamp.toDate().toLocaleDateString() : new Date().toLocaleDateString()}
-                      </span>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )}
 
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
               <div>
