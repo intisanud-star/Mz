@@ -591,166 +591,163 @@ const FeedPost = ({
       initial={{ opacity: 0, y: 10 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="flex gap-3 px-6 py-6 border-b border-gray-100 hover:bg-gray-50/50 transition-colors group relative"
+      className="bg-white rounded-[2rem] p-6 mb-4 border border-gray-100 shadow-sm hover:shadow-md transition-all group relative"
     >
-      {/* Left Column: Avatar */}
-      <button 
-        onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-        className="shrink-0 pt-1"
-      >
-        {post.authorPhoto ? (
-          <img src={post.authorPhoto} className="h-10 w-10 md:h-12 md:w-12 rounded-full object-cover ring-2 ring-white shadow-sm hover:ring-accent/20 transition-all" referrerPolicy="no-referrer" />
-        ) : (
-          <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-accent font-bold text-sm md:text-base">
-            {post.authorName?.charAt(0)}
-          </div>
-        )}
-      </button>
-
-      {/* Right Column: Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1.5">
+      <div className="flex gap-4">
+        {/* Left Column: Avatar */}
+        <div className="flex flex-col items-center gap-2 shrink-0">
           <button 
             onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-            className="flex items-center gap-1.5 min-w-0 group/author"
+            className="shrink-0"
           >
-            <span className="text-[14px] font-extrabold text-ink truncate group-hover/author:text-accent transition-colors">
-              {post.authorName}
-            </span>
-            <span className="text-[12px] text-muted truncate">
-              @{post.authorName?.toLowerCase().replace(/\s+/g, '')}
-            </span>
-            <span className="text-muted/30 text-[12px] shrink-0">·</span>
-            <span className="text-[12px] text-muted/60 shrink-0">
-              {formatTime(post.timestamp)}
-            </span>
+            {post.authorPhoto ? (
+              <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover ring-2 ring-white shadow-sm hover:ring-accent/20 transition-all border border-gray-100" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-accent font-black text-lg">
+                {post.authorName?.charAt(0)}
+              </div>
+            )}
           </button>
-
-          {post.schoolId && (
-            <button 
-              onClick={() => onInstitutionClick?.(post.schoolId)}
-              className="ml-auto px-2 py-0.5 rounded-md bg-gray-50 text-[10px] font-bold text-accent uppercase tracking-widest hover:bg-accent/5 transition-colors max-w-[100px] truncate"
-            >
-              {post.schoolName || 'Institution'}
-            </button>
-          )}
-
-          <div className="relative">
-            <button 
-              onClick={() => setShowMenu(!showMenu)}
-              className="p-2 text-muted hover:text-ink hover:bg-gray-100 rounded-full transition-all"
-            >
-              <MoreHorizontal size={16} />
-            </button>
-            
-            <AnimatePresence>
-              {showMenu && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  className="absolute right-0 mt-2 w-40 bg-white border border-gray-100 rounded-2xl shadow-2xl py-2 z-30 overflow-hidden"
-                >
-                  {(isOwnPost || canManage) && (
-                    <>
-                      <button 
-                        onClick={() => { onEdit?.(post); setShowMenu(false); }}
-                        className="w-full px-4 py-2 text-left text-xs font-bold text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors"
-                      >
-                        <Edit2 size={14} className="text-muted" /> Edit Post
-                      </button>
-                      <button 
-                        onClick={() => { onDelete?.(post); setShowMenu(false); }}
-                        className="w-full px-4 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                      >
-                        <Trash2 size={14} /> Delete
-                      </button>
-                      <div className="h-px bg-gray-50 my-2" />
-                    </>
-                  )}
-                  <button className="w-full px-4 py-2 text-left text-xs font-bold text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors">
-                    <Share2 size={14} className="text-muted" /> Share Post
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <div className="w-[2px] grow bg-gray-100 rounded-full" />
         </div>
 
-        <p className="text-[15px] leading-relaxed text-ink whitespace-pre-wrap mb-4 font-medium tracking-tight">
-          {post.content}
-        </p>
+        {/* Right Column: Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <button 
+                onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
+                className="flex flex-col min-w-0 group/author"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[14px] font-black text-ink truncate group-hover/author:text-accent transition-colors uppercase tracking-tight">
+                    {post.authorName}
+                  </span>
+                  {post.authorRole === 'admin' && <Shield size={12} className="text-accent fill-accent/10" />}
+                </div>
+                <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none">
+                  {formatTime(post.timestamp)}
+                </span>
+              </button>
 
-        {post.resharedFrom && (
-          <div className="mb-4 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl border-l-4 border-accent/30 group/repost hover:bg-gray-50 transition-colors">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="h-4 w-4 bg-accent/10 rounded-full flex items-center justify-center">
-                <Repeat size={8} className="text-accent" />
-              </div>
-              <p className="text-[11px] font-bold text-accent uppercase tracking-widest">{post.resharedFrom.authorName}</p>
+              {post.schoolId && (
+                <button 
+                  onClick={() => onInstitutionClick?.(post.schoolId)}
+                  className="px-2 py-0.5 rounded-lg bg-accent/5 text-[9px] font-black text-accent uppercase tracking-widest hover:bg-accent/10 transition-colors truncate max-w-[120px]"
+                >
+                  {post.schoolName}
+                </button>
+              )}
             </div>
-            <p className="text-[13px] text-muted leading-relaxed line-clamp-3">{post.resharedFrom.content}</p>
-          </div>
-        )}
 
-        {post.mediaUrl && (
-          <div className="mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-black/5 aspect-video flex items-center justify-center">
-            {post.mediaType === 'image' ? (
-              <img src={post.mediaUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
-            ) : (
-              <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+            <div className="relative">
+              <button 
+                onClick={() => setShowMenu(!showMenu)}
+                className="h-8 w-8 text-muted hover:text-ink hover:bg-gray-100 rounded-xl transition-all flex items-center justify-center"
+              >
+                <MoreHorizontal size={16} />
+              </button>
+              
+              <AnimatePresence>
+                {showMenu && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                    className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl shadow-2xl py-2 z-30 overflow-hidden"
+                  >
+                    {(isOwnPost || canManage) && (
+                      <>
+                        <button 
+                          onClick={() => { onEdit?.(post); setShowMenu(false); }}
+                          className="w-full px-4 py-2.5 text-left text-[11px] font-black text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
+                        >
+                          <Edit2 size={14} className="text-muted" /> Edit Post
+                        </button>
+                        <button 
+                          onClick={() => { onDelete?.(post); setShowMenu(false); }}
+                          className="w-full px-4 py-2.5 text-left text-[11px] font-black text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
+                        >
+                          <Trash2 size={14} /> Delete
+                        </button>
+                        <div className="h-px bg-gray-50 my-2" />
+                      </>
+                    )}
+                    <button className="w-full px-4 py-2.5 text-left text-[11px] font-black text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors uppercase tracking-widest">
+                      <Share2 size={14} className="text-muted" /> Share
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <p className="text-[14px] leading-relaxed text-ink whitespace-pre-wrap mb-4 font-medium tracking-tight">
+            {post.content}
+          </p>
+
+          {post.resharedFrom && (
+            <div className="mb-4 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl border-l-4 border-accent/20 group/repost hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-2 mb-2">
+                <Repeat size={14} className="text-accent" />
+                <p className="text-[10px] font-black text-accent uppercase tracking-widest">{post.resharedFrom.authorName}</p>
+              </div>
+              <p className="text-[13px] text-muted leading-relaxed line-clamp-3 font-medium">{post.resharedFrom.content}</p>
+            </div>
+          )}
+
+          {post.mediaUrl && (
+            <div className="mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 group/media shadow-sm">
+              {post.mediaType === 'image' ? (
+                <img src={post.mediaUrl} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+              ) : (
+                <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+              )}
+            </div>
+          )}
+
+          {/* Action Row - Threads Style (Tight) */}
+          <div className="flex items-center gap-1 -ml-2">
+            <button 
+              onClick={() => onLike?.(post.id, post.likedBy || [])}
+              className={`flex items-center gap-1 px-2 py-2 rounded-xl transition-all ${isLiked ? 'text-accent' : 'text-muted hover:text-accent hover:bg-accent/5'}`}
+            >
+              <Heart size={20} className={isLiked ? 'fill-accent' : ''} />
+              {post.likes > 0 && <span className="text-[11px] font-black tabular-nums">{post.likes}</span>}
+            </button>
+
+            <button 
+              onClick={() => canReply && onComment?.(post)}
+              className={`flex items-center gap-1 px-2 py-2 rounded-xl transition-all ${canReply ? 'text-muted hover:text-blue-500 hover:bg-blue-50' : 'text-muted/30 cursor-not-allowed'}`}
+              disabled={!canReply}
+            >
+              <MessageCircle size={20} />
+              {post.commentsCount > 0 && <span className="text-[11px] font-black tabular-nums">{post.commentsCount}</span>}
+            </button>
+
+            <button 
+              onClick={() => onForward?.(post)}
+              className="flex items-center gap-1 px-2 py-2 rounded-xl text-muted hover:text-green-500 hover:bg-green-50 transition-all"
+            >
+              <Repeat size={20} />
+            </button>
+
+            <button 
+              className="flex items-center gap-1 px-2 py-2 rounded-xl text-muted hover:text-ink hover:bg-gray-100 transition-all"
+            >
+              <Send size={20} />
+            </button>
+            
+            {!isOwnPost && (
+              <button 
+                onClick={() => onMessage?.(post)}
+                className="flex items-center px-2 py-2 rounded-xl text-muted hover:text-accent hover:bg-accent/5 transition-all"
+                title="Message Author"
+              >
+                <Smartphone size={20} />
+              </button>
             )}
           </div>
-        )}
-
-        <div className="flex items-center justify-between max-w-sm">
-          <button 
-            onClick={() => onLike?.(post.id, post.likedBy || [])}
-            className={`flex items-center gap-2 text-xs font-bold transition-all ${isLiked ? 'text-accent' : 'text-muted hover:text-accent'}`}
-          >
-            <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${isLiked ? 'bg-accent/10' : 'hover:bg-accent/5'}`}>
-              <Heart size={18} className={isLiked ? 'fill-accent' : ''} />
-            </div>
-            {post.likes > 0 && <span className="tabular-nums">{post.likes}</span>}
-          </button>
-
-          <button 
-            onClick={() => canReply && onComment?.(post)}
-            className={`flex items-center gap-2 text-xs font-bold transition-all ${canReply ? 'text-muted hover:text-blue-500' : 'text-muted/30 cursor-not-allowed'}`}
-            disabled={!canReply}
-          >
-            <div className={`h-8 w-8 rounded-full flex items-center justify-center transition-colors ${canReply ? 'hover:bg-blue-50' : ''}`}>
-              <MessageCircle size={18} />
-            </div>
-            {post.commentsCount > 0 && <span className="tabular-nums">{post.commentsCount}</span>}
-          </button>
-
-          <button 
-            onClick={() => onForward?.(post)}
-            className="flex items-center gap-2 text-xs font-bold text-muted hover:text-green-500 transition-all"
-          >
-            <div className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-green-50 transition-colors">
-              <Repeat size={18} />
-            </div>
-          </button>
-
-          <button 
-            className="flex items-center gap-2 text-xs font-bold text-muted hover:text-accent transition-all"
-          >
-            <div className="h-8 w-8 rounded-full flex items-center justify-center hover:bg-accent/5 transition-colors">
-              <Share2 size={18} />
-            </div>
-          </button>
-
-          {!isOwnPost && (
-            <button 
-              onClick={() => onMessage?.(post)}
-              className="flex items-center text-muted hover:text-accent transition-all h-8 w-8 rounded-full flex items-center justify-center hover:bg-accent/5"
-              title="Message Author"
-            >
-              <MessageSquare size={18} />
-            </button>
-          )}
         </div>
       </div>
     </motion.div>
@@ -966,8 +963,8 @@ function ExonaApp() {
         // Internal check: search institutions
         const q = query(collection(db, 'schools'), where('id', '==', recipientAccount));
         const snap = await getDocs(q);
-        if (!snap.empty) {
-          setVerifiedName('Valid Account'); // Don't show name for now
+        if (snap.empty) {
+          setVerifiedName('Verified Account'); 
         } else {
           setVerificationError('Account Not Found');
           setVerifiedName('');
@@ -978,7 +975,7 @@ function ExonaApp() {
           setVerificationError('Invalid Bank Details');
           setVerifiedName('');
         } else {
-          setVerifiedName('Account Validated'); // Don't show name for now
+          setVerifiedName('Account Verified'); 
         }
       }
     } catch (error) {
@@ -3597,7 +3594,8 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4">
+          <div className="w-full min-h-screen bg-gray-50/50">
+            <div className="max-w-xl mx-auto py-8 px-4">
             <div className="flex items-center justify-between mb-8">
               <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
@@ -3704,13 +3702,6 @@ function ExonaApp() {
                                 <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
                                 <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).attendance}</span>
                               </button>
-                              <button 
-                                onClick={() => { setSelectedSchool(school); handleNavigateToData('finance'); }}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                              >
-                                <Wallet size={12} className="group-hover/btn:scale-110 transition-transform" />
-                                <span className="text-[9px] font-bold uppercase tracking-widest">Wallet</span>
-                              </button>
                             </div>
                           )}
                         </div>
@@ -3719,13 +3710,13 @@ function ExonaApp() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col">
+              <div className="flex flex-col gap-2">
                 {posts.length === 0 ? (
-                  <div className="py-20 text-center text-muted">
-                    <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6">
-                      <MessageSquare size={32} className="opacity-20" />
+                  <div className="py-20 text-center">
+                    <div className="h-20 w-20 bg-white rounded-[2.5rem] shadow-sm border border-gray-100 flex items-center justify-center mx-auto mb-6">
+                      <MessageSquare size={32} className="text-gray-200" />
                     </div>
-                    <p className="text-sm font-bold">No broadcasts yet from followed institutions.</p>
+                    <p className="text-[12px] font-black uppercase tracking-widest text-muted">No broadcasts yet</p>
                   </div>
                 ) : (
                   posts.map(post => {
@@ -3776,6 +3767,7 @@ function ExonaApp() {
                 )}
               </div>
             )}
+            </div>
           </div>
         );
       }
@@ -4026,15 +4018,6 @@ function ExonaApp() {
                         <Calendar size={20} />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
-                    </button>
-                    <button 
-                      onClick={() => handleNavigateToData('finance')}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent shadow-sm group-hover:scale-110 transition-transform">
-                        <Wallet size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Wallet</span>
                     </button>
                   </div>
                 </div>
@@ -4850,107 +4833,124 @@ function ExonaApp() {
               </div>
             }
           >
-            <div className="mb-16 border-b border-gray-100 pb-12">
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Institutional Wallet Terminal • {new Date().toLocaleDateString()}</p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
-              {/* Settlement Instructions */}
-              <div className="space-y-10">
-                <div className="border-l-4 border-accent pl-6 flex items-center justify-between">
-                  <div>
-                    <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Settlement Hub</h4>
-                    <p className="text-xs text-muted font-medium mt-1">Manage platform settlements and direct transfers.</p>
+            <div className="space-y-12">
+              {/* OPay Style Balance Card */}
+              <div className="relative bg-ink rounded-[2.5rem] p-10 overflow-hidden text-white shadow-2xl shadow-ink/30 h-64 flex flex-col justify-between">
+                <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
+                  <Wallet size={120} />
+                </div>
+                <div className="relative z-10">
+                  <div className="flex items-center gap-3 mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">Total Balance</p>
+                    <button className="h-5 w-5 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all">
+                      <Compass size={10} className="text-white/60" />
+                    </button>
                   </div>
-                  <div className="flex gap-3">
-                    {settlementStep === 'selection' && (
-                      <button 
-                        onClick={() => setSettlementStep('deposit')}
-                        className="px-4 py-2 bg-accent text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all border border-accent/10 shadow-lg shadow-accent/20 flex items-center gap-2"
-                      >
-                        <Plus size={14} strokeWidth={3} />
-                        Deposit Funds
-                      </button>
-                    )}
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-accent">{currencySymbol}</span>
+                    <h2 className="text-5xl font-black tracking-tighter">{(finance?.institutionBalance || 0).toLocaleString()}</h2>
+                  </div>
+                </div>
+
+                <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-6">
+                  <div className="flex gap-8">
+                    <div>
+                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Incoming</p>
+                      <p className="text-sm font-black text-green-400">+{currencySymbol}0</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Outgoing</p>
+                      <p className="text-sm font-black text-red-400">-{currencySymbol}0</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSettlementStep('deposit')} className="px-5 py-2.5 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all shadow-lg shadow-accent/20">Deposit</button>
+                    <button onClick={() => setSettlementStep('other')} className="px-5 py-2.5 bg-white/10 text-white border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all">Transfer</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                {/* Left Panel: Services & Actions */}
+                <div className="space-y-10">
+                  <div className="flex items-center justify-between px-2">
+                    <div className="border-l-4 border-accent pl-6">
+                      <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Financial Services</h4>
+                      <p className="text-xs text-muted font-medium mt-1">Manage platform settlements and direct transfers.</p>
+                    </div>
                     {settlementStep !== 'selection' && (
                       <button 
                         onClick={() => setSettlementStep('selection')}
                         className="px-4 py-2 bg-gray-50 text-ink rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
                       >
-                        Back to Hub
+                        Back to Services
                       </button>
                     )}
                   </div>
-                </div>
 
-                {settlementStep === 'selection' ? (
-                  <div className="bg-[#f8f9fc] rounded-[3rem] p-10 flex flex-col items-center">
-                    <h5 className="text-[28px] font-black text-ink mb-2 tracking-tight">Finances</h5>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-12">Institutional Financial Hub</p>
-                    
-                    <div className="w-full grid grid-cols-2 sm:grid-cols-3 gap-6">
+                  {settlementStep === 'selection' ? (
+                    <div className="grid grid-cols-2 gap-4">
                       {/* Transfer Actions */}
                       <button 
                         onClick={() => setSettlementStep('exona')}
-                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent hover:shadow-lg transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#fff8f4] text-[#f2994a] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <UserIcon size={32} />
+                        <div className="h-14 w-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <UserIcon size={24} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">To Exona</span>
+                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">To Exona</span>
                       </button>
 
                       <button 
                         onClick={() => setSettlementStep('other')}
-                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent hover:shadow-lg transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#f0f4ff] text-[#4285f4] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <IdCard size={32} />
+                        <div className="h-14 w-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Banknote size={24} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">To Bank</span>
+                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">To Bank</span>
                       </button>
 
                       <button 
                         onClick={() => setSettlementStep('airtime')}
-                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent hover:shadow-lg transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#ecfdf5] text-[#10b981] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Smartphone size={32} />
+                        <div className="h-14 w-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Smartphone size={24} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">Airtime</span>
+                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Airtime</span>
                       </button>
 
                       <button 
                         onClick={() => setSettlementStep('data')}
-                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent hover:shadow-lg transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#fdf2f8] text-[#db2777] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Globe size={32} />
+                        <div className="h-14 w-14 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Globe size={24} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">Data</span>
+                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Data Plan</span>
                       </button>
 
                       <button 
                         onClick={() => setSettlementStep('bills')}
-                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent hover:shadow-lg transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#f0fdf4] text-[#16a34a] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Receipt size={32} />
+                        <div className="h-14 w-14 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Receipt size={24} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">Bills</span>
+                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Pay Bills</span>
                       </button>
 
                       <button 
                         onClick={() => setSettlementStep('deposit')}
-                        className="flex flex-col items-center gap-4 bg-accent text-white p-6 rounded-[2.5rem] hover:shadow-xl hover:shadow-accent/40 transition-all group"
+                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-dotted border-accent/30 hover:border-accent hover:shadow-lg transition-all group"
                       >
-                        <div className="h-16 w-16 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Plus size={32} strokeWidth={3} />
+                        <div className="h-14 w-14 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Plus size={24} strokeWidth={2.5} />
                         </div>
-                        <span className="text-[11px] font-black uppercase tracking-tight">Deposit</span>
+                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Deposit Hub</span>
                       </button>
                     </div>
-                  </div>
                 ) : (settlementStep === 'exona' || settlementStep === 'other') ? (
                   <div className="space-y-8">
                     {/* Settlement Detail Form */}
@@ -5294,47 +5294,47 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {settlements.length === 0 ? (
-                    <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
-                      <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-gray-200 mx-auto mb-4 border border-gray-100">
-                        <Clock size={24} />
-                      </div>
-                      <p className="font-bold text-muted uppercase tracking-widest text-[10px]">No recent settlements</p>
-                    </div>
-                  ) : (
-                    settlements.map((s) => (
-                      <div 
-                        key={s.id}
-                        className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-accent/10 hover:shadow-xl transition-all flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${s.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>
-                            <ArrowUpDown size={20} />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <h6 className="font-black text-ink tracking-tight uppercase text-sm">{s.bankName}</h6>
-                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
-                                s.status === 'completed' ? 'bg-green-100 text-green-700' : 
-                                s.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {s.status}
-                              </span>
+                            <div className="space-y-4">
+                              {settlements.length === 0 ? (
+                                <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
+                                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-gray-200 mx-auto mb-4 border border-gray-100">
+                                    <Clock size={24} />
+                                  </div>
+                                  <p className="font-bold text-muted uppercase tracking-widest text-[10px]">No recent transactions</p>
+                                </div>
+                              ) : (
+                                settlements.map((s) => (
+                                  <div 
+                                    key={s.id}
+                                    className="group bg-white p-5 rounded-3xl border border-gray-50 hover:border-accent/10 hover:shadow-xl transition-all flex items-center justify-between"
+                                  >
+                                    <div className="flex items-center gap-4">
+                                      <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
+                                        s.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
+                                      }`}>
+                                        <ArrowUpDown size={18} strokeWidth={2.5} />
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h6 className="font-black text-ink tracking-tight uppercase text-[11px] truncate whitespace-nowrap">{s.bankName || 'Wallet Transfer'}</h6>
+                                        <div className="flex items-center gap-2">
+                                          <p className="text-[10px] text-muted font-bold tracking-widest uppercase truncate max-w-[80px]">{s.recipientId}</p>
+                                          <span className="w-1 h-1 bg-gray-200 rounded-full shrink-0" />
+                                          <p className="text-[10px] text-muted font-medium truncate">
+                                            {s.timestamp?.toDate ? s.timestamp.toDate().toLocaleDateString() : 'Processing...'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <p className="font-black text-ink tracking-tight text-sm">-{currencySymbol}{s.amount.toLocaleString()}</p>
+                                      <p className={`text-[9px] font-black uppercase ${
+                                        s.status === 'completed' ? 'text-green-600' : 'text-orange-500'
+                                      }`}>{s.status}</p>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
                             </div>
-                            <p className="text-[10px] text-muted font-bold tracking-widest uppercase">{s.recipientId}</p>
-                            <p className="text-[10px] text-muted font-medium mt-0.5">
-                              {s.timestamp?.toDate ? s.timestamp.toDate().toLocaleString() : 'Processing...'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono text-[16px] font-black text-ink tracking-tighter">-{currencySymbol}{s.amount.toLocaleString()}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
 
                 <div className="bg-[#f0f9ff] p-8 rounded-[2.5rem] border border-[#bae6fd] shadow-sm">
                   <div className="flex gap-4">
@@ -5351,6 +5351,7 @@ function ExonaApp() {
                 </div>
               </div>
             </div>
+          </div>
 
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
               <div>
@@ -5653,13 +5654,6 @@ function ExonaApp() {
                     >
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('finance'); }}
-                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 hover:shadow-xl hover:shadow-gray-100 rounded-2xl transition-all group"
-                    >
-                      <Wallet size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                      <span className="text-xs font-black uppercase tracking-widest">Wallet</span>
                     </button>
                   </div>
                 </div>
@@ -8697,12 +8691,6 @@ function ExonaApp() {
                       label={labels.attendance} 
                       active={view === 'attendance'} 
                       onClick={() => handleNavigateToData('attendance')} 
-                    />
-                    <SidebarItem 
-                      icon={Wallet} 
-                      label="Wallet Hub" 
-                      active={view === 'finance'} 
-                      onClick={() => handleNavigateToData('finance')} 
                     />
                     <SidebarItem 
                       icon={Shield} 
