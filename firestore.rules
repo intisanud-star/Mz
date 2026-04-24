@@ -114,18 +114,18 @@ service cloud.firestore {
     }
 
     function canReply(schoolId) {
-      let school = exists(/databases/$(database)/documents/schools/$(schoolId)) 
-        ? get(/databases/$(database)/documents/schools/$(schoolId)).data 
-        : (exists(/databases/$(database)/documents/places/$(schoolId)) 
-            ? get(/databases/$(database)/documents/places/$(schoolId)).data 
-            : null);
-      
-      return school != null && (
-        school.replyPermission == 'everyone' ||
-        (school.replyPermission == 'followers' && (isApprovedFollower(schoolId) || isSchoolManager(schoolId))) ||
-        (school.replyPermission == 'none' && isSchoolManager(schoolId)) ||
-        (!('replyPermission' in school)) // Default to everyone if field missing
-      );
+      return (schoolId == null || schoolId == "") || 
+             getPostPermission(schoolId) == 'everyone' ||
+             (getPostPermission(schoolId) == 'followers' && (isApprovedFollower(schoolId) || isSchoolManager(schoolId))) ||
+             (getPostPermission(schoolId) == 'none' && isSchoolManager(schoolId));
+    }
+
+    function getPostPermission(schoolId) {
+       return exists(/databases/$(database)/documents/schools/$(schoolId)) 
+              ? get(/databases/$(database)/documents/schools/$(schoolId)).data.get('replyPermission', 'everyone')
+              : (exists(/databases/$(database)/documents/places/$(schoolId))
+                 ? get(/databases/$(database)/documents/places/$(schoolId)).data.get('replyPermission', 'everyone')
+                 : 'everyone');
     }
 
     function isValidEmail(email) {
@@ -249,15 +249,15 @@ service cloud.firestore {
         (resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 
          request.resource.data.authorUid == resource.data.authorUid) || 
         isAdmin() ||
-        // Allow liking
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy']))
+        // Allow liking and commenting
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount']))
       );
       
       allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isAuthenticated() && canReply(get(/databases/$(database)/documents/posts/$(postId)).data.schoolId);
+        allow create: if isAuthenticated() && canReply(get(/databases/$(database)/documents/posts/$(postId)).data.get('schoolId', ''));
         allow update: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
         allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
       }

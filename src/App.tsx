@@ -2526,9 +2526,9 @@ function ExonaApp() {
         timestamp: serverTimestamp()
       });
       // Increment comment count on post
-      await setDoc(doc(db, 'posts', activePostForComments.id), { 
-        commentsCount: (activePostForComments.commentsCount || 0) + 1 
-      }, { merge: true });
+      await updateDoc(doc(db, 'posts', activePostForComments.id), { 
+        commentsCount: increment(1)
+      });
       showNotification('Comment added');
       setCommentText('');
 
