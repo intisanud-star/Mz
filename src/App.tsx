@@ -11,7 +11,8 @@ import {
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer,
+  Copy, Banknote
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -37,7 +38,7 @@ import {
   deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment } from 'firebase/firestore';
 
 /**
  * @license
@@ -59,15 +60,6 @@ interface Place {
   pendingFollowers?: string[];
   replyPermission?: 'everyone' | 'followers' | 'none';
   administrativeViewers?: string[];
-  monnifyConfig?: {
-    apiKey: string;
-    contractCode: string;
-    secretKey: string;
-  };
-  paystackConfig?: {
-    publicKey: string;
-    secretKey: string;
-  };
   bankAccounts?: {
     bankName: string;
     accountNumber: string;
@@ -120,21 +112,44 @@ interface School {
   pendingFollowers?: string[];
   replyPermission?: 'everyone' | 'followers' | 'none';
   administrativeViewers?: string[];
-  monnifyConfig?: {
-    apiKey: string;
-    contractCode: string;
-    secretKey: string;
-  };
-  paystackConfig?: {
-    publicKey: string;
-    secretKey: string;
-  };
   bankAccounts?: {
     bankName: string;
     accountNumber: string;
     accountName: string;
   }[];
 }
+
+const NIGERIAN_BANKS = [
+  'Access Bank',
+  'First Bank of Nigeria',
+  'Zenith Bank',
+  'United Bank for Africa (UBA)',
+  'Guaranty Trust Bank (GTBank)',
+  'Union Bank of Nigeria',
+  'Fidelity Bank',
+  'First City Monument Bank (FCMB)',
+  'Ecobank Nigeria',
+  'Stanbic IBTC Bank',
+  'Sterling Bank',
+  'Wema Bank',
+  'Polaris Bank',
+  'Keystone Bank',
+  'Heritage Bank',
+  'Unity Bank',
+  'Jaiz Bank',
+  'Titan Trust Bank',
+  'PremiumTrust Bank',
+  'Globus Bank',
+  'SunTrust Bank Nigeria',
+  'Providus Bank',
+  'OPay',
+  'PalmPay',
+  'Kuda Bank',
+  'Moniepoint MFB',
+  'VFD Microfinance Bank',
+  'Carbon',
+  'FairMoney'
+];
 
 interface Story {
   id: string;
@@ -796,44 +811,6 @@ function ExonaApp() {
   const [editingMessageText, setEditingMessageText] = useState('');
   const [activeChat, setActiveChat] = useState<any>(null);
   const [activeMessageMenuId, setActiveMessageMenuId] = useState<string | null>(null);
-  const [finance, setFinance] = useState<SchoolFinance | null>(null);
-  const [monnifyApiKey, setMonnifyApiKey] = useState('');
-  const [monnifyContractCode, setMonnifyContractCode] = useState('');
-  const [monnifySecretKey, setMonnifySecretKey] = useState('');
-  const [paystackPublicKey, setPaystackPublicKey] = useState('');
-  const [paystackSecretKey, setPaystackSecretKey] = useState('');
-  const [newBankName, setNewBankName] = useState('');
-  const [newAccountNumber, setNewAccountNumber] = useState('');
-  const [newAccountName, setNewAccountName] = useState('');
-  const [isAddingBank, setIsAddingBank] = useState(false);
-
-  const handleUpdatePaymentConfig = async (gateway: 'monnify' | 'paystack') => {
-    if (!selectedSchool) return;
-    try {
-      const collectionName = selectedSchool.type === 'school' ? 'schools' : 'places';
-      const ref = doc(db, collectionName, selectedSchool.id);
-      if (gateway === 'monnify') {
-        await updateDoc(ref, {
-          monnifyConfig: {
-            apiKey: monnifyApiKey,
-            contractCode: monnifyContractCode,
-            secretKey: monnifySecretKey
-          }
-        });
-      } else {
-        await updateDoc(ref, {
-          paystackConfig: {
-            publicKey: paystackPublicKey,
-            secretKey: paystackSecretKey
-          }
-        });
-      }
-      showNotification(`${gateway.charAt(0).toUpperCase() + gateway.slice(1)} configuration updated successfully`);
-    } catch (error) {
-      console.error('Error updating payment config:', error);
-      handleFirestoreError(error, OperationType.UPDATE, `institutions/${selectedSchool.id}`);
-    }
-  };
 
   const handleAddBankAccount = async () => {
     if (!selectedSchool || !newBankName || !newAccountNumber || !newAccountName) return;
@@ -912,14 +889,79 @@ function ExonaApp() {
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
+  const [finance, setFinance] = useState<SchoolFinance | null>(null);
+  const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'amount' | 'success'>('selection');
+  const [settlementAmount, setSettlementAmount] = useState('');
+  const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
+  const [newBankName, setNewBankName] = useState('');
+  const [selectedSettlementBank, setSelectedSettlementBank] = useState('First Bank of Nigeria');
+  const [newAccountNumber, setNewAccountNumber] = useState('');
+  const [newAccountName, setNewAccountName] = useState('');
+  const [isAddingBank, setIsAddingBank] = useState(false);
+  const [settlements, setSettlements] = useState<any[]>([]);
+
   useEffect(() => {
-    if (selectedSchool) {
-      setMonnifyApiKey(selectedSchool.monnifyConfig?.apiKey || '');
-      setMonnifyContractCode(selectedSchool.monnifyConfig?.contractCode || '');
-      setMonnifySecretKey(selectedSchool.monnifyConfig?.secretKey || '');
-      setPaystackPublicKey(selectedSchool.paystackConfig?.publicKey || '');
-      setPaystackSecretKey(selectedSchool.paystackConfig?.secretKey || '');
+    if (!selectedSchool) return;
+
+    const q = query(collection(db, 'settlements'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc'), limit(10));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setSettlements(docs);
+    }, (error) => {
+      console.error('Settlements listener error:', error);
+    });
+
+    return () => unsubscribe();
+  }, [selectedSchool]);
+
+  const handleInitiateSettlement = async () => {
+    if (!user || !selectedSchool || !finance) return;
+    const amount = parseFloat(settlementAmount);
+    if (isNaN(amount) || amount <= 0) {
+      showNotification('Please enter a valid amount');
+      return;
     }
+    if (amount > (finance.institutionBalance || 0)) {
+      showNotification('Insufficient balance');
+      return;
+    }
+
+    setIsProcessingSettlement(true);
+    try {
+      const settlementId = `SET-${Date.now()}`;
+      const payload = {
+        amount,
+        type: settlementStep === 'exona' ? 'exona-bank' : 'other-bank',
+        bankName: settlementStep === 'exona' ? 'Exona Bank' : selectedSettlementBank,
+        status: 'pending',
+        timestamp: serverTimestamp(),
+        authorUid: user.uid,
+        schoolId: selectedSchool.id,
+        recipientId: settlementStep === 'exona' ? `8134567890 (Portal: ${selectedSchool.id})` : `90${selectedSchool.id.substring(0, 8)}`
+      };
+
+      await setDoc(doc(db, 'settlements', settlementId), payload);
+      
+      // Update finance record
+      const schoolType = selectedSchool.type === 'school' ? 'schools' : 'places';
+      const financeRef = doc(db, schoolType, selectedSchool.id, 'finance', 'stats');
+      await updateDoc(financeRef, {
+        institutionBalance: increment(-amount),
+        lastSettlement: serverTimestamp()
+      });
+
+      setSettlementStep('success');
+      showNotification('Settlement request submitted successfully');
+    } catch (error) {
+      console.error('Settlement error:', error);
+      handleFirestoreError(error, OperationType.CREATE, 'settlements');
+    } finally {
+      setIsProcessingSettlement(false);
+    }
+  };
+
+  useEffect(() => {
+    // Institution selection hook
   }, [selectedSchool]);
   const [selectedInstitutionForProfile, setSelectedInstitutionForProfile] = useState<School | Place | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
@@ -4313,35 +4355,6 @@ function ExonaApp() {
                 </div>
               </div>
 
-              {/* Referral Offer as a Pinned Chat */}
-              <button 
-                onClick={() => {
-                  const vercelLink = `https://mz-rosy.vercel.app/?ref=${user?.uid || ''}`;
-                  const inviteText = `Join Exona - The premium institution management system. Use my link to get started: ${vercelLink}`;
-                  navigator.clipboard.writeText(inviteText);
-                  setLinkCopied(true);
-                  setTimeout(() => setLinkCopied(false), 3000);
-                }}
-                className={`w-full p-4 transition-all text-left flex items-center gap-4 border-b border-gray-100 bg-white`}
-              >
-                <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg ${
-                  isQualified ? 'bg-green-600 shadow-green-600/20' : 'bg-accent shadow-accent/20'
-                }`}>
-                  {isQualified ? <BadgeCheck size={24} /> : <Sparkles size={24} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-bold text-ink text-[15px]">
-                      {isQualified ? 'Lifetime Access Unlocked' : 'Lifetime Free Offer'}
-                    </h3>
-                    <span className="text-[10px] text-accent font-bold uppercase tracking-widest">Pinned</span>
-                  </div>
-                  <p className="text-[13px] text-muted truncate">
-                    {linkCopied ? 'Link Copied to Clipboard!' : isQualified ? 'You have earned lifetime access!' : `Progress: ${inviteProgress}/3 invites. Click to share link.`}
-                  </p>
-                </div>
-              </button>
-
                {/* Special Items */}
                <button 
                  onClick={() => setView('feed')}
@@ -4761,226 +4774,223 @@ function ExonaApp() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-20">
-              {/* Payment Gateways */}
+              {/* Settlement Instructions */}
               <div className="space-y-10">
-                <div className="border-l-4 border-accent pl-6">
-                  <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Payment Gateways</h4>
-                  <p className="text-xs text-muted font-medium mt-1">Configure settlement providers for automated payments.</p>
-                </div>
-
-                {/* Monnify Section */}
-                <div className="bg-gray-50/50 rounded-3xl p-6 sm:p-8 border border-gray-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-gray-100/50">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 bg-[#002f5c] text-white rounded-xl flex items-center justify-center font-black text-xs uppercase">M</div>
-                    <h5 className="font-black text-lg text-ink tracking-tight">Monnify Payment</h5>
-                  </div>
-                  
-                  {canManage ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">API Key</label>
-                        <input 
-                          type="password"
-                          value={monnifyApiKey}
-                          onChange={(e) => setMonnifyApiKey(e.target.value)}
-                          className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-ink outline-none focus:border-accent transition-all placeholder:text-gray-300"
-                          placeholder="MK_PROD_..."
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Contract Code</label>
-                          <input 
-                            type="text"
-                            value={monnifyContractCode}
-                            onChange={(e) => setMonnifyContractCode(e.target.value)}
-                            className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-ink outline-none focus:border-accent transition-all"
-                            placeholder="1234567890"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Secret Key</label>
-                          <input 
-                            type="password"
-                            value={monnifySecretKey}
-                            onChange={(e) => setMonnifySecretKey(e.target.value)}
-                            className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-ink outline-none focus:border-accent transition-all"
-                            placeholder="SK_PROD_..."
-                          />
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => handleUpdatePaymentConfig('monnify')}
-                        className="w-full py-4 bg-[#002f5c] text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-[#003c75] transition-all active:scale-[0.98] shadow-lg shadow-blue-900/10 mt-2"
-                      >
-                        Update Monnify Settings
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-white border border-gray-100 rounded-2xl text-center">
-                      <p className="text-xs font-bold text-muted uppercase tracking-widest">Configuration Encrypted</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Paystack Section */}
-                <div className="bg-gray-50/50 rounded-3xl p-8 border border-gray-100 transition-all hover:bg-white hover:shadow-xl hover:shadow-gray-100/50">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="h-10 w-10 bg-[#011b33] text-[#00c3f8] rounded-xl flex items-center justify-center font-black">P</div>
-                    <h5 className="font-black text-lg text-ink tracking-tight">Paystack</h5>
-                  </div>
-
-                  {canManage ? (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Public Key</label>
-                        <input 
-                          type="password"
-                          value={paystackPublicKey}
-                          onChange={(e) => setPaystackPublicKey(e.target.value)}
-                          className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-ink outline-none focus:border-[#00c3f8] transition-all"
-                          placeholder="pk_live_..."
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Secret Key</label>
-                        <input 
-                          type="password"
-                          value={paystackSecretKey}
-                          onChange={(e) => setPaystackSecretKey(e.target.value)}
-                          className="w-full px-5 py-3.5 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-ink outline-none focus:border-[#00c3f8] transition-all"
-                          placeholder="sk_live_..."
-                        />
-                      </div>
-                      <button 
-                        onClick={() => handleUpdatePaymentConfig('paystack')}
-                        className="w-full py-4 bg-[#011b33] text-[#00c3f8] rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-[#02315c] transition-all active:scale-[0.98] shadow-lg shadow-blue-950/10 mt-2"
-                      >
-                        Update Paystack Settings
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-4 bg-white border border-gray-100 rounded-2xl text-center">
-                      <p className="text-xs font-bold text-muted uppercase tracking-widest">Configuration Encrypted</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Bank Accounts */}
-              <div className="space-y-10">
-                <div className="border-l-4 border-green-500 pl-6 flex items-center justify-between">
+                <div className="border-l-4 border-accent pl-6 flex items-center justify-between">
                   <div>
-                    <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Bank Accounts</h4>
-                    <p className="text-xs text-muted font-medium mt-1">Manage institutional accounts for direct settlements.</p>
+                    <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Settlement Hub</h4>
+                    <p className="text-xs text-muted font-medium mt-1">Manage platform settlements and direct transfers.</p>
                   </div>
-                  {canManage && (
+                  {settlementStep !== 'selection' && (
                     <button 
-                      onClick={() => setIsAddingBank(!isAddingBank)}
-                      className="h-10 w-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center hover:bg-green-100 transition-all border border-green-200"
+                      onClick={() => setSettlementStep('selection')}
+                      className="px-4 py-2 bg-gray-50 text-ink rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
                     >
-                      <Plus size={20} />
+                      Change Method
                     </button>
                   )}
                 </div>
 
-                {isAddingBank && canManage && (
-                  <motion.div 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="bg-white border-2 border-green-100 rounded-3xl p-8 space-y-4 shadow-xl shadow-green-900/5 overflow-hidden"
-                  >
-                    <div>
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Bank Name</label>
-                      <input 
-                        type="text"
-                        value={newBankName}
-                        onChange={(e) => setNewBankName(e.target.value)}
-                        className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold text-ink outline-none focus:bg-white focus:border-green-500 transition-all"
-                        placeholder="e.g. GTBank, Zenith, First Bank..."
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Account Number</label>
-                      <input 
-                        type="text"
-                        value={newAccountNumber}
-                        onChange={(e) => setNewAccountNumber(e.target.value)}
-                        className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold text-ink outline-none focus:bg-white focus:border-green-500 transition-all"
-                        placeholder="10 Digits"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-1">Account Name</label>
-                      <input 
-                        type="text"
-                        value={newAccountName}
-                        onChange={(e) => setNewAccountName(e.target.value)}
-                        className="w-full px-5 py-3.5 bg-gray-50 border border-transparent rounded-2xl text-xs font-bold text-ink outline-none focus:bg-white focus:border-green-500 transition-all"
-                        placeholder="e.g. St. Peters Finance Ops"
-                      />
-                    </div>
-                    <div className="flex gap-3 pt-2">
+                {settlementStep === 'selection' ? (
+                  <div className="bg-[#f8f9fc] rounded-[3rem] p-12 flex flex-col items-center">
+                    <h5 className="text-[32px] font-black text-ink mb-2 tracking-tight">Where to?</h5>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-12">Choose how to send your money</p>
+                    
+                    <div className="w-full space-y-6">
+                      {/* Exona Bank Option */}
                       <button 
-                        onClick={() => setIsAddingBank(false)}
-                        className="flex-1 py-4 bg-gray-50 text-muted rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-gray-100 transition-all"
+                        onClick={() => setSettlementStep('exona')}
+                        className="w-full bg-white p-8 rounded-[2rem] border border-gray-100 hover:border-accent hover:shadow-xl hover:shadow-gray-200/50 transition-all group flex items-center gap-6"
                       >
-                        Cancel
+                        <div className="h-16 w-16 bg-[#fff8f4] text-[#f2994a] rounded-2xl flex items-center justify-center shrink-0">
+                          <BadgeCheck size={32} />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <h6 className="text-[17px] font-black text-ink uppercase tracking-tight">Exona Bank</h6>
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mt-0.5">Instant • Low Fee</p>
+                        </div>
+                        <ChevronRight className="text-gray-300 group-hover:text-accent transition-colors" size={24} />
                       </button>
-                      <button 
-                        onClick={handleAddBankAccount}
-                        className="flex-1 py-4 bg-green-600 text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-green-700 transition-all shadow-lg shadow-green-900/10"
-                      >
-                        Add Account
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
 
-                <div className="space-y-4">
-                  {(!selectedSchool.bankAccounts || selectedSchool.bankAccounts.length === 0) ? (
-                    <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
-                      <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-gray-200 mx-auto mb-4 border border-gray-100">
-                        <Database size={24} />
-                      </div>
-                      <p className="font-bold text-muted uppercase tracking-widest text-[10px]">No bank accounts registered</p>
-                    </div>
-                  ) : (
-                    selectedSchool.bankAccounts.map((acc, idx) => (
-                      <div 
-                        key={idx}
-                        className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-accent/20 hover:shadow-2xl hover:shadow-accent/5 transition-all flex items-center justify-between"
+                      {/* Bank Account Option */}
+                      <button 
+                        onClick={() => setSettlementStep('other')}
+                        className="w-full bg-white p-8 rounded-[2rem] border border-gray-100 hover:border-accent hover:shadow-xl hover:shadow-gray-200/50 transition-all group flex items-center gap-6"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all">
-                            <CreditCard size={20} />
+                        <div className="h-16 w-16 bg-[#f0f4ff] text-[#4285f4] rounded-2xl flex items-center justify-center shrink-0">
+                          <IdCard size={32} />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <h6 className="text-[17px] font-black text-ink uppercase tracking-tight">Other Bank</h6>
+                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mt-0.5">Send to any bank in Nigeria</p>
+                        </div>
+                        <ChevronRight className="text-gray-300 group-hover:text-accent transition-colors" size={24} />
+                      </button>
+                    </div>
+                  </div>
+                ) : settlementStep === 'exona' || settlementStep === 'other' ? (
+                  <div className="space-y-8">
+                    {/* Settlement Detail Form */}
+                    <div className={`${settlementStep === 'exona' ? 'bg-ink text-white' : 'bg-white border border-gray-100 shadow-xl shadow-gray-100/50'} rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden`}>
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-4 mb-8">
+                          <div className={`h-14 w-14 rounded-2xl flex items-center justify-center backdrop-blur-md ${settlementStep === 'exona' ? 'bg-white/10 text-white' : 'bg-accent/10 text-accent'}`}>
+                            {settlementStep === 'exona' ? <BadgeCheck size={32} /> : <Banknote size={32} />}
                           </div>
                           <div>
-                            <h6 className="font-black text-ink tracking-tight uppercase text-sm mb-0.5">{acc.bankName}</h6>
-                            <p className="text-[10px] text-muted font-bold tracking-[0.1em]">{acc.accountName}</p>
-                            <p className="font-mono text-[14px] font-bold text-ink mt-1 tracking-widest">{acc.accountNumber}</p>
+                            <h5 className={`font-black text-xl tracking-tight ${settlementStep === 'exona' ? 'text-white' : 'text-ink'}`}>
+                              {settlementStep === 'exona' ? 'Transfer to Exona Bank' : 'Transfer to Other Bank'}
+                            </h5>
+                            <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>
+                              {settlementStep === 'exona' ? 'Direct Settlement' : 'Global Network Settlements'}
+                            </p>
                           </div>
                         </div>
-                        {canManage && (
+
+                        <div className="space-y-6">
+                          {settlementStep === 'other' && (
+                            <div>
+                              <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Select Destination Bank</label>
+                              <select 
+                                value={selectedSettlementBank}
+                                onChange={(e) => setSelectedSettlementBank(e.target.value)}
+                                className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-bold text-ink outline-none focus:border-accent appearance-none cursor-pointer"
+                              >
+                                {NIGERIAN_BANKS.map(bank => (
+                                  <option key={bank} value={bank}>{bank}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className={`text-[10px] font-bold uppercase tracking-widest mb-3 block ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Enter Amount</label>
+                            <div className="relative">
+                              <span className={`absolute left-5 top-1/2 -translate-y-1/2 font-black text-xl ${settlementStep === 'exona' ? 'text-white' : 'text-ink'}`}>{currencySymbol}</span>
+                              <input 
+                                type="number"
+                                value={settlementAmount}
+                                onChange={(e) => setSettlementAmount(e.target.value)}
+                                className={`w-full pl-12 pr-5 py-5 rounded-2xl text-2xl font-black outline-none transition-all ${
+                                  settlementStep === 'exona' 
+                                    ? 'bg-white/10 text-white focus:bg-white/15 border-white/10' 
+                                    : 'bg-gray-50 text-ink focus:bg-white border-gray-100 focus:border-accent'
+                                }`}
+                                placeholder="0.00"
+                              />
+                            </div>
+                            <div className="mt-2 flex justify-between px-1">
+                              <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/30' : 'text-muted'}`}>Available Balance</p>
+                              <p className={`text-[10px] font-black ${settlementStep === 'exona' ? 'text-accent' : 'text-ink'}`}>{currencySymbol}{(finance?.institutionBalance || 0).toLocaleString()}</p>
+                            </div>
+                          </div>
+
+                          <div className={`p-5 rounded-2xl border ${settlementStep === 'exona' ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className="flex justify-between items-center mb-1">
+                              <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Recieving Account</p>
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${settlementStep === 'exona' ? 'bg-accent/20 text-accent' : 'bg-green-100 text-green-600'}`}>Verified</span>
+                            </div>
+                            <p className="text-sm font-bold tracking-tight">
+                              {settlementStep === 'exona' ? `EXONA TECH SERVICES • 8134567890` : `${selectedSettlementBank} • 90${selectedSchool.id.substring(0, 8)}`}
+                            </p>
+                          </div>
+
                           <button 
-                            onClick={() => handleRemoveBankAccount(acc)}
-                            className="p-3 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 rounded-xl"
+                            disabled={isProcessingSettlement || !settlementAmount || parseFloat(settlementAmount) <= 0}
+                            onClick={handleInitiateSettlement}
+                            className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
+                              settlementStep === 'exona' ? 'bg-white text-ink hover:bg-gray-100' : 'bg-ink text-white hover:bg-ink/90'
+                            }`}
                           >
-                            <Trash2 size={16} />
+                            {isProcessingSettlement ? 'Initiating Settlement...' : 'Send Money Now'}
                           </button>
-                        )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : settlementStep === 'success' ? (
+                  <div className="bg-white border-2 border-green-500/20 rounded-[3rem] p-12 flex flex-col items-center text-center">
+                    <div className="h-24 w-24 bg-green-500 text-white rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-green-500/20">
+                      <Check size={48} strokeWidth={3} />
+                    </div>
+                    <h5 className="text-2xl font-black text-ink mb-2 tracking-tight">Transfer Successful!</h5>
+                    <p className="text-xs font-bold text-muted uppercase tracking-[0.2em] mb-10 max-w-[240px] leading-relaxed">Your settlement of <span className="text-ink">{currencySymbol}{parseFloat(settlementAmount).toLocaleString()}</span> has been initiated.</p>
+                    <button 
+                      onClick={() => {
+                        setSettlementStep('selection');
+                        setSettlementAmount('');
+                      }}
+                      className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform"
+                    >
+                      Back to Wallet
+                    </button>
+                  </div>
+                ) : (
+                  <div />
+                )}
+
+              </div>
+
+              {/* Settlement History */}
+              <div className="space-y-10">
+                <div className="border-l-4 border-accent pl-6 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Recent Activity</h4>
+                    <p className="text-xs text-muted font-medium mt-1">Transaction history and settlement status.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {settlements.length === 0 ? (
+                    <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
+                      <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-gray-200 mx-auto mb-4 border border-gray-100">
+                        <Clock size={24} />
+                      </div>
+                      <p className="font-bold text-muted uppercase tracking-widest text-[10px]">No recent settlements</p>
+                    </div>
+                  ) : (
+                    settlements.map((s) => (
+                      <div 
+                        key={s.id}
+                        className="group bg-white p-6 rounded-3xl border border-gray-100 hover:border-accent/10 hover:shadow-xl transition-all flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${s.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-yellow-50 text-yellow-600'}`}>
+                            <ArrowUpDown size={20} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <h6 className="font-black text-ink tracking-tight uppercase text-sm">{s.bankName}</h6>
+                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                s.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                                s.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {s.status}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted font-bold tracking-widest uppercase">{s.recipientId}</p>
+                            <p className="text-[10px] text-muted font-medium mt-0.5">
+                              {s.timestamp?.toDate ? s.timestamp.toDate().toLocaleString() : 'Processing...'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono text-[16px] font-black text-ink tracking-tighter">-{currencySymbol}{s.amount.toLocaleString()}</p>
+                        </div>
                       </div>
                     ))
                   )}
                 </div>
 
-                <div className="bg-yellow-50 p-6 rounded-3xl border border-yellow-100">
-                  <div className="flex gap-3">
-                    <AlertTriangle size={18} className="text-yellow-600 shrink-0" />
+                <div className="bg-[#f0f9ff] p-8 rounded-[2.5rem] border border-[#bae6fd] shadow-sm">
+                  <div className="flex gap-4">
+                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-[#0284c7] shrink-0 border border-[#bae6fd]">
+                      <ShieldCheck size={20} />
+                    </div>
                     <div>
-                      <h6 className="text-[11px] font-black text-yellow-800 uppercase tracking-widest mb-1">Security Notice</h6>
-                      <p className="text-[10px] text-yellow-700 font-medium leading-relaxed">
-                        Exona encrypts all financial configuration. Only verified administrative members with "Full Access" can modify settlement settings or bank information.
+                      <h6 className="text-[11px] font-black text-[#0369a1] uppercase tracking-widest mb-1.5 line-clamp-1">Financial Integrity Unit</h6>
+                      <p className="text-[10px] text-[#075985] font-medium leading-relaxed opacity-80">
+                        Exona employs military-grade encryption for all financial settlements. Our automated reconciliation system ensures 100% accuracy in platform disbursements.
                       </p>
                     </div>
                   </div>

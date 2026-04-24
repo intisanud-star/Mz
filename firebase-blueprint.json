@@ -186,6 +186,23 @@
         "viewers": { "type": "array", "items": { "type": "string" } }
       },
       "required": ["authorUid", "authorName", "mediaUrl", "mediaType", "timestamp", "expiresAt"]
+    },
+    "Settlement": {
+      "title": "Settlement",
+      "description": "Financial settlement request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["exona-bank", "other-bank"] },
+        "bankName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "authorUid": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "recipientId": { "type": "string" }
+      },
+      "required": ["amount", "type", "bankName", "status", "timestamp", "authorUid", "schoolId", "recipientId"]
     }
   },
   "firestore": {
@@ -200,6 +217,7 @@
     "/messages/{messageId}": { "schema": "Message", "description": "Chat messages" },
     "/typingStates/{stateId}": { "schema": "TypingStatus", "description": "User typing statuses" },
     "/users/{userId}/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" },
-    "/stories/{storyId}": { "schema": "Story", "description": "Status stories" }
+    "/stories/{storyId}": { "schema": "Story", "description": "Status stories" },
+    "/settlements/{settlementId}": { "schema": "Settlement", "description": "Financial settlement requests" }
   }
 }

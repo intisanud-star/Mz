@@ -158,6 +158,17 @@ service cloud.firestore {
              ('schoolId' in data ? (isSchoolManager(data.schoolId) || isAdmin()) : true);
     }
 
+    function isValidSettlement(data) {
+      return isAuthenticated() &&
+             data.authorUid == request.auth.uid &&
+             data.schoolId is string &&
+             isSchoolManager(data.schoolId) &&
+             data.amount is number && data.amount > 0 &&
+             data.bankName is string &&
+             data.type in ['exona-bank', 'other-bank'] &&
+             data.status == 'pending';
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -262,6 +273,12 @@ service cloud.firestore {
         isAdmin()
       );
       allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+    }
+
+    match /settlements/{settlementId} {
+      allow read: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isSchoolManager(resource.data.schoolId) || isAdmin());
+      allow create: if isValidSettlement(request.resource.data);
+      allow update, delete: if isAdmin();
     }
   }
 }
