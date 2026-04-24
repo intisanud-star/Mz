@@ -887,6 +887,15 @@ function ExonaApp() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
+
+  const handleWalletClick = () => {
+    if (user) {
+      setIsWalletSelectorOpen(true);
+    } else {
+      setView('login');
+    }
+  };
   const [editingRecord, setEditingRecord] = useState<StudentRecord | null>(null);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
@@ -8867,6 +8876,12 @@ function ExonaApp() {
           label="Chat"
         />
         <NavButton 
+          active={view === 'finance'} 
+          onClick={handleWalletClick} 
+          icon={Wallet} 
+          label="Wallet"
+        />
+        <NavButton 
           active={view === 'tools'} 
           onClick={() => setView('tools')} 
           icon={LayoutGrid} 
@@ -9064,6 +9079,66 @@ function ExonaApp() {
                       ))}
                     </div>
                   </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Wallet Selector Modal */}
+      <AnimatePresence>
+        {isWalletSelectorOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[300] flex items-center justify-center p-6"
+            onClick={(e) => e.target === e.currentTarget && setIsWalletSelectorOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-ink mb-1">Select Wallet</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Choose institution to access terminal</p>
+                </div>
+                <button onClick={() => setIsWalletSelectorOpen(false)} className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-1">
+                {[...schools, ...places].filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')).length === 0 ? (
+                  <div className="py-12 text-center text-muted font-bold text-sm italic">
+                    No institutional wallets found.
+                  </div>
+                ) : (
+                  [...schools, ...places].filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')).map(s => (
+                    <button 
+                      key={s.id}
+                      onClick={() => {
+                        setSelectedSchool(s as School);
+                        setView('finance');
+                        setSettlementStep('selection');
+                        setIsWalletSelectorOpen(false);
+                      }}
+                      className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-accent hover:bg-accent/[0.02] transition-all group"
+                    >
+                      <div className="h-12 w-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
+                        {s.logo ? (
+                          <img src={s.logo} className="h-full w-full object-cover" />
+                        ) : (
+                          <Wallet size={20} className="text-muted" />
+                        )}
+                      </div>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-sm font-black text-ink truncate uppercase tracking-tight">{s.name}</p>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{s.type === 'school' ? 'School' : 'Business'}</p>
+                      </div>
+                      <ChevronRight size={18} className="text-gray-300 group-hover:text-accent transition-colors" />
+                    </button>
+                  ))
                 )}
               </div>
             </motion.div>
