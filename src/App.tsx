@@ -12,7 +12,7 @@ import {
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer,
-  Copy, Banknote
+  Copy, Banknote, Smartphone, Globe, Receipt, Lock
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -118,6 +118,15 @@ interface School {
     accountName: string;
   }[];
 }
+
+const NETWORK_PROVIDERS = ['MTN', 'Airtel', 'Glo', '9mobile'];
+const DATA_PLANS = [
+  { id: 'mtn-1gb', name: '1GB - 30 Days', price: 1200, network: 'MTN' },
+  { id: 'mtn-5gb', name: '5GB - 30 Days', price: 5000, network: 'MTN' },
+  { id: 'airtel-2gb', name: '2GB - 30 Days', price: 1500, network: 'Airtel' },
+  { id: 'glo-3gb', name: '3GB - 30 Days', price: 2000, network: 'Glo' }
+];
+const BILL_TYPES = ['Electricity', 'Cable TV', 'Internet', 'Betting'];
 
 const NIGERIAN_BANKS = [
   'Access Bank',
@@ -890,11 +899,16 @@ function ExonaApp() {
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
-  const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'pin' | 'success'>('selection');
+  const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'airtime' | 'data' | 'bills' | 'pin' | 'success' | 'deposit'>('selection');
   const [settlementAmount, setSettlementAmount] = useState('');
   const [recipientAccount, setRecipientAccount] = useState('');
   const [verifiedName, setVerifiedName] = useState('');
+  const [verificationError, setVerificationError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedDataPlan, setSelectedDataPlan] = useState('');
+  const [selectedBillType, setSelectedBillType] = useState('');
   const [transactionPin, setTransactionPin] = useState('');
   const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
   const [newBankName, setNewBankName] = useState('');
@@ -928,25 +942,39 @@ function ExonaApp() {
 
   const handleVerifyAccount = async () => {
     setIsVerifying(true);
+    setVerificationError('');
     try {
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 800));
+
+      if (recipientAccount.length !== 10) {
+        setVerificationError('Invalid Account Number');
+        setVerifiedName('');
+        return;
+      }
 
       if (settlementStep === 'exona') {
         // Internal check: search institutions
         const q = query(collection(db, 'schools'), where('id', '==', recipientAccount));
         const snap = await getDocs(q);
         if (!snap.empty) {
-          setVerifiedName(snap.docs[0].data().name);
+          setVerifiedName('Valid Account'); // Don't show name for now
         } else {
-          setVerifiedName('EXONA USER: ' + recipientAccount.substring(0, 4) + '...');
+          setVerificationError('Account Not Found');
+          setVerifiedName('');
         }
       } else {
-        // External check: Mock name for demo
-        setVerifiedName('RECIPIENT: ' + (recipientAccount.endsWith('1') ? 'Adisa Bamidele' : 'Musa Ibrahim'));
+        // External check
+        if (recipientAccount.startsWith('000')) {
+          setVerificationError('Invalid Bank Details');
+          setVerifiedName('');
+        } else {
+          setVerifiedName('Account Validated'); // Don't show name for now
+        }
       }
     } catch (error) {
       console.error('Verification error:', error);
+      setVerificationError('Connection Failed');
     } finally {
       setIsVerifying(false);
     }
@@ -4825,50 +4853,92 @@ function ExonaApp() {
                     <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Settlement Hub</h4>
                     <p className="text-xs text-muted font-medium mt-1">Manage platform settlements and direct transfers.</p>
                   </div>
-                  {settlementStep !== 'selection' && (
-                    <button 
-                      onClick={() => setSettlementStep('selection')}
-                      className="px-4 py-2 bg-gray-50 text-ink rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                    >
-                      Change Method
-                    </button>
-                  )}
+                  <div className="flex gap-3">
+                    {settlementStep === 'selection' && (
+                      <button 
+                        onClick={() => setSettlementStep('deposit')}
+                        className="px-4 py-2 bg-accent text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all border border-accent/10 shadow-lg shadow-accent/20 flex items-center gap-2"
+                      >
+                        <Plus size={14} strokeWidth={3} />
+                        Deposit Funds
+                      </button>
+                    )}
+                    {settlementStep !== 'selection' && (
+                      <button 
+                        onClick={() => setSettlementStep('selection')}
+                        className="px-4 py-2 bg-gray-50 text-ink rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                      >
+                        Back to Hub
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {settlementStep === 'selection' ? (
-                  <div className="bg-[#f8f9fc] rounded-[3rem] p-12 flex flex-col items-center">
-                    <h5 className="text-[32px] font-black text-ink mb-2 tracking-tight">Where to?</h5>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-12">Choose how to send your money</p>
+                  <div className="bg-[#f8f9fc] rounded-[3rem] p-10 flex flex-col items-center">
+                    <h5 className="text-[28px] font-black text-ink mb-2 tracking-tight">Finances</h5>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-12">Institutional Financial Hub</p>
                     
-                    <div className="w-full space-y-6">
-                      {/* Exona Bank Option */}
+                    <div className="w-full grid grid-cols-2 sm:grid-cols-3 gap-6">
+                      {/* Transfer Actions */}
                       <button 
                         onClick={() => setSettlementStep('exona')}
-                        className="w-full bg-white p-8 rounded-[2rem] border border-gray-100 hover:border-accent hover:shadow-xl hover:shadow-gray-200/50 transition-all group flex items-center gap-6"
+                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#fff8f4] text-[#f2994a] rounded-2xl flex items-center justify-center shrink-0">
-                          <BadgeCheck size={32} />
+                        <div className="h-16 w-16 bg-[#fff8f4] text-[#f2994a] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <UserIcon size={32} />
                         </div>
-                        <div className="flex-1 text-left">
-                          <h6 className="text-[17px] font-black text-ink uppercase tracking-tight">Exona Bank</h6>
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mt-0.5">Instant • Low Fee</p>
-                        </div>
-                        <ChevronRight className="text-gray-300 group-hover:text-accent transition-colors" size={24} />
+                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">To Exona</span>
                       </button>
 
-                      {/* Bank Account Option */}
                       <button 
                         onClick={() => setSettlementStep('other')}
-                        className="w-full bg-white p-8 rounded-[2rem] border border-gray-100 hover:border-accent hover:shadow-xl hover:shadow-gray-200/50 transition-all group flex items-center gap-6"
+                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
                       >
-                        <div className="h-16 w-16 bg-[#f0f4ff] text-[#4285f4] rounded-2xl flex items-center justify-center shrink-0">
+                        <div className="h-16 w-16 bg-[#f0f4ff] text-[#4285f4] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                           <IdCard size={32} />
                         </div>
-                        <div className="flex-1 text-left">
-                          <h6 className="text-[17px] font-black text-ink uppercase tracking-tight">Other Bank</h6>
-                          <p className="text-[11px] font-bold text-muted uppercase tracking-widest mt-0.5">Send to any bank in Nigeria</p>
+                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">To Bank</span>
+                      </button>
+
+                      <button 
+                        onClick={() => setSettlementStep('airtime')}
+                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                      >
+                        <div className="h-16 w-16 bg-[#ecfdf5] text-[#10b981] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Smartphone size={32} />
                         </div>
-                        <ChevronRight className="text-gray-300 group-hover:text-accent transition-colors" size={24} />
+                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">Airtime</span>
+                      </button>
+
+                      <button 
+                        onClick={() => setSettlementStep('data')}
+                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                      >
+                        <div className="h-16 w-16 bg-[#fdf2f8] text-[#db2777] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Globe size={32} />
+                        </div>
+                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">Data</span>
+                      </button>
+
+                      <button 
+                        onClick={() => setSettlementStep('bills')}
+                        className="flex flex-col items-center gap-4 bg-white p-6 rounded-[2.5rem] border border-gray-100 hover:border-accent hover:shadow-xl transition-all group"
+                      >
+                        <div className="h-16 w-16 bg-[#f0fdf4] text-[#16a34a] rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Receipt size={32} />
+                        </div>
+                        <span className="text-[11px] font-black text-ink uppercase tracking-tight">Bills</span>
+                      </button>
+
+                      <button 
+                        onClick={() => setSettlementStep('deposit')}
+                        className="flex flex-col items-center gap-4 bg-accent text-white p-6 rounded-[2.5rem] hover:shadow-xl hover:shadow-accent/40 transition-all group"
+                      >
+                        <div className="h-16 w-16 bg-white/20 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                          <Plus size={32} strokeWidth={3} />
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-tight">Deposit</span>
                       </button>
                     </div>
                   </div>
@@ -4928,6 +4998,8 @@ function ExonaApp() {
                                 <div className="h-2 w-2 bg-accent rounded-full animate-ping" />
                                 <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Verifying Account...</p>
                               </div>
+                            ) : verificationError ? (
+                                <p className="mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest">{verificationError}</p>
                             ) : verifiedName && (
                               <div className="mt-2 flex items-center justify-between">
                                 <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">{verifiedName}</p>
@@ -4971,6 +5043,117 @@ function ExonaApp() {
                       </div>
                     </div>
                   </div>
+                ) : (settlementStep === 'airtime' || settlementStep === 'data' || settlementStep === 'bills') ? (
+                  <div className="bg-white border border-gray-100 rounded-[3rem] p-10 shadow-xl">
+                    <div className="flex items-center gap-4 mb-10">
+                      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center ${
+                        settlementStep === 'airtime' ? 'bg-green-50 text-green-600' : 
+                        settlementStep === 'data' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
+                      }`}>
+                        {settlementStep === 'airtime' ? <Smartphone size={32} /> : 
+                         settlementStep === 'data' ? <Globe size={32} /> : <Receipt size={32} />}
+                      </div>
+                      <div>
+                        <h5 className="font-black text-xl text-ink tracking-tight uppercase">
+                          {settlementStep === 'airtime' ? 'Buy Airtime' : 
+                           settlementStep === 'data' ? 'Buy Data' : 'Pay Bills'}
+                        </h5>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Settlement</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      {(settlementStep === 'airtime' || settlementStep === 'data') && (
+                        <div>
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Select Network</label>
+                          <div className="grid grid-cols-4 gap-3">
+                            {NETWORK_PROVIDERS.map(net => (
+                              <button 
+                                key={net}
+                                onClick={() => setSelectedProvider(net)}
+                                className={`py-4 rounded-xl font-black text-[10px] border transition-all ${
+                                  selectedProvider === net ? 'bg-accent text-white border-accent' : 'bg-gray-50 text-muted border-gray-100'
+                                }`}
+                              >
+                                {net}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {settlementStep === 'bills' && (
+                        <div>
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Biller Category</label>
+                          <select 
+                            value={selectedBillType}
+                            onChange={(e) => setSelectedBillType(e.target.value)}
+                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-bold text-ink outline-none focus:border-accent appearance-none"
+                          >
+                            <option value="">Select Category</option>
+                            {BILL_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">
+                          {settlementStep === 'bills' ? 'Customer/Meter ID' : 'Phone Number'}
+                        </label>
+                        <input 
+                          type="text"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-lg font-black text-ink outline-none focus:border-accent"
+                          placeholder={settlementStep === 'bills' ? 'e.g. 1029384756' : '081...'}
+                        />
+                      </div>
+
+                      {settlementStep === 'data' && (
+                        <div>
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Select Data Plan</label>
+                          <div className="space-y-3">
+                            {DATA_PLANS.filter(p => p.network === selectedProvider).map(plan => (
+                              <button 
+                                key={plan.id}
+                                onClick={() => {
+                                  setSelectedDataPlan(plan.id);
+                                  setSettlementAmount(plan.price.toString());
+                                }}
+                                className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${
+                                  selectedDataPlan === plan.id ? 'border-accent bg-accent/5' : 'border-gray-100 bg-gray-50'
+                                }`}
+                              >
+                                <span className="font-bold text-xs text-ink">{plan.name}</span>
+                                <span className="font-black text-accent text-sm">{currencySymbol}{plan.price}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {settlementStep !== 'data' && (
+                        <div>
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Amount</label>
+                          <input 
+                            type="number"
+                            value={settlementAmount}
+                            onChange={(e) => setSettlementAmount(e.target.value)}
+                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-bold text-ink outline-none focus:border-accent"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      )}
+
+                      <button 
+                        disabled={!settlementAmount || (settlementStep !== 'bills' && !selectedProvider)}
+                        onClick={() => setSettlementStep('pin')}
+                        className="w-full py-5 bg-ink text-white rounded-[1.5rem] font-bold text-xs uppercase tracking-[0.2em] shadow-xl"
+                      >
+                        Proceed to Payment
+                      </button>
+                    </div>
+                  </div>
                 ) : settlementStep === 'pin' ? (
                   <div className="bg-[#f8f9fc] rounded-[3rem] p-12 flex flex-col items-center">
                     <div className="h-24 w-24 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-8">
@@ -5003,6 +5186,66 @@ function ExonaApp() {
                       >
                         Back to details
                       </button>
+                    </div>
+                  </div>
+                ) : settlementStep === 'deposit' ? (
+                  <div className="bg-ink text-white rounded-[2.5rem] p-8 sm:p-10 border border-white/5 shadow-2xl shadow-ink/20 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700 font-black text-6xl">
+                      DEPOSIT
+                    </div>
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-4 mb-8">
+                        <div className="h-14 w-14 bg-accent text-white rounded-2xl flex items-center justify-center shadow-lg shadow-accent/20">
+                          <Plus size={32} strokeWidth={3} />
+                        </div>
+                        <div>
+                          <h5 className="font-black text-xl tracking-tight">Add Funds to Wallet</h5>
+                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Institutional Deposit Path</p>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-white/5 rounded-3xl p-6 sm:p-8 border border-white/5 space-y-6 backdrop-blur-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">Settlement Bank</p>
+                            <p className="text-[15px] font-bold tracking-tight">OPAY / Exona Reserve</p>
+                          </div>
+                          <span className="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">Instant Funding</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-6">
+                          <div>
+                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">Your Deposit Account</p>
+                            <div className="flex items-center gap-3">
+                              <p className="text-[28px] font-mono font-black text-accent tracking-tighter">8134567890</p>
+                              <button 
+                                onClick={() => {
+                                  navigator.clipboard.writeText('8134567890');
+                                  showNotification('Account copied to clipboard');
+                                }}
+                                className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-all border border-white/10"
+                              >
+                                <Copy size={16} />
+                              </button>
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">Beneficiary Name</p>
+                            <p className="text-[15px] font-bold tracking-tight uppercase">EXONA • {selectedSchool.name}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-8 flex items-start gap-4 p-5 bg-white/5 rounded-2xl border border-white/5">
+                        <div className="mt-1"><ShieldCheck size={18} className="text-accent" /></div>
+                        <div>
+                          <p className="text-[11px] text-white/80 leading-relaxed font-bold uppercase tracking-tight mb-1">Direct Bank Transfer</p>
+                          <p className="text-[10px] text-white/50 leading-relaxed font-medium">
+                            Transfer any amount to the account details above from your banking app. Your wallet will be credited automatically once fixed.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : settlementStep === 'success' ? (
