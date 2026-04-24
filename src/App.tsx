@@ -890,8 +890,12 @@ function ExonaApp() {
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
-  const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'amount' | 'success'>('selection');
+  const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'pin' | 'success'>('selection');
   const [settlementAmount, setSettlementAmount] = useState('');
+  const [recipientAccount, setRecipientAccount] = useState('');
+  const [verifiedName, setVerifiedName] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [transactionPin, setTransactionPin] = useState('');
   const [isProcessingSettlement, setIsProcessingSettlement] = useState(false);
   const [newBankName, setNewBankName] = useState('');
   const [selectedSettlementBank, setSelectedSettlementBank] = useState('First Bank of Nigeria');
@@ -914,8 +918,47 @@ function ExonaApp() {
     return () => unsubscribe();
   }, [selectedSchool]);
 
+  useEffect(() => {
+    if (recipientAccount.length === 10) {
+      handleVerifyAccount();
+    } else {
+      setVerifiedName('');
+    }
+  }, [recipientAccount, settlementStep, selectedSettlementBank]);
+
+  const handleVerifyAccount = async () => {
+    setIsVerifying(true);
+    try {
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+
+      if (settlementStep === 'exona') {
+        // Internal check: search institutions
+        const q = query(collection(db, 'schools'), where('id', '==', recipientAccount));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          setVerifiedName(snap.docs[0].data().name);
+        } else {
+          setVerifiedName('EXONA USER: ' + recipientAccount.substring(0, 4) + '...');
+        }
+      } else {
+        // External check: Mock name for demo
+        setVerifiedName('RECIPIENT: ' + (recipientAccount.endsWith('1') ? 'Adisa Bamidele' : 'Musa Ibrahim'));
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
   const handleInitiateSettlement = async () => {
     if (!user || !selectedSchool || !finance) return;
+    if (transactionPin !== '1234') { // Mock PIN for now
+      showNotification('Incorrect Transaction PIN');
+      return;
+    }
+
     const amount = parseFloat(settlementAmount);
     if (isNaN(amount) || amount <= 0) {
       showNotification('Please enter a valid amount');
@@ -933,16 +976,17 @@ function ExonaApp() {
         amount,
         type: settlementStep === 'exona' ? 'exona-bank' : 'other-bank',
         bankName: settlementStep === 'exona' ? 'Exona Bank' : selectedSettlementBank,
-        status: 'pending',
+        status: 'completed', // Direct settlement is instant
         timestamp: serverTimestamp(),
         authorUid: user.uid,
         schoolId: selectedSchool.id,
-        recipientId: settlementStep === 'exona' ? `8134567890 (Portal: ${selectedSchool.id})` : `90${selectedSchool.id.substring(0, 8)}`
+        recipientId: `${recipientAccount} (${verifiedName})`,
+        recipientName: verifiedName,
+        recipientAccount: recipientAccount
       };
 
       await setDoc(doc(db, 'settlements', settlementId), payload);
       
-      // Update finance record
       const schoolType = selectedSchool.type === 'school' ? 'schools' : 'places';
       const financeRef = doc(db, schoolType, selectedSchool.id, 'finance', 'stats');
       await updateDoc(financeRef, {
@@ -951,7 +995,7 @@ function ExonaApp() {
       });
 
       setSettlementStep('success');
-      showNotification('Settlement request submitted successfully');
+      showNotification('Transfer Successful');
     } catch (error) {
       console.error('Settlement error:', error);
       handleFirestoreError(error, OperationType.CREATE, 'settlements');
@@ -4828,7 +4872,7 @@ function ExonaApp() {
                       </button>
                     </div>
                   </div>
-                ) : settlementStep === 'exona' || settlementStep === 'other' ? (
+                ) : (settlementStep === 'exona' || settlementStep === 'other') ? (
                   <div className="space-y-8">
                     {/* Settlement Detail Form */}
                     <div className={`${settlementStep === 'exona' ? 'bg-ink text-white' : 'bg-white border border-gray-100 shadow-xl shadow-gray-100/50'} rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden`}>
@@ -4864,6 +4908,35 @@ function ExonaApp() {
                           )}
 
                           <div>
+                            <label className={`text-[10px] font-bold uppercase tracking-widest mb-3 block ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Account Number</label>
+                            <div className="relative">
+                              <input 
+                                type="text"
+                                maxLength={10}
+                                value={recipientAccount}
+                                onChange={(e) => setRecipientAccount(e.target.value.replace(/\D/g, ''))}
+                                className={`w-full px-5 py-5 rounded-2xl text-2xl font-black outline-none transition-all ${
+                                  settlementStep === 'exona' 
+                                    ? 'bg-white/10 text-white focus:bg-white/15 border-white/10' 
+                                    : 'bg-gray-50 text-ink focus:bg-white border-gray-100 focus:border-accent'
+                                }`}
+                                placeholder="10 Digits Account No."
+                              />
+                            </div>
+                            {isVerifying ? (
+                              <div className="mt-2 flex items-center gap-2">
+                                <div className="h-2 w-2 bg-accent rounded-full animate-ping" />
+                                <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Verifying Account...</p>
+                              </div>
+                            ) : verifiedName && (
+                              <div className="mt-2 flex items-center justify-between">
+                                <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">{verifiedName}</p>
+                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${settlementStep === 'exona' ? 'bg-accent/20 text-accent' : 'bg-green-100 text-green-600'}`}>Verified</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
                             <label className={`text-[10px] font-bold uppercase tracking-widest mb-3 block ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Enter Amount</label>
                             <div className="relative">
                               <span className={`absolute left-5 top-1/2 -translate-y-1/2 font-black text-xl ${settlementStep === 'exona' ? 'text-white' : 'text-ink'}`}>{currencySymbol}</span>
@@ -4885,44 +4958,73 @@ function ExonaApp() {
                             </div>
                           </div>
 
-                          <div className={`p-5 rounded-2xl border ${settlementStep === 'exona' ? 'bg-white/5 border-white/5' : 'bg-gray-50 border-gray-100'}`}>
-                            <div className="flex justify-between items-center mb-1">
-                              <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Recieving Account</p>
-                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${settlementStep === 'exona' ? 'bg-accent/20 text-accent' : 'bg-green-100 text-green-600'}`}>Verified</span>
-                            </div>
-                            <p className="text-sm font-bold tracking-tight">
-                              {settlementStep === 'exona' ? `EXONA TECH SERVICES • 8134567890` : `${selectedSettlementBank} • 90${selectedSchool.id.substring(0, 8)}`}
-                            </p>
-                          </div>
-
                           <button 
-                            disabled={isProcessingSettlement || !settlementAmount || parseFloat(settlementAmount) <= 0}
-                            onClick={handleInitiateSettlement}
+                            disabled={!verifiedName || !settlementAmount || parseFloat(settlementAmount) <= 0}
+                            onClick={() => setSettlementStep('pin')}
                             className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
                               settlementStep === 'exona' ? 'bg-white text-ink hover:bg-gray-100' : 'bg-ink text-white hover:bg-ink/90'
                             }`}
                           >
-                            {isProcessingSettlement ? 'Initiating Settlement...' : 'Send Money Now'}
+                            Continue
                           </button>
                         </div>
                       </div>
                     </div>
                   </div>
+                ) : settlementStep === 'pin' ? (
+                  <div className="bg-[#f8f9fc] rounded-[3rem] p-12 flex flex-col items-center">
+                    <div className="h-24 w-24 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-8">
+                      <Lock size={40} />
+                    </div>
+                    <h5 className="text-[32px] font-black text-ink mb-2 tracking-tight">Security PIN</h5>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-12">Enter your 4-digit transaction PIN</p>
+                    
+                    <div className="w-full max-w-[280px] space-y-8">
+                      <input 
+                        type="password"
+                        maxLength={4}
+                        value={transactionPin}
+                        onChange={(e) => setTransactionPin(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-5 py-6 bg-white border-2 border-gray-100 rounded-[2rem] text-4xl font-black tracking-[1em] text-center text-ink outline-none focus:border-accent transition-all shadow-sm"
+                        placeholder="••••"
+                      />
+                      
+                      <button 
+                        disabled={transactionPin.length !== 4 || isProcessingSettlement}
+                        onClick={handleInitiateSettlement}
+                        className="w-full py-5 bg-ink text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-[1.02] transition-all active:scale-[0.98] disabled:opacity-50"
+                      >
+                        {isProcessingSettlement ? 'Initiating...' : 'Confirm Transfer'}
+                      </button>
+
+                      <button 
+                        onClick={() => setSettlementStep('exona')}
+                        className="w-full text-[10px] font-black text-muted uppercase tracking-widest hover:text-ink transition-colors"
+                      >
+                        Back to details
+                      </button>
+                    </div>
+                  </div>
                 ) : settlementStep === 'success' ? (
-                  <div className="bg-white border-2 border-green-500/20 rounded-[3rem] p-12 flex flex-col items-center text-center">
-                    <div className="h-24 w-24 bg-green-500 text-white rounded-full flex items-center justify-center mb-8 shadow-2xl shadow-green-500/20">
+                  <div className="bg-white border-2 border-green-500/10 rounded-[3rem] p-12 flex flex-col items-center text-center shadow-2xl shadow-green-900/5">
+                    <div className="h-24 w-24 bg-green-500 text-white rounded-full flex items-center justify-center mb-10 shadow-2xl shadow-green-500/20">
                       <Check size={48} strokeWidth={3} />
                     </div>
-                    <h5 className="text-2xl font-black text-ink mb-2 tracking-tight">Transfer Successful!</h5>
-                    <p className="text-xs font-bold text-muted uppercase tracking-[0.2em] mb-10 max-w-[240px] leading-relaxed">Your settlement of <span className="text-ink">{currencySymbol}{parseFloat(settlementAmount).toLocaleString()}</span> has been initiated.</p>
+                    <h5 className="text-[32px] font-black text-ink mb-3 tracking-tight">Transfer Sent!</h5>
+                    <p className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-12 max-w-[240px] leading-relaxed">
+                      Your transfer of <span className="text-ink">{currencySymbol}{parseFloat(settlementAmount).toLocaleString()}</span> to <span className="text-ink">{verifiedName}</span> was successful.
+                    </p>
                     <button 
                       onClick={() => {
                         setSettlementStep('selection');
                         setSettlementAmount('');
+                        setRecipientAccount('');
+                        setVerifiedName('');
+                        setTransactionPin('');
                       }}
-                      className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform"
+                      className="px-12 py-5 bg-ink text-white rounded-[1.5rem] font-bold text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform"
                     >
-                      Back to Wallet
+                      Done
                     </button>
                   </div>
                 ) : (
