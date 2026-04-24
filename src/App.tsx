@@ -12,7 +12,7 @@ import {
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer,
-  Copy, Banknote, Smartphone, Globe, Receipt, Lock, TableProperties, LayoutList
+  Copy, Banknote, Smartphone, Globe, Receipt, Lock, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Files
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -775,7 +775,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -6431,6 +6431,80 @@ function ExonaApp() {
           </div>
         );
       }
+      case 'workspace': {
+        const workspaceFeatures = [
+          { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
+          { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
+          { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for structured content and technical writing.', icon: PenTool, color: 'purple-600' },
+          { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
+        ];
+
+        return (
+          <WordLayout
+            title="Workspace"
+            subtitle="Productivity & Document Suite"
+            icon={LayoutGrid}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
+              {workspaceFeatures.map(item => (
+                <button
+                  key={item.id}
+                  className="group p-8 bg-white border-2 border-gray-50 rounded-[2.5rem] hover:border-accent hover:shadow-2xl hover:shadow-accent/10 transition-all text-left relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
+                  
+                  <div className="relative">
+                    <div className={`h-16 w-16 bg-${item.color.split('-')[0]}-50 text-${item.color} rounded-3xl flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform`}>
+                      <item.icon size={32} strokeWidth={2.5} />
+                    </div>
+                    
+                    <h3 className="text-2xl font-black text-ink mb-3">{item.name}</h3>
+                    <p className="text-[13px] text-muted font-bold leading-relaxed max-w-[240px]">
+                      {item.description}
+                    </p>
+                    
+                    <div className="mt-12 flex items-center gap-3">
+                      <div className="h-10 px-6 bg-gray-50 rounded-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
+                        Launch Service
+                      </div>
+                      <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all">
+                        <ArrowUpRight size={18} />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+
+              {/* Quick Actions Card */}
+              <div className="md:col-span-2 mt-8 p-10 bg-gradient-to-br from-ink to-gray-800 rounded-[3rem] text-white overflow-hidden relative">
+                <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
+                <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
+                  <div className="flex-1">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest mb-6">
+                      <Sparkles size={12} className="text-accent" />
+                      Pro Features
+                    </div>
+                    <h3 className="text-3xl font-black mb-4">Integrated Document Workflow</h3>
+                    <p className="text-white/60 font-bold text-sm max-w-md leading-relaxed">
+                      Connect your documents with your institutional workflow. Sign, share, and store everything in one secure place.
+                    </p>
+                  </div>
+                  <div className="flex gap-4">
+                     <button className="h-14 px-8 bg-accent text-white rounded-2xl font-black text-sm hover:scale-105 transition-transform active:scale-95 shadow-lg shadow-accent/20">
+                       Upgrade Account
+                     </button>
+                     <button className="h-14 px-8 bg-white/10 text-white rounded-2xl font-black text-sm hover:bg-white/20 transition-all border border-white/10">
+                       Doc Guide
+                     </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </WordLayout>
+        );
+      }
       case 'tools': {
         const isOwner = selectedSchool?.creatorUid === user?.uid;
         const canAccessAdmin = isOwner || selectedSchool?.administrativeViewers?.includes(user?.uid || '');
@@ -7057,9 +7131,9 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title={userInstitution ? userInstitution.name : "Tools Hub"}
+            title={userInstitution ? userInstitution.name : "Institutional Hub"}
             subtitle={canAccessAdmin && !isOwner ? "Authorized Access" : "Institutional Utility Suite"}
-            icon={LayoutGrid}
+            icon={Cpu}
             branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
             showNotification={showNotification}
             handlePrint={handlePrint}
@@ -8841,7 +8915,13 @@ function ExonaApp() {
                 />
                 <SidebarItem 
                   icon={LayoutGrid} 
-                  label="Tools Hub" 
+                  label="Workspace" 
+                  active={view === 'workspace'} 
+                  onClick={() => { setView('workspace'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={Cpu} 
+                  label="Institutional Hub" 
                   active={view === 'tools'} 
                   onClick={() => { setView('tools'); setSidebarOpen(false); }} 
                 />
@@ -9029,7 +9109,19 @@ function ExonaApp() {
       </main>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/10 w-[92%] sm:w-auto sm:min-w-[320px] no-print">
+      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] shadow-2xl shadow-ink/10 w-[92%] sm:w-auto sm:min-w-[420px] no-print">
+        <NavButton 
+          active={view === 'workspace'} 
+          onClick={() => setView('workspace')} 
+          icon={LayoutGrid} 
+          label="Workspace"
+        />
+        <NavButton 
+          active={view === 'tools'} 
+          onClick={() => setView('tools')} 
+          icon={Cpu} 
+          label="Tools"
+        />
         <NavButton 
           active={view === 'chat'} 
           onClick={() => setView('chat')} 
@@ -9041,12 +9133,6 @@ function ExonaApp() {
           onClick={handleWalletClick} 
           icon={Wallet} 
           label="Wallet"
-        />
-        <NavButton 
-          active={view === 'tools'} 
-          onClick={() => setView('tools')} 
-          icon={LayoutGrid} 
-          label="Tools"
         />
         <NavButton 
           active={view === 'profile'} 
