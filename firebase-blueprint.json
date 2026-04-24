@@ -45,7 +45,7 @@
         "creatorUid": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "educationalLevels": { "type": "array", "items": { "type": "string" } },
-        "subAdmins": { "type": "array", "items": { "type": "string" } },
+        "administrativeViewers": { "type": "array", "items": { "type": "string" } },
         "followers": { "type": "array", "items": { "type": "string" } },
         "pendingFollowers": { "type": "array", "items": { "type": "string" } },
         "replyPermission": { "type": "string", "enum": ["everyone", "followers", "none"], "description": "Who can reply to posts" }
@@ -66,7 +66,7 @@
         "creatorUid": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "isOfficial": { "type": "boolean" },
-        "subAdmins": { "type": "array", "items": { "type": "string" } },
+        "administrativeViewers": { "type": "array", "items": { "type": "string" } },
         "followers": { "type": "array", "items": { "type": "string" } },
         "pendingFollowers": { "type": "array", "items": { "type": "string" } },
         "replyPermission": { "type": "string", "enum": ["everyone", "followers", "none"], "description": "Who can reply to posts" }

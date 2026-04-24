@@ -58,19 +58,43 @@ service cloud.firestore {
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (get(/databases/$(database)/documents/schools/$(schoolId)).data.administrativeViewers is list && 
-           request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.administrativeViewers) ||
-          (get(/databases/$(database)/documents/schools/$(schoolId)).data.followers is list && 
-           request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.followers)
+          (get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', []) is list && 
+           request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', []))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
           get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
-          (get(/databases/$(database)/documents/places/$(schoolId)).data.administrativeViewers is list && 
-           request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.administrativeViewers) ||
-          (get(/databases/$(database)/documents/places/$(schoolId)).data.followers is list && 
-           request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.followers)
+          (get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', []) is list && 
+           request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', []))
         ))
       );
+    }
+
+    function isFollowAction() {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+      let diff = incoming.diff(existing);
+      
+      let incomingFollowers = incoming.get('followers', []);
+      let existingFollowers = existing.get('followers', []);
+      let incomingPending = incoming.get('pendingFollowers', []);
+      let existingPending = existing.get('pendingFollowers', []);
+
+      // Request follow (Add to pending)
+      let isRequesting = diff.affectedKeys().hasOnly(['pendingFollowers']) &&
+                        incomingPending.hasAll(existingPending) &&
+                        request.auth.uid in incomingPending &&
+                        incomingPending.size() == existingPending.size() + 1;
+      
+      // Unfollow or Cancel request (Remove from followers or pending)
+      let isUnfollowing = diff.affectedKeys().hasAny(['followers', 'pendingFollowers']) &&
+                          diff.affectedKeys().hasOnly(['followers', 'pendingFollowers']) &&
+                          existingFollowers.hasAll(incomingFollowers) &&
+                          existingPending.hasAll(incomingPending) &&
+                          (request.auth.uid in existingFollowers || request.auth.uid in existingPending) &&
+                          (incomingFollowers.size() + incomingPending.size() == 
+                           existingFollowers.size() + existingPending.size() - 1);
+
+      return isRequesting || isUnfollowing;
     }
 
     function isFollower(id) {
@@ -204,14 +228,14 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin());
+      allow update: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin() || isFollowAction());
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin());
+      allow update: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin() || isFollowAction());
       allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
     }
 
