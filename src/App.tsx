@@ -12,7 +12,7 @@ import {
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer,
-  Copy, Banknote, Smartphone, Globe, Receipt, Lock, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Files
+  Copy, Banknote, Smartphone, Globe, Receipt, Lock, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Files, Activity
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -876,6 +876,7 @@ function ExonaApp() {
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
+  const [viewingFile, setViewingFile] = useState<any | null>(null);
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [editorContent, setEditorContent] = useState<string>('# Creative Studio\n\nStart crafting your technical document here...');
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
@@ -1465,6 +1466,18 @@ function ExonaApp() {
     });
     return groups;
   }, [stories]);
+
+  const handleDownloadFile = (file: any) => {
+    const blob = new Blob([file.content || ''], { type: file.type || 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const handlePrint = () => {
     // Check if we are in Telegram Mini App
@@ -6459,6 +6472,7 @@ function ExonaApp() {
         ];
 
         if (activeWorkspaceTool === 'docs') {
+          const docs = cloudFiles.filter(f => f.category === 'document' || f.type.includes('pdf') || f.type.includes('text'));
           return (
             <WordLayout
               title="Documents"
@@ -6490,29 +6504,103 @@ function ExonaApp() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[
-                    { title: 'Project Proposal', date: '2024-03-15', size: '2.4MB', type: 'Technical' },
-                    { title: 'Annual Report', date: '2024-03-10', size: '15.2MB', type: 'Financial' },
-                    { title: 'Staff Handbook', date: '2024-02-28', size: '5.1MB', type: 'Policy' },
-                    { title: 'Lab Guidelines', date: '2024-02-15', size: '1.2MB', type: 'Safety' },
-                  ].map((doc, idx) => (
-                    <div key={idx} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:border-accent transition-all group cursor-pointer">
-                       <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
-                         <FileText size={20} />
-                       </div>
-                       <h4 className="text-lg font-black text-ink mb-1 group-hover:text-accent transition-colors">{doc.title}</h4>
-                       <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-8">{doc.type} • {doc.date}</p>
-                       
-                       <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                         <span className="text-[10px] font-black text-muted">{doc.size}</span>
-                         <div className="flex gap-2">
-                            <button className="p-2 text-muted hover:text-ink transition-colors"><Edit2 size={14} /></button>
-                            <button className="p-2 text-muted hover:text-ink transition-colors"><Download size={14} /></button>
-                         </div>
-                       </div>
+                  {docs.length === 0 ? (
+                    <div className="col-span-full py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                      <FileText className="mx-auto text-muted mb-4 opacity-20" size={48} />
+                      <p className="font-bold text-muted">No documents found</p>
+                      <button 
+                        onClick={() => setActiveWorkspaceTool('editor')}
+                        className="text-[10px] font-black text-accent mt-4 uppercase tracking-widest"
+                      >
+                        Create your first document
+                      </button>
                     </div>
-                  ))}
+                  ) : (
+                    docs.map((file) => (
+                      <div 
+                        key={file.id} 
+                        onClick={() => setViewingFile(file)}
+                        className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:border-accent hover:shadow-xl hover:-translate-y-1 transition-all group cursor-pointer"
+                      >
+                         <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
+                           <FileText size={20} />
+                         </div>
+                         <h4 className="text-lg font-black text-ink mb-1 group-hover:text-accent transition-colors truncate">{file.name}</h4>
+                         <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-8">
+                           {file.type.split('/')[1] || 'DOC'} • {file.timestamp?.toDate ? file.timestamp.toDate().toLocaleDateString() : 'Just now'}
+                         </p>
+                         
+                         <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                           <span className="text-[10px] font-black text-muted">{(file.size / 1024).toFixed(1)} KB</span>
+                           <div className="flex gap-2">
+                              <button 
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Delete this document?')) {
+                                    await deleteDoc(doc(db, 'cloudFiles', file.id));
+                                    showNotification('Document deleted');
+                                  }
+                                }}
+                                className="p-2 text-muted hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDownloadFile(file);
+                                }}
+                                className="p-2 text-muted hover:text-ink transition-colors"
+                              >
+                                <Download size={14} />
+                              </button>
+                           </div>
+                         </div>
+                      </div>
+                    ))
+                  )}
                 </div>
+
+                {viewingFile && (
+                  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-ink/60 backdrop-blur-md">
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      className="bg-white w-full max-w-4xl max-h-[85vh] rounded-[3rem] shadow-2xl flex flex-col overflow-hidden"
+                    >
+                      <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                            <FileText size={24} />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-black text-ink">{viewingFile.name}</h3>
+                            <p className="text-[10px] font-black text-muted uppercase tracking-widest">Document Viewer</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => handleDownloadFile(viewingFile)}
+                            className="h-10 px-6 bg-white border border-gray-200 text-ink rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50"
+                          >
+                            Download
+                          </button>
+                          <button 
+                            onClick={() => setViewingFile(null)}
+                            className="h-10 w-10 bg-white border border-gray-200 text-muted rounded-xl flex items-center justify-center hover:text-ink"
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-y-auto p-10 prose prose-slate max-w-none bg-white">
+                        <div className="markdown-body">
+                          <Markdown>{viewingFile.content || "_No content available_"}</Markdown>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
 
                 <div className="flex justify-start mt-12">
                   <button 
@@ -6529,6 +6617,17 @@ function ExonaApp() {
         }
 
         if (activeWorkspaceTool === 'storage') {
+          const totalSize = cloudFiles.reduce((acc, f) => acc + (f.size || 0), 0);
+          const sizeInMB = (totalSize / (1024 * 1024)).toFixed(2);
+          const limitMB = 100;
+          const usagePercent = Math.min((parseFloat(sizeInMB) / limitMB) * 100, 100);
+
+          const categories = {
+            documents: cloudFiles.filter(f => f.category === 'document').length,
+            images: cloudFiles.filter(f => f.category === 'image').length,
+            others: cloudFiles.filter(f => f.category === 'other' || !f.category).length
+          };
+
           return (
             <WordLayout
               title="Cloud Storage"
@@ -6626,11 +6725,14 @@ function ExonaApp() {
                     <div className="bg-ink p-8 rounded-[2.5rem] text-white">
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-6">Storage Usage</h4>
                       <div className="flex items-end justify-between mb-2">
-                        <span className="text-2xl font-black">1.2 GB</span>
-                        <span className="text-[10px] font-black text-white/40">of 10 GB</span>
+                        <span className="text-2xl font-black">{sizeInMB} MB</span>
+                        <span className="text-[10px] font-black text-white/40">of {limitMB} MB</span>
                       </div>
                       <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-8">
-                        <div className="h-full bg-accent w-[12%] rounded-full shadow-[0_0_12px_rgba(var(--accent-rgb),0.5)]" />
+                        <div 
+                          className="h-full bg-accent rounded-full shadow-[0_0_12px_rgba(var(--accent-rgb),0.5)] transition-all duration-500" 
+                          style={{ width: `${usagePercent}%` }}
+                        />
                       </div>
                       <button className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
                         Upgrade Storage
@@ -6641,9 +6743,9 @@ function ExonaApp() {
                       <h4 className="text-[10px] font-black uppercase tracking-widest text-muted mb-6">Categories</h4>
                       <div className="space-y-4">
                         {[
-                          { label: 'Documents', count: 12, icon: FileText, color: 'text-blue-600' },
-                          { label: 'Images', count: 45, icon: Camera, color: 'text-purple-600' },
-                          { label: 'Archives', count: 3, icon: HardDrive, color: 'text-emerald-600' }
+                          { label: 'Documents', count: categories.documents, icon: FileText, color: 'text-blue-600' },
+                          { label: 'Images', count: categories.images, icon: Camera, color: 'text-purple-600' },
+                          { label: 'Other', count: categories.others, icon: HardDrive, color: 'text-emerald-600' }
                         ].map(cat => (
                           <div key={cat.label} className="flex items-center justify-between group cursor-pointer">
                             <div className="flex items-center gap-3">
@@ -6781,14 +6883,30 @@ function ExonaApp() {
                     <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
                       <span className="text-[10px] font-black uppercase tracking-widest text-muted">Document Preview</span>
                       <div className="flex gap-2">
-                         <button 
-                            onClick={() => {
-                              showNotification('Document saved successfully');
+                          <button 
+                            onClick={async () => {
+                              if (!editorContent.trim() || !user) return;
+                              const title = editorContent.split('\n')[0].replace(/[#*`]/g, '').trim() || 'Untitled Document';
+                              try {
+                                await addDoc(collection(db, 'cloudFiles'), {
+                                  name: title + '.md',
+                                  type: 'text/markdown',
+                                  size: new Blob([editorContent]).size,
+                                  url: '#',
+                                  ownerUid: user.uid,
+                                  timestamp: serverTimestamp(),
+                                  category: 'document',
+                                  content: editorContent
+                                });
+                                showNotification('Document saved to Cloud');
+                              } catch (err) {
+                                showNotification('Failed to save', 'error');
+                              }
                             }}
                             className="h-8 px-4 bg-accent text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
-                         >
-                           Save
-                         </button>
+                          >
+                            Save
+                          </button>
                          <button className="h-8 px-4 bg-white border border-gray-200 text-ink rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
                            Export
                          </button>
@@ -6825,36 +6943,80 @@ function ExonaApp() {
             handlePrint={handlePrint}
             hideSaveImage={true}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
-              {workspaceFeatures.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveWorkspaceTool(item.id)}
-                  className="group p-8 bg-white border-2 border-gray-50 rounded-[2.5rem] hover:border-accent hover:shadow-2xl hover:shadow-accent/10 transition-all text-left relative overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-                  
-                  <div className="relative">
-                    <div className={`h-16 w-16 bg-${item.color.split('-')[0]}-50 text-${item.color} rounded-3xl flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform`}>
-                      <item.icon size={32} strokeWidth={2.5} />
-                    </div>
+            <div className="flex flex-col gap-12 max-w-5xl">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {workspaceFeatures.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveWorkspaceTool(item.id)}
+                    className="group p-8 bg-white border-2 border-gray-50 rounded-[2.5rem] hover:border-accent hover:shadow-2xl hover:shadow-accent/10 transition-all text-left relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
                     
-                    <h3 className="text-2xl font-black text-ink mb-3">{item.name}</h3>
-                    <p className="text-[13px] text-muted font-bold leading-relaxed max-w-[240px]">
-                      {item.description}
-                    </p>
-                    
-                    <div className="mt-12 flex items-center gap-3">
-                      <div className="h-10 px-6 bg-gray-50 rounded-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
-                        Launch Service
+                    <div className="relative">
+                      <div className={`h-16 w-16 bg-${item.color.split('-')[0]}-50 text-${item.color} rounded-3xl flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform`}>
+                        <item.icon size={32} strokeWidth={2.5} />
                       </div>
-                      <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all">
-                        <ArrowUpRight size={18} />
+                      
+                      <h3 className="text-2xl font-black text-ink mb-3">{item.name}</h3>
+                      <p className="text-[13px] text-muted font-bold leading-relaxed max-w-[240px]">
+                        {item.description}
+                      </p>
+                      
+                      <div className="mt-12 flex items-center gap-3">
+                        <div className="h-10 px-6 bg-gray-50 rounded-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
+                          Launch Service
+                        </div>
+                        <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all">
+                          <ArrowUpRight size={18} />
+                        </div>
                       </div>
                     </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Recent Activity - Live Data */}
+              <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-xl font-black text-ink">Recent Activity</h3>
+                    <p className="text-xs text-muted font-bold">Your live workspace records</p>
                   </div>
-                </button>
-              ))}
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-muted">Synced Live</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {cloudFiles.length === 0 ? (
+                    <div className="py-12 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-100">
+                      <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4">
+                         <Activity size={20} className="text-muted opacity-20" />
+                      </div>
+                      <p className="text-[11px] font-black uppercase tracking-widest text-muted">No recent activity detected</p>
+                    </div>
+                  ) : (
+                    cloudFiles.slice(0, 5).map((file) => (
+                      <div key={file.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl group hover:bg-white hover:shadow-lg hover:shadow-gray-100 transition-all cursor-pointer" onClick={() => setActiveWorkspaceTool(file.category === 'document' ? 'docs' : 'storage')}>
+                         <div className="flex items-center gap-4">
+                           <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${file.category === 'image' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {file.category === 'image' ? <Camera size={18} /> : <FileText size={18} />}
+                           </div>
+                           <div>
+                             <h4 className="text-sm font-bold text-ink">{file.name}</h4>
+                             <p className="text-[10px] text-muted font-medium uppercase tracking-widest">
+                               {file.type.split('/')[1] || 'FILE'} • Saved {file.timestamp?.toDate ? file.timestamp.toDate().toLocaleDateString() : 'Just now'}
+                             </p>
+                           </div>
+                         </div>
+                         <ArrowUpRight size={16} className="text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
 
               {/* Quick Actions Card */}
               <div className="md:col-span-2 mt-8 p-10 bg-gradient-to-br from-ink to-gray-800 rounded-[3rem] text-white overflow-hidden relative">
