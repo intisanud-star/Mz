@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
+import Markdown from 'react-markdown';
 import { 
   auth, 
   googleProvider, 
@@ -876,6 +877,7 @@ function ExonaApp() {
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
+  const [editorContent, setEditorContent] = useState<string>('# Creative Studio\n\nStart crafting your technical document here...');
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
@@ -6456,6 +6458,76 @@ function ExonaApp() {
           { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
         ];
 
+        if (activeWorkspaceTool === 'docs') {
+          return (
+            <WordLayout
+              title="Documents"
+              subtitle="Manage your professional files"
+              icon={FileText}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+              hideSaveImage={true}
+              toolbar={
+                <button 
+                  onClick={() => setActiveWorkspaceTool(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                  Workspace
+                </button>
+              }
+            >
+              <div className="max-w-5xl">
+                <div className="flex justify-between items-center mb-10">
+                  <h3 className="text-2xl font-black text-ink">Recent Documents</h3>
+                  <button 
+                    onClick={() => setActiveWorkspaceTool('editor')}
+                    className="flex items-center gap-2 px-8 py-3.5 bg-accent text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20"
+                  >
+                    <Plus size={16} />
+                    New Document
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {[
+                    { title: 'Project Proposal', date: '2024-03-15', size: '2.4MB', type: 'Technical' },
+                    { title: 'Annual Report', date: '2024-03-10', size: '15.2MB', type: 'Financial' },
+                    { title: 'Staff Handbook', date: '2024-02-28', size: '5.1MB', type: 'Policy' },
+                    { title: 'Lab Guidelines', date: '2024-02-15', size: '1.2MB', type: 'Safety' },
+                  ].map((doc, idx) => (
+                    <div key={idx} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm hover:border-accent transition-all group cursor-pointer">
+                       <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-6">
+                         <FileText size={20} />
+                       </div>
+                       <h4 className="text-lg font-black text-ink mb-1 group-hover:text-accent transition-colors">{doc.title}</h4>
+                       <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-8">{doc.type} • {doc.date}</p>
+                       
+                       <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                         <span className="text-[10px] font-black text-muted">{doc.size}</span>
+                         <div className="flex gap-2">
+                            <button className="p-2 text-muted hover:text-ink transition-colors"><Edit2 size={14} /></button>
+                            <button className="p-2 text-muted hover:text-ink transition-colors"><Download size={14} /></button>
+                         </div>
+                       </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-start mt-12">
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Workspace
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
         if (activeWorkspaceTool === 'storage') {
           return (
             <WordLayout
@@ -6464,6 +6536,16 @@ function ExonaApp() {
               icon={HardDrive}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideSaveImage={true}
+              toolbar={
+                <button 
+                  onClick={() => setActiveWorkspaceTool(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                  Workspace
+                </button>
+              }
             >
               <div className="max-w-5xl">
                 <div className="flex flex-col md:flex-row gap-6 mb-12">
@@ -6598,6 +6680,16 @@ function ExonaApp() {
               icon={FileJson}
               showNotification={showNotification}
               handlePrint={handlePrint}
+              hideSaveImage={true}
+              toolbar={
+                <button 
+                  onClick={() => setActiveWorkspaceTool(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                  Workspace
+                </button>
+              }
             >
               <div className="max-w-5xl">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -6645,6 +6737,85 @@ function ExonaApp() {
           );
         }
 
+        if (activeWorkspaceTool === 'editor') {
+          return (
+            <WordLayout
+              title="Creative Editor"
+              subtitle="Structured Content & Documents"
+              icon={PenTool}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+              hideSaveImage={true}
+              toolbar={
+                <button 
+                  onClick={() => setActiveWorkspaceTool(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                  Workspace
+                </button>
+              }
+            >
+              <div className="max-w-6xl w-full">
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden min-h-[700px] flex flex-col md:flex-row">
+                  {/* Editor Side */}
+                  <div className="flex-1 flex flex-col border-r border-gray-100">
+                    <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted">Editor (Markdown)</span>
+                      <div className="flex gap-2">
+                         <button className="h-8 px-3 bg-white border border-gray-100 rounded-lg text-muted hover:text-ink transition-colors">
+                           <Copy size={14} />
+                         </button>
+                      </div>
+                    </div>
+                    <textarea 
+                      value={editorContent}
+                      onChange={(e) => setEditorContent(e.target.value)}
+                      className="flex-1 p-8 outline-none text-sm font-mono leading-relaxed bg-white resize-none text-ink"
+                      placeholder="Start writing..."
+                    />
+                  </div>
+
+                  {/* Preview Side */}
+                  <div className="flex-1 flex flex-col bg-gray-50/30">
+                    <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-muted">Document Preview</span>
+                      <div className="flex gap-2">
+                         <button 
+                            onClick={() => {
+                              showNotification('Document saved successfully');
+                            }}
+                            className="h-8 px-4 bg-accent text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                         >
+                           Save
+                         </button>
+                         <button className="h-8 px-4 bg-white border border-gray-200 text-ink rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+                           Export
+                         </button>
+                      </div>
+                    </div>
+                    <div className="flex-1 p-8 overflow-y-auto prose prose-slate prose-sm max-w-none">
+                      <div className="markdown-body">
+                         <Markdown>{editorContent}</Markdown>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-start mt-8">
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Workspace
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
         return (
           <WordLayout
             title="Workspace"
@@ -6652,6 +6823,7 @@ function ExonaApp() {
             icon={LayoutGrid}
             showNotification={showNotification}
             handlePrint={handlePrint}
+            hideSaveImage={true}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl">
               {workspaceFeatures.map(item => (
