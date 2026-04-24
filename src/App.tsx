@@ -7045,6 +7045,8 @@ function ExonaApp() {
               <h2 className="text-xl font-bold mb-4">Check your email</h2>
               <p className="text-muted text-sm mb-8 leading-relaxed">
                 We've sent a verification link to <span className="text-ink font-bold">{user?.email || email}</span>. Please click the link in your email to verify your account.
+                <br /><br />
+                <span className="text-[10px] font-bold text-accent uppercase tracking-widest italic animate-pulse">Tip: Check your spam folder if you can't see it in your inbox!</span>
               </p>
               <div className="space-y-3">
                 <button 
