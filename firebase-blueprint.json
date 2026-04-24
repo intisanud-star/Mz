@@ -203,6 +203,23 @@
         "recipientId": { "type": "string" }
       },
       "required": ["amount", "type", "bankName", "status", "timestamp", "authorUid", "schoolId", "recipientId"]
+    },
+    "CloudFile": {
+      "title": "CloudFile",
+      "description": "User uploaded document or file",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "type": { "type": "string" },
+        "size": { "type": "number" },
+        "ownerUid": { "type": "string" },
+        "schoolId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "category": { "type": "string", "enum": ["document", "image", "other"] }
+      },
+      "required": ["name", "url", "ownerUid", "timestamp"]
     }
   },
   "firestore": {
@@ -218,6 +235,7 @@
     "/typingStates/{stateId}": { "schema": "TypingStatus", "description": "User typing statuses" },
     "/users/{userId}/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" },
     "/stories/{storyId}": { "schema": "Story", "description": "Status stories" },
-    "/settlements/{settlementId}": { "schema": "Settlement", "description": "Financial settlement requests" }
+    "/settlements/{settlementId}": { "schema": "Settlement", "description": "Financial settlement requests" },
+    "/cloudFiles/{fileId}": { "schema": "CloudFile", "description": "User uploaded files" }
   }
 }

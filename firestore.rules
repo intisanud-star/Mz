@@ -193,6 +193,14 @@ service cloud.firestore {
              data.status == 'pending';
     }
 
+    function isValidCloudFile(data) {
+      return isAuthenticated() &&
+             data.ownerUid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 255 &&
+             data.url is string && data.url.size() > 0 && data.url.size() <= 2048 &&
+             data.timestamp == request.time;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -303,6 +311,11 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isSchoolManager(resource.data.schoolId) || isAdmin());
       allow create: if isValidSettlement(request.resource.data);
       allow update, delete: if isAdmin();
+    }
+
+    match /cloudFiles/{fileId} {
+      allow read, delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow create: if isValidCloudFile(request.resource.data);
     }
   }
 }

@@ -874,6 +874,8 @@ function ExonaApp() {
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
+  const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
+  const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
@@ -902,6 +904,21 @@ function ExonaApp() {
   const [postComments, setPostComments] = useState<any[]>([]);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'cloudFiles'),
+      where('ownerUid', '==', user.uid),
+      orderBy('timestamp', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setCloudFiles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('Error fetching cloud files:', error);
+    });
+    return unsubscribe;
+  }, [user]);
+
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
@@ -6439,6 +6456,195 @@ function ExonaApp() {
           { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
         ];
 
+        if (activeWorkspaceTool === 'storage') {
+          return (
+            <WordLayout
+              title="Cloud Storage"
+              subtitle="Secure File Management"
+              icon={HardDrive}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+            >
+              <div className="max-w-5xl">
+                <div className="flex flex-col md:flex-row gap-6 mb-12">
+                  <div className="flex-1 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                    <div className="flex justify-between items-center mb-8">
+                      <div>
+                        <h3 className="text-xl font-black text-ink">My Files</h3>
+                        <p className="text-xs text-muted font-bold">Manage your institutional assets</p>
+                      </div>
+                      <label className="flex items-center gap-2 px-6 py-3 bg-accent text-white rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:scale-105 transition-transform shadow-lg shadow-accent/20">
+                        <Upload size={14} />
+                        Upload File
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file || !user) return;
+                            setIsUploading(true);
+                            try {
+                              await addDoc(collection(db, 'cloudFiles'), {
+                                name: file.name,
+                                type: file.type,
+                                size: file.size,
+                                url: '#', // In real app, upload to storage
+                                ownerUid: user.uid,
+                                timestamp: serverTimestamp(),
+                                category: file.type.startsWith('image/') ? 'image' : 'document'
+                              });
+                              showNotification('File metadata saved to cloud');
+                            } catch (err) {
+                              showNotification('Failed to upload', 'error');
+                            } finally {
+                              setIsUploading(false);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {cloudFiles.length === 0 ? (
+                        <div className="col-span-full py-20 text-center bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+                          <HardDrive className="mx-auto text-muted mb-4 opacity-20" size={48} />
+                          <p className="font-bold text-muted">No files in your cloud yet</p>
+                          <p className="text-[10px] text-muted/60 mt-2">Upload your first document to get started</p>
+                        </div>
+                      ) : (
+                        cloudFiles.map(file => (
+                          <div key={file.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl hover:bg-white hover:ring-1 hover:ring-gray-200 transition-all group">
+                            <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${file.category === 'image' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+                              {file.category === 'image' ? <Camera size={20} /> : <FileText size={20} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-sm font-bold text-ink truncate">{file.name}</h4>
+                              <p className="text-[10px] text-muted font-medium uppercase tracking-wider">
+                                {(file.size / 1024).toFixed(1)} KB • {file.timestamp?.toDate ? file.timestamp.toDate().toLocaleDateString() : 'Just now'}
+                              </p>
+                            </div>
+                            <button 
+                              onClick={async () => {
+                                if (confirm('Are you sure you want to delete this file?')) {
+                                  await deleteDoc(doc(db, 'cloudFiles', file.id));
+                                  showNotification('File removed');
+                                }
+                              }}
+                              className="p-2 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="w-full md:w-80 space-y-6">
+                    <div className="bg-ink p-8 rounded-[2.5rem] text-white">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-6">Storage Usage</h4>
+                      <div className="flex items-end justify-between mb-2">
+                        <span className="text-2xl font-black">1.2 GB</span>
+                        <span className="text-[10px] font-black text-white/40">of 10 GB</span>
+                      </div>
+                      <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-8">
+                        <div className="h-full bg-accent w-[12%] rounded-full shadow-[0_0_12px_rgba(var(--accent-rgb),0.5)]" />
+                      </div>
+                      <button className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all">
+                        Upgrade Storage
+                      </button>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-muted mb-6">Categories</h4>
+                      <div className="space-y-4">
+                        {[
+                          { label: 'Documents', count: 12, icon: FileText, color: 'text-blue-600' },
+                          { label: 'Images', count: 45, icon: Camera, color: 'text-purple-600' },
+                          { label: 'Archives', count: 3, icon: HardDrive, color: 'text-emerald-600' }
+                        ].map(cat => (
+                          <div key={cat.label} className="flex items-center justify-between group cursor-pointer">
+                            <div className="flex items-center gap-3">
+                              <cat.icon size={14} className={cat.color} />
+                              <span className="text-xs font-bold text-ink group-hover:text-accent transition-colors">{cat.label}</span>
+                            </div>
+                            <span className="text-[10px] font-black text-muted bg-gray-50 px-2 py-1 rounded-lg">{cat.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-start">
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Workspace
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeWorkspaceTool === 'pdf') {
+          return (
+            <WordLayout
+              title="PDF Studio"
+              subtitle="Professional PDF Utilities"
+              icon={FileJson}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+            >
+              <div className="max-w-5xl">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                  {[
+                    { id: 'convert', name: 'Convert to PDF', desc: 'Turn images and documents into high-quality PDFs.', icon: FileBarChart, color: 'blue-500' },
+                    { id: 'merge', name: 'Merge PDF', desc: 'Combine multiple PDF files into one seamless document.', icon: Files, color: 'purple-500' },
+                    { id: 'compress', name: 'Compress PDF', desc: 'Reduce file size while maintaining visual quality.', icon: ArrowUpDown, color: 'amber-500' },
+                  ].map(tool => (
+                    <button key={tool.id} className="p-8 bg-white border border-gray-100 rounded-[2rem] hover:border-accent hover:shadow-xl transition-all text-left group">
+                      <div className={`h-14 w-14 bg-${tool.color.split('-')[0]}-50 text-${tool.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                        <tool.icon size={24} />
+                      </div>
+                      <h4 className="text-lg font-black text-ink mb-2">{tool.name}</h4>
+                      <p className="text-[11px] text-muted font-bold leading-relaxed mb-6">{tool.desc}</p>
+                      <div className="h-10 px-6 bg-gray-50 rounded-full inline-flex items-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
+                        Launch Tool
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-dashed border-gray-200 text-center">
+                  <div className="h-20 w-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-6">
+                    <Upload size={32} className="text-muted" />
+                  </div>
+                  <h3 className="text-xl font-black text-ink mb-2">Drop your files here</h3>
+                  <p className="text-sm text-muted font-medium mb-8 max-w-sm mx-auto">Select a tool above, then upload your files to start the professional processing.</p>
+                  <label className="px-10 py-4 bg-white border border-gray-200 text-ink rounded-2xl font-black text-sm cursor-pointer hover:bg-gray-50 transition-all inline-block">
+                    Browse Files
+                    <input type="file" className="hidden" />
+                  </label>
+                </div>
+
+                <div className="flex justify-start mt-12">
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Workspace
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
         return (
           <WordLayout
             title="Workspace"
@@ -6451,6 +6657,7 @@ function ExonaApp() {
               {workspaceFeatures.map(item => (
                 <button
                   key={item.id}
+                  onClick={() => setActiveWorkspaceTool(item.id)}
                   className="group p-8 bg-white border-2 border-gray-50 rounded-[2.5rem] hover:border-accent hover:shadow-2xl hover:shadow-accent/10 transition-all text-left relative overflow-hidden"
                 >
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
