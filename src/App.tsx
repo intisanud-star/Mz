@@ -1325,6 +1325,52 @@ function ExonaApp() {
     }
   };
 
+  const [isUploadingGroupPhoto, setIsUploadingGroupPhoto] = useState(false);
+
+  const handleGroupPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, isNewGroup: boolean) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingGroupPhoto(true);
+    try {
+      const compressedBase64 = await compressImage(file, 600, 0.7);
+      
+      if (compressedBase64.length < 300 * 1024) {
+        if (isNewGroup) {
+          setNewGroupData({ ...newGroupData, photoURL: compressedBase64 });
+        } else {
+          setEditingGroupData({ ...editingGroupData, photoURL: compressedBase64 });
+        }
+        showNotification('Group photo selected');
+        return;
+      }
+
+      const response = await fetch(compressedBase64);
+      const blob = await response.blob();
+      
+      const fileRef = ref(storage, `groups/${activeGroup?.id || 'temp'}/photo_${Date.now()}.jpg`);
+      const snapshot = await uploadBytes(fileRef, blob);
+      const photoURL = await getDownloadURL(snapshot.ref);
+      
+      if (isNewGroup) {
+        setNewGroupData({ ...newGroupData, photoURL });
+      } else {
+        setEditingGroupData({ ...editingGroupData, photoURL });
+      }
+      showNotification('Group photo uploaded');
+    } catch (error: any) {
+      console.error('Group photo upload failure:', error);
+      showNotification('Failed to upload group photo', 'error');
+    } finally {
+      setIsUploadingGroupPhoto(false);
+    }
+  };
+
   const handleLeaveGroup = async () => {
     if (!activeGroup || !user) return;
     if (!window.confirm('Are you sure you want to leave this group?')) return;
@@ -6532,6 +6578,28 @@ function ExonaApp() {
 
                         {isEditingGroup ? (
                           <div className="w-full space-y-3">
+                            <div className="relative group/edit-group-photo mb-6">
+                              <div className="w-24 h-24 rounded-[2rem] bg-ink/5 overflow-hidden flex items-center justify-center border-2 border-white shadow-xl relative">
+                                {isUploadingGroupPhoto ? (
+                                  <div className="h-full w-full flex items-center justify-center bg-white/80 animate-pulse">
+                                    <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                                  </div>
+                                ) : editingGroupData.photoURL ? (
+                                  <img src={editingGroupData.photoURL} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <Users size={32} className="text-muted/30" />
+                                )}
+                              </div>
+                              <label className="absolute -bottom-2 -right-2 h-8 w-8 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-all">
+                                <Camera size={14} />
+                                <input 
+                                  type="file" 
+                                  className="hidden" 
+                                  accept="image/*"
+                                  onChange={(e) => handleGroupPhotoUpload(e, false)} 
+                                />
+                              </label>
+                            </div>
                             <input
                               type="text"
                               placeholder="Group Name"
@@ -6544,13 +6612,6 @@ function ExonaApp() {
                               value={editingGroupData.description}
                               onChange={(e) => setEditingGroupData({ ...editingGroupData, description: e.target.value })}
                               className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-ink outline-none min-h-[80px]"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Photo URL"
-                              value={editingGroupData.photoURL}
-                              onChange={(e) => setEditingGroupData({ ...editingGroupData, photoURL: e.target.value })}
-                              className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-ink outline-none"
                             />
                             <div className="flex gap-2 pt-2">
                               <button 
@@ -9435,14 +9496,31 @@ function ExonaApp() {
 
               <div className="p-8 space-y-6 overflow-y-auto">
                 <div className="space-y-4">
+                  <div className="flex flex-col items-center gap-4 mb-6">
+                    <div className="relative group/new-photo">
+                      <div className="w-24 h-24 rounded-[2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden">
+                        {isUploadingGroupPhoto ? (
+                          <div className="animate-spin h-6 w-6 border-2 border-accent border-t-transparent rounded-full" />
+                        ) : newGroupData.photoURL ? (
+                          <img src={newGroupData.photoURL} className="h-full w-full object-cover" />
+                        ) : (
+                          <Camera size={32} className="text-gray-300" />
+                        )}
+                      </div>
+                      <label className="absolute -bottom-2 -right-2 h-10 w-10 bg-accent text-white rounded-2xl flex items-center justify-center shadow-lg cursor-pointer hover:scale-105 transition-all">
+                        <Plus size={20} />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={(e) => handleGroupPhotoUpload(e, true)}
+                        />
+                      </label>
+                    </div>
+                    <p className="text-[10px] font-black text-muted uppercase tracking-widest">Group Picture</p>
+                  </div>
+                  
                   <label className="text-[10px] font-black text-muted uppercase tracking-widest">Group Info</label>
-                  <input
-                    type="text"
-                    placeholder="Group Photo URL (Optional)"
-                    value={newGroupData.photoURL}
-                    onChange={(e) => setNewGroupData({ ...newGroupData, photoURL: e.target.value })}
-                    className="w-full bg-gray-50 border-none rounded-xl px-6 py-4 text-sm font-bold text-ink outline-none mb-2"
-                  />
                   <input
                     type="text"
                     placeholder="Group Name"
