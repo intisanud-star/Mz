@@ -953,7 +953,7 @@ function ExonaApp() {
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [editorContent, setEditorContent] = useState<string>('# Creative Studio\n\nStart crafting your technical document here...');
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
-  const [newGroupData, setNewGroupData] = useState({ name: '', description: '', members: [] as string[] });
+  const [newGroupData, setNewGroupData] = useState({ name: '', description: '', members: [] as string[], photoURL: '' });
   const [chatGroups, setChatGroups] = useState<any[]>([]);
   const [myFollowers, setMyFollowers] = useState<UserDoc[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
@@ -1239,6 +1239,75 @@ function ExonaApp() {
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
+  const [institutionFollowerDocs, setInstitutionFollowerDocs] = useState<UserDoc[]>([]);
+  const groupCandidates = useMemo(() => {
+    const combined = [...myFollowers];
+    institutionFollowerDocs.forEach(doc => {
+      if (!combined.find(c => c.uid === doc.uid)) combined.push(doc);
+    });
+    return combined;
+  }, [myFollowers, institutionFollowerDocs]);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    // Managed institutions: where user is creator or admin
+    const myManaged = [...schools, ...places].filter(inst => 
+      inst.creatorUid === user.uid || 
+      inst.administrativeViewers?.includes(user.uid)
+    );
+    
+    const followerIds = new Set<string>();
+    myManaged.forEach(inst => {
+      inst.followers?.forEach(uid => {
+        if (uid !== user.uid) followerIds.add(uid);
+      });
+    });
+    
+    if (followerIds.size === 0) {
+      if (institutionFollowerDocs.length > 0) setInstitutionFollowerDocs([]);
+      return;
+    }
+    
+    // IDs not already being tracked to keep fetching efficient
+    const idsToFetch = Array.from(followerIds).filter(uid => 
+      !myFollowers.find(f => f.uid === uid) && 
+      !chatUsers.find(u => u.uid === uid) &&
+      !institutionFollowerDocs.find(u => u.uid === uid)
+    );
+    
+    if (idsToFetch.length === 0) return;
+    
+    const fetchFollowerDocs = async () => {
+      try {
+        const chunks = [];
+        for (let i = 0; i < idsToFetch.length; i += 30) {
+          chunks.push(idsToFetch.slice(i, i + 30));
+        }
+        for (const chunk of chunks) {
+          const q = query(collection(db, 'users'), where('uid', 'in', chunk));
+          const snap = await getDocs(q);
+          const newDocs = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDoc));
+          setInstitutionFollowerDocs(prev => [...prev, ...newDocs]);
+        }
+      } catch (err) {
+        console.error("Error fetching institution followers:", err);
+      }
+    };
+    
+    fetchFollowerDocs();
+  }, [user, schools, places, myFollowers, chatUsers]);
+  const [isViewGroupMembers, setIsViewGroupMembers] = useState(false);
+  const activeGroup = activeChat?.isGroup ? chatGroups.find(g => g.id === activeChat.uid) : null;
+  const activeGroupMembers = useMemo(() => {
+    if (!activeGroup) return [];
+    // Combine chatUsers and groupCandidates to find members
+    const allKnown = [...chatUsers, ...groupCandidates];
+    return activeGroup.members?.map((uid: string) => 
+      allKnown.find(u => u.uid === uid) || { uid, displayName: 'Member' }
+    ) || [];
+  }, [activeGroup, chatUsers, groupCandidates]);
+
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [stories, setStories] = useState<Story[]>([]);
@@ -2471,11 +2540,12 @@ function ExonaApp() {
         members: [user.uid, ...newGroupData.members],
         admins: [user.uid],
         timestamp: serverTimestamp(),
+        photoURL: newGroupData.photoURL?.trim() || `https://ui-avatars.com/api/?name=${encodeURIComponent(newGroupData.name)}&background=random`
       };
       await addDoc(collection(db, 'chatGroups'), groupData);
       showNotification('Group created successfully');
       setIsCreateGroupModalOpen(false);
-      setNewGroupData({ name: '', description: '', members: [] });
+      setNewGroupData({ name: '', description: '', members: [], photoURL: '' });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'chatGroups');
     }
@@ -3658,6 +3728,7 @@ function ExonaApp() {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
       const userRef = doc(db, 'users', followerUid);
+      const creatorRef = doc(db, 'users', school.creatorUid);
       
       await Promise.all([
         setDoc(schoolRef, { 
@@ -3665,8 +3736,11 @@ function ExonaApp() {
           pendingFollowers: arrayRemove(followerUid)
         }, { merge: true }),
         setDoc(userRef, { 
-          following: arrayUnion(school.id) 
+          following: arrayUnion(school.id, school.creatorUid) 
         }, { merge: true }),
+        school.creatorUid !== followerUid ? setDoc(creatorRef, {
+          followers: arrayUnion(followerUid)
+        }, { merge: true }) : Promise.resolve(),
         // Create notification for the new joiner
         handleCreateNotification(followerUid, {
           type: 'follower_request',
@@ -6354,14 +6428,91 @@ function ExonaApp() {
             .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
           return (
-            <div className="flex flex-col bg-card">
+            <div className="flex flex-col bg-card h-full relative">
+              {/* Group Members Modal */}
+              {isViewGroupMembers && activeGroup && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                  >
+                    <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                      <div>
+                        <h3 className="text-lg font-black text-ink tracking-tight">{activeGroup.name}</h3>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">{activeGroup.members?.length || 0} Members</p>
+                      </div>
+                      <button 
+                        onClick={() => setIsViewGroupMembers(false)}
+                        className="h-10 w-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-muted hover:text-ink"
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <div className="p-6 overflow-y-auto space-y-4">
+                      {activeGroupMembers.map((member: any) => (
+                        <div key={member.uid} className="flex items-center justify-between group/user">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-2xl bg-ink/5 overflow-hidden flex items-center justify-center border border-gray-100">
+                              {member.photoURL ? (
+                                <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <UserIcon size={18} className="text-muted/30" />
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-[11px] font-bold text-ink">{member.displayName}</p>
+                              <p className="text-[9px] text-muted font-medium">@{member.uid.slice(0, 8)}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {activeGroup.admins?.includes(member.uid) && (
+                              <span className="px-2 py-0.5 rounded-lg bg-accent/10 text-accent text-[8px] font-black uppercase tracking-widest">Admin</span>
+                            )}
+                            {activeGroup.admins?.includes(user?.uid) && member.uid !== user?.uid && (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    const groupRef = doc(db, 'chatGroups', activeGroup.id);
+                                    await updateDoc(groupRef, {
+                                      members: arrayRemove(member.uid),
+                                      admins: arrayRemove(member.uid)
+                                    });
+                                    showNotification('Member removed');
+                                  } catch (err) {
+                                    console.error("Error removing member:", err);
+                                  }
+                                }}
+                                className="p-2 hover:bg-red-50 text-red-500 rounded-xl transition-all"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-8 bg-gray-50/50">
+                      <button 
+                        onClick={() => setIsViewGroupMembers(false)}
+                        className="w-full py-4 bg-ink text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-ink/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+
               <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-30">
                 <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
                   <ChevronRight size={24} className="rotate-180" />
                 </button>
                 <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
-                  {activeChat.photoURL ? (
-                    <img src={activeChat.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  {activeChat.photoURL || chatGroups.find(g => g.id === activeChat.uid)?.photoURL ? (
+                    <img src={activeChat.isGroup ? chatGroups.find(g => g.id === activeChat.uid)?.photoURL : activeChat.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   ) : activeChat.isGroup ? (
                     <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
                       <Users size={18} />
@@ -6374,9 +6525,12 @@ function ExonaApp() {
                   <h3 className="font-bold text-ink text-sm leading-tight truncate">{activeChat.displayName}</h3>
                   <div className="flex items-center gap-1">
                     {activeChat.isGroup ? (
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                      <button 
+                        onClick={() => setIsViewGroupMembers(true)}
+                        className="text-[10px] text-muted font-bold uppercase tracking-widest hover:text-accent transition-colors"
+                      >
                         {chatGroups.find(g => g.id === activeChat.uid)?.members?.length || 0} Members
-                      </p>
+                      </button>
                     ) : isOtherTyping ? (
                       <p className="text-[10px] text-accent font-bold animate-pulse uppercase tracking-widest">Typing...</p>
                     ) : (
@@ -6419,7 +6573,7 @@ function ExonaApp() {
                        <button onClick={() => setIsAddingMember(false)} className="p-2 hover:bg-gray-50 rounded-full transition-colors"><X size={20} /></button>
                      </div>
                      <div className="p-6 overflow-y-auto space-y-2">
-                       {myFollowers
+                       {groupCandidates
                          .filter(f => !chatGroups.find(g => g.id === activeChat.uid)?.members?.includes(f.uid))
                          .map(follower => (
                            <button
@@ -6441,7 +6595,7 @@ function ExonaApp() {
                            </button>
                          ))
                        }
-                       {myFollowers.filter(f => !chatGroups.find(g => g.id === activeChat.uid)?.members?.includes(f.uid)).length === 0 && (
+                       {groupCandidates.filter(f => !chatGroups.find(g => g.id === activeChat.uid)?.members?.includes(f.uid)).length === 0 && (
                          <div className="text-center py-12">
                            <Users size={32} className="mx-auto mb-4 text-muted/20" />
                            <p className="text-xs text-muted font-bold">No new members to add</p>
@@ -9114,6 +9268,13 @@ function ExonaApp() {
                   <label className="text-[10px] font-black text-muted uppercase tracking-widest">Group Info</label>
                   <input
                     type="text"
+                    placeholder="Group Photo URL (Optional)"
+                    value={newGroupData.photoURL}
+                    onChange={(e) => setNewGroupData({ ...newGroupData, photoURL: e.target.value })}
+                    className="w-full bg-gray-50 border-none rounded-xl px-6 py-4 text-sm font-bold text-ink outline-none mb-2"
+                  />
+                  <input
+                    type="text"
                     placeholder="Group Name"
                     value={newGroupData.name}
                     onChange={(e) => setNewGroupData({ ...newGroupData, name: e.target.value })}
@@ -9128,12 +9289,12 @@ function ExonaApp() {
                 </div>
 
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Select Members from Followers ({myFollowers.length})</label>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Select Members ({groupCandidates.length})</label>
                   <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
-                    {myFollowers.length === 0 ? (
-                      <p className="p-4 text-center text-xs text-muted italic font-bold">No followers found to add</p>
+                    {groupCandidates.length === 0 ? (
+                      <p className="p-4 text-center text-xs text-muted italic font-bold">No members found to add</p>
                     ) : (
-                      myFollowers.map(follower => {
+                      groupCandidates.map(follower => {
                         const isSelected = newGroupData.members.includes(follower.uid);
                         return (
                           <button

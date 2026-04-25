@@ -58,17 +58,22 @@ service cloud.firestore {
         isAdmin() ||
         (resource != null && (
           resource.data.creatorUid == request.auth.uid ||
-          (resource.data.get('administrativeViewers', []) is list && request.auth.uid in resource.data.get('administrativeViewers', []))
+          (resource.data.get('administrativeViewers', []) is list && request.auth.uid in resource.data.get('administrativeViewers', [])) ||
+          (resource.data.get('followers', []) is list && request.auth.uid in resource.data.get('followers', []))
         )) ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
           (get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', []) is list && 
-           request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', []))
+           request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', [])) ||
+          (get(/databases/$(database)/documents/schools/$(schoolId)).data.get('followers', []) is list && 
+           request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('followers', []))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
           get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
           (get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', []) is list && 
-           request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', []))
+           request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', [])) ||
+          (get(/databases/$(database)/documents/places/$(schoolId)).data.get('followers', []) is list && 
+           request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.get('followers', []))
         ))
       );
     }
@@ -104,16 +109,15 @@ service cloud.firestore {
     function isFollower(id) {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        ('following' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data) &&
-        (id in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.following);
+        (id in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('following', []));
     }
 
     function isApprovedFollower(schoolId) {
       return isAuthenticated() && (
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
-         request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.followers) ||
+         request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('followers', [])) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && 
-         request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.followers)
+         request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.get('followers', []))
       );
     }
 
@@ -178,7 +182,7 @@ service cloud.firestore {
                 (data.receiverUid in data.participants || data.get('mediaType', null) == 'voice')) ||
                (data.get('isGroup', false) == true &&
                 exists(/databases/$(database)/documents/chatGroups/$(data.chatId)) &&
-                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.chatId)).data.members)
+                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.chatId)).data.get('members', []))
              ) &&
              (data.get('mediaType', null) == 'voice' || (data.text is string && data.text.size() > 0 && data.text.size() < 5000));
     }
@@ -187,9 +191,9 @@ service cloud.firestore {
       return isAuthenticated() && 
              data.callerUid == request.auth.uid &&
              data.receiverUid is string &&
-             data.participants is list &&
-             data.participants.size() == 2 &&
-             request.auth.uid in data.participants &&
+             data.get('participants', []) is list &&
+             data.get('participants', []).size() == 2 &&
+             request.auth.uid in data.get('participants', []) &&
              data.status == 'ringing' &&
              data.type in ['audio', 'video'];
     }
@@ -198,8 +202,8 @@ service cloud.firestore {
       return isAuthenticated() && 
              data.name is string && data.name.size() > 0 &&
              data.creatorUid == request.auth.uid &&
-             data.members is list &&
-             request.auth.uid in data.members;
+             data.get('members', []) is list &&
+             request.auth.uid in data.get('members', []);
     }
 
     function isValidStory(data) {
@@ -239,7 +243,8 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       allow update: if isOwner(userId) || (
         isAuthenticated() && 
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following'])
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['following', 'followers', 'pendingFollowers']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'followers', 'pendingFollowers'])
       );
       allow delete: if isAdmin();
 
@@ -264,10 +269,10 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('members', []));
       allow create: if isValidGroup(request.resource.data);
       allow update: if isAuthenticated() && (
-        (request.auth.uid in resource.data.admins && request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'description', 'photoURL', 'members', 'admins'])) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']))
+        (request.auth.uid in resource.data.get('admins', []) && request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'description', 'photoURL', 'members', 'admins'])) ||
+        (request.auth.uid in resource.data.get('members', []) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']))
       );
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.creatorUid || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.get('creatorUid', '') || isAdmin());
     }
 
     match /typingStates/{stateId} {
@@ -359,9 +364,9 @@ service cloud.firestore {
     }
 
     match /calls/{callId} {
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants);
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('participants', []));
       allow create: if isValidCall(request.resource.data);
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants);
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.get('participants', []));
       allow delete: if isAdmin();
     }
   }
