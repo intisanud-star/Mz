@@ -38,7 +38,7 @@ import {
   EmailAuthProvider,
   deleteDoc
 } from './firebase.ts';
-import { signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment } from 'firebase/firestore';
 
 /**
@@ -886,6 +886,7 @@ function ExonaApp() {
   const [myFollowers, setMyFollowers] = useState<UserDoc[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
+  const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [isDeleteSchoolModalOpen, setIsDeleteSchoolModalOpen] = useState(false);
@@ -2212,8 +2213,39 @@ function ExonaApp() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      showNotification('Please enter your email address first', 'error');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      showNotification('Password reset email sent!', 'success');
+    } catch (error: any) {
+      showNotification(error.message || 'Failed to send reset email', 'error');
+    }
+  };
+
+  const handleAddMember = async (groupId: string, memberUid: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, 'chatGroups', groupId), {
+        members: arrayUnion(memberUid)
+      });
+      showNotification('Member added successfully');
+      
+      // Update participants for existing messages in this group (optional but good for consistency)
+      // Actually, my rules for group messages now use the group members list via participants field in the message
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'chatGroups');
+    }
+  };
+
   const handleCreateGroup = async () => {
-    if (!user || !newGroupData.name.trim()) return;
+    if (!user || !newGroupData.name.trim()) {
+      showNotification('Group name is required', 'error');
+      return;
+    }
     try {
       const groupData = {
         name: newGroupData.name.trim(),
@@ -6121,8 +6153,8 @@ function ExonaApp() {
                     <span className="text-muted text-[10px] font-bold">{activeChat.displayName?.charAt(0)}</span>
                   )}
                 </div>
-                <div>
-                  <h3 className="font-bold text-ink text-sm leading-tight">{activeChat.displayName}</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-ink text-sm leading-tight truncate">{activeChat.displayName}</h3>
                   <div className="flex items-center gap-1">
                     {activeChat.isGroup ? (
                       <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
@@ -6135,7 +6167,62 @@ function ExonaApp() {
                     )}
                   </div>
                 </div>
+
+                {activeChat.isGroup && (
+                  <button 
+                    onClick={() => setIsAddingMember(true)}
+                    className="h-10 w-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center hover:bg-accent/20 transition-all shrink-0"
+                    title="Add Member"
+                  >
+                    <UserPlus size={18} />
+                  </button>
+                )}
               </div>
+
+              {isAddingMember && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
+                   <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                   >
+                     <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0">
+                       <h3 className="font-black text-ink">Add to "{activeChat.displayName}"</h3>
+                       <button onClick={() => setIsAddingMember(false)} className="p-2 hover:bg-gray-50 rounded-full transition-colors"><X size={20} /></button>
+                     </div>
+                     <div className="p-6 overflow-y-auto space-y-2">
+                       {myFollowers
+                         .filter(f => !chatGroups.find(g => g.id === activeChat.uid)?.members?.includes(f.uid))
+                         .map(follower => (
+                           <button
+                             key={follower.uid}
+                             onClick={() => {
+                               handleAddMember(activeChat.uid, follower.uid);
+                               setIsAddingMember(false);
+                             }}
+                             className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-2xl hover:bg-accent/5 hover:scale-[1.02] transition-all group"
+                           >
+                             <div className="h-10 w-10 rounded-xl overflow-hidden bg-white flex items-center justify-center shrink-0 border border-gray-100">
+                               {follower.photoURL ? <img src={follower.photoURL} className="h-full w-full object-cover" /> : <span className="font-bold text-xs">{follower.displayName?.charAt(0)}</span>}
+                             </div>
+                             <div className="flex-1 text-left">
+                               <p className="text-sm font-bold text-ink">{follower.displayName}</p>
+                               <p className="text-[10px] text-muted font-bold tracking-widest uppercase">Follower</p>
+                             </div>
+                             <Plus size={16} className="text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+                           </button>
+                         ))
+                       }
+                       {myFollowers.filter(f => !chatGroups.find(g => g.id === activeChat.uid)?.members?.includes(f.uid)).length === 0 && (
+                         <div className="text-center py-12">
+                           <Users size={32} className="mx-auto mb-4 text-muted/20" />
+                           <p className="text-xs text-muted font-bold">No new members to add</p>
+                         </div>
+                       )}
+                     </div>
+                   </motion.div>
+                </div>
+              )}
 
               <div className="p-4 space-y-4 pb-48">
                 {chatMessages.length === 0 ? (
@@ -8420,7 +8507,12 @@ function ExonaApp() {
             </button>
 
             {authMode === 'signin' && (
-              <button className="text-xs text-[#00376b] hover:underline">Forgot password?</button>
+              <button 
+                onClick={handleForgotPassword}
+                className="text-xs text-[#00376b] hover:underline"
+              >
+                Forgot password?
+              </button>
             )}
           </div>
 
@@ -8770,7 +8862,7 @@ function ExonaApp() {
                 </button>
                  <button 
                   onClick={handleCreateGroup}
-                  disabled={!newGroupData.name.trim() || newGroupData.members.length === 0}
+                  disabled={!newGroupData.name.trim()}
                   className="px-10 py-3.5 bg-accent text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20 flex items-center gap-2 disabled:opacity-50"
                 >
                   Create Group
