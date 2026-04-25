@@ -56,6 +56,10 @@ service cloud.firestore {
     function isSchoolManager(schoolId) {
       return isAuthenticated() && (
         isAdmin() ||
+        (resource != null && (
+          resource.data.creatorUid == request.auth.uid ||
+          (resource.data.get('administrativeViewers', []) is list && request.auth.uid in resource.data.get('administrativeViewers', []))
+        )) ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
           get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
           (get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', []) is list && 
@@ -171,12 +175,23 @@ service cloud.firestore {
                 data.participants is list &&
                 data.participants.size() == 2 &&
                 request.auth.uid in data.participants &&
-                data.receiverUid in data.participants) ||
+                (data.receiverUid in data.participants || data.get('mediaType', null) == 'voice')) ||
                (data.get('isGroup', false) == true &&
-                exists(/databases/$(database)/documents/chatGroups/$(data.receiverUid)) &&
-                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.receiverUid)).data.members)
+                exists(/databases/$(database)/documents/chatGroups/$(data.chatId)) &&
+                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.chatId)).data.members)
              ) &&
-             data.text is string && data.text.size() > 0 && data.text.size() < 5000;
+             (data.get('mediaType', null) == 'voice' || (data.text is string && data.text.size() > 0 && data.text.size() < 5000));
+    }
+
+    function isValidCall(data) {
+      return isAuthenticated() && 
+             data.callerUid == request.auth.uid &&
+             data.receiverUid is string &&
+             data.participants is list &&
+             data.participants.size() == 2 &&
+             request.auth.uid in data.participants &&
+             data.status == 'ringing' &&
+             data.type in ['audio', 'video'];
     }
 
     function isValidGroup(data) {
@@ -221,7 +236,11 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated(); 
-      allow create, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || (
+        isAuthenticated() && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following'])
+      );
       allow delete: if isAdmin();
 
       match /notifications/{notifId} {
@@ -272,17 +291,14 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      // Allow all authenticated users to read posts to ensure visibility for followers
-      allow read: if isAuthenticated();
+      allow read: if true;
       
       allow create: if isAuthenticated() && isValidPost(request.resource.data);
       
       allow update: if isAuthenticated() && (
-        (resource.data.authorUid == request.auth.uid && isValidPost(request.resource.data) && 
-         request.resource.data.authorUid == resource.data.authorUid) || 
+        (resource.data.authorUid == request.auth.uid && request.resource.data.authorUid == request.auth.uid) || 
         isAdmin() ||
-        // Allow liking and commenting
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount']))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount', 'sharesCount', 'repostsCount']))
       );
       
       allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
@@ -340,6 +356,13 @@ service cloud.firestore {
     match /cloudFiles/{fileId} {
       allow read, delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
       allow create: if isValidCloudFile(request.resource.data);
+    }
+
+    match /calls/{callId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participants);
+      allow create: if isValidCall(request.resource.data);
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participants);
+      allow delete: if isAdmin();
     }
   }
 }

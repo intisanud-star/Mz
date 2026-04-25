@@ -153,9 +153,29 @@
         "participants": { "type": "array", "items": { "type": "string" } },
         "text": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
-        "chatId": { "type": "string" }
+        "chatId": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "mediaType": { "type": "string", "enum": ["voice", "image", "video"] },
+        "isGroup": { "type": "boolean" },
+        "status": { "type": "string" }
       },
-      "required": ["senderUid", "receiverUid", "participants", "text", "timestamp", "chatId"]
+      "required": ["senderUid", "participants", "timestamp", "chatId"]
+    },
+    "Call": {
+      "title": "Call",
+      "description": "Voice call signaling",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "callerUid": { "type": "string" },
+        "receiverUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["ringing", "active", "ended", "rejected", "missed"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["audio", "video"] },
+        "chatId": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["callerUid", "receiverUid", "status", "timestamp", "type", "participants"]
     },
     "TypingStatus": {
       "title": "TypingStatus",
@@ -253,6 +273,7 @@
     "/stories/{storyId}": { "schema": "Story", "description": "Status stories" },
     "/settlements/{settlementId}": { "schema": "Settlement", "description": "Financial settlement requests" },
     "/cloudFiles/{fileId}": { "schema": "CloudFile", "description": "User uploaded files" },
-    "/chatGroups/{groupId}": { "schema": "ChatGroup", "description": "Group chat definitions" }
+    "/chatGroups/{groupId}": { "schema": "ChatGroup", "description": "Group chat definitions" },
+    "/calls/{callId}": { "schema": "Call", "description": "Voice call signaling documents" }
   }
 }

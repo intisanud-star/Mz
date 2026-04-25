@@ -1,18 +1,28 @@
 import React, { useEffect, useState, Component, ErrorInfo, ReactNode, useMemo, useRef } from 'react';
 import { 
-  GraduationCap, ShieldCheck, LogOut, LogIn, User as UserIcon, 
+  GraduationCap, LogIn, User as UserIcon, 
   BookOpen, Calendar, Bell, Search, Menu, X, 
   Home, Users, MessageSquare, Wallet, Settings, 
   AlertCircle, Cpu, ChevronDown, ChevronRight, ChevronLeft,
   Heart, MessageCircle, Share2, Plus, Filter, Send, Repeat, PlusSquare,
   Image as ImageIcon, Video as VideoIcon, Paperclip,
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
-  MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint,
+  MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint, Eye, EyeOff,
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
-  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Download, ArrowLeft, Printer,
-  Copy, Banknote, Smartphone, Globe, Receipt, Lock, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Files, Activity
+  Mic, Play, Pause, PhoneOff, StopCircle, RefreshCw,
+  Building2, MapPin, Lock,
+  Globe, Zap, Mail, Facebook, Twitter, Instagram, Github, Chrome, Palette, HelpCircle, Info, Coffee, Rocket, Terminal, Code2, Monitor, Smartphone, Tablet, Github as GithubIcon, Laptop, Coffee as CoffeeIcon,
+  Sun, Moon, Book, Award, Star, BarChart3, Briefcase, HeartHandshake, ShieldCheck, Zap as ZapIcon, Fingerprint as FingerprintIcon,
+  FileCode, FileImage, FileAudio, FileVideo, FileArchive, FilePieChart,
+  Edit, Grid, List, Download, Share, Maximize2, Minimize2, ExternalLink, Link, Move, Copy,
+  ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ExternalLink as ExternalLinkIcon, ListFilter, SlidersHorizontal, Hash, Tag, Bookmark, ShieldAlert as ShieldAlertIcon,
+  RefreshCcw, Layers, Layout, Library, Pencil, Save, BookOpen as BookOpenIcon, Clock as ClockIcon, Calendar as CalendarIcon, Check as CheckIcon, X as XIcon, Menu as MenuIcon, Search as SearchIcon, Filter as FilterIcon, MoreVertical as MoreVerticalIcon, Bell as BellIcon, Settings as SettingsIcon, LogOut as LogOutIcon, Camera as CameraIcon, Plus as PlusIcon, Send as SendIcon, Image as ImageIcon2, Smile as SmileIcon, Heart as HeartIcon, MessageCircle as MessageCircleIcon, Share2 as Share2Icon, MoreHorizontal as MoreHorizontalIcon, Trash2 as Trash2Icon, Edit2 as Edit2Icon, Bookmark as BookmarkIcon, Heart as HeartFilled, LogOut,
+  Gamepad2, Trophy, Flame, Ghost, Music, Video, Map, Volume2, VolumeX, MicOff,
+  Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FilePlus, FileMinus,
+  Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -875,6 +885,68 @@ function ExonaApp() {
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
+  const CallOverlay = () => {
+    const call = incomingCall || outgoingCall;
+    if (!call) return null;
+
+    const otherUid = call.callerUid === user?.uid ? call.receiverUid : call.callerUid;
+    const otherUser = chatUsers.find(u => u.uid === otherUid) || { displayName: 'User', photoURL: null };
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-ink/90 backdrop-blur-xl p-4"
+      >
+        <div className="w-full max-w-sm flex flex-col items-center text-center">
+          <div className="h-24 w-24 rounded-full border-4 border-accent/20 p-1 mb-6 relative">
+            <motion.div 
+              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute inset-0 bg-accent rounded-full -z-10"
+            />
+            <div className="h-full w-full rounded-full overflow-hidden bg-white flex items-center justify-center">
+              {otherUser.photoURL ? (
+                <img src={otherUser.photoURL} className="h-full w-full object-cover" />
+              ) : (
+                <UserIcon size={40} className="text-muted" />
+              )}
+            </div>
+          </div>
+
+          <h2 className="text-white text-2xl font-black mb-2">{otherUser.displayName}</h2>
+          <p className="text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-12">
+            {call.status === 'ringing' ? (outgoingCall ? 'Calling...' : 'Incoming Audio Call') : 'Call Active'}
+          </p>
+
+          <div className="flex gap-8">
+            {incomingCall && call.status === 'ringing' && (
+              <button 
+                onClick={() => handleAcceptCall(call.id)}
+                className="h-16 w-16 bg-green-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-green-600 transition-all"
+              >
+                <Phone size={24} />
+              </button>
+            )}
+            <button 
+              onClick={() => handleEndCall(call.id)}
+              className="h-16 w-16 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-600 transition-all"
+            >
+              <PhoneOff size={24} />
+            </button>
+          </div>
+
+          {call.status === 'active' && (
+             <div className="mt-12 text-white/40 font-mono text-xs flex items-center gap-2">
+               <motion.div animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="h-2 w-2 bg-green-500 rounded-full" />
+               Live Audio
+             </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<any | null>(null);
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
@@ -953,6 +1025,59 @@ function ExonaApp() {
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'users');
     });
+    return unsubscribe;
+  }, [user]);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [activeVoiceMessage, setActiveVoiceMessage] = useState<string | null>(null);
+  const [incomingCall, setIncomingCall] = useState<any>(null);
+  const [outgoingCall, setOutgoingCall] = useState<any>(null);
+  const [activeCallStream, setActiveCallStream] = useState<MediaStream | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    // Listen for calls where user is caller or receiver
+    const qCalls = query(
+      collection(db, 'calls'),
+      where('participants', 'array-contains', user.uid),
+      where('status', 'in', ['ringing', 'active']),
+      orderBy('timestamp', 'desc'),
+      limit(1)
+    );
+
+    const unsubscribe = onSnapshot(qCalls, (snapshot) => {
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.receiverUid === user.uid && data.status === 'ringing') {
+          setIncomingCall({ id: doc.id, ...data });
+        } else if (data.callerUid === user.uid && data.status === 'ringing') {
+          setOutgoingCall({ id: doc.id, ...data });
+        } else if ((data.callerUid === user.uid || data.receiverUid === user.uid) && data.status === 'active') {
+          // If active, keep track
+          if (data.callerUid === user.uid) setOutgoingCall({ id: doc.id, ...data });
+          else setIncomingCall({ id: doc.id, ...data });
+        }
+      });
+
+      // Clear if no active/ringing calls in results for this user
+      const relevantCall = snapshot.docs.find(doc => {
+        const d = doc.data();
+        return (d.callerUid === user.uid || d.receiverUid === user.uid) && (d.status === 'ringing' || d.status === 'active');
+      });
+      if (!relevantCall) {
+        setIncomingCall(null);
+        setOutgoingCall(null);
+        if (activeCallStream) {
+          activeCallStream.getTracks().forEach(t => t.stop());
+          setActiveCallStream(null);
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'calls');
+    });
+
     return unsubscribe;
   }, [user]);
 
@@ -2183,23 +2308,115 @@ function ExonaApp() {
     }
   };
 
-  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false) => {
-    if (!user || !text.trim()) return;
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          if (activeChat) {
+            await handleSendMessage(activeChat.uid, 'Voice Message', activeChat.isGroup, base64Audio);
+          }
+        };
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      mediaRecorder.start();
+      setRecorder(mediaRecorder);
+      setIsRecording(true);
+      setRecordingTime(0);
+      const interval = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+      (mediaRecorder as any).interval = interval;
+    } catch (err) {
+      showNotification('Could not access microphone', 'error');
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (recorder) {
+      recorder.stop();
+      clearInterval((recorder as any).interval);
+      setRecorder(null);
+      setIsRecording(false);
+    }
+  };
+
+  const handleInitiateCall = async (receiverUid: string) => {
+    if (!user) return;
+    try {
+      const callData = {
+        callerUid: user.uid,
+        receiverUid,
+        participants: [user.uid, receiverUid],
+        status: 'ringing',
+        timestamp: serverTimestamp(),
+        type: 'audio',
+        chatId: [user.uid, receiverUid].sort().join('_')
+      };
+      await addDoc(collection(db, 'calls'), callData);
+      showNotification('Calling...');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'calls');
+    }
+  };
+
+  const handleEndCall = async (callId: string) => {
+    try {
+      await updateDoc(doc(db, 'calls', callId), {
+        status: 'ended'
+      });
+      if (activeCallStream) {
+        activeCallStream.getTracks().forEach(t => t.stop());
+        setActiveCallStream(null);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'calls');
+    }
+  };
+
+  const handleAcceptCall = async (callId: string) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setActiveCallStream(stream);
+      await updateDoc(doc(db, 'calls', callId), {
+        status: 'active'
+      });
+    } catch (err) {
+      showNotification('Could not access microphone', 'error');
+    }
+  };
+
+  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string) => {
+    if (!user) return;
     const chatId = isGroup ? receiverUid : [user.uid, receiverUid].sort().join('_');
     const groupData = isGroup ? chatGroups.find(g => g.id === receiverUid) : null;
     try {
       await addDoc(collection(db, 'messages'), {
         senderUid: user.uid,
-        receiverUid,
+        receiverUid: isGroup ? null : receiverUid,
         participants: isGroup ? (groupData?.members || [user.uid]) : [user.uid, receiverUid],
-        text: text.trim(),
+        text: text.trim().slice(0, 5000),
         timestamp: serverTimestamp(),
         chatId,
         status: 'sent',
-        isGroup
+        isGroup,
+        mediaUrl,
+        mediaType: mediaUrl ? 'voice' : null
       });
       
-      if (!isGroup) {
+      if (!isGroup && !mediaUrl) {
         await handleCreateNotification(receiverUid, {
           type: 'message',
           title: 'New Message',
@@ -6168,6 +6385,16 @@ function ExonaApp() {
                   </div>
                 </div>
 
+                {!activeChat.isGroup && (
+                  <button 
+                    onClick={() => handleInitiateCall(activeChat.uid)}
+                    className="h-10 w-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center hover:bg-accent/20 transition-all shrink-0"
+                    title="Audio Call"
+                  >
+                    <Phone size={18} />
+                  </button>
+                )}
+                
                 {activeChat.isGroup && (
                   <button 
                     onClick={() => setIsAddingMember(true)}
@@ -6178,6 +6405,7 @@ function ExonaApp() {
                   </button>
                 )}
               </div>
+              <CallOverlay />
 
               {isAddingMember && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
@@ -6244,7 +6472,40 @@ function ExonaApp() {
                             ? 'bg-ink text-white rounded-tr-none' 
                             : 'bg-gray-100 text-ink rounded-tl-none'
                         }`}>
-                          {editingMessageId === msg.id ? (
+                          {msg.mediaType === 'voice' ? (
+                            <div className="flex items-center gap-3 min-w-[150px]">
+                              <button 
+                                onClick={() => {
+                                  if (activeVoiceMessage === msg.id) {
+                                    setActiveVoiceMessage(null);
+                                    (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.pause();
+                                  } else {
+                                    setActiveVoiceMessage(msg.id);
+                                    (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.play();
+                                  }
+                                }}
+                                className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${msg.senderUid === user.uid ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-accent/10 hover:bg-accent/20 text-accent'}`}
+                              >
+                                {activeVoiceMessage === msg.id ? <Pause size={18} /> : <Play size={18} />}
+                              </button>
+                              <div className="flex-1">
+                                <div className="h-1 w-full bg-current opacity-20 rounded-full overflow-hidden">
+                                   <motion.div 
+                                      animate={activeVoiceMessage === msg.id ? { x: ['0%', '100%'] } : { x: '0%' }}
+                                      transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                                      className="h-full w-1/3 bg-current opacity-60" 
+                                    />
+                                </div>
+                                <p className="text-[10px] mt-1 opacity-60 font-bold uppercase tracking-widest">Voice Memo</p>
+                              </div>
+                              <audio 
+                                id={`audio-${msg.id}`} 
+                                src={msg.mediaUrl} 
+                                onEnded={() => setActiveVoiceMessage(null)}
+                                className="hidden" 
+                              />
+                            </div>
+                          ) : editingMessageId === msg.id ? (
                             <div className="flex flex-col gap-2">
                               <textarea
                                 value={editingMessageText}
@@ -6330,14 +6591,45 @@ function ExonaApp() {
                   </div>
                 )}
                 <div className="flex items-center gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Type a message..." 
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup), setChatInput(''))}
-                    className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
-                  />
+                   {isRecording ? (
+                    <div className="flex-1 bg-accent/5 flex items-center justify-between px-4 py-3 rounded-xl border border-accent/20">
+                      <div className="flex items-center gap-3">
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1] }} 
+                          transition={{ repeat: Infinity, duration: 1 }} 
+                          className="h-2 w-2 bg-red-500 rounded-full" 
+                        />
+                        <span className="text-xs font-black text-ink font-mono">
+                          {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                        </span>
+                        <span className="text-[10px] text-muted font-bold uppercase tracking-widest">Recording...</span>
+                      </div>
+                      <button 
+                        onClick={handleStopRecording}
+                        className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        Stop & Send
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <input 
+                        type="text" 
+                        placeholder="Type a message..." 
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup), setChatInput(''))}
+                        className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
+                      />
+                      <button 
+                         onClick={handleStartRecording}
+                         className="h-10 w-10 text-muted hover:text-accent hover:bg-accent/5 rounded-xl flex items-center justify-center transition-all shrink-0"
+                         title="Record Voice"
+                      >
+                         <Mic size={18} />
+                      </button>
+                    </>
+                  )}
                   <button 
                     onClick={() => { handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup); setChatInput(''); }}
                     className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
@@ -8490,13 +8782,22 @@ function ExonaApp() {
                   placeholder="Email address"
                   className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
                 />
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
-                />
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
             </div>
 
             <button 
@@ -8603,13 +8904,22 @@ function ExonaApp() {
               {user?.providerData.some(p => p.providerId === 'password') && (
                 <div className="mb-10">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Security Key Confirmation</label>
-                  <input 
-                    type="password" 
-                    value={deletePassword}
-                    onChange={(e) => setDeletePassword(e.target.value)}
-                    placeholder="Enter key to authorize"
-                    className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-red-500/10 focus:bg-white border border-transparent focus:border-red-100 transition-all text-sm font-medium"
-                  />
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Enter key to authorize"
+                      className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-red-500/10 focus:bg-white border border-transparent focus:border-red-100 transition-all text-sm font-medium pr-16"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-6 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
                 </div>
               )}
 
