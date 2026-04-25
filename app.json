@@ -19,7 +19,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.musstaphamusa.exona",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#ffffff",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Exona needs access to your microphone to allow you to record and send voice messages.",
+        "NSCameraUsageDescription": "Exona needs access to your camera to allow you to take photos and videos for your stories and posts.",
+        "NSLocationWhenInUseUsageDescription": "Exona needs access to your location to help you find nearby schools and places."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +32,15 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.musstaphamusa.exona",
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "NOTIFICATIONS"
+      ],
       "statusBar": {
         "backgroundColor": "#ffffff",
         "translucent": true,

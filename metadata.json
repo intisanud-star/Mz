@@ -1,5 +1,5 @@
 {
   "name": "Exona",
   "description": "A comprehensive institutional management and community platform for schools, places, and businesses with secure records and real-time notifications.",
-  "requestFramePermissions": ["microphone", "camera", "geolocation"]
+  "requestFramePermissions": ["microphone", "camera", "geolocation", "notifications"]
 }

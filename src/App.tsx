@@ -2442,8 +2442,15 @@ function ExonaApp() {
         setRecordingTime(prev => prev + 1);
       }, 1000);
       (mediaRecorder as any).interval = interval;
-    } catch (err) {
-      showNotification('Could not access microphone', 'error');
+    } catch (err: any) {
+      console.error('Microphone access error (recording):', err);
+      if (err.name === 'NotAllowedError') {
+        showNotification('Microphone permission denied. Please enable it in browser settings.', 'error');
+      } else if (err.name === 'NotFoundError') {
+        showNotification('No microphone found on this device.', 'error');
+      } else {
+        showNotification('Could not access microphone for recording', 'error');
+      }
     }
   };
 
@@ -2496,8 +2503,13 @@ function ExonaApp() {
       await updateDoc(doc(db, 'calls', callId), {
         status: 'active'
       });
-    } catch (err) {
-      showNotification('Could not access microphone', 'error');
+    } catch (err: any) {
+      console.error('Microphone access error (accept call):', err);
+      if (err.name === 'NotAllowedError') {
+        showNotification('Microphone permission denied. Please enable it to answer.', 'error');
+      } else {
+        showNotification('Could not access microphone to answer call', 'error');
+      }
     }
   };
 
