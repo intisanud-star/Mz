@@ -877,8 +877,13 @@ function ExonaApp() {
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<any | null>(null);
+  const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [editorContent, setEditorContent] = useState<string>('# Creative Studio\n\nStart crafting your technical document here...');
+  const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
+  const [newGroupData, setNewGroupData] = useState({ name: '', description: '', members: [] as string[] });
+  const [chatGroups, setChatGroups] = useState<any[]>([]);
+  const [myFollowers, setMyFollowers] = useState<UserDoc[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
@@ -918,6 +923,34 @@ function ExonaApp() {
       setCloudFiles(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       console.error('Error fetching cloud files:', error);
+    });
+    return unsubscribe;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'chatGroups'),
+      where('members', 'array-contains', user.uid)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setChatGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'chatGroups');
+    });
+    return unsubscribe;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, 'users'),
+      where('following', 'array-contains', user.uid)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setMyFollowers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as any)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'users');
     });
     return unsubscribe;
   }, [user]);
@@ -1214,20 +1247,37 @@ function ExonaApp() {
   }, [user?.uid, activeChat?.uid]);
 
   const recentChats = useMemo(() => {
-    if (!user || allMessages.length === 0) return [];
-    const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string } } = {};
+    if (!user) return [];
+    const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string, isGroup: boolean } } = {};
     allMessages.forEach(msg => {
       const existing = chatsMap[msg.chatId];
       const msgTime = (msg.timestamp?.seconds || Date.now() / 1000);
       if (!existing || msgTime > (existing.lastMessage.timestamp?.seconds || 0)) {
-        const otherUid = msg.participants.find(p => p !== user.uid) || user.uid;
-        chatsMap[msg.chatId] = { lastMessage: msg, otherUid };
+        const isGroup = msg.isGroup || false;
+        const otherUid = isGroup ? msg.receiverUid : (msg.participants.find(p => p !== user.uid) || user.uid);
+        chatsMap[msg.chatId] = { lastMessage: msg, otherUid, isGroup };
       }
     });
+
+    chatGroups.forEach(group => {
+      if (!chatsMap[group.id]) {
+        chatsMap[group.id] = {
+          lastMessage: {
+            text: 'Group created',
+            timestamp: group.timestamp,
+            chatId: group.id,
+            status: 'read'
+          },
+          otherUid: group.id,
+          isGroup: true
+        };
+      }
+    });
+
     return Object.values(chatsMap).sort((a, b) => 
       ((b.lastMessage.timestamp?.seconds || Date.now() / 1000) - (a.lastMessage.timestamp?.seconds || Date.now() / 1000))
     );
-  }, [allMessages, user?.uid]);
+  }, [allMessages, user?.uid, chatGroups]);
 
   useEffect(() => {
     if (!user || recentChats.length === 0) return;
@@ -1259,7 +1309,7 @@ function ExonaApp() {
 
   useEffect(() => {
     if (view === 'chat' && activeChat && allMessages.length > 0) {
-      markChatAsRead(activeChat.uid);
+      markChatAsRead(activeChat.uid, activeChat.isGroup);
     }
   }, [view, activeChat?.uid, allMessages.length]);
 
@@ -2132,29 +2182,53 @@ function ExonaApp() {
     }
   };
 
-  const handleSendMessage = async (receiverUid: string, text: string) => {
+  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false) => {
     if (!user || !text.trim()) return;
-    const chatId = [user.uid, receiverUid].sort().join('_');
+    const chatId = isGroup ? receiverUid : [user.uid, receiverUid].sort().join('_');
+    const groupData = isGroup ? chatGroups.find(g => g.id === receiverUid) : null;
     try {
       await addDoc(collection(db, 'messages'), {
         senderUid: user.uid,
         receiverUid,
-        participants: [user.uid, receiverUid],
+        participants: isGroup ? (groupData?.members || [user.uid]) : [user.uid, receiverUid],
         text: text.trim(),
         timestamp: serverTimestamp(),
         chatId,
-        status: 'sent'
+        status: 'sent',
+        isGroup
       });
-      // Create notification for receiver
-      await handleCreateNotification(receiverUid, {
-        type: 'message',
-        title: 'New Message',
-        text: `${user.displayName}: ${text.trim().slice(0, 50)}...`,
-        senderUid: user.uid,
-        targetId: user.uid
-      });
+      
+      if (!isGroup) {
+        await handleCreateNotification(receiverUid, {
+          type: 'message',
+          title: 'New Message',
+          text: `${user.displayName}: ${text.trim().slice(0, 50)}...`,
+          senderUid: user.uid,
+          targetId: user.uid
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'messages');
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    if (!user || !newGroupData.name.trim()) return;
+    try {
+      const groupData = {
+        name: newGroupData.name.trim(),
+        description: newGroupData.description.trim(),
+        creatorUid: user.uid,
+        members: [user.uid, ...newGroupData.members],
+        admins: [user.uid],
+        timestamp: serverTimestamp(),
+      };
+      await addDoc(collection(db, 'chatGroups'), groupData);
+      showNotification('Group created successfully');
+      setIsCreateGroupModalOpen(false);
+      setNewGroupData({ name: '', description: '', members: [] });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'chatGroups');
     }
   };
 
@@ -2181,11 +2255,11 @@ function ExonaApp() {
     }
   };
 
-  const markChatAsRead = async (otherUid: string) => {
+  const markChatAsRead = async (otherUid: string, isGroup = false) => {
     if (!user) return;
-    const chatId = [user.uid, otherUid].sort().join('_');
+    const chatId = isGroup ? otherUid : [user.uid, otherUid].sort().join('_');
     const unreadMessages = allMessages.filter(
-      m => m.chatId === chatId && m.receiverUid === user.uid && m.status !== 'read'
+      m => m.chatId === chatId && (isGroup ? m.senderUid !== user.uid : m.receiverUid === user.uid) && m.status !== 'read'
     );
     
     if (unreadMessages.length === 0) return;
@@ -6027,7 +6101,7 @@ function ExonaApp() {
         
         if (activeChat) {
           const chatMessages = allMessages
-            .filter(m => m.chatId === [user.uid, activeChat.uid].sort().join('_'))
+            .filter(m => m.chatId === (activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_')))
             .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
           return (
@@ -6039,6 +6113,10 @@ function ExonaApp() {
                 <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
                   {activeChat.photoURL ? (
                     <img src={activeChat.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                  ) : activeChat.isGroup ? (
+                    <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
+                      <Users size={18} />
+                    </div>
                   ) : (
                     <span className="text-muted text-[10px] font-bold">{activeChat.displayName?.charAt(0)}</span>
                   )}
@@ -6046,7 +6124,11 @@ function ExonaApp() {
                 <div>
                   <h3 className="font-bold text-ink text-sm leading-tight">{activeChat.displayName}</h3>
                   <div className="flex items-center gap-1">
-                    {isOtherTyping ? (
+                    {activeChat.isGroup ? (
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                        {chatGroups.find(g => g.id === activeChat.uid)?.members?.length || 0} Members
+                      </p>
+                    ) : isOtherTyping ? (
                       <p className="text-[10px] text-accent font-bold animate-pulse uppercase tracking-widest">Typing...</p>
                     ) : (
                       <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Connected</p>
@@ -6065,6 +6147,11 @@ function ExonaApp() {
                   chatMessages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.senderUid === user.uid ? 'justify-end' : 'justify-start'}`}>
                       <div className="relative group max-w-[80%]">
+                        {activeChat.isGroup && msg.senderUid !== user.uid && (
+                          <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-1 ml-2">
+                             {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'User'}
+                          </p>
+                        )}
                         <div className={`p-4 rounded-2xl text-sm font-medium shadow-sm relative ${
                           msg.senderUid === user.uid 
                             ? 'bg-ink text-white rounded-tr-none' 
@@ -6145,7 +6232,7 @@ function ExonaApp() {
               </div>
 
               <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl shadow-2xl flex flex-col gap-2 z-40">
-                {isOtherTyping && (
+                {!activeChat.isGroup && isOtherTyping && (
                   <div className="px-4 py-1 flex items-center gap-2">
                     <div className="flex gap-1">
                       <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="h-1 w-1 bg-accent rounded-full" />
@@ -6161,11 +6248,11 @@ function ExonaApp() {
                     placeholder="Type a message..." 
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput), setChatInput(''))}
+                    onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup), setChatInput(''))}
                     className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
                   />
                   <button 
-                    onClick={() => { handleSendMessage(activeChat.uid, chatInput); setChatInput(''); }}
+                    onClick={() => { handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup); setChatInput(''); }}
                     className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
                   >
                     <Send size={18} />
@@ -6180,6 +6267,12 @@ function ExonaApp() {
           <div className="w-full max-w-xl mx-auto pb-32">
             <div className="flex items-center justify-between py-8 px-4">
               <h2 className="text-3xl font-bold text-ink tracking-tight font-display">Chats</h2>
+              <button 
+                onClick={() => setIsCreateGroupModalOpen(true)}
+                className="h-10 px-4 bg-gray-50 border border-gray-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-ink hover:bg-gray-100 transition-all flex items-center gap-2"
+              >
+                <Users size={14} /> New Group
+              </button>
             </div>
             
             <div className="flex border-b border-gray-100 mb-6 px-4">
@@ -6212,29 +6305,41 @@ function ExonaApp() {
                   </div>
                 ) : (
                   recentChats.map(chat => {
-                    const otherUser = connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null };
-                    const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === user.uid && m.status !== 'read').length;
+                    const group = chat.isGroup ? chatGroups.find(g => g.id === chat.otherUid) : null;
+                    const otherUser = !chat.isGroup ? (connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null }) : null;
+                    const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === (chat.isGroup ? chat.otherUid : user.uid) && m.status !== 'read').length;
 
                     return (
                       <button 
                         key={chat.lastMessage.chatId}
                         onClick={() => setActiveChat({
-                          uid: otherUser.uid,
-                          displayName: otherUser.displayName || (otherUser as any).name,
-                          photoURL: otherUser.photoURL || (otherUser as any).photo
+                          uid: chat.otherUid,
+                          displayName: chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name),
+                          photoURL: chat.isGroup ? group?.photoURL : (otherUser?.photoURL || (otherUser as any)?.photo),
+                          isGroup: chat.isGroup
                         })}
                         className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 group"
                       >
                         <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                          {(otherUser.photoURL || (otherUser as any).photo) ? (
-                            <img src={otherUser.photoURL || (otherUser as any).photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          {chat.isGroup ? (
+                            group?.photoURL ? (
+                              <img src={group.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                               <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
+                                 <Users size={20} />
+                               </div>
+                            )
                           ) : (
-                            <span className="text-muted text-xs font-bold">{(otherUser.displayName || (otherUser as any).name)?.charAt(0)}</span>
+                            (otherUser?.photoURL || (otherUser as any)?.photo) ? (
+                              <img src={otherUser?.photoURL || (otherUser as any)?.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="text-muted text-xs font-bold">{(otherUser?.displayName || (otherUser as any)?.name)?.charAt(0)}</span>
+                            )
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-center mb-1">
-                            <h3 className="font-bold text-ink text-[15px] truncate">{otherUser.displayName || (otherUser as any).name}</h3>
+                            <h3 className="font-bold text-ink text-[15px] truncate">{chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name)}</h3>
                             <span className="text-[10px] text-muted font-medium ml-2">
                               {formatTime(chat.lastMessage.timestamp)}
                             </span>
@@ -6247,6 +6352,7 @@ function ExonaApp() {
                                 </span>
                               )}
                               <p className={`text-[13px] truncate ${unreadCount > 0 ? 'text-ink font-bold' : 'text-muted'}`}>
+                                {chat.isGroup && <span className="font-bold text-accent mr-1">Group:</span>}
                                 {chat.lastMessage.text}
                               </p>
                             </div>
@@ -6495,7 +6601,11 @@ function ExonaApp() {
                 <div className="flex justify-between items-center mb-10">
                   <h3 className="text-2xl font-black text-ink">Recent Documents</h3>
                   <button 
-                    onClick={() => setActiveWorkspaceTool('editor')}
+                    onClick={() => {
+                      setEditingFileId(null);
+                      setEditorContent('# Creative Studio\n\nStart crafting your technical document here...');
+                      setActiveWorkspaceTool('editor');
+                    }}
                     className="flex items-center gap-2 px-8 py-3.5 bg-accent text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20"
                   >
                     <Plus size={16} />
@@ -6544,6 +6654,17 @@ function ExonaApp() {
                                 className="p-2 text-muted hover:text-red-500 transition-colors"
                               >
                                 <Trash2 size={14} />
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingFileId(file.id);
+                                  setEditorContent(file.content || '');
+                                  setActiveWorkspaceTool('editor');
+                                }}
+                                className="p-2 text-muted hover:text-accent transition-colors"
+                              >
+                                <Edit2 size={14} />
                               </button>
                               <button 
                                 onClick={(e) => {
@@ -6888,17 +7009,27 @@ function ExonaApp() {
                               if (!editorContent.trim() || !user) return;
                               const title = editorContent.split('\n')[0].replace(/[#*`]/g, '').trim() || 'Untitled Document';
                               try {
-                                await addDoc(collection(db, 'cloudFiles'), {
-                                  name: title + '.md',
-                                  type: 'text/markdown',
-                                  size: new Blob([editorContent]).size,
-                                  url: '#',
-                                  ownerUid: user.uid,
-                                  timestamp: serverTimestamp(),
-                                  category: 'document',
-                                  content: editorContent
-                                });
-                                showNotification('Document saved to Cloud');
+                                if (editingFileId) {
+                                  await updateDoc(doc(db, 'cloudFiles', editingFileId), {
+                                    name: title + '.md',
+                                    size: new Blob([editorContent]).size,
+                                    timestamp: serverTimestamp(),
+                                    content: editorContent
+                                  });
+                                  showNotification('Document updated successfully');
+                                } else {
+                                  await addDoc(collection(db, 'cloudFiles'), {
+                                    name: title + '.md',
+                                    type: 'text/markdown',
+                                    size: new Blob([editorContent]).size,
+                                    url: '#',
+                                    ownerUid: user.uid,
+                                    timestamp: serverTimestamp(),
+                                    category: 'document',
+                                    content: editorContent
+                                  });
+                                  showNotification('Document saved to Cloud');
+                                }
                               } catch (err) {
                                 showNotification('Failed to save', 'error');
                               }
@@ -8549,6 +8680,104 @@ function ExonaApp() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+
+        {isCreateGroupModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-ink text-lg">Create New Group</h3>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Chat with multiple people</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsCreateGroupModalOpen(false)}
+                  className="h-10 w-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-muted hover:text-ink"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 space-y-6 overflow-y-auto">
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Group Info</label>
+                  <input
+                    type="text"
+                    placeholder="Group Name"
+                    value={newGroupData.name}
+                    onChange={(e) => setNewGroupData({ ...newGroupData, name: e.target.value })}
+                    className="w-full bg-gray-50 border-none rounded-xl px-6 py-4 text-sm font-bold text-ink outline-none"
+                  />
+                  <textarea
+                    placeholder="Description (optional)"
+                    value={newGroupData.description}
+                    onChange={(e) => setNewGroupData({ ...newGroupData, description: e.target.value })}
+                    className="w-full h-24 bg-gray-50 border-none rounded-xl px-6 py-4 text-sm font-bold text-ink outline-none resize-none"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Select Members from Followers ({myFollowers.length})</label>
+                  <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2">
+                    {myFollowers.length === 0 ? (
+                      <p className="p-4 text-center text-xs text-muted italic font-bold">No followers found to add</p>
+                    ) : (
+                      myFollowers.map(follower => {
+                        const isSelected = newGroupData.members.includes(follower.uid);
+                        return (
+                          <button
+                            key={follower.uid}
+                            onClick={() => {
+                              if (isSelected) {
+                                setNewGroupData({ ...newGroupData, members: newGroupData.members.filter(id => id !== follower.uid) });
+                              } else {
+                                setNewGroupData({ ...newGroupData, members: [...newGroupData.members, follower.uid] });
+                              }
+                            }}
+                            className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${isSelected ? 'bg-accent/5 border-accent' : 'bg-white border-gray-100 hover:border-accent/40'}`}
+                          >
+                            <div className="h-10 w-10 rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center shrink-0">
+                               {follower.photoURL ? <img src={follower.photoURL} className="h-full w-full object-cover" /> : <span className="font-bold text-xs">{follower.displayName?.charAt(0)}</span>}
+                            </div>
+                            <div className="flex-1 text-left">
+                               <p className="text-sm font-bold text-ink">{follower.displayName}</p>
+                               <p className="text-[10px] text-muted font-bold">@{follower.uid.slice(0, 8)}</p>
+                            </div>
+                            {isSelected ? <CheckCircle2 size={18} className="text-accent" /> : <Circle size={18} className="text-gray-200" />}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex justify-end gap-3">
+                 <button 
+                  onClick={() => setIsCreateGroupModalOpen(false)}
+                  className="px-6 py-3 text-[11px] font-black uppercase tracking-widest text-muted hover:text-ink transition-colors"
+                >
+                  Cancel
+                </button>
+                 <button 
+                  onClick={handleCreateGroup}
+                  disabled={!newGroupData.name.trim() || newGroupData.members.length === 0}
+                  className="px-10 py-3.5 bg-accent text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-lg shadow-accent/20 flex items-center gap-2 disabled:opacity-50"
+                >
+                  Create Group
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
 
         {isDeletePostModalOpen && (

@@ -166,11 +166,25 @@ service cloud.firestore {
     function isValidMessage(data) {
       return isAuthenticated() && 
              data.senderUid == request.auth.uid &&
-             data.participants is list &&
-             data.participants.size() == 2 &&
-             request.auth.uid in data.participants &&
-             data.receiverUid in data.participants &&
+             (
+               (data.get('isGroup', false) == false && 
+                data.participants is list &&
+                data.participants.size() == 2 &&
+                request.auth.uid in data.participants &&
+                data.receiverUid in data.participants) ||
+               (data.get('isGroup', false) == true &&
+                exists(/databases/$(database)/documents/chatGroups/$(data.receiverUid)) &&
+                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.receiverUid)).data.members)
+             ) &&
              data.text is string && data.text.size() > 0 && data.text.size() < 5000;
+    }
+
+    function isValidGroup(data) {
+      return isAuthenticated() && 
+             data.name is string && data.name.size() > 0 &&
+             data.creatorUid == request.auth.uid &&
+             data.members is list &&
+             request.auth.uid in data.members;
     }
 
     function isValidStory(data) {
@@ -217,14 +231,24 @@ service cloud.firestore {
     }
 
     match /messages/{messageId} {
-      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('participants', []));
       allow create: if isAuthenticated() && isValidMessage(request.resource.data);
       allow update: if isAuthenticated() && (
         (request.auth.uid == resource.data.senderUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited'])) ||
-        (request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+        (resource.data.get('isGroup', false) == false && request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.senderUid || isAdmin());
+    }
+
+    match /chatGroups/{groupId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('members', []));
+      allow create: if isValidGroup(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (request.auth.uid in resource.data.admins && request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'description', 'photoURL', 'members', 'admins'])) ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']))
+      );
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.creatorUid || isAdmin());
     }
 
     match /typingStates/{stateId} {

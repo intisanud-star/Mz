@@ -220,6 +220,22 @@
         "category": { "type": "string", "enum": ["document", "image", "other"] }
       },
       "required": ["name", "url", "ownerUid", "timestamp"]
+    },
+    "ChatGroup": {
+      "title": "ChatGroup",
+      "description": "Group chat information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "creatorUid": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "admins": { "type": "array", "items": { "type": "string" } },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "creatorUid", "members", "timestamp"]
     }
   },
   "firestore": {
@@ -236,6 +252,7 @@
     "/users/{userId}/notifications/{notifId}": { "schema": "Notification", "description": "User notifications" },
     "/stories/{storyId}": { "schema": "Story", "description": "Status stories" },
     "/settlements/{settlementId}": { "schema": "Settlement", "description": "Financial settlement requests" },
-    "/cloudFiles/{fileId}": { "schema": "CloudFile", "description": "User uploaded files" }
+    "/cloudFiles/{fileId}": { "schema": "CloudFile", "description": "User uploaded files" },
+    "/chatGroups/{groupId}": { "schema": "ChatGroup", "description": "Group chat definitions" }
   }
 }
