@@ -1297,16 +1297,50 @@ function ExonaApp() {
     
     fetchFollowerDocs();
   }, [user, schools, places, myFollowers, chatUsers]);
-  const [isViewGroupMembers, setIsViewGroupMembers] = useState(false);
+  const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [isEditingGroup, setIsEditingGroup] = useState(false);
+  const [editingGroupData, setEditingGroupData] = useState({ name: '', description: '', photoURL: '' });
   const activeGroup = activeChat?.isGroup ? chatGroups.find(g => g.id === activeChat.uid) : null;
   const activeGroupMembers = useMemo(() => {
     if (!activeGroup) return [];
-    // Combine chatUsers and groupCandidates to find members
     const allKnown = [...chatUsers, ...groupCandidates];
     return activeGroup.members?.map((uid: string) => 
       allKnown.find(u => u.uid === uid) || { uid, displayName: 'Member' }
     ) || [];
   }, [activeGroup, chatUsers, groupCandidates]);
+
+  const handleUpdateGroup = async () => {
+    if (!activeGroup) return;
+    try {
+      const groupRef = doc(db, 'chatGroups', activeGroup.id);
+      await updateDoc(groupRef, {
+        name: editingGroupData.name.trim(),
+        description: editingGroupData.description.trim(),
+        photoURL: editingGroupData.photoURL.trim()
+      });
+      setIsEditingGroup(false);
+      showNotification('Group settings updated');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'chatGroups');
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!activeGroup || !user) return;
+    if (!window.confirm('Are you sure you want to leave this group?')) return;
+    try {
+      const groupRef = doc(db, 'chatGroups', activeGroup.id);
+      await updateDoc(groupRef, {
+        members: arrayRemove(user.uid),
+        admins: arrayRemove(user.uid)
+      });
+      setIsGroupSettingsOpen(false);
+      setActiveChat(null);
+      showNotification('You have left the group');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, 'chatGroups');
+    }
+  };
 
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -2499,16 +2533,25 @@ function ExonaApp() {
     }
   };
 
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const handleForgotPassword = async () => {
     if (!email.trim()) {
       showNotification('Please enter your email address first', 'error');
       return;
     }
+    
+    setIsResettingPassword(true);
     try {
       await sendPasswordResetEmail(auth, email.trim());
-      showNotification('Password reset email sent!', 'success');
+      showNotification('Password reset email sent! Check your inbox.', 'success');
     } catch (error: any) {
-      showNotification(error.message || 'Failed to send reset email', 'error');
+      console.error("Forgot password error:", error);
+      let msg = 'Failed to send reset email';
+      if (error.code === 'auth/user-not-found') msg = 'No user found with this email';
+      if (error.code === 'auth/invalid-email') msg = 'Invalid email address';
+      showNotification(msg, 'error');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -6429,133 +6472,247 @@ function ExonaApp() {
 
           return (
             <div className="flex flex-col bg-card h-full relative">
-              {/* Group Members Modal */}
-              {isViewGroupMembers && activeGroup && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
+              {/* Group Settings Modal */}
+              {isGroupSettingsOpen && activeGroup && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
                   <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+                    initial={{ x: '100%' }}
+                    animate={{ x: 0 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                    className="bg-white w-full max-w-md h-full md:h-[90vh] md:rounded-[3rem] shadow-2xl overflow-hidden flex flex-col"
                   >
                     <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
                       <div>
-                        <h3 className="text-lg font-black text-ink tracking-tight">{activeGroup.name}</h3>
-                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">{activeGroup.members?.length || 0} Members</p>
+                        <h3 className="text-lg font-black text-ink tracking-tight">Group Info</h3>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Settings & Members</p>
                       </div>
                       <button 
-                        onClick={() => setIsViewGroupMembers(false)}
+                        onClick={() => {
+                          setIsGroupSettingsOpen(false);
+                          setIsEditingGroup(false);
+                        }}
                         className="h-10 w-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-muted hover:text-ink"
                       >
                         <X size={20} />
                       </button>
                     </div>
 
-                    <div className="p-6 overflow-y-auto space-y-4">
-                      {activeGroupMembers.map((member: any) => (
-                        <div key={member.uid} className="flex items-center justify-between group/user">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-2xl bg-ink/5 overflow-hidden flex items-center justify-center border border-gray-100">
-                              {member.photoURL ? (
-                                <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <UserIcon size={18} className="text-muted/30" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-[11px] font-bold text-ink">{member.displayName}</p>
-                              <p className="text-[9px] text-muted font-medium">@{member.uid.slice(0, 8)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {activeGroup.admins?.includes(member.uid) && (
-                              <span className="px-2 py-0.5 rounded-lg bg-accent/10 text-accent text-[8px] font-black uppercase tracking-widest">Admin</span>
-                            )}
-                            {activeGroup.admins?.includes(user?.uid) && member.uid !== user?.uid && (
-                              <button 
-                                onClick={async () => {
-                                  try {
-                                    const groupRef = doc(db, 'chatGroups', activeGroup.id);
-                                    await updateDoc(groupRef, {
-                                      members: arrayRemove(member.uid),
-                                      admins: arrayRemove(member.uid)
-                                    });
-                                    showNotification('Member removed');
-                                  } catch (err) {
-                                    console.error("Error removing member:", err);
-                                  }
-                                }}
-                                className="p-2 hover:bg-red-50 text-red-500 rounded-xl transition-all"
-                              >
-                                <X size={14} />
-                              </button>
+                    <div className="flex-1 overflow-y-auto">
+                      {/* Header Info */}
+                      <div className="p-8 flex flex-col items-center text-center border-b border-gray-50">
+                        <div className="relative group/photo mb-6">
+                          <div className="w-24 h-24 rounded-[2rem] bg-ink/5 overflow-hidden flex items-center justify-center border-2 border-white shadow-xl">
+                            {activeGroup.photoURL ? (
+                              <img src={activeGroup.photoURL} alt={activeGroup.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <Users size={32} className="text-muted/30" />
                             )}
                           </div>
+                          {activeGroup.admins?.includes(user?.uid) && (
+                            <button 
+                              onClick={() => setIsEditingGroup(!isEditingGroup)}
+                              className="absolute -bottom-2 -right-2 h-8 w-8 bg-accent text-white rounded-xl flex items-center justify-center shadow-lg transform group-hover/photo:scale-110 transition-all"
+                            >
+                              <Edit size={14} />
+                            </button>
+                          )}
                         </div>
-                      ))}
+
+                        {isEditingGroup ? (
+                          <div className="w-full space-y-3">
+                            <input
+                              type="text"
+                              placeholder="Group Name"
+                              value={editingGroupData.name}
+                              onChange={(e) => setEditingGroupData({ ...editingGroupData, name: e.target.value })}
+                              className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-ink outline-none"
+                            />
+                            <textarea
+                              placeholder="Group Description"
+                              value={editingGroupData.description}
+                              onChange={(e) => setEditingGroupData({ ...editingGroupData, description: e.target.value })}
+                              className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-ink outline-none min-h-[80px]"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Photo URL"
+                              value={editingGroupData.photoURL}
+                              onChange={(e) => setEditingGroupData({ ...editingGroupData, photoURL: e.target.value })}
+                              className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm font-bold text-ink outline-none"
+                            />
+                            <div className="flex gap-2 pt-2">
+                              <button 
+                                onClick={handleUpdateGroup}
+                                className="flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-accent/20"
+                              >
+                                Save Changes
+                              </button>
+                              <button 
+                                onClick={() => setIsEditingGroup(false)}
+                                className="px-6 py-3 bg-gray-100 text-muted rounded-xl text-[10px] font-black uppercase tracking-widest"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <h4 className="text-xl font-black text-ink tracking-tight mb-2">{activeGroup.name}</h4>
+                            <p className="text-sm text-muted font-medium px-4 line-clamp-3">
+                              {activeGroup.description || 'No description provided.'}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Member Management */}
+                      <div className="p-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black text-muted uppercase tracking-widest">{activeGroup.members?.length || 0} Members</label>
+                          {activeGroup.admins?.includes(user?.uid) && (
+                            <button 
+                              onClick={() => {
+                                setIsGroupSettingsOpen(false);
+                                setIsAddingMember(true);
+                              }}
+                              className="flex items-center gap-2 text-accent text-[10px] font-black uppercase tracking-widest hover:underline"
+                            >
+                              <Plus size={14} /> Add Member
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-4">
+                          {activeGroupMembers.map((member: any) => (
+                            <div key={member.uid} className="flex items-center justify-between group/user">
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-2xl bg-ink/5 overflow-hidden flex items-center justify-center border border-gray-100">
+                                  {member.photoURL ? (
+                                    <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <UserIcon size={18} className="text-muted/30" />
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-bold text-ink">{member.displayName}</p>
+                                  <p className="text-[9px] text-muted font-medium"> @{member.uid.slice(0, 8)}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {activeGroup.admins?.includes(member.uid) && (
+                                  <span className="px-2 py-0.5 rounded-lg bg-accent/10 text-accent text-[8px] font-black uppercase tracking-widest">Admin</span>
+                                )}
+                                {activeGroup.admins?.includes(user?.uid) && member.uid !== user?.uid && (
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        const groupRef = doc(db, 'chatGroups', activeGroup.id);
+                                        await updateDoc(groupRef, {
+                                          members: arrayRemove(member.uid),
+                                          admins: arrayRemove(member.uid)
+                                        });
+                                        showNotification('Member removed');
+                                      } catch (err) {
+                                        console.error("Error removing member:", err);
+                                      }
+                                    }}
+                                    className="h-8 w-8 hover:bg-red-50 text-red-500 rounded-xl transition-all flex items-center justify-center"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="p-8 bg-gray-50/50">
+                    <div className="p-8 bg-gray-50/50 border-t border-gray-100 space-y-3">
                       <button 
-                        onClick={() => setIsViewGroupMembers(false)}
-                        className="w-full py-4 bg-ink text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-ink/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                        onClick={handleLeaveGroup}
+                        className="w-full py-4 border-2 border-red-100 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 transition-all flex items-center justify-center gap-2"
                       >
-                        Close
+                        <LogOut size={16} /> Leave Group
                       </button>
                     </div>
                   </motion.div>
                 </div>
               )}
 
-              <div className="flex items-center gap-4 p-4 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-30">
-                <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-50 rounded-full transition-colors">
-                  <ChevronRight size={24} className="rotate-180" />
+              <div className="flex items-center gap-2 p-3 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-30">
+                <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0">
+                  <ChevronRight size={20} className="rotate-180" />
                 </button>
-                <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
-                  {activeChat.photoURL || chatGroups.find(g => g.id === activeChat.uid)?.photoURL ? (
-                    <img src={activeChat.isGroup ? chatGroups.find(g => g.id === activeChat.uid)?.photoURL : activeChat.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                  ) : activeChat.isGroup ? (
-                    <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
-                      <Users size={18} />
-                    </div>
-                  ) : (
-                    <span className="text-muted text-[10px] font-bold">{activeChat.displayName?.charAt(0)}</span>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-ink text-sm leading-tight truncate">{activeChat.displayName}</h3>
-                  <div className="flex items-center gap-1">
-                    {activeChat.isGroup ? (
-                      <button 
-                        onClick={() => setIsViewGroupMembers(true)}
-                        className="text-[10px] text-muted font-bold uppercase tracking-widest hover:text-accent transition-colors"
-                      >
-                        {chatGroups.find(g => g.id === activeChat.uid)?.members?.length || 0} Members
-                      </button>
-                    ) : isOtherTyping ? (
-                      <p className="text-[10px] text-accent font-bold animate-pulse uppercase tracking-widest">Typing...</p>
+                
+                <div 
+                  className={`flex items-center gap-3 flex-1 min-w-0 p-1 rounded-2xl transition-all ${activeChat.isGroup ? 'cursor-pointer hover:bg-gray-50 group/header' : ''}`}
+                  onClick={() => {
+                    if (activeChat.isGroup) {
+                      const group = chatGroups.find(g => g.id === activeChat.uid);
+                      setEditingGroupData({ 
+                        name: group?.name || activeChat.displayName || '', 
+                        description: group?.description || '', 
+                        photoURL: group?.photoURL || activeChat.photoURL || '' 
+                      });
+                      setIsGroupSettingsOpen(true);
+                    }
+                  }}
+                >
+                  <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
+                    {activeChat.photoURL || chatGroups.find(g => g.id === activeChat.uid)?.photoURL ? (
+                      <img 
+                        src={activeChat.isGroup ? (chatGroups.find(g => g.id === activeChat.uid)?.photoURL || activeChat.photoURL) : activeChat.photoURL} 
+                        className="h-full w-full object-cover" 
+                        referrerPolicy="no-referrer" 
+                      />
+                    ) : activeChat.isGroup ? (
+                      <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
+                        <Users size={18} />
+                      </div>
                     ) : (
-                      <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Connected</p>
+                      <span className="text-muted text-[10px] font-bold">{activeChat.displayName?.charAt(0) || '?'}</span>
                     )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-ink text-sm leading-tight truncate group-hover/header:text-accent transition-colors">
+                      {activeChat.displayName || chatGroups.find(g => g.id === activeChat.uid)?.name || 'Group'}
+                    </h3>
+                    <div className="flex items-center gap-1">
+                      {activeChat.isGroup ? (
+                        <span className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                          {chatGroups.find(g => g.id === activeChat.uid)?.members?.length || activeChat.membersCount || 0} Members
+                        </span>
+                      ) : isOtherTyping ? (
+                        <p className="text-[10px] text-accent font-bold animate-pulse uppercase tracking-widest">Typing...</p>
+                      ) : (
+                        <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest text-xs">Online</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
                 {!activeChat.isGroup && (
                   <button 
                     onClick={() => handleInitiateCall(activeChat.uid)}
-                    className="h-10 w-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center hover:bg-accent/20 transition-all shrink-0"
+                    className="h-9 w-9 bg-accent/5 text-accent rounded-xl flex items-center justify-center hover:bg-accent/15 transition-all shrink-0"
                     title="Audio Call"
                   >
-                    <Phone size={18} />
+                    <Phone size={16} />
                   </button>
                 )}
                 
                 {activeChat.isGroup && (
                   <button 
-                    onClick={() => setIsAddingMember(true)}
-                    className="h-10 w-10 bg-accent/10 text-accent rounded-xl flex items-center justify-center hover:bg-accent/20 transition-all shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsAddingMember(true);
+                    }}
+                    className="h-9 w-9 bg-accent/5 text-accent rounded-xl flex items-center justify-center hover:bg-accent/15 transition-all shrink-0"
                     title="Add Member"
                   >
-                    <UserPlus size={18} />
+                    <UserPlus size={16} />
                   </button>
                 )}
               </div>
@@ -8964,9 +9121,10 @@ function ExonaApp() {
             {authMode === 'signin' && (
               <button 
                 onClick={handleForgotPassword}
-                className="text-xs text-[#00376b] hover:underline"
+                disabled={isResettingPassword}
+                className={`text-xs font-bold text-accent hover:underline transition-all ${isResettingPassword ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
-                Forgot password?
+                {isResettingPassword ? 'Sending reset link...' : 'Forgot password?'}
               </button>
             )}
           </div>

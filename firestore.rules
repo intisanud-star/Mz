@@ -50,26 +50,26 @@ service cloud.firestore {
       return isAuthenticated() && 
         (request.auth.token.email == "musstaphamusa@gmail.com" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin'));
     }
 
     function isSchoolManager(schoolId) {
       return isAuthenticated() && (
         isAdmin() ||
         (resource != null && (
-          resource.data.creatorUid == request.auth.uid ||
+          resource.data.get('creatorUid', '') == request.auth.uid ||
           (resource.data.get('administrativeViewers', []) is list && request.auth.uid in resource.data.get('administrativeViewers', [])) ||
           (resource.data.get('followers', []) is list && request.auth.uid in resource.data.get('followers', []))
         )) ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && (
-          get(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid ||
+          get(/databases/$(database)/documents/schools/$(schoolId)).data.get('creatorUid', '') == request.auth.uid ||
           (get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', []) is list && 
            request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('administrativeViewers', [])) ||
           (get(/databases/$(database)/documents/schools/$(schoolId)).data.get('followers', []) is list && 
            request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)).data.get('followers', []))
         )) ||
         (exists(/databases/$(database)/documents/places/$(schoolId)) && (
-          get(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid ||
+          get(/databases/$(database)/documents/places/$(schoolId)).data.get('creatorUid', '') == request.auth.uid ||
           (get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', []) is list && 
            request.auth.uid in get(/databases/$(database)/documents/places/$(schoolId)).data.get('administrativeViewers', [])) ||
           (get(/databases/$(database)/documents/places/$(schoolId)).data.get('followers', []) is list && 
@@ -158,80 +158,80 @@ service cloud.firestore {
 
     function isValidInstitution(data, isCreate) {
       return isAuthenticated() && 
-             data.name is string && data.name.size() > 0 &&
-             (isCreate ? data.creatorUid == request.auth.uid : true) &&
-             (!('replyPermission' in data) || data.replyPermission in ['everyone', 'followers', 'none']);
+             data.get('name', '') is string && data.get('name', '').size() > 0 &&
+             (isCreate ? data.get('creatorUid', '') == request.auth.uid : true) &&
+             (!('replyPermission' in data) || data.get('replyPermission', 'everyone') in ['everyone', 'followers', 'none']);
     }
 
     function isValidPost(data) {
-      return isAuthenticated() && data.authorUid == request.auth.uid;
+      return isAuthenticated() && data.get('authorUid', '') == request.auth.uid;
     }
 
     function isValidRecord(data) {
-      return isAuthenticated() && (isSchoolManager(data.schoolId) || isAdmin());
+      return isAuthenticated() && (isSchoolManager(data.get('schoolId', '')) || isAdmin());
     }
 
     function isValidMessage(data) {
       return isAuthenticated() && 
-             data.senderUid == request.auth.uid &&
+             data.get('senderUid', '') == request.auth.uid &&
              (
                (data.get('isGroup', false) == false && 
-                data.participants is list &&
-                data.participants.size() == 2 &&
-                request.auth.uid in data.participants &&
-                (data.receiverUid in data.participants || data.get('mediaType', null) == 'voice')) ||
+                data.get('participants', []) is list &&
+                data.get('participants', []).size() == 2 &&
+                request.auth.uid in data.get('participants', []) &&
+                (data.get('receiverUid', '') in data.get('participants', []) || data.get('mediaType', null) == 'voice')) ||
                (data.get('isGroup', false) == true &&
-                exists(/databases/$(database)/documents/chatGroups/$(data.chatId)) &&
-                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.chatId)).data.get('members', []))
+                exists(/databases/$(database)/documents/chatGroups/$(data.get('chatId', ''))) &&
+                request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.get('chatId', ''))).data.get('members', []))
              ) &&
-             (data.get('mediaType', null) == 'voice' || (data.text is string && data.text.size() > 0 && data.text.size() < 5000));
+             (data.get('mediaType', null) == 'voice' || (data.get('text', '') is string && data.get('text', '').size() > 0 && data.get('text', '').size() < 5000));
     }
 
     function isValidCall(data) {
       return isAuthenticated() && 
-             data.callerUid == request.auth.uid &&
-             data.receiverUid is string &&
+             data.get('callerUid', '') == request.auth.uid &&
+             data.get('receiverUid', '') is string &&
              data.get('participants', []) is list &&
              data.get('participants', []).size() == 2 &&
              request.auth.uid in data.get('participants', []) &&
-             data.status == 'ringing' &&
-             data.type in ['audio', 'video'];
+             data.get('status', '') == 'ringing' &&
+             data.get('type', '') in ['audio', 'video'];
     }
 
     function isValidGroup(data) {
       return isAuthenticated() && 
-             data.name is string && data.name.size() > 0 &&
-             data.creatorUid == request.auth.uid &&
+             data.get('name', '') is string && data.get('name', '').size() > 0 &&
+             data.get('creatorUid', '') == request.auth.uid &&
              data.get('members', []) is list &&
              request.auth.uid in data.get('members', []);
     }
 
     function isValidStory(data) {
       return isAuthenticated() &&
-             data.authorUid == request.auth.uid &&
-             data.authorName is string && data.authorName.size() > 0 &&
-             data.mediaUrl is string && data.mediaUrl.size() > 0 &&
-             data.mediaType in ['image', 'video'] &&
-             ('schoolId' in data ? (isSchoolManager(data.schoolId) || isAdmin()) : true);
+             data.get('authorUid', '') == request.auth.uid &&
+             data.get('authorName', '') is string && data.get('authorName', '').size() > 0 &&
+             data.get('mediaUrl', '') is string && data.get('mediaUrl', '').size() > 0 &&
+             data.get('mediaType', '') in ['image', 'video'] &&
+             ('schoolId' in data ? (isSchoolManager(data.get('schoolId', '')) || isAdmin()) : true);
     }
 
     function isValidSettlement(data) {
       return isAuthenticated() &&
-             data.authorUid == request.auth.uid &&
-             data.schoolId is string &&
-             isSchoolManager(data.schoolId) &&
-             data.amount is number && data.amount > 0 &&
-             data.bankName is string &&
-             data.type in ['exona-bank', 'other-bank'] &&
-             data.status == 'pending';
+             data.get('authorUid', '') == request.auth.uid &&
+             data.get('schoolId', '') is string &&
+             isSchoolManager(data.get('schoolId', '')) &&
+             data.get('amount', 0) is number && data.get('amount', 0) > 0 &&
+             data.get('bankName', '') is string &&
+             data.get('type', '') in ['exona-bank', 'other-bank'] &&
+             data.get('status', '') == 'pending';
     }
 
     function isValidCloudFile(data) {
       return isAuthenticated() &&
-             data.ownerUid == request.auth.uid &&
-             data.name is string && data.name.size() > 0 && data.name.size() <= 255 &&
-             data.url is string && data.url.size() > 0 && data.url.size() <= 2048 &&
-             data.timestamp == request.time;
+             data.get('ownerUid', '') == request.auth.uid &&
+             data.get('name', '') is string && data.get('name', '').size() > 0 && data.get('name', '').size() <= 255 &&
+             data.get('url', '') is string && data.get('url', '').size() > 0 && data.get('url', '').size() <= 2048 &&
+             data.get('timestamp', null) == request.time;
     }
 
     // ===============================================================
@@ -258,11 +258,11 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('participants', []));
       allow create: if isAuthenticated() && isValidMessage(request.resource.data);
       allow update: if isAuthenticated() && (
-        (request.auth.uid == resource.data.senderUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited'])) ||
-        (resource.data.get('isGroup', false) == false && request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+        (request.auth.uid == resource.data.get('senderUid', '') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'isEdited'])) ||
+        (resource.data.get('isGroup', false) == false && request.auth.uid == resource.data.get('receiverUid', '') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
         isAdmin()
       );
-      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.senderUid || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.get('senderUid', '') || isAdmin());
     }
 
     match /chatGroups/{groupId} {
@@ -285,14 +285,14 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin() || isFollowAction());
-      allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isAuthenticated();
       allow update: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin() || isFollowAction());
-      allow delete: if isAuthenticated() && (resource.data.creatorUid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 
     match /posts/{postId} {
@@ -301,18 +301,18 @@ service cloud.firestore {
       allow create: if isAuthenticated() && isValidPost(request.resource.data);
       
       allow update: if isAuthenticated() && (
-        (resource.data.authorUid == request.auth.uid && request.resource.data.authorUid == request.auth.uid) || 
+        (resource.data.get('authorUid', '') == request.auth.uid && request.resource.data.get('authorUid', '') == request.auth.uid) || 
         isAdmin() ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount', 'sharesCount', 'repostsCount']))
       );
       
-      allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isAdmin());
 
       match /comments/{commentId} {
         allow read: if true;
         allow create: if isAuthenticated() && canReply(get(/databases/$(database)/documents/posts/$(postId)).data.get('schoolId', ''));
-        allow update: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
-        allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+        allow update: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isAdmin());
       }
     }
 
@@ -335,8 +335,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
       allow create: if isAuthenticated() && (
         isSchoolManager(schoolId) || 
-        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.creatorUid == request.auth.uid) ||
-        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && getAfter(/databases/$(database)/documents/places/$(schoolId)).data.creatorUid == request.auth.uid)
+        (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.get('creatorUid', '') == request.auth.uid) ||
+        (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && getAfter(/databases/$(database)/documents/places/$(schoolId)).data.get('creatorUid', '') == request.auth.uid)
       );
       allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
     }
@@ -345,21 +345,21 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isValidStory(request.resource.data);
       allow update: if isAuthenticated() && (
-        (resource.data.authorUid == request.auth.uid && isValidStory(request.resource.data)) ||
+        (resource.data.get('authorUid', '') == request.auth.uid && isValidStory(request.resource.data)) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewers'])) ||
         isAdmin()
       );
-      allow delete: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isAdmin());
     }
 
     match /settlements/{settlementId} {
-      allow read: if isAuthenticated() && (resource.data.authorUid == request.auth.uid || isSchoolManager(resource.data.schoolId) || isAdmin());
+      allow read: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isSchoolManager(resource.data.get('schoolId', '')) || isAdmin());
       allow create: if isValidSettlement(request.resource.data);
       allow update, delete: if isAdmin();
     }
 
     match /cloudFiles/{fileId} {
-      allow read, delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+      allow read, delete: if isAuthenticated() && resource.data.get('ownerUid', '') == request.auth.uid;
       allow create: if isValidCloudFile(request.resource.data);
     }
 
