@@ -211,12 +211,37 @@ const BrainBattleModal = ({
   timerActive,
   setTimerActive,
   leaderboard,
-  onFetchLeaderboard
+  onFetchLeaderboard,
+  onShareResult
 }: any) => {
+  const resultRef = useRef<HTMLDivElement>(null);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const saveAsImage = async () => {
+    if (!resultRef.current) return;
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(resultRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        logging: false,
+        useCORS: true
+      });
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `Exona_BrainBattle_${guestInfo.name || 'Champion'}.png`;
+      link.click();
+      onNotify('Scorecard saved successfully!', 'success');
+    } catch (e) {
+      console.error('Failed to save image', e);
+      onNotify('Failed to save scorecard', 'error');
+    }
   };
 
   return (
@@ -466,34 +491,55 @@ const BrainBattleModal = ({
 
               {step === 'result' && (
                 <div className="text-center py-6">
-                  <motion.div 
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="h-32 w-32 bg-yellow-400 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-12"
-                  >
-                    <Trophy size={64} />
-                  </motion.div>
-                  
-                  <h4 className="text-4xl font-black text-ink mb-2">Battle Concluded!</h4>
-                  <div className="bg-ink/5 border border-ink/10 rounded-2xl px-6 py-4 mb-8 inline-block">
-                    <p className="text-ink font-black text-xs uppercase tracking-[0.2em] mb-1">Status Update</p>
-                    <p className="text-muted font-bold text-xs">Please wait for the overall weekly results list.</p>
-                  </div>
+                  <div ref={resultRef} className="bg-white p-8 rounded-[2.5rem]">
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="h-32 w-32 bg-yellow-400 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-12"
+                    >
+                      <Trophy size={64} />
+                    </motion.div>
+                    
+                    <h4 className="text-4xl font-black text-ink mb-2">Battle Concluded!</h4>
+                    <div className="bg-ink/5 border border-ink/10 rounded-2xl px-6 py-4 mb-8 inline-block">
+                      <p className="text-ink font-black text-xs uppercase tracking-[0.2em] mb-1">Status Update</p>
+                      <p className="text-muted font-bold text-xs">Please wait for the overall weekly results list.</p>
+                    </div>
 
-                  <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
-                    <div className="grid grid-cols-2 gap-8">
-                      <div>
-                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Final Score</p>
-                        <p className="text-4xl font-black text-ink">{score}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Accuracy</p>
-                        <p className="text-4xl font-black text-accent">{Math.round((score / (questions.length * 10)) * 100)}%</p>
+                    <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
+                      <div className="grid grid-cols-2 gap-8">
+                        <div>
+                          <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Final Score</p>
+                          <p className="text-4xl font-black text-ink">{score}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Accuracy</p>
+                          <p className="text-4xl font-black text-accent">{Math.round((score / (questions.length * 10)) * 100)}%</p>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                         onClick={saveAsImage}
+                         className="flex items-center justify-center gap-2 py-5 bg-white text-ink rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] border border-gray-100 hover:bg-gray-50 transition-all shadow-sm"
+                      >
+                        <Download size={16} /> Save Scorecard
+                      </button>
+                      {user && (
+                        <button 
+                           onClick={() => {
+                             onShareResult(score);
+                             onNotify('Achievement shared to Exona Records!', 'success');
+                           }}
+                           className="flex items-center justify-center gap-2 py-5 bg-indigo-50 text-indigo-600 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] border border-indigo-100 hover:bg-indigo-100 transition-all shadow-sm"
+                        >
+                          <Zap size={16} /> Share to Records
+                        </button>
+                      )}
+                    </div>
                     <button 
                        onClick={() => {
                          onFetchLeaderboard();
@@ -503,15 +549,17 @@ const BrainBattleModal = ({
                     >
                       See All Results
                     </button>
-                    <button 
-                      onClick={() => {
-                        setIsActive(false);
-                        onJoin();
-                      }}
-                      className="w-full py-5 bg-accent text-white rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-accent/90 shadow-xl transition-all"
-                    >
-                      Join Exona Family Now
-                    </button>
+                    {!user && (
+                      <button 
+                        onClick={() => {
+                          setIsActive(false);
+                          onJoin();
+                        }}
+                        className="w-full py-5 bg-accent text-white rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-accent/90 shadow-xl transition-all"
+                      >
+                        Join Exona Family Now
+                      </button>
+                    )}
                     <button 
                        onClick={() => setIsActive(false)}
                        className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
@@ -528,6 +576,7 @@ const BrainBattleModal = ({
     </AnimatePresence>
   );
 };
+
 
 // --- TYPES ---
 
@@ -1483,6 +1532,25 @@ function ExonaApp() {
     }
   };
 
+  const handleShareBattleResult = async (score: number) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'activities'), {
+        userId: user.uid,
+        userName: userDoc?.fullName || user.displayName || 'Champion',
+        userPhoto: userDoc?.photoURL || user.photoURL || '',
+        type: 'achievement',
+        content: `Just scored ${score} points in the Exona Brain Battle! 🏆 Can you beat me next Sunday?`,
+        timestamp: serverTimestamp(),
+        likes: [],
+        comments: [],
+        category: 'battle'
+      });
+    } catch (e) {
+      console.error("Failed to share battle result", e);
+    }
+  };
+
   // Brain Battle Timer logic
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -1539,6 +1607,7 @@ function ExonaApp() {
       setTimerActive={setIsTimerActive}
       leaderboard={leaderboard}
       onFetchLeaderboard={fetchLeaderboard}
+      onShareResult={handleShareBattleResult}
     />
   );
 
