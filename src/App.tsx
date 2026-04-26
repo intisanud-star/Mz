@@ -9,7 +9,7 @@ import {
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint, Eye, EyeOff,
   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
-  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Shield,
+  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Stars, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Mic, Play, Pause, PhoneOff, StopCircle, RefreshCw,
   Building2, MapPin, Lock,
@@ -305,9 +305,13 @@ const BrainBattleModal = ({
   onFetchLeaderboard,
   onShareResult,
   onCheckParticipation
-}: any) => {
+}: { 
+  step: 'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing',
+  [key: string]: any 
+}) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const [isChecking, setIsChecking] = useState(false);
+  const [existingResult, setExistingResult] = useState<any>(null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -318,22 +322,20 @@ const BrainBattleModal = ({
   const saveAsImage = async () => {
     if (!resultRef.current) return;
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(resultRef.current, {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(resultRef.current, {
         backgroundColor: '#ffffff',
-        scale: 2,
-        logging: false,
-        useCORS: true
+        pixelRatio: 2,
+        cacheBust: true,
       });
-      const image = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.href = image;
-      link.download = `Exona_BrainBattle_${guestInfo.name || 'Champion'}.png`;
+      link.href = dataUrl;
+      link.download = `Exona_BrainBattle_${(existingResult?.name || guestInfo.name) || 'Champion'}.png`;
       link.click();
       onNotify('Scorecard saved successfully!', 'success');
     } catch (e) {
       console.error('Failed to save image', e);
-      onNotify('Failed to save scorecard', 'error');
+      onNotify('Failed to save scorecard. Try again.', 'error');
     }
   };
 
@@ -384,6 +386,95 @@ const BrainBattleModal = ({
             </div>
 
             <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
+              {step === 'welcome' && (
+                <div className="text-center py-10">
+                  <div className="w-24 h-24 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 text-indigo-600">
+                    <Stars size={48} />
+                  </div>
+                  <h4 className="text-3xl font-black text-ink mb-4">Are you ready to battle?</h4>
+                  <p className="text-muted font-medium mb-12 max-w-sm mx-auto leading-relaxed">
+                    Test your knowledge in Science, History, and Nigeria Trivia. Win weekly rewards!
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => setStep('entry')}
+                      className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all flex items-center justify-center gap-3"
+                    >
+                      <Zap size={18} /> Start Sunday Battle
+                    </button>
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => {
+                          onFetchLeaderboard();
+                          setStep('leaderboard');
+                        }}
+                        className="w-full py-5 bg-white text-ink border-2 border-gray-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Trophy size={16} /> Leaderboard
+                      </button>
+                      <button 
+                        onClick={() => setStep('check-result')}
+                        className="w-full py-5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Search size={16} /> My Result
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 'check-result' && (
+                <div className="max-w-md mx-auto py-10 text-center">
+                  <div className="w-20 h-20 bg-indigo-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-indigo-600">
+                    <Search size={32} />
+                  </div>
+                  <h4 className="text-2xl font-black text-ink mb-2">Check Your Record</h4>
+                  <p className="text-muted font-medium mb-8">Enter the email you used to play.</p>
+                  
+                  <div className="space-y-4 mb-8">
+                    <input 
+                      type="email" 
+                      placeholder="john@example.com"
+                      value={guestInfo.email}
+                      onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
+                      className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                    />
+                  </div>
+
+                  <button 
+                    disabled={isChecking}
+                    onClick={async () => {
+                      if (!guestInfo.email) {
+                        onNotify('Please enter your email', 'error');
+                        return;
+                      }
+                      
+                      setIsChecking(true);
+                      const record: any = await onCheckParticipation(guestInfo.email);
+                      setIsChecking(false);
+
+                      if (record) {
+                        setExistingResult(record);
+                        setStep('existing');
+                      } else {
+                        onNotify('No record found for this email this week.', 'error');
+                      }
+                    }}
+                    className={`w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all ${isChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {isChecking ? 'Searching...' : 'Find My Result'}
+                  </button>
+                  
+                  <button 
+                    onClick={() => setStep('welcome')}
+                    className="w-full py-4 text-muted font-bold text-[10px] uppercase tracking-[0.2em] hover:text-ink transition-all mt-4"
+                  >
+                    ← Back
+                  </button>
+                </div>
+              )}
+
               {step === 'leaderboard' && (
                 <div className="space-y-6">
                   <div className="text-center mb-8">
@@ -493,11 +584,12 @@ const BrainBattleModal = ({
                       }
                       
                       setIsChecking(true);
-                      const alreadyPlayed = await onCheckParticipation(guestInfo.email);
+                      const record: any = await onCheckParticipation(guestInfo.email);
                       setIsChecking(false);
 
-                      if (alreadyPlayed) {
-                        onNotify('This email has already participated this week. Please wait for next Sunday!', 'error');
+                      if (record) {
+                        setExistingResult(record);
+                        setStep('existing');
                         return;
                       }
 
@@ -512,6 +604,57 @@ const BrainBattleModal = ({
                   >
                     {isChecking ? 'Checking Eligibility...' : 'Authenticate & Play'}
                   </button>
+                  <button 
+                    onClick={() => setStep('welcome')}
+                    className="w-full py-4 text-muted font-bold text-[10px] uppercase tracking-[0.2em] hover:text-ink transition-all mt-2"
+                  >
+                    ← Back to Welcome
+                  </button>
+                </div>
+              )}
+
+              {step === 'existing' && (
+                <div className="text-center py-6">
+                  <div className="w-20 h-20 bg-yellow-50 rounded-[2rem] flex items-center justify-center mx-auto mb-6 text-yellow-600">
+                    <Trophy size={40} />
+                  </div>
+                  <h4 className="text-3xl font-black text-ink mb-2">Already Battle Tested</h4>
+                  <p className="text-muted font-medium mb-10 leading-relaxed px-4">
+                    Hello <span className="text-ink font-bold">{existingResult?.name}</span>, you have already participated in this week's Brain Battle.
+                  </p>
+
+                  <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Your Score</p>
+                        <p className="text-4xl font-black text-ink">{existingResult?.score}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Accuracy</p>
+                        <p className="text-4xl font-black text-accent">
+                          {existingResult?.totalQuestions ? Math.round((existingResult.score / (existingResult.totalQuestions * 10)) * 100) : '0'}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <button 
+                       onClick={() => {
+                         onFetchLeaderboard();
+                         setStep('leaderboard');
+                       }}
+                       className="w-full py-6 bg-ink text-white rounded-[2.5rem] font-bold text-xs uppercase tracking-[0.25em] shadow-xl hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
+                    >
+                      Check Weekly Leaderboard
+                    </button>
+                    <button 
+                       onClick={() => setStep('welcome')}
+                       className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
+                    >
+                      Back to Start
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1597,7 +1740,7 @@ function ExonaApp() {
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isBrainBattleActive, setIsBrainBattleActive] = useState(false);
-  const [battleStep, setBattleStep] = useState<'entry' | 'playing' | 'result' | 'leaderboard'>('entry');
+  const [battleStep, setBattleStep] = useState<'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing'>('welcome');
   const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '', address: '' });
   const [battleScore, setBattleScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -1651,10 +1794,11 @@ function ExonaApp() {
       );
       
       const snapshot = await getDocs(q);
-      return !snapshot.empty;
+      if (snapshot.empty) return null;
+      return snapshot.docs[0].data();
     } catch (e) {
       console.error("Error checking participation:", e);
-      return false;
+      return null;
     }
   };
 
@@ -9365,7 +9509,7 @@ function ExonaApp() {
                       const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
                       setCurrentBattleQuestions(shuffled);
                       setIsBrainBattleActive(true);
-                      setBattleStep('entry');
+                      setBattleStep('welcome');
                     } else {
                       setActiveTool(tool.id);
                     }
@@ -9992,7 +10136,7 @@ function ExonaApp() {
                 const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
                 setCurrentBattleQuestions(shuffled);
                 setIsBrainBattleActive(true);
-                setBattleStep('entry');
+                setBattleStep('welcome');
               }}
               className="w-full py-4 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 shadow-lg shadow-ink/20 transition-all mb-8 active:scale-[0.98] flex items-center justify-center gap-3"
             >
