@@ -56,7 +56,397 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
  * SPDX-License-Identifier: Apache-2.0
  */
 
+// --- CONSTANTS ---
+const BRAIN_BATTLE_QUESTIONS = [
+  // General Knowledge
+  {
+    question: "Which is the largest continent in the world by land area?",
+    options: ["Africa", "Asia", "North America", "Europe"],
+    answer: "Asia",
+    category: "General Knowledge"
+  },
+  {
+    question: "What is the hardest natural substance known to man?",
+    options: ["Gold", "Iron", "Diamond", "Quartz"],
+    answer: "Diamond",
+    category: "General Knowledge"
+  },
+  {
+    question: "Who is the author of the famous novel 'Things Fall Apart'?",
+    options: ["Wole Soyinka", "Chinua Achebe", "Chimamanda Adichie", "Femi Osofisan"],
+    answer: "Chinua Achebe",
+    category: "General Knowledge"
+  },
+  {
+    question: "How many planets are currently in our Solar System?",
+    options: ["7", "8", "9", "10"],
+    answer: "8",
+    category: "General Knowledge"
+  },
+
+  // School Questions
+  {
+    question: "What is the result of 12 multiplied by 12?",
+    options: ["124", "144", "164", "142"],
+    answer: "144",
+    category: "School Questions"
+  },
+  {
+    question: "Which organ in the human body is responsible for pumping blood?",
+    options: ["Lungs", "Brain", "Liver", "Heart"],
+    answer: "Heart",
+    category: "School Questions"
+  },
+  {
+    question: "What is the chemical symbol for Gold?",
+    options: ["Ag", "Fe", "Au", "Pb"],
+    answer: "Au",
+    category: "School Questions"
+  },
+  {
+    question: "What is the boiling point of pure water at sea level?",
+    options: ["90°C", "100°C", "110°C", "120°C"],
+    answer: "100°C",
+    category: "School Questions"
+  },
+
+  // Nigeria Trivia
+  {
+    question: "In what year did Nigeria become an independent nation?",
+    options: ["1950", "1960", "1963", "1970"],
+    answer: "1960",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Which Nigerian city is famously known as the 'Center of Excellence'?",
+    options: ["Abuja", "Kano", "Lagos", "Port Harcourt"],
+    answer: "Lagos",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "What are the primary colors on the Nigerian national flag?",
+    options: ["Green and Blue", "Green and White", "Green and Yellow", "Red and White"],
+    answer: "Green and White",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Who was the first ceremonial President of Nigeria?",
+    options: ["Tafawa Balewa", "Obafemi Awolowo", "Nnamdi Azikiwe", "Murtala Muhammed"],
+    answer: "Nnamdi Azikiwe",
+    category: "Nigeria Trivia"
+  },
+
+  // Islamic Questions
+  {
+    question: "How many daily obligatory prayers (Salat) are performed by Muslims?",
+    options: ["3", "4", "5", "6"],
+    answer: "5",
+    category: "Islamic Questions"
+  },
+  {
+    question: "What is the name of the holy book revealed to Prophet Muhammad (SAW)?",
+    options: ["Torah", "Injeel", "Zabur", "Quran"],
+    answer: "Quran",
+    category: "Islamic Questions"
+  },
+  {
+    question: "In which city was the Prophet Muhammad (SAW) born?",
+    options: ["Medina", "Jerusalem", "Mecca", "Riyadh"],
+    answer: "Mecca",
+    category: "Islamic Questions"
+  },
+  {
+    question: "What is the name of the month in which Muslims fast from dawn to sunset?",
+    options: ["Muharram", "Ramadan", "Shawwal", "Dhul-Hijjah"],
+    answer: "Ramadan",
+    category: "Islamic Questions"
+  },
+
+  // Logic & Riddles
+  {
+    question: "What gets wetter and wetter the more it dries?",
+    options: ["Water", "A Towel", "Clouds", "Rain"],
+    answer: "A Towel",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "I have keys but no locks. I have a space but no room. What am I?",
+    options: ["A House", "A Keyboard", "A Car", "A Map"],
+    answer: "A Keyboard",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "How many months in the year have 28 days?",
+    options: ["1", "6", "12", "0"],
+    answer: "12",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "I have one eye but cannot see. What am I?",
+    options: ["A Cyclops", "A Needle", "A Potato", "A Storm"],
+    answer: "A Needle",
+    category: "Logic & Riddles"
+  }
+];
+
+const BrainBattleModal = ({ 
+  isActive, 
+  setIsActive, 
+  step, 
+  setStep, 
+  guestInfo, 
+  setGuestInfo, 
+  score, 
+  setScore, 
+  currentIndex, 
+  setCurrentIndex, 
+  answered, 
+  setAnswered, 
+  questions, 
+  user, 
+  onNotify, 
+  onJoin 
+}: any) => {
+  return (
+    <AnimatePresence>
+      {isActive && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[500] flex items-center justify-center p-4 sm:p-6 no-print"
+        >
+          <motion.div 
+            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+            className="w-full max-w-xl bg-white rounded-[3rem] p-8 sm:p-12 border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            {/* Background Glow */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full -ml-32 -mb-32 blur-3xl animate-pulse" />
+
+            <div className="flex items-center justify-between mb-8 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 bg-ink text-yellow-400 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Trophy size={24} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black text-ink leading-tight">Brain Battle</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Exonapp Presents</p>
+                </div>
+              </div>
+              {step !== 'playing' && (
+                <button 
+                  onClick={() => setIsActive(false)} 
+                  className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+                >
+                  <X size={18} />
+                </button>
+              )}
+            </div>
+
+            <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
+              {step === 'entry' && (
+                <div className="space-y-6">
+                  <div className="text-center mb-8">
+                    <div className="inline-block px-4 py-1.5 bg-accent/10 text-accent rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
+                      Guest Entry
+                    </div>
+                    <h4 className="text-lg font-bold text-ink mb-2">Identify Yourself, Champion!</h4>
+                    <p className="text-sm text-muted font-medium leading-relaxed">
+                      Provide your details to capture your score and stand a chance to win weekly airtime rewards.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Full Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="Your Name"
+                        value={guestInfo.name}
+                        onChange={(e) => setGuestInfo({...guestInfo, name: e.target.value})}
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Email Address</label>
+                      <input 
+                        type="email" 
+                        placeholder="your@email.com"
+                        value={guestInfo.email}
+                        onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Phone Number</label>
+                      <input 
+                        type="tel" 
+                        placeholder="080 0000 0000"
+                        value={guestInfo.phone}
+                        onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Location/Address</label>
+                      <input 
+                        type="text" 
+                        placeholder="Residential Address"
+                        value={guestInfo.address}
+                        onChange={(e) => setGuestInfo({...guestInfo, address: e.target.value})}
+                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      if (!guestInfo.name || !guestInfo.email || !guestInfo.phone || !guestInfo.address) {
+                        onNotify('Please fill all fields', 'error');
+                        return;
+                      }
+                      setStep('playing');
+                      setScore(0);
+                      setCurrentIndex(0);
+                      setAnswered([]);
+                    }}
+                    className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all active:scale-[0.98] mt-4"
+                  >
+                    Authenticate & Play
+                  </button>
+                </div>
+              )}
+
+              {step === 'playing' && questions.length > 0 && (
+                <div className="space-y-10">
+                  <div className="flex items-center justify-between">
+                    <div className="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                      <p className="text-[10px] font-black text-muted uppercase tracking-widest">Question</p>
+                      <p className="text-sm font-black text-ink">{currentIndex + 1} / {questions.length}</p>
+                    </div>
+                    <div className="px-4 py-2 bg-accent/5 rounded-xl border border-accent/10">
+                      <p className="text-[10px] font-black text-accent uppercase tracking-widest">Score</p>
+                      <p className="text-sm font-black text-accent">{score}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="inline-block px-3 py-1 bg-ink/5 text-ink rounded-lg text-[9px] font-black uppercase tracking-[0.2em] mb-2">
+                      {questions[currentIndex].category}
+                    </div>
+                    <h4 className="text-xl sm:text-2xl font-black text-ink leading-snug">
+                      {questions[currentIndex].question}
+                    </h4>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {questions[currentIndex].options.map((option: string, idx: number) => (
+                      <button 
+                        key={idx}
+                        onClick={async () => {
+                          if (answered.includes(currentIndex)) return;
+                          
+                          const isCorrect = option === questions[currentIndex].answer;
+                          if (isCorrect) {
+                            setScore((prev: number) => prev + 10);
+                          }
+                          
+                          setAnswered((prev: number[]) => [...prev, currentIndex]);
+                          
+                          // Stagger next question
+                          setTimeout(async () => {
+                            if (currentIndex < questions.length - 1) {
+                              setCurrentIndex((prev: number) => prev + 1);
+                            } else {
+                              // Final Result
+                              setStep('result');
+                              // Save lead
+                              try {
+                                await addDoc(collection(db, 'brainBattleLeads'), {
+                                  ...guestInfo,
+                                  score: score + (isCorrect ? 10 : 0),
+                                  totalQuestions: questions.length,
+                                  timestamp: serverTimestamp(),
+                                  uid: user?.uid || null
+                                });
+                              } catch (e) {
+                                console.error("Failed to save battle result", e);
+                              }
+                            }
+                          }, 500);
+                        }}
+                        className={`w-full p-6 rounded-2xl text-left font-bold text-sm transition-all border-2 active:scale-[0.98] flex items-center justify-between group ${
+                          answered.includes(currentIndex)
+                            ? option === questions[currentIndex].answer
+                              ? 'bg-green-50 border-green-200 text-green-900'
+                              : 'bg-gray-50 border-gray-100 text-gray-400'
+                            : 'bg-white border-gray-100 hover:border-accent/40 hover:bg-accent/5'
+                        }`}
+                      >
+                        {option}
+                        {answered.includes(currentIndex) && option === questions[currentIndex].answer && (
+                          <CheckCircle2 size={18} className="text-green-500" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {step === 'result' && (
+                <div className="text-center py-6">
+                  <motion.div 
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="h-32 w-32 bg-yellow-400 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-12"
+                  >
+                    <Trophy size={64} />
+                  </motion.div>
+                  
+                  <h4 className="text-4xl font-black text-ink mb-2">Battle Concluded!</h4>
+                  <p className="text-muted font-medium mb-10 tracking-[0.05em] uppercase text-xs">Horizon Records Updated</p>
+
+                  <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Final Score</p>
+                        <p className="text-4xl font-black text-ink">{score}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Accuracy</p>
+                        <p className="text-4xl font-black text-accent">{Math.round((score / (questions.length * 10)) * 100)}%</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <button 
+                      onClick={() => {
+                        setIsActive(false);
+                        onJoin();
+                      }}
+                      className="w-full py-5 bg-accent text-white rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-accent/90 shadow-xl transition-all"
+                    >
+                      Join Exona Family Now
+                    </button>
+                    <button 
+                       onClick={() => setIsActive(false)}
+                       className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
+                    >
+                      Return to Hub
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 // --- TYPES ---
+
 interface Place {
   id: string;
   name: string;
@@ -975,7 +1365,29 @@ function ExonaApp() {
   const [battleScore, setBattleScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
+  const [currentBattleQuestions, setCurrentBattleQuestions] = useState<any[]>(BRAIN_BATTLE_QUESTIONS);
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
+
+  const renderBrainBattle = () => (
+    <BrainBattleModal 
+      isActive={isBrainBattleActive}
+      setIsActive={setIsBrainBattleActive}
+      step={battleStep}
+      setStep={setBattleStep}
+      guestInfo={guestInfo}
+      setGuestInfo={setGuestInfo}
+      score={battleScore}
+      setScore={setBattleScore}
+      currentIndex={currentQuestionIndex}
+      setCurrentIndex={setCurrentQuestionIndex}
+      answered={answeredQuestions}
+      setAnswered={setAnsweredQuestions}
+      questions={currentBattleQuestions}
+      user={user}
+      onNotify={showNotification}
+      onJoin={() => setAuthMode('signup')}
+    />
+  );
 
   const handleWalletClick = () => {
     if (user) {
@@ -7961,6 +8373,7 @@ function ExonaApp() {
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
           { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
           { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
+          { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
         ];
 
         if (activeTool === 'export-attendance') {
@@ -8592,7 +9005,16 @@ function ExonaApp() {
                   key={tool.id}
                   whileHover={{ scale: 1.02, y: -5 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setActiveTool(tool.id)}
+                  onClick={() => {
+                    if (tool.id === 'brain-battle') {
+                      const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5);
+                      setCurrentBattleQuestions(shuffled);
+                      setIsBrainBattleActive(true);
+                      setBattleStep('entry');
+                    } else {
+                      setActiveTool(tool.id);
+                    }
+                  }}
                   className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-gray-100 text-left group hover:border-accent/20 transition-all"
                 >
                   <div className={`h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-${tool.color} mb-6 group-hover:scale-110 transition-transform`}>
@@ -9115,12 +9537,13 @@ function ExonaApp() {
               </div>
             </div>
           </motion.div>
+          {renderBrainBattle()}
         </div>
       );
     }
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 relative">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
@@ -9205,6 +9628,8 @@ function ExonaApp() {
 
             <button 
               onClick={() => {
+                const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5);
+                setCurrentBattleQuestions(shuffled);
                 setIsBrainBattleActive(true);
                 setBattleStep('entry');
               }}
@@ -9244,6 +9669,7 @@ function ExonaApp() {
             <p className="text-xs text-muted">Exona from Antigravity</p>
           </div>
         </motion.div>
+        {renderBrainBattle()}
       </div>
     );
   }
@@ -10839,240 +11265,7 @@ function ExonaApp() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {isBrainBattleActive && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[500] flex items-center justify-center p-4 sm:p-6 no-print"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-xl bg-white rounded-[3rem] p-8 sm:p-12 border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
-            >
-              {/* Background Glow */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full -ml-32 -mb-32 blur-3xl animate-pulse" />
-
-              <div className="flex items-center justify-between mb-8 relative z-10">
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 bg-ink text-yellow-400 rounded-2xl flex items-center justify-center shadow-lg">
-                    <Trophy size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-black text-ink leading-tight">Brain Battle</h3>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Exonapp Presents</p>
-                  </div>
-                </div>
-                {battleStep !== 'playing' && (
-                  <button 
-                    onClick={() => setIsBrainBattleActive(false)} 
-                    className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
-                  >
-                    <X size={18} />
-                  </button>
-                )}
-              </div>
-
-              <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
-                {battleStep === 'entry' && (
-                  <div className="space-y-6">
-                    <div className="text-center mb-8">
-                      <div className="inline-block px-4 py-1.5 bg-accent/10 text-accent rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-                        Guest Entry
-                      </div>
-                      <h4 className="text-lg font-bold text-ink mb-2">Identify Yourself, Champion!</h4>
-                      <p className="text-sm text-muted font-medium leading-relaxed">
-                        Provide your details to capture your score and stand a chance to win weekly airtime rewards.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Full Name</label>
-                        <input 
-                          type="text" 
-                          placeholder="Your Name"
-                          value={guestInfo.name}
-                          onChange={(e) => setGuestInfo({...guestInfo, name: e.target.value})}
-                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Email Address</label>
-                        <input 
-                          type="email" 
-                          placeholder="your@email.com"
-                          value={guestInfo.email}
-                          onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
-                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Phone Number</label>
-                        <input 
-                          type="tel" 
-                          placeholder="080 0000 0000"
-                          value={guestInfo.phone}
-                          onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
-                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Location/Address</label>
-                        <input 
-                          type="text" 
-                          placeholder="Residential Address"
-                          value={guestInfo.address}
-                          onChange={(e) => setGuestInfo({...guestInfo, address: e.target.value})}
-                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
-                        />
-                      </div>
-                    </div>
-
-                    <button 
-                      onClick={() => {
-                        if (!guestInfo.name || !guestInfo.email || !guestInfo.phone || !guestInfo.address) {
-                          showNotification('Please fill all fields', 'error');
-                          return;
-                        }
-                        setBattleStep('playing');
-                        setBattleScore(0);
-                        setCurrentQuestionIndex(0);
-                        setAnsweredQuestions([]);
-                      }}
-                      className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all active:scale-[0.98] mt-4"
-                    >
-                      Authenticate & Play
-                    </button>
-                  </div>
-                )}
-
-                {battleStep === 'playing' && (
-                  <div className="space-y-10">
-                    <div className="flex items-center justify-between">
-                      <div className="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
-                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">Question</p>
-                        <p className="text-sm font-black text-ink">{currentQuestionIndex + 1} / {BRAIN_BATTLE_QUESTIONS.length}</p>
-                      </div>
-                      <div className="px-4 py-2 bg-accent/5 rounded-xl border border-accent/10">
-                        <p className="text-[10px] font-black text-accent uppercase tracking-widest">Score</p>
-                        <p className="text-sm font-black text-accent">{battleScore}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="inline-block px-3 py-1 bg-ink/5 text-ink rounded-lg text-[9px] font-black uppercase tracking-[0.2em] mb-2">
-                        {BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].category}
-                      </div>
-                      <h4 className="text-xl sm:text-2xl font-black text-ink leading-snug">
-                        {BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].question}
-                      </h4>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3">
-                      {BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].options.map((option, idx) => (
-                        <button 
-                          key={idx}
-                          onClick={async () => {
-                            if (answeredQuestions.includes(currentQuestionIndex)) return;
-                            
-                            const isCorrect = option === BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].answer;
-                            if (isCorrect) {
-                              setBattleScore(prev => prev + 10);
-                            }
-                            
-                            setAnsweredQuestions(prev => [...prev, currentQuestionIndex]);
-                            
-                            // Stagger next question
-                            setTimeout(async () => {
-                              if (currentQuestionIndex < BRAIN_BATTLE_QUESTIONS.length - 1) {
-                                setCurrentQuestionIndex(prev => prev + 1);
-                              } else {
-                                // Final Result
-                                setBattleStep('result');
-                                // Save lead
-                                try {
-                                  await addDoc(collection(db, 'brainBattleLeads'), {
-                                    ...guestInfo,
-                                    score: battleScore + (isCorrect ? 10 : 0),
-                                    totalQuestions: BRAIN_BATTLE_QUESTIONS.length,
-                                    timestamp: serverTimestamp(),
-                                    uid: user?.uid || null
-                                  });
-                                } catch (e) {
-                                  console.error("Failed to save battle result", e);
-                                }
-                              }
-                            }, 500);
-                          }}
-                          className={`w-full p-6 rounded-2xl text-left font-bold text-sm transition-all border-2 active:scale-[0.98] flex items-center justify-between group ${
-                            answeredQuestions.includes(currentQuestionIndex)
-                              ? option === BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].answer
-                                ? 'bg-green-50 border-green-200 text-green-900'
-                                : 'bg-gray-50 border-gray-100 text-gray-400'
-                              : 'bg-white border-gray-100 hover:border-accent/40 hover:bg-accent/5'
-                          }`}
-                        >
-                          {option}
-                          {answeredQuestions.includes(currentQuestionIndex) && option === BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].answer && (
-                            <CheckCircle2 size={18} className="text-green-500" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {battleStep === 'result' && (
-                  <div className="text-center py-6">
-                    <motion.div 
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="h-32 w-32 bg-yellow-400 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-12"
-                    >
-                      <Trophy size={64} />
-                    </motion.div>
-                    
-                    <h4 className="text-4xl font-black text-ink mb-2">Battle Concluded!</h4>
-                    <p className="text-muted font-medium mb-10 tracking-[0.05em] uppercase text-xs">Horizon Records Updated</p>
-
-                    <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
-                      <div className="grid grid-cols-2 gap-8">
-                        <div>
-                          <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Final Score</p>
-                          <p className="text-4xl font-black text-ink">{battleScore}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Accuracy</p>
-                          <p className="text-4xl font-black text-accent">{Math.round((battleScore / (BRAIN_BATTLE_QUESTIONS.length * 10)) * 100)}%</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <button 
-                        onClick={() => {
-                          setIsBrainBattleActive(false);
-                          setAuthMode('signup');
-                        }}
-                        className="w-full py-5 bg-accent text-white rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-accent/90 shadow-xl transition-all"
-                      >
-                        Join Exona Family Now
-                      </button>
-                      <button 
-                         onClick={() => setIsBrainBattleActive(false)}
-                         className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
-                      >
-                        Return to Hub
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {renderBrainBattle()}
 
       {/* Story Upload Modal */}
       <AnimatePresence>
@@ -11235,137 +11428,7 @@ function ExonaApp() {
     );
   }
 
-const BRAIN_BATTLE_QUESTIONS = [
-  // General Knowledge
-  {
-    question: "Which is the largest continent in the world by land area?",
-    options: ["Africa", "Asia", "North America", "Europe"],
-    answer: "Asia",
-    category: "General Knowledge"
-  },
-  {
-    question: "What is the hardest natural substance known to man?",
-    options: ["Gold", "Iron", "Diamond", "Quartz"],
-    answer: "Diamond",
-    category: "General Knowledge"
-  },
-  {
-    question: "Who is the author of the famous novel 'Things Fall Apart'?",
-    options: ["Wole Soyinka", "Chinua Achebe", "Chimamanda Adichie", "Femi Osofisan"],
-    answer: "Chinua Achebe",
-    category: "General Knowledge"
-  },
-  {
-    question: "How many planets are currently in our Solar System?",
-    options: ["7", "8", "9", "10"],
-    answer: "8",
-    category: "General Knowledge"
-  },
-
-  // School Questions
-  {
-    question: "What is the result of 12 multiplied by 12?",
-    options: ["124", "144", "164", "142"],
-    answer: "144",
-    category: "School Questions"
-  },
-  {
-    question: "Which organ in the human body is responsible for pumping blood?",
-    options: ["Lungs", "Brain", "Liver", "Heart"],
-    answer: "Heart",
-    category: "School Questions"
-  },
-  {
-    question: "What is the chemical symbol for Gold?",
-    options: ["Ag", "Fe", "Au", "Pb"],
-    answer: "Au",
-    category: "School Questions"
-  },
-  {
-    question: "What is the boiling point of pure water at sea level?",
-    options: ["90°C", "100°C", "110°C", "120°C"],
-    answer: "100°C",
-    category: "School Questions"
-  },
-
-  // Nigeria Trivia
-  {
-    question: "In what year did Nigeria become an independent nation?",
-    options: ["1950", "1960", "1963", "1970"],
-    answer: "1960",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "Which Nigerian city is famously known as the 'Center of Excellence'?",
-    options: ["Abuja", "Kano", "Lagos", "Port Harcourt"],
-    answer: "Lagos",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "What are the primary colors on the Nigerian national flag?",
-    options: ["Green and Blue", "Green and White", "Green and Yellow", "Red and White"],
-    answer: "Green and White",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "Who was the first ceremonial President of Nigeria?",
-    options: ["Tafawa Balewa", "Obafemi Awolowo", "Nnamdi Azikiwe", "Murtala Muhammed"],
-    answer: "Nnamdi Azikiwe",
-    category: "Nigeria Trivia"
-  },
-
-  // Islamic Questions
-  {
-    question: "How many daily obligatory prayers (Salat) are performed by Muslims?",
-    options: ["3", "4", "5", "6"],
-    answer: "5",
-    category: "Islamic Questions"
-  },
-  {
-    question: "What is the name of the holy book revealed to Prophet Muhammad (SAW)?",
-    options: ["Torah", "Injeel", "Zabur", "Quran"],
-    answer: "Quran",
-    category: "Islamic Questions"
-  },
-  {
-    question: "In which city was the Prophet Muhammad (SAW) born?",
-    options: ["Medina", "Jerusalem", "Mecca", "Riyadh"],
-    answer: "Mecca",
-    category: "Islamic Questions"
-  },
-  {
-    question: "What is the name of the month in which Muslims fast from dawn to sunset?",
-    options: ["Muharram", "Ramadan", "Shawwal", "Dhul-Hijjah"],
-    answer: "Ramadan",
-    category: "Islamic Questions"
-  },
-
-  // Logic & Riddles
-  {
-    question: "What gets wetter and wetter the more it dries?",
-    options: ["Water", "A Towel", "Clouds", "Rain"],
-    answer: "A Towel",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "I have keys but no locks. I have a space but no room. What am I?",
-    options: ["A House", "A Keyboard", "A Car", "A Map"],
-    answer: "A Keyboard",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "How many months in the year have 28 days?",
-    options: ["1", "6", "12", "0"],
-    answer: "12",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "I have one eye but cannot see. What am I?",
-    options: ["A Cyclops", "A Needle", "A Potato", "A Storm"],
-    answer: "A Needle",
-    category: "Logic & Riddles"
-  }
-];
+const BRAIN_BATTLE_QUESTIONS_END = []; // Placeholder to remove old constant
 
 export default function App() {
   return (
