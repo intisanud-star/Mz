@@ -209,7 +209,9 @@ const BrainBattleModal = ({
   timeLeft,
   setTimeLeft,
   timerActive,
-  setTimerActive
+  setTimerActive,
+  leaderboard,
+  onFetchLeaderboard
 }: any) => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -264,6 +266,51 @@ const BrainBattleModal = ({
             </div>
 
             <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
+              {step === 'leaderboard' && (
+                <div className="space-y-6">
+                  <div className="text-center mb-8">
+                    <div className="inline-block px-4 py-1.5 bg-yellow-400/10 text-yellow-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
+                      Weekly Standings
+                    </div>
+                    <h4 className="text-lg font-bold text-ink">Champions League</h4>
+                  </div>
+
+                  <div className="space-y-2">
+                    {leaderboard.length === 0 ? (
+                      <div className="py-20 text-center">
+                        <TrendingUp size={48} className="mx-auto text-gray-100 mb-4" />
+                        <p className="text-sm text-muted font-medium">Waiting for the battle to conclude...</p>
+                      </div>
+                    ) : (
+                      leaderboard.map((lead: any, idx: number) => (
+                        <div 
+                          key={lead.id}
+                          className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${idx < 3 ? 'bg-gray-50 border-gray-100' : 'bg-white border-transparent'}`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-black ${
+                              idx === 0 ? 'bg-yellow-400 text-white' : 
+                              idx === 1 ? 'bg-gray-300 text-white' : 
+                              idx === 2 ? 'bg-orange-400 text-white' : 'bg-gray-100 text-muted'
+                            }`}>
+                              {idx + 1}
+                            </div>
+                            <div>
+                              <p className="text-sm font-black text-ink">{lead.name}</p>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none mt-1">{lead.address}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-ink">{lead.score}</p>
+                            <p className="text-[9px] font-bold text-accent uppercase tracking-widest">Points</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
               {step === 'entry' && (
                 <div className="space-y-6">
                   <div className="text-center mb-8">
@@ -447,6 +494,15 @@ const BrainBattleModal = ({
                   </div>
 
                   <div className="space-y-4">
+                    <button 
+                       onClick={() => {
+                         onFetchLeaderboard();
+                         setStep('leaderboard');
+                       }}
+                       className="w-full py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all shadow-xl"
+                    >
+                      See All Results
+                    </button>
                     <button 
                       onClick={() => {
                         setIsActive(false);
@@ -1388,7 +1444,7 @@ function ExonaApp() {
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isBrainBattleActive, setIsBrainBattleActive] = useState(false);
-  const [battleStep, setBattleStep] = useState<'entry' | 'playing' | 'result'>('entry');
+  const [battleStep, setBattleStep] = useState<'entry' | 'playing' | 'result' | 'leaderboard'>('entry');
   const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '', address: '' });
   const [battleScore, setBattleScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -1397,6 +1453,35 @@ function ExonaApp() {
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
   const [battleTimeLeft, setBattleTimeLeft] = useState(300); // 5 minutes
   const [isTimerActive, setIsTimerActive] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
+  // Check if current time is within Sunday 7:00 PM - 7:55 PM
+  const isBattleWindowOpen = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0 is Sunday
+    const hour = now.getHours();
+    const minute = now.getMinutes();
+
+    // Sunday (0), 7 PM (19:00) to 7:55 PM (19:55)
+    return day === 0 && hour === 19 && minute <= 55;
+  };
+
+  // Fetch leaderboard data
+  const fetchLeaderboard = async () => {
+    try {
+      const q = query(
+        collection(db, 'brainBattleLeads'),
+        orderBy('score', 'desc'),
+        orderBy('timestamp', 'asc'),
+        limit(50)
+      );
+      const snapshot = await getDocs(q);
+      const leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setLeaderboard(leads);
+    } catch (e) {
+      console.error("Failed to fetch leaderboard", e);
+    }
+  };
 
   // Brain Battle Timer logic
   useEffect(() => {
@@ -1452,6 +1537,8 @@ function ExonaApp() {
       setTimeLeft={setBattleTimeLeft}
       timerActive={isTimerActive}
       setTimerActive={setIsTimerActive}
+      leaderboard={leaderboard}
+      onFetchLeaderboard={fetchLeaderboard}
     />
   );
 
@@ -9073,6 +9160,12 @@ function ExonaApp() {
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     if (tool.id === 'brain-battle') {
+                      if (!isBattleWindowOpen()) {
+                        fetchLeaderboard();
+                        setIsBrainBattleActive(true);
+                        setBattleStep('leaderboard');
+                        return;
+                      }
                       const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5);
                       setCurrentBattleQuestions(shuffled);
                       setIsBrainBattleActive(true);
@@ -9694,6 +9787,12 @@ function ExonaApp() {
 
             <button 
               onClick={() => {
+                if (!isBattleWindowOpen()) {
+                  fetchLeaderboard();
+                  setIsBrainBattleActive(true);
+                  setBattleStep('leaderboard');
+                  return;
+                }
                 const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5);
                 setCurrentBattleQuestions(shuffled);
                 setIsBrainBattleActive(true);
