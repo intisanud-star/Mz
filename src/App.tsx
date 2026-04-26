@@ -306,12 +306,30 @@ const BrainBattleModal = ({
   onShareResult,
   onCheckParticipation
 }: { 
+  isActive: boolean,
+  setIsActive: (val: boolean) => void,
   step: 'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing',
+  setStep: (val: any) => void,
   [key: string]: any 
 }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [existingResult, setExistingResult] = useState<any>(null);
+
+  // Proactive check for logged in user
+  useEffect(() => {
+    if (isActive && user?.email && step === 'welcome' && !existingResult && !isChecking) {
+      const checkSelf = async () => {
+        setIsChecking(true);
+        const record = await onCheckParticipation(user.email);
+        setIsChecking(false);
+        if (record) {
+          setExistingResult(record);
+        }
+      };
+      checkSelf();
+    }
+  }, [isActive, user, step]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -396,31 +414,51 @@ const BrainBattleModal = ({
                     Test your knowledge in Science, History, and Nigeria Trivia. Win weekly rewards!
                   </p>
                   
-                  <div className="space-y-4">
-                    <button 
-                      onClick={() => setStep('entry')}
-                      className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all flex items-center justify-center gap-3"
-                    >
-                      <Zap size={18} /> Start Sunday Battle
-                    </button>
-                    <div className="grid grid-cols-2 gap-4">
+                  {existingResult ? (
+                    <div className="space-y-4">
+                      <div className="p-6 bg-green-50 border border-green-100 rounded-3xl mb-6 text-left">
+                        <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Your Weekly Status</p>
+                        <p className="text-sm font-bold text-ink">You've already participated this week! Score: {existingResult.score}</p>
+                      </div>
                       <button 
-                        onClick={() => {
-                          onFetchLeaderboard();
-                          setStep('leaderboard');
-                        }}
-                        className="w-full py-5 bg-white text-ink border-2 border-gray-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                        onClick={() => setStep('existing')}
+                        className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all flex items-center justify-center gap-3"
                       >
-                        <Trophy size={16} /> Leaderboard
-                      </button>
-                      <button 
-                        onClick={() => setStep('check-result')}
-                        className="w-full py-5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Search size={16} /> My Result
+                        <Trophy size={18} /> View My Record
                       </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => setStep('entry')}
+                        className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all flex items-center justify-center gap-3"
+                      >
+                        <Zap size={18} /> Start Sunday Battle
+                      </button>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button 
+                          onClick={() => {
+                            onFetchLeaderboard();
+                            setStep('leaderboard');
+                          }}
+                          className="w-full py-5 bg-white text-ink border-2 border-gray-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Trophy size={16} /> Leaderboard
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (user?.email) {
+                              setGuestInfo({ ...guestInfo, email: user.email });
+                            }
+                            setStep('check-result');
+                          }}
+                          className="w-full py-5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Search size={16} /> My Result
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -477,11 +515,19 @@ const BrainBattleModal = ({
 
               {step === 'leaderboard' && (
                 <div className="space-y-6">
-                  <div className="text-center mb-8">
-                    <div className="inline-block px-4 py-1.5 bg-yellow-400/10 text-yellow-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
-                      Weekly Standings
+                  <div className="flex items-center justify-between mb-8">
+                    <div className="text-left">
+                      <div className="inline-block px-4 py-1.5 bg-yellow-400/10 text-yellow-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-2">
+                        Weekly Standings
+                      </div>
+                      <h4 className="text-lg font-bold text-ink">Champions League</h4>
                     </div>
-                    <h4 className="text-lg font-bold text-ink">Champions League</h4>
+                    <button 
+                       onClick={() => setStep('check-result')}
+                       className="px-4 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2"
+                    >
+                      <Search size={14} /> Check Record
+                    </button>
                   </div>
 
                   <div className="space-y-2">
