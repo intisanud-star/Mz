@@ -526,43 +526,105 @@ const BrainBattleModal = ({
                        onClick={() => setStep('check-result')}
                        className="px-4 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-100 transition-all flex items-center gap-2"
                     >
-                      <Search size={14} /> Check Record
+                      <Search size={14} /> My Result
                     </button>
                   </div>
 
-                  <div className="space-y-2">
+                  {leaderboard.length > 0 && (
+                    <div className="bg-gradient-to-br from-indigo-600 to-accent p-6 rounded-[2.5rem] text-white shadow-2xl shadow-indigo-200 mb-8 relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <Trophy size={120} />
+                      </div>
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                          <Stars className="text-yellow-400" size={24} />
+                          <h5 className="text-sm font-black uppercase tracking-widest">Sunday Champions</h5>
+                        </div>
+                        <p className="text-white/80 text-sm font-medium leading-relaxed mb-6">
+                          Congratulations to our top battle-tested legends for this week!
+                        </p>
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                            <Trophy size={24} />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Top Performer</p>
+                            <p className="text-xl font-black">{leaderboard[0].name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
                     {leaderboard.length === 0 ? (
                       <div className="py-20 text-center">
                         <TrendingUp size={48} className="mx-auto text-gray-100 mb-4" />
                         <p className="text-sm text-muted font-medium">Waiting for the battle to conclude...</p>
                       </div>
                     ) : (
-                      leaderboard.map((lead: any, idx: number) => (
-                        <div 
-                          key={lead.id}
-                          className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${idx < 3 ? 'bg-gray-50 border-gray-100' : 'bg-white border-transparent'}`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-black ${
-                              idx === 0 ? 'bg-yellow-400 text-white' : 
-                              idx === 1 ? 'bg-gray-300 text-white' : 
-                              idx === 2 ? 'bg-orange-400 text-white' : 'bg-gray-100 text-muted'
-                            }`}>
-                              {idx + 1}
+                      leaderboard.map((lead: any, idx: number) => {
+                        const getRankInfo = (index: number) => {
+                          switch(index) {
+                            case 0: return { label: 'Diamond', color: 'bg-cyan-500', icon: Trophy };
+                            case 1: return { label: 'Gold', color: 'bg-yellow-400', icon: Award };
+                            case 2: return { label: 'Silver', color: 'bg-gray-300', icon: Award };
+                            case 3: return { label: 'Bronze', color: 'bg-orange-400', icon: Award };
+                            case 4: return { label: 'Elite', color: 'bg-indigo-500', icon: ShieldCheck };
+                            default: return null;
+                          }
+                        };
+                        const rankInfo = getRankInfo(idx);
+                        
+                        return (
+                          <div 
+                            key={lead.id}
+                            className={`flex items-center justify-between p-5 rounded-3xl border transition-all ${idx < 5 ? (idx === 0 ? 'bg-cyan-50 border-cyan-100 animate-pulse' : 'bg-gray-50 border-gray-100') : 'bg-white border-transparent'}`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="relative">
+                                <div className={`h-10 w-10 rounded-2xl flex items-center justify-center text-xs font-black shadow-sm ${
+                                  rankInfo ? rankInfo.color + ' text-white' : 'bg-gray-100 text-muted'
+                                }`}>
+                                  {idx + 1}
+                                </div>
+                                {rankInfo && (
+                                  <div className="absolute -top-2 -right-2 bg-white rounded-full p-1 shadow-sm border border-gray-50">
+                                    <rankInfo.icon size={10} className={rankInfo.color.replace('bg-', 'text-')} />
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-black text-ink">{lead.name}</p>
+                                  {rankInfo && (
+                                    <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${rankInfo.color} text-white`}>
+                                      {rankInfo.label}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none mt-1">{lead.address}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-black text-ink">{lead.name}</p>
-                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none mt-1">{lead.address}</p>
+                            <div className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                <p className={`text-base font-black ${idx < 5 ? 'text-ink' : 'text-muted'}`}>{lead.score}</p>
+                                <Zap size={12} className={idx < 5 ? 'text-yellow-500' : 'text-gray-300'} />
+                              </div>
+                              <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Points Scored</p>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-black text-ink">{lead.score}</p>
-                            <p className="text-[9px] font-bold text-accent uppercase tracking-widest">Points</p>
-                          </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
+
+                  <button 
+                    onClick={() => setStep('welcome')}
+                    className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-[10px] uppercase tracking-[0.3em] border border-gray-100 hover:bg-gray-50 transition-all mt-6"
+                  >
+                    ← Back to Centre
+                  </button>
                 </div>
               )}
 
