@@ -969,6 +969,12 @@ function ExonaApp() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
+  const [isBrainBattleActive, setIsBrainBattleActive] = useState(false);
+  const [battleStep, setBattleStep] = useState<'entry' | 'playing' | 'result'>('entry');
+  const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '', address: '' });
+  const [battleScore, setBattleScore] = useState(0);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
 
   const handleWalletClick = () => {
@@ -9186,9 +9192,26 @@ function ExonaApp() {
 
             <button 
               onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
-              className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 shadow-lg shadow-accent/20 transition-all mb-8 active:scale-[0.98]"
+              className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 shadow-lg shadow-accent/20 transition-all mb-4 active:scale-[0.98]"
             >
               {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+            </button>
+
+            <div className="w-full flex items-center gap-4 mb-4">
+              <div className="h-px flex-1 bg-gray-100"></div>
+              <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Or</span>
+              <div className="h-px flex-1 bg-gray-100"></div>
+            </div>
+
+            <button 
+              onClick={() => {
+                setIsBrainBattleActive(true);
+                setBattleStep('entry');
+              }}
+              className="w-full py-4 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 shadow-lg shadow-ink/20 transition-all mb-8 active:scale-[0.98] flex items-center justify-center gap-3"
+            >
+              <Zap size={18} className="text-yellow-400 fill-yellow-400" />
+              Play Brain Battle
             </button>
 
             {authMode === 'signin' && (
@@ -10816,6 +10839,241 @@ function ExonaApp() {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {isBrainBattleActive && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[500] flex items-center justify-center p-4 sm:p-6 no-print"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-xl bg-white rounded-[3rem] p-8 sm:p-12 border border-gray-100 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Background Glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full -ml-32 -mb-32 blur-3xl animate-pulse" />
+
+              <div className="flex items-center justify-between mb-8 relative z-10">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 bg-ink text-yellow-400 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Trophy size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-ink leading-tight">Brain Battle</h3>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Exonapp Presents</p>
+                  </div>
+                </div>
+                {battleStep !== 'playing' && (
+                  <button 
+                    onClick={() => setIsBrainBattleActive(false)} 
+                    className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
+
+              <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
+                {battleStep === 'entry' && (
+                  <div className="space-y-6">
+                    <div className="text-center mb-8">
+                      <div className="inline-block px-4 py-1.5 bg-accent/10 text-accent rounded-full text-[10px] font-black uppercase tracking-widest mb-4">
+                        Guest Entry
+                      </div>
+                      <h4 className="text-lg font-bold text-ink mb-2">Identify Yourself, Champion!</h4>
+                      <p className="text-sm text-muted font-medium leading-relaxed">
+                        Provide your details to capture your score and stand a chance to win weekly airtime rewards.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Full Name</label>
+                        <input 
+                          type="text" 
+                          placeholder="Your Name"
+                          value={guestInfo.name}
+                          onChange={(e) => setGuestInfo({...guestInfo, name: e.target.value})}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Email Address</label>
+                        <input 
+                          type="email" 
+                          placeholder="your@email.com"
+                          value={guestInfo.email}
+                          onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Phone Number</label>
+                        <input 
+                          type="tel" 
+                          placeholder="080 0000 0000"
+                          value={guestInfo.phone}
+                          onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1.5 ml-4 block">Location/Address</label>
+                        <input 
+                          type="text" 
+                          placeholder="Residential Address"
+                          value={guestInfo.address}
+                          onChange={(e) => setGuestInfo({...guestInfo, address: e.target.value})}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        if (!guestInfo.name || !guestInfo.email || !guestInfo.phone || !guestInfo.address) {
+                          showNotification('Please fill all fields', 'error');
+                          return;
+                        }
+                        setBattleStep('playing');
+                        setBattleScore(0);
+                        setCurrentQuestionIndex(0);
+                        setAnsweredQuestions([]);
+                      }}
+                      className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all active:scale-[0.98] mt-4"
+                    >
+                      Authenticate & Play
+                    </button>
+                  </div>
+                )}
+
+                {battleStep === 'playing' && (
+                  <div className="space-y-10">
+                    <div className="flex items-center justify-between">
+                      <div className="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
+                        <p className="text-[10px] font-black text-muted uppercase tracking-widest">Question</p>
+                        <p className="text-sm font-black text-ink">{currentQuestionIndex + 1} / {BRAIN_BATTLE_QUESTIONS.length}</p>
+                      </div>
+                      <div className="px-4 py-2 bg-accent/5 rounded-xl border border-accent/10">
+                        <p className="text-[10px] font-black text-accent uppercase tracking-widest">Score</p>
+                        <p className="text-sm font-black text-accent">{battleScore}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="inline-block px-3 py-1 bg-ink/5 text-ink rounded-lg text-[9px] font-black uppercase tracking-[0.2em] mb-2">
+                        {BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].category}
+                      </div>
+                      <h4 className="text-xl sm:text-2xl font-black text-ink leading-snug">
+                        {BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].question}
+                      </h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                      {BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].options.map((option, idx) => (
+                        <button 
+                          key={idx}
+                          onClick={async () => {
+                            if (answeredQuestions.includes(currentQuestionIndex)) return;
+                            
+                            const isCorrect = option === BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].answer;
+                            if (isCorrect) {
+                              setBattleScore(prev => prev + 10);
+                            }
+                            
+                            setAnsweredQuestions(prev => [...prev, currentQuestionIndex]);
+                            
+                            // Stagger next question
+                            setTimeout(async () => {
+                              if (currentQuestionIndex < BRAIN_BATTLE_QUESTIONS.length - 1) {
+                                setCurrentQuestionIndex(prev => prev + 1);
+                              } else {
+                                // Final Result
+                                setBattleStep('result');
+                                // Save lead
+                                try {
+                                  await addDoc(collection(db, 'brainBattleLeads'), {
+                                    ...guestInfo,
+                                    score: battleScore + (isCorrect ? 10 : 0),
+                                    totalQuestions: BRAIN_BATTLE_QUESTIONS.length,
+                                    timestamp: serverTimestamp(),
+                                    uid: user?.uid || null
+                                  });
+                                } catch (e) {
+                                  console.error("Failed to save battle result", e);
+                                }
+                              }
+                            }, 500);
+                          }}
+                          className={`w-full p-6 rounded-2xl text-left font-bold text-sm transition-all border-2 active:scale-[0.98] flex items-center justify-between group ${
+                            answeredQuestions.includes(currentQuestionIndex)
+                              ? option === BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].answer
+                                ? 'bg-green-50 border-green-200 text-green-900'
+                                : 'bg-gray-50 border-gray-100 text-gray-400'
+                              : 'bg-white border-gray-100 hover:border-accent/40 hover:bg-accent/5'
+                          }`}
+                        >
+                          {option}
+                          {answeredQuestions.includes(currentQuestionIndex) && option === BRAIN_BATTLE_QUESTIONS[currentQuestionIndex].answer && (
+                            <CheckCircle2 size={18} className="text-green-500" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {battleStep === 'result' && (
+                  <div className="text-center py-6">
+                    <motion.div 
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="h-32 w-32 bg-yellow-400 text-white rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 shadow-2xl rotate-12"
+                    >
+                      <Trophy size={64} />
+                    </motion.div>
+                    
+                    <h4 className="text-4xl font-black text-ink mb-2">Battle Concluded!</h4>
+                    <p className="text-muted font-medium mb-10 tracking-[0.05em] uppercase text-xs">Horizon Records Updated</p>
+
+                    <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
+                      <div className="grid grid-cols-2 gap-8">
+                        <div>
+                          <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Final Score</p>
+                          <p className="text-4xl font-black text-ink">{battleScore}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-muted uppercase tracking-[0.3em] mb-2">Accuracy</p>
+                          <p className="text-4xl font-black text-accent">{Math.round((battleScore / (BRAIN_BATTLE_QUESTIONS.length * 10)) * 100)}%</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => {
+                          setIsBrainBattleActive(false);
+                          setAuthMode('signup');
+                        }}
+                        className="w-full py-5 bg-accent text-white rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-accent/90 shadow-xl transition-all"
+                      >
+                        Join Exona Family Now
+                      </button>
+                      <button 
+                         onClick={() => setIsBrainBattleActive(false)}
+                         className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
+                      >
+                        Return to Hub
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Story Upload Modal */}
       <AnimatePresence>
         {isStoryModalOpen && (
@@ -10976,6 +11234,39 @@ function ExonaApp() {
       </div>
     );
   }
+
+const BRAIN_BATTLE_QUESTIONS = [
+  {
+    question: "What is the capital city of Nigeria?",
+    options: ["Lagos", "Abuja", "Kano", "Ibadan"],
+    answer: "Abuja",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Which of these is a pillar of Islam?",
+    options: ["Singing", "Fasting in Ramadan", "Swimming", "Dancing"],
+    answer: "Fasting in Ramadan",
+    category: "Islamic Questions"
+  },
+  {
+    question: "What is 15 + 27?",
+    options: ["32", "42", "52", "37"],
+    answer: "42",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "Who was the first President of Nigeria?",
+    options: ["Nnamdi Azikiwe", "Obafemi Awolowo", "Tafawa Balewa", "Shehu Shagari"],
+    answer: "Nnamdi Azikiwe",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "How many months have 28 days?",
+    options: ["1", "6", "12", "0"],
+    answer: "12",
+    category: "Logic & Riddles"
+  }
+];
 
 export default function App() {
   return (

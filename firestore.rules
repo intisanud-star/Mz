@@ -363,6 +363,11 @@ service cloud.firestore {
       allow create: if isValidCloudFile(request.resource.data);
     }
 
+    match /brainBattleLeads/{leadId} {
+      allow create: if true; // Allowed for guests
+      allow read, update, delete: if isAdmin();
+    }
+
     match /calls/{callId} {
       allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('participants', []));
       allow create: if isValidCall(request.resource.data);

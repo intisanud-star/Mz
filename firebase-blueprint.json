@@ -256,6 +256,24 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "creatorUid", "members", "timestamp"]
+    },
+    "BrainBattleParticipation": {
+      "title": "BrainBattleParticipation",
+      "description": "Game lead and quiz participation data",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "category": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "uid": { "type": "string", "description": "Optional user UID if logged in" }
+      },
+      "required": ["name", "email", "phone", "address", "score", "timestamp"]
     }
   },
   "firestore": {
@@ -274,6 +292,7 @@
     "/settlements/{settlementId}": { "schema": "Settlement", "description": "Financial settlement requests" },
     "/cloudFiles/{fileId}": { "schema": "CloudFile", "description": "User uploaded files" },
     "/chatGroups/{groupId}": { "schema": "ChatGroup", "description": "Group chat definitions" },
-    "/calls/{callId}": { "schema": "Call", "description": "Voice call signaling documents" }
+    "/calls/{callId}": { "schema": "Call", "description": "Voice call signaling documents" },
+    "/brainBattleLeads/{leadId}": { "schema": "BrainBattleParticipation", "description": "Game leads and results" }
   }
 }
