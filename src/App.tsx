@@ -205,8 +205,18 @@ const BrainBattleModal = ({
   questions, 
   user, 
   onNotify, 
-  onJoin 
+  onJoin,
+  timeLeft,
+  setTimeLeft,
+  timerActive,
+  setTimerActive
 }: any) => {
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <AnimatePresence>
       {isActive && (
@@ -222,7 +232,7 @@ const BrainBattleModal = ({
             <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full -ml-32 -mb-32 blur-3xl animate-pulse" />
 
-            <div className="flex items-center justify-between mb-8 relative z-10">
+            <div className="flex items-center justify-between mb-6 relative z-10">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 bg-ink text-yellow-400 rounded-2xl flex items-center justify-center shadow-lg">
                   <Trophy size={24} />
@@ -232,14 +242,25 @@ const BrainBattleModal = ({
                   <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Exonapp Presents</p>
                 </div>
               </div>
-              {step !== 'playing' && (
-                <button 
-                  onClick={() => setIsActive(false)} 
-                  className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
-                >
-                  <X size={18} />
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {step === 'playing' && (
+                  <div className={`px-4 py-2 rounded-xl flex flex-col items-center border ${timeLeft < 30 ? 'bg-red-50 border-red-100 text-red-600' : 'bg-gray-50 border-gray-100 text-ink'}`}>
+                    <span className="text-[8px] font-black uppercase tracking-widest leading-none mb-1">Time Left</span>
+                    <span className="text-sm font-black font-mono leading-none">{formatTime(timeLeft)}</span>
+                  </div>
+                )}
+                {step !== 'playing' && (
+                  <button 
+                    onClick={() => {
+                      setIsActive(false);
+                      setTimerActive(false);
+                    }} 
+                    className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="relative z-10 flex-1 overflow-y-auto no-scrollbar">
@@ -308,6 +329,8 @@ const BrainBattleModal = ({
                       setScore(0);
                       setCurrentIndex(0);
                       setAnswered([]);
+                      setTimeLeft(300); // 5 minutes Reset
+                      setTimerActive(true);
                     }}
                     className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all active:scale-[0.98] mt-4"
                   >
@@ -358,6 +381,7 @@ const BrainBattleModal = ({
                               setCurrentIndex((prev: number) => prev + 1);
                             } else {
                               // Final Result
+                              setTimerActive(false);
                               setStep('result');
                               // Save lead
                               try {
@@ -366,7 +390,8 @@ const BrainBattleModal = ({
                                   score: score + (isCorrect ? 10 : 0),
                                   totalQuestions: questions.length,
                                   timestamp: serverTimestamp(),
-                                  uid: user?.uid || null
+                                  uid: user?.uid || null,
+                                  finishedOnTime: true
                                 });
                               } catch (e) {
                                 console.error("Failed to save battle result", e);
@@ -403,7 +428,10 @@ const BrainBattleModal = ({
                   </motion.div>
                   
                   <h4 className="text-4xl font-black text-ink mb-2">Battle Concluded!</h4>
-                  <p className="text-muted font-medium mb-10 tracking-[0.05em] uppercase text-xs">Horizon Records Updated</p>
+                  <div className="bg-ink/5 border border-ink/10 rounded-2xl px-6 py-4 mb-8 inline-block">
+                    <p className="text-ink font-black text-xs uppercase tracking-[0.2em] mb-1">Status Update</p>
+                    <p className="text-muted font-bold text-xs">Please wait for the overall weekly results list.</p>
+                  </div>
 
                   <div className="bg-gray-50 rounded-[2.5rem] p-10 border border-gray-100 mb-10">
                     <div className="grid grid-cols-2 gap-8">
@@ -1367,6 +1395,40 @@ function ExonaApp() {
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
   const [currentBattleQuestions, setCurrentBattleQuestions] = useState<any[]>(BRAIN_BATTLE_QUESTIONS);
   const [isWalletSelectorOpen, setIsWalletSelectorOpen] = useState(false);
+  const [battleTimeLeft, setBattleTimeLeft] = useState(300); // 5 minutes
+  const [isTimerActive, setIsTimerActive] = useState(false);
+
+  // Brain Battle Timer logic
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isTimerActive && battleTimeLeft > 0 && battleStep === 'playing') {
+      interval = setInterval(() => {
+        setBattleTimeLeft(prev => prev - 1);
+      }, 1000);
+    } else if (battleTimeLeft === 0 && isTimerActive && battleStep === 'playing') {
+      setIsTimerActive(false);
+      setBattleStep('result');
+      
+      // Save partial result automatically
+      const savePartialResult = async () => {
+        try {
+          await addDoc(collection(db, 'brainBattleLeads'), {
+            ...guestInfo,
+            score: battleScore,
+            totalQuestions: currentBattleQuestions.length,
+            timestamp: serverTimestamp(),
+            uid: user?.uid || null,
+            finishedOnTime: false,
+            timedOut: true
+          });
+        } catch (e) {
+          console.error("Failed to save partial battle result", e);
+        }
+      };
+      savePartialResult();
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, battleTimeLeft, battleStep, guestInfo, battleScore, currentBattleQuestions, user]);
 
   const renderBrainBattle = () => (
     <BrainBattleModal 
@@ -1386,6 +1448,10 @@ function ExonaApp() {
       user={user}
       onNotify={showNotification}
       onJoin={() => setAuthMode('signup')}
+      timeLeft={battleTimeLeft}
+      setTimeLeft={setBattleTimeLeft}
+      timerActive={isTimerActive}
+      setTimerActive={setIsTimerActive}
     />
   );
 
