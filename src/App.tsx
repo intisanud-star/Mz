@@ -83,6 +83,24 @@ const BRAIN_BATTLE_QUESTIONS = [
     answer: "8",
     category: "General Knowledge"
   },
+  {
+    question: "What is the capital city of France?",
+    options: ["Marseille", "Lyon", "Paris", "Nice"],
+    answer: "Paris",
+    category: "General Knowledge"
+  },
+  {
+    question: "Who painted the Mona Lisa?",
+    options: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"],
+    answer: "Leonardo da Vinci",
+    category: "General Knowledge"
+  },
+  {
+    question: "What is the largest ocean on Earth?",
+    options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+    answer: "Pacific Ocean",
+    category: "General Knowledge"
+  },
 
   // School Questions
   {
@@ -107,6 +125,24 @@ const BRAIN_BATTLE_QUESTIONS = [
     question: "What is the boiling point of pure water at sea level?",
     options: ["90°C", "100°C", "110°C", "120°C"],
     answer: "100°C",
+    category: "School Questions"
+  },
+  {
+    question: "How many continents are there on Earth?",
+    options: ["5", "6", "7", "8"],
+    answer: "7",
+    category: "School Questions"
+  },
+  {
+    question: "What is the closest star to Earth?",
+    options: ["Mars", "The Sun", "Proxima Centauri", "Venus"],
+    answer: "The Sun",
+    category: "School Questions"
+  },
+  {
+    question: "Which planet is known as the Red Planet?",
+    options: ["Jupiter", "Venus", "Mars", "Saturn"],
+    answer: "Mars",
     category: "School Questions"
   },
 
@@ -135,6 +171,24 @@ const BRAIN_BATTLE_QUESTIONS = [
     answer: "Nnamdi Azikiwe",
     category: "Nigeria Trivia"
   },
+  {
+    question: "What is the official language of Nigeria?",
+    options: ["Hausa", "Igbo", "Yoruba", "English"],
+    answer: "English",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Which river is the longest in Nigeria?",
+    options: ["River Benue", "River Niger", "River Ogun", "River Kaduna"],
+    answer: "River Niger",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Who is on the Nigerian 200 Naira note?",
+    options: ["Ahmadu Bello", "Nnamdi Azikiwe", "Obafemi Awolowo", "Herbert Macaulay"],
+    answer: "Ahmadu Bello",
+    category: "Nigeria Trivia"
+  },
 
   // Islamic Questions
   {
@@ -161,7 +215,44 @@ const BRAIN_BATTLE_QUESTIONS = [
     answer: "Ramadan",
     category: "Islamic Questions"
   },
+  {
+    question: "Who was the first person to embrace Islam after the Prophet (SAW)?",
+    options: ["Abu Bakr", "Umar", "Ali", "Khadijah"],
+    answer: "Khadijah",
+    category: "Islamic Questions"
+  },
+  {
+    question: "How many chapters (Surahs) are in the Holy Quran?",
+    options: ["110", "112", "114", "116"],
+    answer: "114",
+    category: "Islamic Questions"
+  },
+  {
+    question: "Which Surah is known as the 'Heart of the Quran'?",
+    options: ["Surah Fatiha", "Surah Yaseen", "Surah Rahman", "Surah Ikhlas"],
+    answer: "Surah Yaseen",
+    category: "Islamic Questions"
+  },
 
+  // Science & Tech
+  {
+    question: "What is the main gas found in the Earth's atmosphere?",
+    options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"],
+    answer: "Nitrogen",
+    category: "Science & Tech"
+  },
+  {
+    question: "Which company developed the iPhone?",
+    options: ["Samsung", "Google", "Microsoft", "Apple"],
+    answer: "Apple",
+    category: "Science & Tech"
+  },
+  {
+    question: "What does 'WWW' stand for?",
+    options: ["Word Wide Web", "World Wide Web", "Wide World Web", "World Web Wide"],
+    answer: "World Wide Web",
+    category: "Science & Tech"
+  },
   // Logic & Riddles
   {
     question: "What gets wetter and wetter the more it dries?",
@@ -9271,7 +9362,7 @@ function ExonaApp() {
                         setBattleStep('leaderboard');
                         return;
                       }
-                      const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5);
+                      const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
                       setCurrentBattleQuestions(shuffled);
                       setIsBrainBattleActive(true);
                       setBattleStep('entry');
@@ -9898,7 +9989,7 @@ function ExonaApp() {
                   setBattleStep('leaderboard');
                   return;
                 }
-                const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5);
+                const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
                 setCurrentBattleQuestions(shuffled);
                 setIsBrainBattleActive(true);
                 setBattleStep('entry');

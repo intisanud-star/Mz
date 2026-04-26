@@ -364,8 +364,8 @@ service cloud.firestore {
     }
 
     match /brainBattleLeads/{leadId} {
-      allow create: if true; // Allowed for guests
-      allow read, update, delete: if isAdmin();
+      allow create, read, list: if true; // Allowed for guests to participate and see results
+      allow update, delete: if isAdmin();
     }
 
     match /calls/{callId} {
