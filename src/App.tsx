@@ -11236,34 +11236,133 @@ function ExonaApp() {
   }
 
 const BRAIN_BATTLE_QUESTIONS = [
+  // General Knowledge
   {
-    question: "What is the capital city of Nigeria?",
-    options: ["Lagos", "Abuja", "Kano", "Ibadan"],
-    answer: "Abuja",
+    question: "Which is the largest continent in the world by land area?",
+    options: ["Africa", "Asia", "North America", "Europe"],
+    answer: "Asia",
+    category: "General Knowledge"
+  },
+  {
+    question: "What is the hardest natural substance known to man?",
+    options: ["Gold", "Iron", "Diamond", "Quartz"],
+    answer: "Diamond",
+    category: "General Knowledge"
+  },
+  {
+    question: "Who is the author of the famous novel 'Things Fall Apart'?",
+    options: ["Wole Soyinka", "Chinua Achebe", "Chimamanda Adichie", "Femi Osofisan"],
+    answer: "Chinua Achebe",
+    category: "General Knowledge"
+  },
+  {
+    question: "How many planets are currently in our Solar System?",
+    options: ["7", "8", "9", "10"],
+    answer: "8",
+    category: "General Knowledge"
+  },
+
+  // School Questions
+  {
+    question: "What is the result of 12 multiplied by 12?",
+    options: ["124", "144", "164", "142"],
+    answer: "144",
+    category: "School Questions"
+  },
+  {
+    question: "Which organ in the human body is responsible for pumping blood?",
+    options: ["Lungs", "Brain", "Liver", "Heart"],
+    answer: "Heart",
+    category: "School Questions"
+  },
+  {
+    question: "What is the chemical symbol for Gold?",
+    options: ["Ag", "Fe", "Au", "Pb"],
+    answer: "Au",
+    category: "School Questions"
+  },
+  {
+    question: "What is the boiling point of pure water at sea level?",
+    options: ["90°C", "100°C", "110°C", "120°C"],
+    answer: "100°C",
+    category: "School Questions"
+  },
+
+  // Nigeria Trivia
+  {
+    question: "In what year did Nigeria become an independent nation?",
+    options: ["1950", "1960", "1963", "1970"],
+    answer: "1960",
     category: "Nigeria Trivia"
   },
   {
-    question: "Which of these is a pillar of Islam?",
-    options: ["Singing", "Fasting in Ramadan", "Swimming", "Dancing"],
-    answer: "Fasting in Ramadan",
-    category: "Islamic Questions"
+    question: "Which Nigerian city is famously known as the 'Center of Excellence'?",
+    options: ["Abuja", "Kano", "Lagos", "Port Harcourt"],
+    answer: "Lagos",
+    category: "Nigeria Trivia"
   },
   {
-    question: "What is 15 + 27?",
-    options: ["32", "42", "52", "37"],
-    answer: "42",
-    category: "Logic & Riddles"
+    question: "What are the primary colors on the Nigerian national flag?",
+    options: ["Green and Blue", "Green and White", "Green and Yellow", "Red and White"],
+    answer: "Green and White",
+    category: "Nigeria Trivia"
   },
   {
-    question: "Who was the first President of Nigeria?",
-    options: ["Nnamdi Azikiwe", "Obafemi Awolowo", "Tafawa Balewa", "Shehu Shagari"],
+    question: "Who was the first ceremonial President of Nigeria?",
+    options: ["Tafawa Balewa", "Obafemi Awolowo", "Nnamdi Azikiwe", "Murtala Muhammed"],
     answer: "Nnamdi Azikiwe",
     category: "Nigeria Trivia"
   },
+
+  // Islamic Questions
   {
-    question: "How many months have 28 days?",
+    question: "How many daily obligatory prayers (Salat) are performed by Muslims?",
+    options: ["3", "4", "5", "6"],
+    answer: "5",
+    category: "Islamic Questions"
+  },
+  {
+    question: "What is the name of the holy book revealed to Prophet Muhammad (SAW)?",
+    options: ["Torah", "Injeel", "Zabur", "Quran"],
+    answer: "Quran",
+    category: "Islamic Questions"
+  },
+  {
+    question: "In which city was the Prophet Muhammad (SAW) born?",
+    options: ["Medina", "Jerusalem", "Mecca", "Riyadh"],
+    answer: "Mecca",
+    category: "Islamic Questions"
+  },
+  {
+    question: "What is the name of the month in which Muslims fast from dawn to sunset?",
+    options: ["Muharram", "Ramadan", "Shawwal", "Dhul-Hijjah"],
+    answer: "Ramadan",
+    category: "Islamic Questions"
+  },
+
+  // Logic & Riddles
+  {
+    question: "What gets wetter and wetter the more it dries?",
+    options: ["Water", "A Towel", "Clouds", "Rain"],
+    answer: "A Towel",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "I have keys but no locks. I have a space but no room. What am I?",
+    options: ["A House", "A Keyboard", "A Car", "A Map"],
+    answer: "A Keyboard",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "How many months in the year have 28 days?",
     options: ["1", "6", "12", "0"],
     answer: "12",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "I have one eye but cannot see. What am I?",
+    options: ["A Cyclops", "A Needle", "A Potato", "A Storm"],
+    answer: "A Needle",
     category: "Logic & Riddles"
   }
 ];
