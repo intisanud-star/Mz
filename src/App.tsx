@@ -212,9 +212,11 @@ const BrainBattleModal = ({
   setTimerActive,
   leaderboard,
   onFetchLeaderboard,
-  onShareResult
+  onShareResult,
+  onCheckParticipation
 }: any) => {
   const resultRef = useRef<HTMLDivElement>(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -392,11 +394,22 @@ const BrainBattleModal = ({
                   </div>
 
                   <button 
-                    onClick={() => {
+                    disabled={isChecking}
+                    onClick={async () => {
                       if (!guestInfo.name || !guestInfo.email || !guestInfo.phone || !guestInfo.address) {
                         onNotify('Please fill all fields', 'error');
                         return;
                       }
+                      
+                      setIsChecking(true);
+                      const alreadyPlayed = await onCheckParticipation(guestInfo.email);
+                      setIsChecking(false);
+
+                      if (alreadyPlayed) {
+                        onNotify('This email has already participated this week. Please wait for next Sunday!', 'error');
+                        return;
+                      }
+
                       setStep('playing');
                       setScore(0);
                       setCurrentIndex(0);
@@ -404,9 +417,9 @@ const BrainBattleModal = ({
                       setTimeLeft(300); // 5 minutes Reset
                       setTimerActive(true);
                     }}
-                    className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all active:scale-[0.98] mt-4"
+                    className={`w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl transition-all active:scale-[0.98] mt-4 ${isChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    Authenticate & Play
+                    {isChecking ? 'Checking Eligibility...' : 'Authenticate & Play'}
                   </button>
                 </div>
               )}
@@ -1532,6 +1545,28 @@ function ExonaApp() {
     }
   };
 
+  const checkParticipation = async (email: string) => {
+    try {
+      const now = new Date();
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - now.getDay());
+      lastSunday.setHours(0, 0, 0, 0);
+
+      const q = query(
+        collection(db, 'brainBattleLeads'),
+        where('email', '==', email),
+        where('timestamp', '>=', lastSunday),
+        limit(1)
+      );
+      
+      const snapshot = await getDocs(q);
+      return !snapshot.empty;
+    } catch (e) {
+      console.error("Error checking participation:", e);
+      return false;
+    }
+  };
+
   const handleShareBattleResult = async (score: number) => {
     if (!user) return;
     try {
@@ -1608,6 +1643,7 @@ function ExonaApp() {
       leaderboard={leaderboard}
       onFetchLeaderboard={fetchLeaderboard}
       onShareResult={handleShareBattleResult}
+      onCheckParticipation={checkParticipation}
     />
   );
 
