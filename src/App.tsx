@@ -1959,7 +1959,10 @@ function ExonaApp() {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
   // --- E-EXAMINATION JAMB REPLICA STATES ---
+  const EXAM_AVAILABLE_SUBJECTS = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Government', 'Literature in English'];
   const [isExamStarted, setIsExamStarted] = useState(false);
+  const [isConfiguringExam, setIsConfiguringExam] = useState(false);
+  const [examSelectedSubjects, setExamSelectedSubjects] = useState<string[]>(['Use of English']);
   const [examCurrentSubject, setExamCurrentSubject] = useState('Use of English');
   const [examCurrentQuestionIndex, setExamCurrentQuestionIndex] = useState(0);
   const [examAnswers, setExamAnswers] = useState<{[subject: string]: {[index: number]: string}}>({});
@@ -1974,7 +1977,9 @@ function ExonaApp() {
 
   const examQuestionsStore = useMemo(() => {
     const subjects: {[key: string]: any[]} = {};
-    ['Use of English', 'Mathematics', 'Physics', 'Chemistry'].forEach(subject => {
+    const ALL_AVAILABLE = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Government', 'Literature in English'];
+    
+    ALL_AVAILABLE.forEach(subject => {
       const count = subject === 'Use of English' ? 60 : 40;
       subjects[subject] = Array.from({ length: count }, (_, i) => ({
         id: `${subject}-${i}`,
@@ -2009,10 +2014,9 @@ function ExonaApp() {
       setExamCurrentQuestionIndex(prev => prev + 1);
     } else {
       // Switch to next subject if available
-      const subjects = Object.keys(examQuestionsStore);
-      const currentSubIdx = subjects.indexOf(examCurrentSubject);
-      if (currentSubIdx < subjects.length - 1) {
-        setExamCurrentSubject(subjects[currentSubIdx + 1]);
+      const currentSubIdx = examSelectedSubjects.indexOf(examCurrentSubject);
+      if (currentSubIdx < examSelectedSubjects.length - 1) {
+        setExamCurrentSubject(examSelectedSubjects[currentSubIdx + 1]);
         setExamCurrentQuestionIndex(0);
       }
     }
@@ -2023,10 +2027,9 @@ function ExonaApp() {
       setExamCurrentQuestionIndex(prev => prev - 1);
     } else {
       // Switch to previous subject if available
-      const subjects = Object.keys(examQuestionsStore);
-      const currentSubIdx = subjects.indexOf(examCurrentSubject);
+      const currentSubIdx = examSelectedSubjects.indexOf(examCurrentSubject);
       if (currentSubIdx > 0) {
-        const prevSubject = subjects[currentSubIdx - 1];
+        const prevSubject = examSelectedSubjects[currentSubIdx - 1];
         setExamCurrentSubject(prevSubject);
         setExamCurrentQuestionIndex(examQuestionsStore[prevSubject].length - 1);
       }
@@ -2037,7 +2040,7 @@ function ExonaApp() {
     let totalScore = 0;
     let subjectScores: {[key: string]: number} = {};
     
-    Object.keys(examQuestionsStore).forEach(subject => {
+    examSelectedSubjects.forEach(subject => {
       let subjectCorrect = 0;
       const questions = examQuestionsStore[subject];
       const answers = examAnswers[subject] || {};
@@ -8925,10 +8928,10 @@ function ExonaApp() {
                   {/* TOP NAVIGATION: SUBJECTS (Minimal) */}
                   <div className="bg-[#f0f2f5] border-b border-gray-200 px-6 flex items-center justify-between">
                     <div className="flex items-end gap-1 pt-2">
-                      {subjects.map((sub) => {
+                      {examSelectedSubjects.map((sub) => {
                         const isActive = examCurrentSubject === sub;
                         const answers = Object.keys(examAnswers[sub] || {}).length;
-                        const total = examQuestionsStore[sub].length;
+                        const total = examQuestionsStore[sub]?.length || 0;
                         return (
                           <button
                             key={sub}
@@ -9166,39 +9169,117 @@ function ExonaApp() {
                 </button>
               }
             >
-              <div className="max-w-5xl">
+              <div className="max-w-5xl mx-auto">
                 <div className="p-12 bg-white border border-gray-100 rounded-[4rem] mb-12 shadow-sm relative overflow-hidden">
                    <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                       <FileBarChart size={240} />
                    </div>
                    
-                   <div className="relative z-10 max-w-2xl">
-                     <div className="h-16 w-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-8">
-                       <Shield size={32} />
+                   {!isConfiguringExam ? (
+                     <div className="relative z-10 max-w-xl">
+                       <div className="h-16 w-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-8">
+                         <Calculator size={32} />
+                       </div>
+                       <h3 className="text-4xl font-black text-ink mb-4 leading-tight">E-Examination Portal</h3>
+                       <p className="text-muted font-bold text-lg mb-10 leading-relaxed">
+                         Welcome to the JAMB Replica Mock Exam system. Practice with over 20,000 past questions in a timed environment.
+                       </p>
+                       <div className="flex flex-wrap gap-4">
+                          <button 
+                            onClick={() => setIsConfiguringExam(true)}
+                            className="px-12 py-5 bg-ink text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
+                          >
+                            <Gamepad2 size={20} /> Start New Exam
+                          </button>
+                          <button className="px-10 py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
+                            View Guide
+                          </button>
+                       </div>
                      </div>
-                     <h3 className="text-4xl font-black text-ink mb-4 leading-tight">Secure Examination Environment</h3>
-                     <p className="text-muted font-bold text-lg mb-10 leading-relaxed">
-                       Our examination module provides AI-driven proctoring, secure browser lockdown, and multi-factor authentication for official school boards.
-                     </p>
-                     
-                     <div className="flex flex-wrap gap-4">
-                        <button 
-                          onClick={() => {
-                            setIsExamStarted(true);
-                            setExamTimeRemaining(7200);
-                            setExamAnswers({});
-                            setExamCurrentSubject('Use of English');
-                            setExamCurrentQuestionIndex(0);
-                          }}
-                          className="px-10 py-5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-rose-200 hover:scale-105 transition-transform"
-                        >
-                          Start Mock Exam Session
-                        </button>
-                        <button className="px-10 py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
-                          Review Results
-                        </button>
+                   ) : (
+                     <div className="relative z-10 max-w-3xl">
+                       <div className="flex items-center gap-4 mb-8">
+                         <button 
+                           onClick={() => setIsConfiguringExam(false)}
+                           className="h-10 w-10 flex items-center justify-center bg-gray-100 rounded-xl text-ink hover:bg-gray-200 transition-all"
+                         >
+                           <ArrowLeft size={16} />
+                         </button>
+                         <div>
+                            <h3 className="text-3xl font-black text-ink leading-tight">Configure Your Exam</h3>
+                            <p className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">Subject Selection</p>
+                         </div>
+                       </div>
+
+                       <p className="text-muted font-bold text-base mb-8 leading-relaxed">
+                         Select <b>4 subjects</b> including <b>Use of English</b> (Mandatory) to proceed to the examination hall.
+                       </p>
+
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+                          {EXAM_AVAILABLE_SUBJECTS.map((sub) => {
+                            const isMandatory = sub === 'Use of English';
+                            const isSelected = examSelectedSubjects.includes(sub);
+                            return (
+                              <button
+                                key={sub}
+                                disabled={isMandatory}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setExamSelectedSubjects(examSelectedSubjects.filter(s => s !== sub));
+                                  } else if (examSelectedSubjects.length < 4) {
+                                    setExamSelectedSubjects([...examSelectedSubjects, sub]);
+                                  }
+                                }}
+                                className={`p-5 rounded-3xl border-2 text-left transition-all relative ${
+                                  isSelected 
+                                    ? 'bg-rose-50 border-rose-600 shadow-lg shadow-rose-100 scale-[1.02]' 
+                                    : 'bg-gray-50 border-transparent hover:border-gray-200'
+                                } ${isMandatory ? 'opacity-80 cursor-not-allowed' : ''}`}
+                              >
+                                 <div className="flex flex-col gap-2">
+                                    {isSelected && <CheckCircle2 size={14} className="text-rose-600" />}
+                                    <span className={`text-[12px] font-black leading-tight ${isSelected ? 'text-ink' : 'text-muted'}`}>
+                                      {sub}
+                                    </span>
+                                 </div>
+                                 {isMandatory && <span className="absolute bottom-3 right-4 text-[6px] font-black uppercase text-rose-400">Fixed</span>}
+                              </button>
+                            );
+                          })}
+                       </div>
+                       
+                       <div className="flex flex-wrap items-center gap-6">
+                          <button 
+                            disabled={examSelectedSubjects.length !== 4}
+                            onClick={() => {
+                              setIsConfiguringExam(false);
+                              setIsExamStarted(true);
+                              setExamTimeRemaining(7200);
+                              setExamAnswers({});
+                              setExamCurrentSubject('Use of English');
+                              setExamCurrentQuestionIndex(0);
+                            }}
+                            className={`px-12 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl transition-all ${
+                              examSelectedSubjects.length === 4
+                                ? 'bg-rose-600 text-white shadow-rose-200 hover:scale-105 active:scale-95'
+                                : 'bg-gray-200 text-muted cursor-not-allowed'
+                            }`}
+                          >
+                            {examSelectedSubjects.length === 4 ? `Proceed to Examination` : `Select More Subjects`}
+                          </button>
+                          <div className="flex items-center gap-2">
+                             <div className="flex -space-x-2">
+                                {examSelectedSubjects.map((s, i) => (
+                                  <div key={i} className="h-8 w-8 rounded-full bg-white border-2 border-gray-100 flex items-center justify-center text-[8px] font-black text-rose-600 shadow-sm uppercase">
+                                    {s.substring(0, 1)}
+                                  </div>
+                                ))}
+                             </div>
+                             <span className="text-[10px] font-black text-muted uppercase tracking-widest ml-2">[{examSelectedSubjects.length}/4]</span>
+                          </div>
+                       </div>
                      </div>
-                   </div>
+                   )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
