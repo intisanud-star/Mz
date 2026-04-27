@@ -28,6 +28,7 @@ import {
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
+import { PDFDocument } from 'pdf-lib';
 import { 
   auth, 
   googleProvider, 
@@ -1849,7 +1850,7 @@ function ExonaApp() {
       return;
     }
 
-    const isAdmin = userDoc?.role === 'admin';
+    const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
     if (isAdmin) {
       setActiveWorkspaceTool(toolId);
       return;
@@ -1927,6 +1928,9 @@ function ExonaApp() {
   };
 
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
+  const [activePdfTool, setActivePdfTool] = useState<string | null>(null);
+  const [uploadedPdfFiles, setUploadedPdfFiles] = useState<File[]>([]);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
   const [viewingFile, setViewingFile] = useState<any | null>(null);
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
@@ -2031,7 +2035,9 @@ function ExonaApp() {
       { w: 'tenacious', s: 'persistent', a: 'weak' }, { w: 'prudent', s: 'wise', a: 'rash' },
       { w: 'audacious', s: 'bold', a: 'timid' }, { w: 'gregarious', s: 'sociable', a: 'introverted' },
       { w: 'frugal', s: 'thrifty', a: 'extravagant' }, { w: 'eloquent', s: 'fluent', a: 'inarticulate' },
-      { w: 'meticulous', s: 'careful', a: 'negligent' }, { w: 'nefarious', s: 'wicked', a: 'noble' }
+      { w: 'meticulous', s: 'careful', a: 'negligent' }, { w: 'nefarious', s: 'wicked', a: 'noble' },
+      { w: 'ephemeral', s: 'short-lived', a: 'eternal' }, { w: 'resilient', s: 'tough', a: 'fragile' },
+      { w: 'ubiquitous', s: 'pervasive', a: 'rare' }, { w: 'pragmatic', s: 'practical', a: 'idealistic' }
     ];
 
     const grammarStems = [
@@ -2039,13 +2045,19 @@ function ExonaApp() {
       { q: "Neither of the two candidates _______ qualified for the office.", c: "is", w: ["are", "was", "were"] },
       { q: "One of the most interesting books _______ been lost.", c: "has", w: ["have", "is", "had"] },
       { q: "The news of the accident _______ very shocking.", c: "was", w: ["were", "are", "been"] },
-      { q: "If I _______ you, I would take the offer.", c: "were", w: ["was", "am", "be"] }
+      { q: "If I _______ you, I would take the offer.", c: "were", w: ["was", "am", "be"] },
+      { q: "She had barely finished her work _______ the bell rang.", c: "when", w: ["than", "then", "while"] },
+      { q: "The teacher as well as the students _______ present.", c: "was", w: ["were", "are", "have"] }
     ];
 
     const bioPool = {
       'Genetics': [
         { q: "The phenotypic ratio of a Mendelian monohybrid cross in F2 is _______", c: "3:1", w: ["1:2:1", "9:3:3:1", "1:1"] },
-        { q: "Which of the following is an example of continuous variation?", c: "Height", w: ["Blood group", "Tongue rolling", "Sex"] }
+        { q: "Which of the following is an example of continuous variation?", c: "Height", w: ["Blood group", "Tongue rolling", "Sex"] },
+        { q: "A cross between a red flower and a white flower resulting in pink flowers is an example of _______", c: "Incomplete dominance", w: ["Co-dominance", "Recessive epistasis", "Complete dominance"] },
+        { q: "The sex of a human offspring is determined by the _______", c: "Male gamete", w: ["Female gamete", "Environmental temperature", "Age of the parents"] },
+        { q: "Which of the following is a sex-linked character?", c: "Haemophilia", w: ["Albinism", "Sickle cell anaemia", "Night blindness"] },
+        { q: "The condition where an individual has three copies of chromosome 21 is known as _______", c: "Down syndrome", w: ["Turner syndrome", "Klinefelter syndrome", "Edward syndrome"] }
       ],
       'Cell Biology': [
         { q: "Which organelle is primarily responsible for ATP production?", c: "Mitochondrion", w: ["Nucleus", "Ribosome", "Golgi body"] },
@@ -2067,13 +2079,20 @@ function ExonaApp() {
             if (topic === 'Synonyms and Antonyms') {
               const entry = englishVocab[i % englishVocab.length];
               const isSyn = varietyKey % 2 === 0;
+              const templates = [
+                `Choose the option NEAREST in meaning to the underlined word: Her {w} nature won her many friends.`,
+                `Choose the option NEAREST in meaning to the underlined word: The speaker was {w} throughout the event.`,
+                `Choose the option OPPOSITE in meaning to the underlined word: His {w} attitude was quite surprising.`,
+                `Choose the option OPPOSITE in meaning to the underlined word: It was a {w} moment for the team.`
+              ];
+              const tpl = templates[i % templates.length];
+              const activeIsSyn = tpl.includes('NEAREST');
+
               qData = {
-                q: isSyn 
-                  ? `Choose the option NEAREST in meaning to the underlined word: Her ${entry.w} nature won her many friends.`
-                  : `Choose the option most nearly OPPOSITE in meaning to the underlined word: He was praised for being ${entry.w}.`,
-                c: isSyn ? entry.s : entry.a,
-                w: [isSyn ? entry.a : entry.s, 'Vague', 'Irrelevant'],
-                exp: isSyn ? `${entry.s} is a synonym.` : `${entry.a} is an antonym.`
+                q: tpl.replace('{w}', entry.w),
+                c: activeIsSyn ? entry.s : entry.a,
+                w: [activeIsSyn ? entry.a : entry.s, 'Vague', 'Irrelevant'],
+                exp: activeIsSyn ? `${entry.s} is a synonym.` : `${entry.a} is an antonym.`
               };
             } else {
               const stem = grammarStems[i % grammarStems.length];
@@ -2081,7 +2100,7 @@ function ExonaApp() {
                 q: stem.q.replace('_______', `(${i+1})`),
                 c: stem.c,
                 w: stem.w,
-                exp: "This evaluates subject-verb agreement (Concord) rules."
+                exp: "This evaluates subject-verb agreement (Concord) and grammatical structure rules."
               };
             }
           } else if (subject === 'Biology') {
@@ -2124,7 +2143,7 @@ function ExonaApp() {
           }
 
           // Randomize option placement A-D
-          const placement = (i * 7 + varietyKey) % 4;
+          const placement = (i * 3 + varietyKey) % 4;
           const opts = ["", "", "", ""];
           opts[placement] = qData.c;
           let wIdx = 0;
@@ -3014,7 +3033,7 @@ function ExonaApp() {
       const msgTime = (msg.timestamp?.seconds || Date.now() / 1000);
       if (!existing || msgTime > (existing.lastMessage.timestamp?.seconds || 0)) {
         const isGroup = msg.isGroup || false;
-        const otherUid = isGroup ? msg.receiverUid : (msg.participants.find(p => p !== user.uid) || user.uid);
+        const otherUid = isGroup ? msg.chatId : (msg.participants.find(p => p !== user.uid) || user.uid);
         chatsMap[msg.chatId] = { lastMessage: msg, otherUid, isGroup };
       }
     });
@@ -3163,8 +3182,12 @@ function ExonaApp() {
 
   const handleCreateNotification = async (targetUid: string, notification: Omit<Notification, 'id' | 'timestamp' | 'isRead'>) => {
     try {
+      const sanitizedNotification = Object.fromEntries(
+        Object.entries(notification).filter(([_, v]) => v !== undefined)
+      );
+
       await addDoc(collection(db, `users/${targetUid}/notifications`), {
-        ...notification,
+        ...sanitizedNotification,
         timestamp: serverTimestamp(),
         isRead: false
       });
@@ -4044,6 +4067,43 @@ function ExonaApp() {
     }
   };
 
+  const handleMergePdfs = async () => {
+    if (uploadedPdfFiles.length < 2) {
+      showNotification('Please upload at least 2 PDF files to merge', 'error');
+      return;
+    }
+
+    setIsProcessingPdf(true);
+    try {
+      const mergedPdf = await PDFDocument.create();
+      
+      for (const file of uploadedPdfFiles) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await PDFDocument.load(arrayBuffer);
+        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
+      }
+
+      const mergedPdfBytes = await mergedPdf.save();
+      const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `merged_${Date.now()}.pdf`;
+      link.click();
+      
+      showNotification('PDFs merged successfully', 'success');
+      setUploadedPdfFiles([]);
+      setActivePdfTool(null);
+    } catch (error) {
+      console.error('Merge PDF Error:', error);
+      showNotification('Failed to merge PDFs', 'error');
+    } finally {
+      setIsProcessingPdf(false);
+    }
+  };
+
   const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string) => {
     if (!user) return;
     const chatId = isGroup ? receiverUid : [user.uid, receiverUid].sort().join('_');
@@ -4058,7 +4118,7 @@ function ExonaApp() {
         chatId,
         status: 'sent',
         isGroup,
-        mediaUrl,
+        mediaUrl: mediaUrl || null,
         mediaType: mediaUrl ? 'voice' : null
       });
       
@@ -5654,52 +5714,56 @@ function ExonaApp() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <button 
-                            onClick={async () => {
-                              try {
-                                const secretKey = Math.random().toString(36).substring(2, 10).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
-                                const batch = writeBatch(db);
-                                
-                                // Update request
-                                batch.update(doc(db, 'keyRequests', request.id), {
-                                  status: 'approved',
-                                  approvedAt: serverTimestamp(),
-                                  secretKey
-                                });
-                                
-                                // Update institution in both possible collections
-                                const schoolDoc = await getDoc(doc(db, 'schools', request.institutionId));
-                                const collectionName = schoolDoc.exists() ? 'schools' : 'places';
-                                
-                                batch.update(doc(db, collectionName, request.institutionId), {
-                                  portalSecretKey: secretKey,
-                                  portalKeyStatus: 'approved'
-                                });
-                                
-                                await batch.commit();
-                                showNotification('Key request approved and key generated', 'success');
-                              } catch (e) {
-                                handleFirestoreError(e, OperationType.WRITE, 'keyRequests/batch');
-                                showNotification('Failed to approve request', 'error');
-                              }
-                            }}
-                            className="flex-1 sm:flex-none px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all"
-                          >
-                            Approve
-                          </button>
-                          <button 
-                             onClick={async () => {
-                               try {
-                                 await updateDoc(doc(db, 'keyRequests', request.id), { status: 'rejected' });
-                                 showNotification('Request rejected');
-                               } catch (e) {
-                                 handleFirestoreError(e, OperationType.UPDATE, `keyRequests/${request.id}`);
-                               }
-                             }}
-                             className="flex-1 sm:flex-none px-6 py-3 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all"
-                          >
-                            Reject
-                          </button>
+                          {user?.email === 'musstaphamusa@gmail.com' && (
+                            <>
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    const secretKey = Math.random().toString(36).substring(2, 10).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+                                    const batch = writeBatch(db);
+                                    
+                                    // Update request
+                                    batch.update(doc(db, 'keyRequests', request.id), {
+                                      status: 'approved',
+                                      approvedAt: serverTimestamp(),
+                                      secretKey
+                                    });
+                                    
+                                    // Update institution in both possible collections
+                                    const schoolDoc = await getDoc(doc(db, 'schools', request.institutionId));
+                                    const collectionName = schoolDoc.exists() ? 'schools' : 'places';
+                                    
+                                    batch.update(doc(db, collectionName, request.institutionId), {
+                                      portalSecretKey: secretKey,
+                                      portalKeyStatus: 'approved'
+                                    });
+                                    
+                                    await batch.commit();
+                                    showNotification('Key request approved and key generated', 'success');
+                                  } catch (e) {
+                                    handleFirestoreError(e, OperationType.WRITE, 'keyRequests/batch');
+                                    showNotification('Failed to approve request', 'error');
+                                  }
+                                }}
+                                className="flex-1 sm:flex-none px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                              >
+                                Approve
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    await updateDoc(doc(db, 'keyRequests', request.id), { status: 'rejected' });
+                                    showNotification('Request rejected');
+                                  } catch (e) {
+                                    handleFirestoreError(e, OperationType.UPDATE, `keyRequests/${request.id}`);
+                                  }
+                                }}
+                                className="flex-1 sm:flex-none px-6 py-3 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -9921,60 +9985,231 @@ function ExonaApp() {
           return (
             <WordLayout
               title="PDF Studio"
-              subtitle="Professional PDF Utilities"
+              subtitle={activePdfTool === 'merge' ? 'Merge PDF Files' : 'Professional PDF Utilities'}
               icon={FileJson}
               showNotification={showNotification}
               handlePrint={handlePrint}
               hideSaveImage={true}
               toolbar={
-                <button 
-                  onClick={() => setActiveWorkspaceTool(null)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
-                >
-                  <ArrowLeft size={14} />
-                  Workspace
-                </button>
+                <div className="flex gap-2">
+                  {activePdfTool && (
+                    <button 
+                      onClick={() => {
+                        setActivePdfTool(null);
+                        setUploadedPdfFiles([]);
+                      } }
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all"
+                    >
+                      <ArrowLeft size={14} />
+                      Tools
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => {
+                      setActiveWorkspaceTool(null);
+                      setActivePdfTool(null);
+                      setUploadedPdfFiles([]);
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                  >
+                    {!activePdfTool && <ArrowLeft size={14} />}
+                    Workspace
+                  </button>
+                </div>
               }
             >
               <div className="max-w-5xl">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                  {[
-                    { id: 'convert', name: 'Convert to PDF', desc: 'Turn images and documents into high-quality PDFs.', icon: FileBarChart, color: 'blue-500' },
-                    { id: 'merge', name: 'Merge PDF', desc: 'Combine multiple PDF files into one seamless document.', icon: Files, color: 'purple-500' },
-                    { id: 'compress', name: 'Compress PDF', desc: 'Reduce file size while maintaining visual quality.', icon: ArrowUpDown, color: 'amber-500' },
-                  ].map(tool => (
-                    <button key={tool.id} className="p-8 bg-white border border-gray-100 rounded-[2rem] hover:border-accent hover:shadow-xl transition-all text-left group">
-                      <div className={`h-14 w-14 bg-${tool.color.split('-')[0]}-50 text-${tool.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                        <tool.icon size={24} />
-                      </div>
-                      <h4 className="text-lg font-black text-ink mb-2">{tool.name}</h4>
-                      <p className="text-[11px] text-muted font-bold leading-relaxed mb-6">{tool.desc}</p>
-                      <div className="h-10 px-6 bg-gray-50 rounded-full inline-flex items-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
-                        Launch Tool
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-dashed border-gray-200 text-center">
-                  <div className="h-20 w-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-6">
-                    <Upload size={32} className="text-muted" />
+                {!activePdfTool ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    {[
+                      { id: 'convert', name: 'Convert to PDF', desc: 'Turn images and documents into high-quality PDFs.', icon: FileBarChart, color: 'blue-500' },
+                      { id: 'merge', name: 'Merge PDF', desc: 'Combine multiple PDF files into one seamless document.', icon: Files, color: 'purple-500' },
+                      { id: 'compress', name: 'Compress PDF', desc: 'Reduce file size while maintaining visual quality.', icon: ArrowUpDown, color: 'amber-500' },
+                    ].map(tool => (
+                      <button 
+                        key={tool.id} 
+                        onClick={() => setActivePdfTool(tool.id)}
+                        className="p-8 bg-white border border-gray-100 rounded-[2rem] hover:border-accent hover:shadow-xl transition-all text-left group"
+                      >
+                        <div className={`h-14 w-14 bg-${tool.color.split('-')[0]}-50 text-${tool.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
+                          <tool.icon size={24} />
+                        </div>
+                        <h4 className="text-lg font-black text-ink mb-2">{tool.name}</h4>
+                        <p className="text-[11px] text-muted font-bold leading-relaxed mb-6">{tool.desc}</p>
+                        <div className="h-10 px-6 bg-gray-50 rounded-full inline-flex items-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
+                          Launch Tool
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <h3 className="text-xl font-black text-ink mb-2">Drop your files here</h3>
-                  <p className="text-sm text-muted font-medium mb-8 max-w-sm mx-auto">Select a tool above, then upload your files to start the professional processing.</p>
-                  <label className="px-10 py-4 bg-white border border-gray-200 text-ink rounded-2xl font-black text-sm cursor-pointer hover:bg-gray-50 transition-all inline-block">
-                    Browse Files
-                    <input type="file" className="hidden" />
-                  </label>
-                </div>
+                ) : (
+                  <div className="space-y-8">
+                    {activePdfTool === 'merge' && (
+                      <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                        <div className="flex items-center justify-between mb-8">
+                          <div>
+                            <h3 className="text-xl font-black text-ink mb-1">Merge PDF Documents</h3>
+                            <p className="text-xs text-muted font-bold uppercase tracking-widest">Select files in the order you want them merged</p>
+                          </div>
+                          <div className="flex gap-3">
+                             {uploadedPdfFiles.length > 0 && (
+                               <button 
+                                 onClick={() => setUploadedPdfFiles([])}
+                                 className="px-4 py-2 bg-gray-100 text-ink rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all"
+                               >
+                                 Clear All
+                               </button>
+                             )}
+                             <button 
+                               disabled={uploadedPdfFiles.length < 2 || isProcessingPdf}
+                               onClick={handleMergePdfs}
+                               className="px-6 py-2 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform disabled:opacity-50 disabled:scale-100 flex items-center gap-2"
+                             >
+                               {isProcessingPdf ? <RefreshCw size={14} className="animate-spin" /> : <Files size={14} />}
+                               {isProcessingPdf ? 'Merging...' : 'Merge Files'}
+                             </button>
+                          </div>
+                        </div>
+
+                        <div 
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const files = Array.from(e.dataTransfer.files).filter((f: any) => f.type === 'application/pdf');
+                            if (files.length > 0) {
+                              setUploadedPdfFiles(prev => [...prev, ...files]);
+                            } else {
+                              showNotification('Please upload PDF files only', 'error');
+                            }
+                          }}
+                          className="bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 p-12 text-center transition-colors hover:bg-gray-100/50"
+                        >
+                          <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                            <Plus size={28} className="text-muted" />
+                          </div>
+                          <h4 className="text-lg font-black text-ink mb-2">Add PDF Documents</h4>
+                          <p className="text-xs text-muted font-bold mb-6">Drag and drop or click to browse</p>
+                          <label className="px-8 py-3 bg-white border border-gray-200 text-ink rounded-xl font-black text-[10px] uppercase tracking-widest cursor-pointer hover:bg-gray-50 transition-all inline-block">
+                            Browse Files
+                            <input 
+                              type="file" 
+                              multiple 
+                              accept="application/pdf"
+                              className="hidden" 
+                              onChange={(e) => {
+                                if (e.target.files) {
+                                  const files = Array.from(e.target.files).filter((f: any) => f.type === 'application/pdf');
+                                  if (files.length > 0) {
+                                    setUploadedPdfFiles(prev => [...prev, ...files]);
+                                  }
+                                }
+                              }}
+                            />
+                          </label>
+                        </div>
+
+                        {uploadedPdfFiles.length > 0 && (
+                          <div className="mt-8 space-y-3">
+                            <h4 className="text-[10px] font-black uppercase tracking-widest text-muted px-2">Selected Files ({uploadedPdfFiles.length})</h4>
+                            {uploadedPdfFiles.map((file, idx) => (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                key={`${file.name}-${idx}`}
+                                className="flex items-center justify-between p-4 bg-gray-50/50 border border-gray-100 rounded-2xl group"
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-red-500 font-black text-[10px]">
+                                    PDF
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-black text-ink truncate max-w-[300px]">{file.name}</p>
+                                    <p className="text-[10px] text-muted font-bold">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                   <div className="flex flex-col gap-1 pr-4 border-r border-gray-100">
+                                      <button 
+                                        disabled={idx === 0}
+                                        onClick={() => {
+                                          const newFiles = [...uploadedPdfFiles];
+                                          [newFiles[idx-1], newFiles[idx]] = [newFiles[idx], newFiles[idx-1]];
+                                          setUploadedPdfFiles(newFiles);
+                                        }}
+                                        className="text-muted hover:text-ink disabled:opacity-30"
+                                      >
+                                        <ArrowUp size={14} />
+                                      </button>
+                                      <button 
+                                        disabled={idx === uploadedPdfFiles.length - 1}
+                                        onClick={() => {
+                                          const newFiles = [...uploadedPdfFiles];
+                                          [newFiles[idx+1], newFiles[idx]] = [newFiles[idx], newFiles[idx+1]];
+                                          setUploadedPdfFiles(newFiles);
+                                        }}
+                                        className="text-muted hover:text-ink disabled:opacity-30"
+                                      >
+                                        <ArrowDown size={14} />
+                                      </button>
+                                   </div>
+                                   <button 
+                                     onClick={() => {
+                                       setUploadedPdfFiles(prev => prev.filter((_, i) => i !== idx));
+                                     }}
+                                     className="p-2 text-muted hover:text-red-500 transition-colors"
+                                   >
+                                     <X size={18} />
+                                   </button>
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(activePdfTool === 'convert' || activePdfTool === 'compress') && (
+                      <div className="bg-white p-12 rounded-[3rem] border border-gray-100 text-center">
+                        <div className="h-20 w-20 bg-gray-50 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                           <FileCode size={32} className="text-muted" />
+                        </div>
+                        <h3 className="text-xl font-black text-ink mb-2">{activePdfTool === 'convert' ? 'Convert to PDF' : 'Compress PDF'}</h3>
+                        <p className="text-sm text-muted font-medium mb-8 max-w-sm mx-auto">This tool is currently being tuned for production. Expected release in version 2.4. Only Merge PDF is active for now.</p>
+                        <button 
+                          onClick={() => setActivePdfTool(null)}
+                          className="px-8 py-3 bg-gray-50 text-ink rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all"
+                        >
+                          Back to Tools
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!activePdfTool && (
+                  <div className="bg-gray-50 p-10 rounded-[3rem] border-2 border-dashed border-gray-200 text-center">
+                    <div className="h-20 w-20 bg-white rounded-3xl shadow-sm flex items-center justify-center mx-auto mb-6">
+                      <Upload size={32} className="text-muted" />
+                    </div>
+                    <h3 className="text-xl font-black text-ink mb-2">Drop your files here</h3>
+                    <p className="text-sm text-muted font-medium mb-8 max-w-sm mx-auto">Select a tool above, then upload your files to start the professional processing.</p>
+                    <label className="px-10 py-4 bg-white border border-gray-200 text-ink rounded-2xl font-black text-sm cursor-pointer hover:bg-gray-50 transition-all inline-block">
+                      Browse Files
+                      <input type="file" className="hidden" />
+                    </label>
+                  </div>
+                )}
 
                 <div className="flex justify-start mt-12">
                   <button 
-                    onClick={() => setActiveWorkspaceTool(null)}
+                    onClick={() => {
+                      if (activePdfTool) setActivePdfTool(null);
+                      else setActiveWorkspaceTool(null);
+                    }}
                     className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
                   >
                     <ArrowLeft size={14} />
-                    Back to Workspace
+                    {activePdfTool ? 'Back to Tools' : 'Back to Workspace'}
                   </button>
                 </div>
               </div>
@@ -10894,12 +11129,12 @@ function ExonaApp() {
                     </p>
 
                     <div className="flex flex-col gap-4">
-                      {userDoc?.role === 'admin' && (
+                      {(userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com') && (
                         <>
                           <button 
-                            disabled={isRequestingKey}
+                            disabled={isRequestingKey || user?.email !== 'musstaphamusa@gmail.com'}
                             onClick={async () => {
-                              if (!institutionId) return;
+                              if (!institutionId || user?.email !== 'musstaphamusa@gmail.com') return;
                               setIsRequestingKey(true);
                               try {
                                 const newKey = Math.random().toString(36).substring(2, 10).toUpperCase();

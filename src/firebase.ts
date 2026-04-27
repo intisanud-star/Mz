@@ -114,9 +114,9 @@ export async function ensureUserDocument(user: User, referredBy?: string | null,
     if (!userSnap.exists()) {
       const data = {
         uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
+        email: user.email || null,
+        displayName: user.displayName || 'User',
+        photoURL: user.photoURL || null,
         role: isAdminEmail ? 'admin' : 'user',
         following: [],
         createdAt: serverTimestamp(),
