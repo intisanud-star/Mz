@@ -963,6 +963,7 @@ interface Post {
   authorPhoto: string;
   content: string;
   mediaUrl?: string;
+  mediaUrls?: string[];
   mediaType?: 'image' | 'video';
   likes: number;
   likedBy: string[];
@@ -971,6 +972,8 @@ interface Post {
   timestamp: any;
   isOfficial?: boolean;
   schoolId?: string;
+  authorRole?: string;
+  schoolName?: string;
   resharedFrom?: {
     id: string;
     authorName: string;
@@ -1585,12 +1588,26 @@ const FeedPost = ({
             </div>
           )}
 
-          {post.mediaUrl && (
-            <div className="mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 group/media shadow-sm">
-              {post.mediaType === 'image' ? (
-                <img src={post.mediaUrl} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+          {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
+            <div className={`mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 group/media shadow-sm ${post.mediaUrls && post.mediaUrls.length > 1 ? 'grid grid-cols-2 gap-1' : ''}`}>
+              {post.mediaUrls && post.mediaUrls.length > 0 ? (
+                post.mediaUrls.map((url: string, idx: number) => (
+                  <div key={idx} className={post.mediaUrls!.length === 1 ? '' : 'aspect-square'}>
+                    {post.mediaType === 'image' ? (
+                      <img src={url} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+                    ) : (
+                      <video src={url} controls className="w-full h-full object-contain bg-black" />
+                    )}
+                  </div>
+                ))
               ) : (
-                <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+                <div className="">
+                  {post.mediaType === 'image' ? (
+                    <img src={post.mediaUrl} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
+                  ) : (
+                    <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1825,6 +1842,85 @@ function ExonaApp() {
     );
   };
 
+  const handleWorkspaceToolClick = (toolId: string) => {
+    if (toolId === 'editor') {
+      showNotification('Creative Editor is a Premium feature. Please upgrade to unlock.', 'error');
+      return;
+    }
+    if (toolId === 'e-test' || toolId === 'e-exam') {
+      // Find the relevant institution: selected one or one owned by user
+      const inst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+      
+      const isAdmin = userDoc?.role === 'admin';
+      
+      if (isAdmin) {
+        setActiveWorkspaceTool(toolId);
+        return;
+      }
+
+      if (!inst) {
+        showNotification('Select a school or place to access this portal', 'success');
+        return;
+      }
+
+      if (verifiedPortalAccess.includes(inst.id)) {
+        setActiveWorkspaceTool(toolId);
+      } else {
+        setPendingToolAccess(toolId);
+        setPendingInstitutionAccess(inst.id);
+        
+        // Check if institution even has a key
+        const instData = inst as any;
+        if (!instData.portalSecretKey) {
+          showNotification('This institution has no Secret Key. Please add one in Secret Keys tool to continue.', 'error');
+          // Still open modal so they know it's locked? 
+          // User said "tell user to add secret keys to continue"
+          // Maybe just redirect them to secret keys if they are the owner?
+          if (inst.creatorUid === user?.uid) {
+            setPendingInstitutionAccess(inst.id);
+            setIsSecretKeyModalOpen(true);
+          } else {
+             return;
+          }
+        } else {
+          setIsSecretKeyModalOpen(true);
+        }
+      }
+    } else {
+      setActiveWorkspaceTool(toolId);
+    }
+  };
+
+  const handleVerifySecretKey = () => {
+    // Find institution by pending ID or fall back to owned one
+    const inst = schools.find(s => s.id === pendingInstitutionAccess) || 
+                 places.find(p => p.id === pendingInstitutionAccess) ||
+                 schools.find(s => s.creatorUid === user?.uid) || 
+                 places.find(p => p.creatorUid === user?.uid);
+
+    if (!inst) {
+      showNotification('Institution not found', 'error');
+      return;
+    }
+
+    const instData = inst as any;
+    if (!instData.portalSecretKey) {
+      showNotification('Access key not found for this institution. Please add a key in the Secret Keys tool.', 'error');
+      return;
+    }
+
+    if (secretKeyInput === instData.portalSecretKey) {
+      setVerifiedPortalAccess(prev => [...prev, inst.id]);
+      setActiveWorkspaceTool(pendingToolAccess);
+      setIsSecretKeyModalOpen(false);
+      setSecretKeyInput('');
+      setPendingInstitutionAccess(null);
+      showNotification('Access Granted', 'success');
+    } else {
+      showNotification('Invalid Secret Key', 'error');
+    }
+  };
+
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
   const [viewingFile, setViewingFile] = useState<any | null>(null);
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
@@ -1842,6 +1938,8 @@ function ExonaApp() {
   const [isDeleteSchoolModalOpen, setIsDeleteSchoolModalOpen] = useState(false);
   const [schoolToDelete, setSchoolToDelete] = useState<string | null>(null);
   const [newPostContent, setNewPostContent] = useState('');
+  const [selectedPostFiles, setSelectedPostFiles] = useState<File[]>([]);
+  const [previewPostUrls, setPreviewPostUrls] = useState<string[]>([]);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -2055,6 +2153,19 @@ function ExonaApp() {
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [outgoingCall, setOutgoingCall] = useState<any>(null);
   const [activeCallStream, setActiveCallStream] = useState<MediaStream | null>(null);
+  
+  const [activeTool, setActiveTool] = useState<string | null>(null);
+  const [isSecretKeyModalOpen, setIsSecretKeyModalOpen] = useState(false);
+  const [secretKeyInput, setSecretKeyInput] = useState('');
+  const [pendingToolAccess, setPendingToolAccess] = useState<string | null>(null);
+  const [pendingInstitutionAccess, setPendingInstitutionAccess] = useState<string | null>(null);
+  const [isRequestingKey, setIsRequestingKey] = useState(false);
+  const [activeKeyRequest, setActiveKeyRequest] = useState<any | null>(null);
+  const [verifiedPortalAccess, setVerifiedPortalAccess] = useState<string[]>([]);
+  const [pendingKeyRequests, setPendingKeyRequests] = useState<any[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+
   useEffect(() => {
     if (!user) return;
     // Listen for calls where user is caller or receiver
@@ -2100,9 +2211,35 @@ function ExonaApp() {
     return unsubscribe;
   }, [user]);
 
-  const [activeTool, setActiveTool] = useState<string | null>(null);
-  const [schools, setSchools] = useState<School[]>([]);
-  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  useEffect(() => {
+    if (userDoc?.role !== 'admin') return;
+    
+    const q = query(collection(db, 'keyRequests'), where('status', '==', 'pending'), orderBy('timestamp', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setPendingKeyRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('Error fetching key requests:', error);
+    });
+    return unsubscribe;
+  }, [userDoc]);
+
+  useEffect(() => {
+    if (!user) return;
+    const inst = schools.find(s => s.creatorUid === user.uid) || places.find(p => p.creatorUid === user.uid);
+    if (!inst) return;
+    
+    const q = query(collection(db, 'keyRequests'), where('institutionId', '==', inst.id), orderBy('timestamp', 'desc'), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setActiveKeyRequest(snapshot.docs[0].data());
+      } else {
+        setActiveKeyRequest(null);
+      }
+    }, (error) => {
+      console.error('Error fetching institution key request:', error);
+    });
+    return unsubscribe;
+  }, [user, schools, places]);
 
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
   const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'airtime' | 'data' | 'bills' | 'pin' | 'success' | 'deposit'>('selection');
@@ -3744,11 +3881,14 @@ function ExonaApp() {
   };
 
   useEffect(() => {
-    if (!selectedFile) return;
-    const url = URL.createObjectURL(selectedFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedFile]);
+    if (selectedPostFiles.length === 0) {
+      setPreviewPostUrls([]);
+      return;
+    }
+    const urls = selectedPostFiles.map(file => URL.createObjectURL(file));
+    setPreviewPostUrls(urls);
+    return () => urls.forEach(url => URL.revokeObjectURL(url));
+  }, [selectedPostFiles]);
 
   const handleCreateStory = async (file: File, schoolId?: string) => {
     if (!user) { setView('login'); return; }
@@ -3808,103 +3948,122 @@ function ExonaApp() {
   const handleCreatePost = async () => {
     if (!user) { setView('login'); return; }
     if (!newPostContent.trim()) return;
-
+  
     const isEditing = !!editingPost;
     const content = newPostContent.trim();
-    if (!selectedFile) {
-      setIsPostModalOpen(false);
-      setNewPostContent('');
-      setPreviewUrl(null);
-      setEditingPost(null);
+    
+    if (selectedPostFiles.length === 0 && !isEditing) {
+      // Small cleanup logic if someone managed to trigger this without files and content
     }
-    const path = 'posts';
+  
     setIsUploading(true);
     setUploadProgress(0);
+    
     try {
-      let mediaUrl = editingPost?.mediaUrl || '';
+      let mediaUrls: string[] = editingPost?.mediaUrls || (editingPost?.mediaUrl ? [editingPost.mediaUrl] : []);
       let mediaType: 'image' | 'video' | undefined = editingPost?.mediaType;
-
-      if (!previewUrl) {
-        mediaUrl = '';
+  
+      if (previewPostUrls.length === 0) {
+        mediaUrls = [];
         mediaType = undefined;
       }
-
-      if (selectedFile) {
-        console.log('Uploading media', selectedFile.name);
-        mediaType = selectedFile.type.startsWith('image/') ? 'image' : 'video';
+  
+      if (selectedPostFiles.length > 0) {
+        console.log('Uploading multiple media files', selectedPostFiles.length);
+        const newMediaUrls: string[] = [];
         
-        let fileToUpload: Blob | File = selectedFile;
-        if (mediaType === 'image') {
-          try {
-            console.log('Compressing post image...');
-            const compressedBase64 = await compressImage(selectedFile, 1200, 0.7);
-            const response = await fetch(compressedBase64);
-            fileToUpload = await response.blob();
-          } catch (compErr) {
-            console.error('Compression failed, using original', compErr);
+        // Determine overall media type from first file mostly, but could be mixed
+        // In this app, we'll assume they are the same type or default to image
+        mediaType = selectedPostFiles[0].type.startsWith('image/') ? 'image' : 'video';
+  
+        const totalFiles = selectedPostFiles.length;
+        for (let i = 0; i < totalFiles; i++) {
+          const file = selectedPostFiles[i];
+          let fileToUpload: Blob | File = file;
+          const isImage = file.type.startsWith('image/');
+  
+          if (isImage) {
+            try {
+              const compressedBase64 = await compressImage(file, 1200, 0.7);
+              const response = await fetch(compressedBase64);
+              fileToUpload = await response.blob();
+            } catch (compErr) {
+              console.error('Compression failed', compErr);
+            }
           }
+  
+          const fileRef = ref(storage, `posts/${user.uid}/${Date.now()}_${i}_${file.name}`);
+          const uploadTask = uploadBytesResumable(fileRef, fileToUpload);
+  
+          await new Promise((resolve, reject) => {
+            uploadTask.on('state_changed', 
+              (snapshot) => {
+                const individualProgress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                // Calculate total progress: (completed files * 100 + current file progress) / total files
+                const overallProgress = ((i * 100) + individualProgress) / totalFiles;
+                setUploadProgress(overallProgress);
+              }, 
+              (error) => {
+                console.error('Upload failed for file', i, error);
+                reject(error);
+              }, 
+              () => resolve(null)
+            );
+          });
+          
+          const downloadUrl = await getDownloadURL(fileRef);
+          newMediaUrls.push(downloadUrl);
         }
-
-        const fileRef = ref(storage, `posts/${user.uid}/${Date.now()}_${selectedFile.name}`);
-        const uploadTask = uploadBytesResumable(fileRef, fileToUpload);
-
-        await new Promise((resolve, reject) => {
-          uploadTask.on('state_changed', 
-            (snapshot) => {
-              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-              setUploadProgress(progress);
-            }, 
-            (error) => {
-              console.error('Upload failed', error);
-              reject(error);
-            }, 
-            () => resolve(null)
-          );
-        });
         
-        mediaUrl = await getDownloadURL(fileRef);
-        console.log('Media upload successful', mediaUrl);
+        // If editing, we might want to append or replace. Let's replace for now if new files are selected.
+        mediaUrls = newMediaUrls;
       }
-
+  
       const isOfficial = canManageInstitution(view === 'school-feed' ? selectedSchool : null);
       const schoolId = (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon';
       
+      const postData: any = {
+        authorUid: user.uid,
+        authorName: isOfficial && selectedSchool ? selectedSchool.name : (user.displayName || 'Anonymous'),
+        authorPhoto: isOfficial && selectedSchool ? selectedSchool.logo : (user.photoURL || ''),
+        authorRole: userDoc?.role || 'user',
+        schoolName: isOfficial && selectedSchool ? selectedSchool.name : 'Horizon Network',
+        content,
+        mediaUrls,
+        mediaUrl: mediaUrls.length > 0 ? mediaUrls[0] : null, // Fallback for components still using mediaUrl
+        mediaType: mediaType || null,
+        timestamp: serverTimestamp(),
+        isOfficial,
+        schoolId
+      };
+  
       if (isEditing) {
         await setDoc(doc(db, 'posts', editingPost!.id), {
           content,
-          mediaUrl: mediaUrl || null,
+          mediaUrls,
+          mediaUrl: mediaUrls.length > 0 ? mediaUrls[0] : null,
           mediaType: mediaType || null,
           timestamp: serverTimestamp(),
         }, { merge: true });
       } else {
-        await addDoc(collection(db, path), {
-          authorUid: user.uid,
-          authorName: isOfficial && selectedSchool ? selectedSchool.name : (user.displayName || 'Anonymous'),
-          authorPhoto: isOfficial && selectedSchool ? selectedSchool.logo : (user.photoURL || ''),
-          content,
-          mediaUrl: mediaUrl || null,
-          mediaType: mediaType || null,
+        await addDoc(collection(db, 'posts'), {
+          ...postData,
           likes: 0,
           likedBy: [],
           commentsCount: 0,
           reshares: 0,
-          timestamp: serverTimestamp(),
-          isOfficial,
-          schoolId
         });
       }
-      if (selectedFile) {
-        setNewPostContent('');
-        setPreviewUrl(null);
-        setSelectedFile(null);
-        setEditingPost(null);
-        setIsPostModalOpen(false);
-      }
+      
+      setNewPostContent('');
+      setPreviewPostUrls([]);
+      setSelectedPostFiles([]);
+      setEditingPost(null);
+      setIsPostModalOpen(false);
       showNotification(isEditing ? 'Broadcast updated' : 'Broadcast transmitted');
     } catch (error) {
       console.error('Post operation failed', error);
       showNotification('Transmission failed. Re-opening editor...', 'error');
-      setNewPostContent(content);
       setIsPostModalOpen(true);
     } finally {
       setIsUploading(false);
@@ -3915,16 +4074,16 @@ function ExonaApp() {
   const handleEditPost = (post: Post) => {
     setEditingPost(post);
     setNewPostContent(post.content);
-    // Note: We don't set selectedFile here because we use the existing mediaUrl if no new file is selected
-    setPreviewUrl(post.mediaUrl || null);
+    // Note: We don't set selectedFiles here because we use the existing mediaUrls if no new files are selected
+    setPreviewPostUrls(post.mediaUrls || (post.mediaUrl ? [post.mediaUrl] : []));
     setIsPostModalOpen(true);
   };
 
   const openNewPostModal = () => {
     setEditingPost(null);
     setNewPostContent('');
-    setSelectedFile(null);
-    setPreviewUrl(null);
+    setSelectedPostFiles([]);
+    setPreviewPostUrls([]);
     setIsPostModalOpen(true);
   };
 
@@ -5139,6 +5298,85 @@ function ExonaApp() {
                   })}
                 </div>
               </motion.div>
+
+              {(userDoc?.role === 'admin' && pendingKeyRequests.length > 0) && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="bg-white rounded-[2rem] sm:rounded-[3rem] border border-gray-100 overflow-hidden shadow-sm"
+                >
+                  <div className="p-6 sm:p-10 border-b border-gray-50 flex items-center justify-between">
+                    <h4 className="font-extrabold text-xl sm:text-2xl text-ink tracking-tight">Access Key Requests</h4>
+                    <div className="h-10 w-10 sm:h-12 sm:w-12 bg-indigo-50 text-indigo-600 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                      <Lock size={20} />
+                    </div>
+                  </div>
+                  <div className="p-6 sm:p-10 space-y-4">
+                    {pendingKeyRequests.map(request => (
+                      <div key={request.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-6 bg-gray-50 rounded-2xl border border-gray-100 gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-indigo-600 border border-gray-100">
+                            <Building2 size={24} />
+                          </div>
+                          <div>
+                            <p className="font-bold text-ink text-sm tracking-tight">{request.institutionName}</p>
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-0.5">ID: {request.institutionId}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={async () => {
+                              try {
+                                const secretKey = Math.random().toString(36).substring(2, 10).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+                                const batch = writeBatch(db);
+                                
+                                // Update request
+                                batch.update(doc(db, 'keyRequests', request.id), {
+                                  status: 'approved',
+                                  approvedAt: serverTimestamp(),
+                                  secretKey
+                                });
+                                
+                                // Update institution in both possible collections
+                                const schoolDoc = await getDoc(doc(db, 'schools', request.institutionId));
+                                const collectionName = schoolDoc.exists() ? 'schools' : 'places';
+                                
+                                batch.update(doc(db, collectionName, request.institutionId), {
+                                  portalSecretKey: secretKey,
+                                  portalKeyStatus: 'approved'
+                                });
+                                
+                                await batch.commit();
+                                showNotification('Key request approved and key generated', 'success');
+                              } catch (e) {
+                                console.error("Approval error:", e);
+                                showNotification('Failed to approve request', 'error');
+                              }
+                            }}
+                            className="flex-1 sm:flex-none px-6 py-3 bg-indigo-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-indigo-700 transition-all"
+                          >
+                            Approve
+                          </button>
+                          <button 
+                             onClick={async () => {
+                               try {
+                                 await updateDoc(doc(db, 'keyRequests', request.id), { status: 'rejected' });
+                                 showNotification('Request rejected');
+                               } catch (e) {
+                                 console.error("Rejection error:", e);
+                               }
+                             }}
+                             className="flex-1 sm:flex-none px-6 py-3 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </div>
           </div>
         );
@@ -8355,9 +8593,198 @@ function ExonaApp() {
         const workspaceFeatures = [
           { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
           { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
-          { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for structured content and technical writing.', icon: PenTool, color: 'purple-600' },
+          { id: 'editor', name: 'Creative Editor (Premium)', description: 'Powerful editor for technical writing. Upgrade to premium to unlock.', icon: PenTool, color: 'purple-600' },
           { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
+          { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
+          { id: 'e-exam', name: 'E-Examination', description: 'Comprehensive examination system for school-wide assessments and professional certifications.', icon: FileBarChart, color: 'rose-600' },
         ];
+
+        if (activeWorkspaceTool === 'e-test') {
+          const activeInst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+          return (
+            <WordLayout
+              title="E-Test Portal"
+              subtitle={`${activeInst?.name || 'Institutional'} Assessment System`}
+              icon={BadgeCheck}
+              branding={{ name: activeInst?.name || 'Institution' }}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+              hideSaveImage={true}
+              toolbar={
+                <button 
+                  onClick={() => setActiveWorkspaceTool(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                  Workspace
+                </button>
+              }
+            >
+              <div className="max-w-5xl">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+                  <div>
+                    <h3 className="text-3xl font-black text-ink">Active Assignments</h3>
+                    <p className="text-sm font-bold text-muted">Manage your student and personnel evaluations</p>
+                  </div>
+                  <button className="flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-xl shadow-indigo-200">
+                    <Plus size={18} />
+                    New Test Module
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <div className="lg:col-span-2 space-y-4">
+                    {[
+                      { id: 1, title: 'Mid-Term Science Quiz', category: 'Secondary School', students: 124, status: 'ongoing' },
+                      { id: 2, title: 'Staff Competency Assessment', category: 'Human Resources', students: 45, status: 'completed' },
+                      { id: 3, title: 'Physics 101 Preliminary', category: 'University', students: 89, status: 'draft' }
+                    ].map(test => (
+                      <div key={test.id} className="p-6 bg-white border border-gray-100 rounded-[2.5rem] flex items-center justify-between hover:border-indigo-600 transition-all group">
+                        <div className="flex items-center gap-6">
+                          <div className={`h-14 w-14 rounded-2xl flex items-center justify-center ${test.status === 'ongoing' ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-50 text-muted'}`}>
+                            <ClipboardList size={24} />
+                          </div>
+                          <div>
+                            <h4 className="text-lg font-black text-ink mb-1">{test.title}</h4>
+                            <p className="text-[10px] font-black text-muted uppercase tracking-widest">{test.category} • {test.students} Participants</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                            test.status === 'ongoing' ? 'bg-green-50 text-green-600' : 
+                            test.status === 'completed' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-muted'
+                          }`}>
+                            {test.status}
+                          </span>
+                          <button className="h-10 w-10 bg-gray-50 rounded-xl flex items-center justify-center text-muted group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                            <ChevronRight size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="p-8 bg-indigo-600 text-white rounded-[3rem] shadow-2xl shadow-indigo-200">
+                      <h4 className="text-xl font-black mb-2">Institution Stats</h4>
+                      <p className="text-white/70 text-xs font-bold mb-8">Weekly performance overview</p>
+                      
+                      <div className="space-y-6">
+                        <div>
+                          <div className="flex justify-between items-center mb-2">
+                             <span className="text-[10px] font-black uppercase tracking-widest text-white/60">Completion Rate</span>
+                             <span className="text-xs font-black">94%</span>
+                          </div>
+                          <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                             <div className="h-full bg-white w-[94%]" />
+                          </div>
+                        </div>
+                        <div className="pt-6 border-t border-white/10">
+                           <p className="text-3xl font-black">2,450</p>
+                           <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Tests Conducted</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-start mt-12">
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Workspace
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
+
+        if (activeWorkspaceTool === 'e-exam') {
+          const activeInst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+          return (
+            <WordLayout
+              title="Official E-Examination"
+              subtitle={`${activeInst?.name || 'Institutional'} High-Stakes Assessment Suite`}
+              icon={FileBarChart}
+              branding={{ name: activeInst?.name || 'Institution' }}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+              hideSaveImage={true}
+              toolbar={
+                <button 
+                  onClick={() => setActiveWorkspaceTool(null)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                >
+                  <ArrowLeft size={14} />
+                  Workspace
+                </button>
+              }
+            >
+              <div className="max-w-5xl">
+                <div className="p-12 bg-white border border-gray-100 rounded-[4rem] mb-12 shadow-sm relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-12 opacity-5">
+                      <FileBarChart size={240} />
+                   </div>
+                   
+                   <div className="relative z-10 max-w-2xl">
+                     <div className="h-16 w-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-8">
+                       <Shield size={32} />
+                     </div>
+                     <h3 className="text-4xl font-black text-ink mb-4 leading-tight">Secure Examination Environment</h3>
+                     <p className="text-muted font-bold text-lg mb-10 leading-relaxed">
+                       Our examination module provides AI-driven proctoring, secure browser lockdown, and multi-factor authentication for official school boards.
+                     </p>
+                     
+                     <div className="flex flex-wrap gap-4">
+                        <button className="px-10 py-5 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-105 transition-transform">
+                          Setup New Exam Session
+                        </button>
+                        <button className="px-10 py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
+                          Review Results
+                        </button>
+                     </div>
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="p-10 bg-gray-50 rounded-[3rem] border border-gray-100">
+                      <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-rose-600 mb-6 shadow-sm">
+                        <Users size={20} />
+                      </div>
+                      <h4 className="text-xl font-black text-ink mb-2">Student Verification</h4>
+                      <p className="text-xs text-muted font-bold leading-relaxed mb-8">Manage biometric and ID verification for current examinees.</p>
+                      <button className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                         View Portal <ArrowRight size={14} />
+                      </button>
+                   </div>
+                   <div className="p-10 bg-gray-50 rounded-[3rem] border border-gray-100">
+                      <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-rose-600 mb-6 shadow-sm">
+                        <Database size={20} />
+                      </div>
+                      <h4 className="text-xl font-black text-ink mb-2">Question Bank</h4>
+                      <p className="text-xs text-muted font-bold leading-relaxed mb-8">Access our encrypted repository of curriculum-standard questions.</p>
+                      <button className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
+                         Configure Store <ArrowRight size={14} />
+                      </button>
+                   </div>
+                </div>
+
+                <div className="flex justify-start mt-12">
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Workspace
+                  </button>
+                </div>
+              </div>
+            </WordLayout>
+          );
+        }
 
         if (activeWorkspaceTool === 'docs') {
           const docs = cloudFiles.filter(f => f.category === 'document' || f.type.includes('pdf') || f.type.includes('text'));
@@ -8861,7 +9288,7 @@ function ExonaApp() {
                 {workspaceFeatures.map(item => (
                   <button
                     key={item.id}
-                    onClick={() => setActiveWorkspaceTool(item.id)}
+                    onClick={() => handleWorkspaceToolClick(item.id)}
                     className="group p-8 bg-white border-2 border-gray-50 rounded-[2.5rem] hover:border-accent hover:shadow-2xl hover:shadow-accent/10 transition-all text-left relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
@@ -8974,7 +9401,9 @@ function ExonaApp() {
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
           { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
           { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
+          { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for E-Test & Examination', icon: Lock, color: 'indigo-600' },
           { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
+          { id: 'exona-premium', name: 'Exona Premium Quiz', description: 'The ultimate challenge for elite scholars with exclusive rewards.', icon: Stars, color: 'yellow-600' },
         ];
 
         if (activeTool === 'export-attendance') {
@@ -9584,6 +10013,157 @@ function ExonaApp() {
           );
         }
 
+        if (activeTool === 'secret-key') {
+          const institutionId = userInstitution?.id || selectedSchool?.id;
+          const institutionName = userInstitution?.name || selectedSchool?.name;
+
+          return (
+            <WordLayout 
+              title="Secret Keys"
+              subtitle="Portal Access Management"
+              icon={Lock}
+              branding={{ name: institutionName }}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
+              toolbar={
+                <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
+              }
+            >
+              <div className="mb-16 border-b border-gray-100 pb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Access Key Management</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Security Terminal • {new Date().toLocaleDateString()}</p>
+              </div>
+
+              <div className="max-w-2xl mx-auto">
+                {userInstitution?.portalSecretKey ? (
+                  <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-xl shadow-indigo-50 text-center">
+                    <div className="h-20 w-20 bg-green-50 text-green-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                      <ShieldCheck size={40} />
+                    </div>
+                    <h3 className="text-2xl font-black text-ink mb-4">Portal Access Approved</h3>
+                    <p className="text-muted font-medium mb-10 leading-relaxed">
+                      Your institution has been granted access to the E-Test and Examination portals. Use the secret key below to authenticate access.
+                    </p>
+                    
+                    <div className="bg-gray-50 p-8 rounded-[2rem] border border-dashed border-gray-200 mb-8 relative group">
+                      <p className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-4">Official Secret Key</p>
+                      <p className="text-3xl font-mono font-black text-ink tracking-widest break-all select-all">{userInstitution.portalSecretKey}</p>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(userInstitution.portalSecretKey || '');
+                          showNotification('Key copied to clipboard');
+                        }}
+                        className="absolute top-4 right-4 h-10 w-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-muted hover:text-ink transition-all opacity-0 group-hover:opacity-100 shadow-sm"
+                      >
+                        <Copy size={16} />
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-4 pt-6 border-t border-gray-100">
+                      <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
+                        <AlertTriangle size={14} />
+                        Keep this key confidential
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-xl shadow-indigo-50">
+                    <div className="h-20 w-20 bg-indigo-50 text-indigo-600 rounded-[2rem] flex items-center justify-center mb-8">
+                      <Lock size={40} />
+                    </div>
+                    <h3 className="text-3xl font-black text-ink mb-4">Add Access Keys</h3>
+                    <p className="text-muted font-medium mb-12 leading-relaxed">
+                      To conduct e-tests and examinations, your institution must add a security access key. You can generate one instantly below to begin.
+                    </p>
+
+                    <div className="flex flex-col gap-4">
+                      <button 
+                        disabled={isRequestingKey}
+                        onClick={async () => {
+                          if (!institutionId) return;
+                          setIsRequestingKey(true);
+                          try {
+                            const newKey = Math.random().toString(36).substring(2, 10).toUpperCase();
+                            const schoolType = userInstitution?.type === 'school' ? 'schools' : 'places';
+                            await updateDoc(doc(db, schoolType, institutionId), {
+                              portalSecretKey: newKey
+                            });
+                            showNotification('Secret Key Generated Successfully', 'success');
+                          } catch (e) {
+                            showNotification('Failed to generate key', 'error');
+                          } finally {
+                            setIsRequestingKey(false);
+                          }
+                        }}
+                        className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-[0.98]"
+                      >
+                        Generate Secret Key
+                      </button>
+
+                      <div className="relative py-4">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+                        <div className="relative flex justify-center text-[8px] uppercase tracking-widest font-black text-muted"><span className="bg-white px-4">Or Request Support</span></div>
+                      </div>
+
+                      {activeKeyRequest?.status === 'pending' ? (
+                      <div className="p-8 bg-amber-50 border border-amber-100 rounded-[2rem] text-center">
+                        <Clock className="mx-auto text-amber-500 mb-4" size={32} />
+                        <h4 className="text-lg font-bold text-amber-700 mb-2">Application Pending</h4>
+                        <p className="text-sm font-medium text-amber-600">Your request is currently being reviewed by our administrators. Please check back later.</p>
+                      </div>
+                    ) : (
+                      <button 
+                        disabled={isRequestingKey}
+                        onClick={async () => {
+                          if (!institutionId) return;
+                          setIsRequestingKey(true);
+                          try {
+                            const requestId = `REQ-${Date.now()}`;
+                            await setDoc(doc(db, 'keyRequests', requestId), {
+                              institutionId,
+                              institutionName,
+                              requesterUid: user?.uid,
+                              status: 'pending',
+                              timestamp: serverTimestamp()
+                            });
+                            
+                            // Also update institution status
+                            const schoolType = userInstitution?.type === 'school' ? 'schools' : 'places';
+                            await updateDoc(doc(db, schoolType, institutionId), {
+                              portalKeyStatus: 'pending'
+                            });
+
+                            showNotification('Access key request submitted');
+                            setActiveKeyRequest({ status: 'pending' });
+                          } catch (e) {
+                            console.error("Failed to request key", e);
+                            showNotification('Failed to submit request', 'error');
+                          } finally {
+                            setIsRequestingKey(false);
+                          }
+                        }}
+                        className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 shadow-xl shadow-ink/10 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                      >
+                        {isRequestingKey ? (
+                          <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : (
+                          <Plus size={18} />
+                        )}
+                        {isRequestingKey ? 'Submitting Application...' : 'Apply for Secret Key'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                )}
+              </div>
+            </WordLayout>
+          );
+        }
+
         return (
           <WordLayout 
             title={userInstitution ? userInstitution.name : "Institutional Hub"}
@@ -9618,6 +10198,8 @@ function ExonaApp() {
                       setCurrentBattleQuestions(shuffled);
                       setIsBrainBattleActive(true);
                       setBattleStep('welcome');
+                    } else if (tool.id === 'exona-premium') {
+                      showNotification('Exona Premium Quiz is coming soon! Upgrade to Premium to be the first to play.', 'success');
                     } else {
                       setActiveTool(tool.id);
                     }
@@ -10440,60 +11022,44 @@ function ExonaApp() {
                 </div>
               </div>
 
-              {previewUrl && (
-                <div className="mb-8 bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 relative group ring-4 ring-accent/5">
-                  {/* Try to determine media type from selectedFile or editingPost */}
-                  {(selectedFile?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedFile)) ? (
-                    <img src={previewUrl} className="w-full h-72 object-cover" />
-                  ) : (
-                    <video src={previewUrl} className="w-full h-72 object-cover" controls={!isUploading} />
-                  )}
-                  
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              {previewPostUrls.length > 0 && (
+                <div className="mb-8 grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {previewPostUrls.map((url, idx) => (
+                    <div key={idx} className="aspect-square bg-white rounded-[2.5rem] overflow-hidden border border-gray-100 relative group ring-4 ring-accent/5">
+                      {selectedPostFiles[idx]?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedPostFiles[idx]) ? (
+                        <img src={url} className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={url} className="w-full h-full object-cover" controls={!isUploading} />
+                      )}
+                      
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                  <button 
-                    onClick={() => { setSelectedFile(null); setPreviewUrl(null); }} 
-                    className="absolute top-6 right-6 h-12 w-12 bg-white/90 backdrop-blur-md text-ink rounded-2xl flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90 z-20"
-                  >
-                    <X size={20} />
-                  </button>
-
-                  {isUploading && (
-                    <div className="absolute inset-0 bg-ink/80 backdrop-blur-md flex flex-col items-center justify-center p-12 z-30">
-                      <motion.div 
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="mb-8 relative"
+                      <button 
+                        onClick={() => { 
+                          const newFiles = [...selectedPostFiles];
+                          newFiles.splice(idx, 1);
+                          setSelectedPostFiles(newFiles);
+                        }} 
+                        className="absolute top-4 right-4 h-10 w-10 bg-white/90 backdrop-blur-md text-ink rounded-xl flex items-center justify-center shadow-2xl opacity-0 group-hover:opacity-100 transition-all active:scale-90 z-20"
                       >
-                        <svg className="h-24 w-24 -rotate-90">
-                          <circle
-                            cx="48"
-                            cy="48"
-                            r="40"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="transparent"
-                            className="text-white/10"
-                          />
-                          <motion.circle
-                            cx="48"
-                            cy="48"
-                            r="40"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                            fill="transparent"
-                            strokeDasharray="251.2"
-                            animate={{ strokeDashoffset: 251.2 - (251.2 * uploadProgress) / 100 }}
-                            className="text-accent"
-                          />
-                        </svg>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">{Math.round(uploadProgress)}%</span>
+                        <X size={16} />
+                      </button>
+
+                      {isUploading && (
+                        <div className="absolute inset-0 bg-ink/80 backdrop-blur-md flex flex-col items-center justify-center p-4 z-30 text-center">
+                           <span className="text-white text-[10px] font-black">{Math.round(uploadProgress)}%</span>
                         </div>
-                      </motion.div>
-                      <h4 className="text-white text-sm font-extrabold mb-2">Uploading Media...</h4>
-                      <p className="text-white/50 text-[10px] font-bold uppercase tracking-[0.4em]">Horizon Network Transmission</p>
+                      )}
                     </div>
+                  ))}
+                  {isUploading && (
+                     <div className="col-span-full h-1 bg-gray-100 rounded-full mt-4 overflow-hidden">
+                       <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${uploadProgress}%` }}
+                        className="h-full bg-accent"
+                       />
+                     </div>
                   )}
                 </div>
               )}
@@ -10502,11 +11068,14 @@ function ExonaApp() {
                 <div className="flex gap-3">
                   <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90">
                     <ImageIcon size={22} />
-                    <input type="file" accept="image/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setSelectedPostFiles(prev => [...prev, ...files]);
+                    }} />
                   </label>
                   <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90">
                     <VideoIcon size={22} />
-                    <input type="file" accept="video/*" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
+                    <input type="file" accept="video/*" className="hidden" onChange={(e) => setSelectedPostFiles(prev => [...prev, ...Array.from(e.target.files || [])])} />
                   </label>
                 </div>
                 <button 
@@ -11491,6 +12060,80 @@ function ExonaApp() {
                     <X size={18} />
                     Close
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isSecretKeyModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[400] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-sm bg-white p-8 sm:p-10 rounded-[3rem] shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 p-8 opacity-5">
+                <Lock size={120} />
+              </div>
+              
+              <div className="relative z-10">
+                <div className="h-16 w-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mb-8">
+                  <ShieldCheck size={32} />
+                </div>
+                <h3 className="text-2xl font-black text-ink mb-2">Authentication Required</h3>
+                <p className="text-muted font-bold text-sm mb-10 leading-relaxed">
+                  Please enter your institution's secret access key to continue to the portal. If your institution doesn't have a key, the owner must add one first.
+                </p>
+
+                <div className="space-y-6 mb-10">
+                  <div>
+                    <label className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-4 block">Security Key</label>
+                    <input 
+                      type="password"
+                      value={secretKeyInput}
+                      onChange={(e) => setSecretKeyInput(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full px-8 py-5 bg-gray-50 border border-gray-100 rounded-[2rem] outline-none focus:ring-4 focus:ring-indigo-500/5 focus:bg-white text-center font-mono text-xl tracking-[0.5em] transition-all"
+                      autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && handleVerifySecretKey()}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={handleVerifySecretKey}
+                    className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-ink/90 shadow-xl shadow-ink/20 transition-all active:scale-[0.98]"
+                  >
+                    Verify & Unlock
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsSecretKeyModalOpen(false);
+                      setSecretKeyInput('');
+                    }}
+                    className="w-full py-5 text-muted font-bold text-[10px] uppercase tracking-widest hover:text-ink transition-all"
+                  >
+                    Cancel Access
+                  </button>
+                </div>
+
+                <div className="mt-10 pt-8 border-t border-gray-50 text-center">
+                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed">
+                    Don't have a key? <br />
+                    <button 
+                      onClick={() => {
+                        setIsSecretKeyModalOpen(false);
+                        setView('tools');
+                      }}
+                      className="text-indigo-600 hover:underline"
+                    >
+                      Apply in Institutional Hub
+                    </button>
+                  </p>
                 </div>
               </div>
             </motion.div>

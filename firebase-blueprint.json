@@ -84,6 +84,7 @@
         "authorPhoto": { "type": "string", "format": "uri" },
         "content": { "type": "string" },
         "mediaUrl": { "type": "string", "format": "uri" },
+        "mediaUrls": { "type": "array", "items": { "type": "string", "format": "uri" } },
         "mediaType": { "type": "string", "enum": ["image", "video"] },
         "likes": { "type": "number" },
         "likedBy": { "type": "array", "items": { "type": "string" } },
