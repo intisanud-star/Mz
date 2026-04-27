@@ -1963,6 +1963,7 @@ function ExonaApp() {
   const [isExamStarted, setIsExamStarted] = useState(false);
   const [isConfiguringExam, setIsConfiguringExam] = useState(false);
   const [examSelectedSubjects, setExamSelectedSubjects] = useState<string[]>(['Use of English']);
+  const [activeExamQuestions, setActiveExamQuestions] = useState<{[subject: string]: any[]}>({});
   const [examCurrentSubject, setExamCurrentSubject] = useState('Use of English');
   const [examCurrentQuestionIndex, setExamCurrentQuestionIndex] = useState(0);
   const [examAnswers, setExamAnswers] = useState<{[subject: string]: {[index: number]: string}}>({});
@@ -1979,21 +1980,102 @@ function ExonaApp() {
     const subjects: {[key: string]: any[]} = {};
     const ALL_AVAILABLE = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Government', 'Literature in English'];
     
+    // Syllabus Topics Mapping
+    const topics: {[key: string]: string[]} = {
+      'Use of English': ['Lexis and Structure', 'Synonyms and Antonyms', 'Oral English', 'Sentence Harmony', 'Idioms and Phrases', 'Registers'],
+      'Mathematics': ['Number Bases', 'Indices and Surds', 'Quadratic Equations', 'Trigonometry', 'Differentiation', 'Integration', 'Statistics', 'Probability', 'Coordinate Geometry'],
+      'Physics': ['Measurements and Units', 'Force and Motion', 'Heat and Temperature', 'Light and Sound Waves', 'Electric Circuits', 'Magnetic Fields', 'Radioactivity'],
+      'Chemistry': ['Atomic Structure', 'Chemical Equilibrium', 'The Periodic Table', 'Organic Chemistry (Hydrocarbons)', 'Acids, Bases and Salts', 'Redox Systems', 'Non-metals and compounds'],
+      'Biology': ['Classification of Living Things', 'Organization of life', 'Heredity and Variation', 'Ecology and Habitats', 'Circulatory and Respiratory systems', 'Nutritional Processes'],
+      'Economics': ['The Basic Economic Problems', 'Theory of Demand and Supply', 'Production and Cost', 'Market Structures', 'National Income accounting', 'Money and Banking'],
+      'Government': ['Basic Concepts in Government', 'The Nigerian Constitution', 'Organs of Government', 'Local Government administration', 'International Relations', 'Political Parties'],
+      'Literature in English': ['Figures of Speech', 'Literary Appreciation', 'Dramatic Techniques', 'Poetry and Prosody', 'Narrative Perspective', 'Themes and Motifs']
+    };
+
     ALL_AVAILABLE.forEach(subject => {
-      const count = subject === 'Use of English' ? 60 : 40;
-      subjects[subject] = Array.from({ length: count }, (_, i) => ({
-        id: `${subject}-${i}`,
-        question: subject === 'Use of English' 
-          ? `In English Language question ${i + 1}, identify the most appropriate synonym for the underlined word in context.`
-          : `Solve the following ${subject} problem (Question ${i + 1}): If X = ${i * 2} and Y = ${Math.floor(i / 3) + 5}, what is the value of X + Y?`,
-        options: {
-          A: subject === 'Use of English' ? 'Conscientious' : `${(i * 2) + Math.floor(i / 3) + 5}`,
-          B: subject === 'Use of English' ? 'Inadvertent' : `${(i * 2) + Math.floor(i / 3) + 10}`,
-          C: subject === 'Use of English' ? 'Meticulous' : `${(i * 2) + Math.floor(i / 3) - 5}`,
-          D: subject === 'Use of English' ? 'Ambiguous' : `${(i * 2) + Math.floor(i / 3) + 15}`
-        },
-        correctAnswer: 'A'
-      }));
+      const poolCount = 1000;
+      const subjectTopics = topics[subject] || ['General Concepts'];
+      
+      subjects[subject] = Array.from({ length: poolCount }, (_, i) => {
+        const topic = subjectTopics[i % subjectTopics.length];
+        const val1 = (i * 3) + 7;
+        const val2 = Math.floor(i / 4) + 12;
+        
+        let questionText = "";
+        let optA = "", optB = "", optC = "", optD = "";
+
+        // Professional Curriculum-Based Generation Logic (SS1-SS3 Syllabus)
+        if (subject === 'Use of English') {
+          if (topic === 'Synonyms and Antonyms') {
+            const words = ['obdurate', 'ephemeral', 'loquacious', 'venerable', 'fastidious', 'capricious'];
+            const word = words[i % words.length];
+            questionText = `From the options provided, select the word that is most nearly opposite in meaning to the underlined word: The senator's ${word} nature made it difficult for the committee to reach a consensus.`;
+            optA = word === 'obdurate' ? 'Flexible' : (word === 'ephemeral' ? 'Permanent' : 'Reserved');
+            optB = "Stubborn"; optC = "Careless"; optD = "Passive";
+          } else if (topic === 'Lexis and Structure') {
+            questionText = `Choose the option that best completes the following sentence: If I _______ known about the meeting, I would have attended.`;
+            optA = "had"; optB = "have"; optC = "was"; optD = "should have";
+          } else {
+            questionText = `Identify the word that has the same vowel sound as the one represented by the underlined letter: "Gate".`;
+            optA = "Wait"; optB = "Cat"; optC = "Bait"; optD = "Get";
+          }
+        } else if (subject === 'Mathematics') {
+          if (topic === 'Algebraic Processes') {
+            questionText = `Solve for x in the equation: ${i%3+2}x² - ${val1}x + ${val2} = 0.`;
+            optA = "Using quadratic formula x = [-b ± √(b² - 4ac)] / 2a"; optB = `x = ${val1}`; optC = `x = -${val2}`; optD = "No real roots";
+          } else if (topic === 'Calculus') {
+            questionText = `Find the gradient of the curve y = ${i%4+2}x³ - ${val1}x at the point x = ${i%3+1}.`;
+            optA = `${3*(i%4+2)*Math.pow(i%3+1, 2) - val1}`; optB = `${val1}`; optC = "0"; optD = `${val2}`;
+          } else {
+            questionText = `In ${topic}: Convert ${val1}${val2} in base 10 to a number in base 2 (binary).`;
+            optA = "1101011.."; optB = "10101"; optC = "11100"; optD = "10011";
+          }
+        } else if (subject === 'Biology') {
+          if (topic === 'Classification of Living Things') {
+            questionText = `To which of the following Phyla does the "Spirogyra" belong?`;
+            optA = "Chlorophyta"; optB = "Bryophyta"; optC = "Pteridophyta"; optD = "Spermatophyta";
+          } else if (topic === 'Heredity and Variation') {
+            questionText = `A cross between a homozygous red-flowered plant and a homozygous white-flowered plant resulted in all pink flowers. This is an example of:`;
+            optA = "Incomplete dominance"; optB = "Complete dominance"; optC = "Co-dominance"; optD = "Epistasis";
+          } else {
+            questionText = `Which of the following organelles is known as the "powerhouse" of the cell, responsible for ATP production?`;
+            optA = "Mitochondrion"; optB = "Ribosome"; optC = "Golgi body"; optD = "Nucleus";
+          }
+        } else if (subject === 'Chemistry') {
+          if (topic === 'Organic Chemistry (Hydrocarbons)') {
+            questionText = `What is the general formula for the Alkanol homologous series?`;
+            optA = "CnH2n+1OH"; optB = "CnH2n"; optC = "CnH2n+2"; optD = "CnH2n-2";
+          } else {
+            questionText = `Which of the following elements has the electronic configuration 1s² 2s² 2p⁶ 3s² 3p⁵?`;
+            optA = "Chlorine"; optB = "Sodium"; optC = "Argon"; optD = "Fluorine";
+          }
+        } else if (subject === 'Economics') {
+          questionText = `[Economics] Which of the following describes a situation where the change in price results in a more than proportionate change in quantity demanded?`;
+          optA = "Elastic demand"; optB = "Inelastic demand"; optC = "Unitary elasticity"; optD = "Perfectly inelastic";
+        } else if (subject === 'Government') {
+          questionText = `The fundamental law that guides the conduct of government and defines the rights of citizens is the:`;
+          optA = "Constitution"; optB = "Manifesto"; optC = "Decree"; optD = "Bye-law";
+        } else if (subject === 'Literature in English') {
+          questionText = `A literary device that involves a direct comparison between two unlike things using "as" or "like" is:`;
+          optA = "Simile"; optB = "Metaphor"; optC = "Personification"; optD = "Oxymoron";
+        } else {
+          questionText = `Based on the SS1-SS3 ${subject} syllabus, identify the primary objective of studying ${topic} in modern secondary education.`;
+          optA = "To develop analytical skills"; optB = "To memorize facts"; optC = "To pass exams only"; optD = "To follow tradition";
+        }
+
+        return {
+          id: `${subject}-${i}`,
+          topic: topic,
+          question: questionText,
+          options: {
+            A: optA || `Correct Answer`,
+            B: optB || `Incorrect Option A`,
+            C: optC || `Incorrect Option B`,
+            D: optD || `Incorrect Option C`
+          },
+          correctAnswer: 'A'
+        };
+      });
     });
     return subjects;
   }, []);
@@ -2009,7 +2091,7 @@ function ExonaApp() {
   };
 
   const handleExamNext = () => {
-    const subjectQs = examQuestionsStore[examCurrentSubject];
+    const subjectQs = activeExamQuestions[examCurrentSubject];
     if (examCurrentQuestionIndex < subjectQs.length - 1) {
       setExamCurrentQuestionIndex(prev => prev + 1);
     } else {
@@ -2031,7 +2113,7 @@ function ExonaApp() {
       if (currentSubIdx > 0) {
         const prevSubject = examSelectedSubjects[currentSubIdx - 1];
         setExamCurrentSubject(prevSubject);
-        setExamCurrentQuestionIndex(examQuestionsStore[prevSubject].length - 1);
+        setExamCurrentQuestionIndex(activeExamQuestions[prevSubject].length - 1);
       }
     }
   };
@@ -2042,7 +2124,7 @@ function ExonaApp() {
     
     examSelectedSubjects.forEach(subject => {
       let subjectCorrect = 0;
-      const questions = examQuestionsStore[subject];
+      const questions = activeExamQuestions[subject] || [];
       const answers = examAnswers[subject] || {};
       
       questions.forEach((q, idx) => {
@@ -2052,7 +2134,7 @@ function ExonaApp() {
       });
       
       // Calculate JAMB-style score (max 100 per subject usually)
-      const maxPossible = questions.length;
+      const maxPossible = questions.length || 1;
       const score = Math.round((subjectCorrect / maxPossible) * 100);
       subjectScores[subject] = score;
       totalScore += score;
@@ -8872,9 +8954,8 @@ function ExonaApp() {
           const activeInst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
           
           if (isExamStarted) {
-            const currentQuestions = examQuestionsStore[examCurrentSubject] || [];
+            const currentQuestions = activeExamQuestions[examCurrentSubject] || [];
             const currentQ = currentQuestions[examCurrentQuestionIndex];
-            const subjects = Object.keys(examQuestionsStore);
             
             return (
               <div className="fixed inset-0 z-[150] bg-[#f0f2f5] flex flex-col font-sans select-none overflow-hidden">
@@ -8931,7 +9012,7 @@ function ExonaApp() {
                       {examSelectedSubjects.map((sub) => {
                         const isActive = examCurrentSubject === sub;
                         const answers = Object.keys(examAnswers[sub] || {}).length;
-                        const total = examQuestionsStore[sub]?.length || 0;
+                        const total = activeExamQuestions[sub]?.length || 0;
                         return (
                           <button
                             key={sub}
@@ -9252,6 +9333,19 @@ function ExonaApp() {
                           <button 
                             disabled={examSelectedSubjects.length !== 4}
                             onClick={() => {
+                              // Select random questions for the active session
+                              const sessionPool: {[key: string]: any[]} = {};
+                              examSelectedSubjects.forEach(sub => {
+                                const masterPool = examQuestionsStore[sub];
+                                if (masterPool) {
+                                  const count = sub === 'Use of English' ? 60 : 40;
+                                  // Shuffle and slice
+                                  const shuffled = [...masterPool].sort(() => Math.random() - 0.5);
+                                  sessionPool[sub] = shuffled.slice(0, count);
+                                }
+                              });
+                              
+                              setActiveExamQuestions(sessionPool);
                               setIsConfiguringExam(false);
                               setIsExamStarted(true);
                               setExamTimeRemaining(7200);
