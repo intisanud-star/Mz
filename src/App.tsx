@@ -21,6 +21,7 @@ import {
   RefreshCcw, Layers, Layout, Library, Pencil, Save, BookOpen as BookOpenIcon, Clock as ClockIcon, Calendar as CalendarIcon, Check as CheckIcon, X as XIcon, Menu as MenuIcon, Search as SearchIcon, Filter as FilterIcon, MoreVertical as MoreVerticalIcon, Bell as BellIcon, Settings as SettingsIcon, LogOut as LogOutIcon, Camera as CameraIcon, Plus as PlusIcon, Send as SendIcon, Image as ImageIcon2, Smile as SmileIcon, Heart as HeartIcon, MessageCircle as MessageCircleIcon, Share2 as Share2Icon, MoreHorizontal as MoreHorizontalIcon, Trash2 as Trash2Icon, Edit2 as Edit2Icon, Bookmark as BookmarkIcon, Heart as HeartFilled, LogOut,
   Gamepad2, Trophy, Flame, Ghost, Music, Video, Map, Volume2, VolumeX, MicOff,
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FilePlus, FileMinus,
+  PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
   Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity
 } from 'lucide-react';
@@ -1965,6 +1966,7 @@ function ExonaApp() {
   const [examTimeRemaining, setExamTimeRemaining] = useState(7200); // 2 hours
   const [examShowSubmitConfirm, setExamShowSubmitConfirm] = useState(false);
   const [examResult, setExamResult] = useState<any>(null);
+  const [isExamSidebarVisible, setIsExamSidebarVisible] = useState(true);
 
   const mockRegNumber = useMemo(() => {
     return '2026' + Math.floor(10000000 + Math.random() * 90000000).toString() + 'JB';
@@ -8918,74 +8920,73 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                {/* SUBJECT TABS */}
-                <div className="bg-[#e7e9eb] px-6 flex items-end gap-1 pt-2">
-                  {subjects.map((sub) => {
-                    const isActive = examCurrentSubject === sub;
-                    const answers = Object.keys(examAnswers[sub] || {}).length;
-                    const total = examQuestionsStore[sub].length;
-                    return (
-                      <button
-                        key={sub}
-                        onClick={() => {
-                          setExamCurrentSubject(sub);
-                          setExamCurrentQuestionIndex(0);
-                        }}
-                        className={`px-6 py-3 rounded-t-xl text-[11px] font-black uppercase tracking-widest transition-all ${
-                          isActive 
-                            ? 'bg-white text-ink border-t-2 border-rose-600 shadow-sm' 
-                            : 'bg-gray-200/80 text-muted hover:bg-gray-200'
-                        }`}
-                      >
-                        {sub}
-                        <span className="ml-2 px-1.5 py-0.5 bg-gray-100 rounded text-[9px] text-muted">
-                          {answers}/{total}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
                 {/* MAIN EXAM AREA */}
-                <div className="flex-1 flex overflow-hidden">
-                  {/* Left: Question Content (Expanded) */}
-                  <div className="flex-1 bg-white p-8 md:p-14 overflow-y-auto border-r border-gray-200">
+                <div className="flex-1 flex flex-col overflow-hidden bg-white">
+                  {/* TOP NAVIGATION: SUBJECTS (Minimal) */}
+                  <div className="bg-[#f0f2f5] border-b border-gray-200 px-6 flex items-center justify-between">
+                    <div className="flex items-end gap-1 pt-2">
+                      {subjects.map((sub) => {
+                        const isActive = examCurrentSubject === sub;
+                        const answers = Object.keys(examAnswers[sub] || {}).length;
+                        const total = examQuestionsStore[sub].length;
+                        return (
+                          <button
+                            key={sub}
+                            onClick={() => {
+                              setExamCurrentSubject(sub);
+                              setExamCurrentQuestionIndex(0);
+                            }}
+                            className={`px-6 py-3 rounded-t-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                              isActive 
+                                ? 'bg-white text-ink border-t-2 border-rose-600 shadow-sm' 
+                                : 'text-muted hover:bg-gray-200/50'
+                            }`}
+                          >
+                            {sub} <span className="ml-1 opacity-50">[{answers}/{total}]</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* QUESTION CONTENT */}
+                  <div className="flex-1 overflow-y-auto px-8 md:px-20 py-12">
                     <div className="max-w-4xl mx-auto">
-                      <div className="flex items-center gap-4 mb-10">
-                        <div className="px-4 py-2 bg-ink text-white rounded-lg flex items-center justify-center font-black text-xs uppercase tracking-widest">
+                      <div className="flex items-center gap-4 mb-12">
+                        <div className="px-5 py-2 bg-ink text-white rounded-lg font-black text-xs uppercase tracking-[0.2em]">
                           Question {examCurrentQuestionIndex + 1}
                         </div>
                         <div className="h-px flex-1 bg-gray-100" />
                       </div>
 
-                      <div className="text-2xl font-bold text-ink leading-relaxed mb-16 min-h-[120px]">
+                      <div className="text-3xl font-bold text-ink leading-relaxed mb-16 min-h-[160px]">
                         {currentQ?.question}
                       </div>
 
-                      <div className="grid grid-cols-1 gap-5">
+                      <div className="grid grid-cols-1 gap-6">
                         {['A', 'B', 'C', 'D'].map((option) => {
                           const isSelected = examAnswers[examCurrentSubject]?.[examCurrentQuestionIndex] === option;
                           return (
                             <button
                               key={option}
                               onClick={() => handleExamAnswer(option)}
-                              className={`w-full p-6 rounded-[2rem] border-2 text-left flex items-center justify-between transition-all group ${
+                              className={`w-full p-8 rounded-[2rem] border-2 text-left flex items-center justify-between transition-all group ${
                                 isSelected 
                                   ? 'bg-rose-50 border-rose-600 shadow-xl shadow-rose-100' 
                                   : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-white'
                               }`}
                             >
-                              <div className="flex items-center gap-6">
-                                <div className={`h-10 w-10 rounded-full flex items-center justify-center font-black text-sm transition-all ${
+                              <div className="flex items-center gap-8">
+                                <div className={`h-12 w-12 rounded-full flex items-center justify-center font-black text-lg transition-all ${
                                   isSelected ? 'bg-rose-600 text-white' : 'bg-white text-ink border border-gray-200 group-hover:border-rose-400'
                                 }`}>
                                   {option}
                                 </div>
-                                <span className={`text-lg font-bold ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
+                                <span className={`text-xl font-bold ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
                                   {currentQ?.options[option]}
                                 </span>
                               </div>
-                              {isSelected && <CheckCircle2 size={24} className="text-rose-600" />}
+                              {isSelected && <CheckCircle2 size={28} className="text-rose-600" />}
                             </button>
                           );
                         })}
@@ -8993,73 +8994,30 @@ function ExonaApp() {
                     </div>
                   </div>
 
-                  {/* Right: Navigation Grid (Compact Sidebar) */}
-                  <div className="w-64 bg-[#f7f9fb] p-5 overflow-y-auto flex flex-col border-l border-gray-100">
-                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-5 flex items-center gap-2">
-                       <LayoutGrid size={12} /> Question Map
-                    </h3>
+                  {/* BOTTOM NAVIGATION FOOTER */}
+                  <div className="bg-white border-t border-gray-200 p-6 flex items-center justify-center gap-4">
+                    <div className="max-w-4xl w-full flex items-center justify-between">
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={handleExamPrev}
+                          className="px-10 py-5 bg-white border-2 border-gray-100 rounded-2xl font-black text-[11px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center gap-3"
+                        >
+                          <ChevronLeft size={18} /> Previous Question (P)
+                        </button>
+                        <button 
+                          onClick={handleExamNext}
+                          className="px-10 py-5 bg-white border-2 border-gray-100 rounded-2xl font-black text-[11px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center gap-3"
+                        >
+                          Next Question (N) <ChevronRight size={18} />
+                        </button>
+                      </div>
 
-                    <div className="grid grid-cols-4 gap-1.5 mb-8">
-                      {currentQuestions.map((_, idx) => {
-                        const isCurrent = examCurrentQuestionIndex === idx;
-                        const isAnswered = !!examAnswers[examCurrentSubject]?.[idx];
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => setExamCurrentQuestionIndex(idx)}
-                            className={`h-9 rounded-md text-[10px] font-black transition-all ${
-                              isCurrent 
-                                ? 'bg-ink text-white ring-2 ring-ink/10 scale-105 z-10' 
-                                : isAnswered 
-                                  ? 'bg-rose-500 text-white shadow-sm shadow-rose-200' 
-                                  : 'bg-white text-ink border border-gray-200 hover:bg-gray-50'
-                            }`}
-                          >
-                            {idx + 1}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-auto space-y-3">
-                       <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm mb-4">
-                          <h5 className="text-[9px] font-black uppercase tracking-widest text-muted mb-3 flex items-center justify-between">
-                             Legend
-                             <HelpCircle size={10} />
-                          </h5>
-                          <div className="space-y-2">
-                             <div className="flex items-center gap-2 text-[10px] font-bold text-ink">
-                                <div className="h-3 w-3 bg-rose-500 rounded-sm" /> Answered
-                             </div>
-                             <div className="flex items-center gap-2 text-[10px] font-bold text-ink">
-                                <div className="h-3 w-3 bg-ink rounded-sm" /> Current
-                             </div>
-                             <div className="flex items-center gap-2 text-[10px] font-bold text-ink">
-                                <div className="h-3 w-3 bg-white border border-gray-200 rounded-sm" /> Not Visited
-                             </div>
-                          </div>
-                       </div>
-
-                       <div className="grid grid-cols-2 gap-3">
-                          <button 
-                            onClick={handleExamPrev}
-                            className="py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
-                          >
-                            <ArrowLeft size={14} /> (P) rev
-                          </button>
-                          <button 
-                            onClick={handleExamNext}
-                            className="py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
-                          >
-                            (N) ext <ArrowRight size={14} />
-                          </button>
-                       </div>
-                       <button 
+                      <button 
                         onClick={() => setExamShowSubmitConfirm(true)}
-                        className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-200 flex items-center justify-center gap-3"
-                       >
-                         <Lock size={16} /> Finish Exam (S)
-                       </button>
+                        className="px-12 py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-200 flex items-center gap-4"
+                      >
+                        <Send size={18} /> Submit Examination (S)
+                      </button>
                     </div>
                   </div>
                 </div>
