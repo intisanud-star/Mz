@@ -9047,7 +9047,7 @@ function ExonaApp() {
                 {/* MAIN EXAM AREA */}
                 <div className="flex-1 flex flex-col overflow-hidden bg-white">
                   {/* TOP NAVIGATION: SUBJECTS (Minimal) */}
-                  <div className="bg-[#f0f2f5] border-b border-gray-200 px-6 flex items-center justify-between">
+                  <div className="bg-[#f0f2f5] border-b border-gray-200 px-6 flex items-center justify-between shrink-0">
                     <div className="flex items-end gap-1 pt-2">
                       {examSelectedSubjects.map((sub) => {
                         const isActive = examCurrentSubject === sub;
@@ -9060,7 +9060,7 @@ function ExonaApp() {
                               setExamCurrentSubject(sub);
                               setExamCurrentQuestionIndex(0);
                             }}
-                            className={`px-6 py-3 rounded-t-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                            className={`px-6 py-2.5 rounded-t-lg text-[9px] font-black uppercase tracking-widest transition-all ${
                               isActive 
                                 ? 'bg-white text-ink border-t-2 border-rose-600 shadow-sm' 
                                 : 'text-muted hover:bg-gray-200/50'
@@ -9073,74 +9073,104 @@ function ExonaApp() {
                     </div>
                   </div>
 
-                  {/* QUESTION CONTENT */}
-                  <div className="flex-1 overflow-y-auto px-8 md:px-20 py-12">
-                    <div className="max-w-4xl mx-auto">
-                      <div className="flex items-center gap-4 mb-12">
-                        <div className="px-5 py-2 bg-ink text-white rounded-lg font-black text-xs uppercase tracking-[0.2em]">
-                          Question {examCurrentQuestionIndex + 1}
+                  {/* SPLIT QUESTION & OPTIONS CONTENT */}
+                  <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+                    {/* Left: Question Box */}
+                    <div className="flex-1 overflow-y-auto p-6 md:p-10 border-b md:border-b-0 md:border-r border-gray-100 bg-white">
+                      <div className="max-w-2xl ml-auto">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="px-3 py-1.5 bg-ink text-white rounded-md font-black text-[9px] uppercase tracking-wider">
+                            Q. {examCurrentQuestionIndex + 1}
+                          </div>
+                          <div className="h-px flex-1 bg-gray-50" />
+                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest">{examCurrentSubject}</span>
                         </div>
-                        <div className="h-px flex-1 bg-gray-100" />
-                      </div>
 
-                      <div className="text-3xl font-bold text-ink leading-relaxed mb-16 min-h-[160px]">
-                        {currentQ?.question}
+                        <div className="text-xl md:text-2xl font-bold text-ink leading-relaxed">
+                          {currentQ?.question}
+                        </div>
+                        
+                        {currentQ?.topic && (
+                          <div className="mt-6 flex items-center gap-2">
+                             <span className="px-2 py-1 bg-gray-100 text-[#717171] text-[8px] font-black uppercase rounded tracking-widest">
+                               Topic: {currentQ.topic}
+                             </span>
+                          </div>
+                        )}
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-1 gap-6">
-                        {['A', 'B', 'C', 'D'].map((option) => {
-                          const isSelected = examAnswers[examCurrentSubject]?.[examCurrentQuestionIndex] === option;
-                          return (
-                            <button
-                              key={option}
-                              onClick={() => handleExamAnswer(option)}
-                              className={`w-full p-8 rounded-[2rem] border-2 text-left flex items-center justify-between transition-all group ${
-                                isSelected 
-                                  ? 'bg-rose-50 border-rose-600 shadow-xl shadow-rose-100' 
-                                  : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-white'
-                              }`}
-                            >
-                              <div className="flex items-center gap-8">
-                                <div className={`h-12 w-12 rounded-full flex items-center justify-center font-black text-lg transition-all ${
-                                  isSelected ? 'bg-rose-600 text-white' : 'bg-white text-ink border border-gray-200 group-hover:border-rose-400'
-                                }`}>
-                                  {option}
+                    {/* Right: Options Box */}
+                    <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-gray-50/40">
+                      <div className="max-w-2xl mr-auto">
+                        <div className="text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-6">Select appropriate option</div>
+                        <div className="grid grid-cols-1 gap-3">
+                          {['A', 'B', 'C', 'D'].map((option) => {
+                            const isSelected = examAnswers[examCurrentSubject]?.[examCurrentQuestionIndex] === option;
+                            return (
+                              <button
+                                key={option}
+                                onClick={() => handleExamAnswer(option)}
+                                className={`w-full p-4 rounded-2xl border-1.5 text-left flex items-center justify-between transition-all group ${
+                                  isSelected 
+                                    ? 'bg-white border-rose-600 shadow-md shadow-rose-100 ring-2 ring-rose-600/5' 
+                                    : 'bg-white border-gray-100 hover:border-gray-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center font-black text-sm transition-all ${
+                                    isSelected ? 'bg-rose-600 text-white' : 'bg-gray-100 text-ink'
+                                  }`}>
+                                    {option}
+                                  </div>
+                                  <span className={`text-[15px] font-bold leading-tight ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
+                                    {currentQ?.options[option]}
+                                  </span>
                                 </div>
-                                <span className={`text-xl font-bold ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
-                                  {currentQ?.options[option]}
-                                </span>
-                              </div>
-                              {isSelected && <CheckCircle2 size={28} className="text-rose-600" />}
-                            </button>
-                          );
-                        })}
+                                {isSelected && <CheckCircle2 size={18} className="text-rose-600" />}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* BOTTOM NAVIGATION FOOTER */}
-                  <div className="bg-white border-t border-gray-200 p-6 flex items-center justify-center gap-4">
-                    <div className="max-w-4xl w-full flex items-center justify-between">
-                      <div className="flex gap-4">
+                  <div className="bg-white border-t border-gray-200 p-4 md:p-6 flex items-center justify-center shrink-0">
+                    <div className="max-w-6xl w-full flex items-center justify-between">
+                      <div className="flex gap-2">
                         <button 
                           onClick={handleExamPrev}
-                          className="px-10 py-5 bg-white border-2 border-gray-100 rounded-2xl font-black text-[11px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center gap-3"
+                          className="px-6 py-3.5 bg-white border border-gray-200 rounded-xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
                         >
-                          <ChevronLeft size={18} /> Previous Question (P)
+                          <ChevronLeft size={16} /> Previous
                         </button>
                         <button 
                           onClick={handleExamNext}
-                          className="px-10 py-5 bg-white border-2 border-gray-100 rounded-2xl font-black text-[11px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center gap-3"
+                          className="px-6 py-3.5 bg-white border border-gray-200 rounded-xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
                         >
-                          Next Question (N) <ChevronRight size={18} />
+                          Next <ChevronRight size={16} />
                         </button>
+                      </div>
+
+                      <div className="hidden md:flex items-center gap-6">
+                         <div className="flex flex-col items-center">
+                            <span className="text-[8px] font-black text-muted uppercase tracking-widest">Progress</span>
+                            <div className="h-1 w-32 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                               <div 
+                                 className="h-full bg-rose-500 transition-all duration-300"
+                                 style={{ width: `${(Object.keys(examAnswers[examCurrentSubject] || {}).length / (activeExamQuestions[examCurrentSubject]?.length || 1)) * 100}%` }}
+                               />
+                            </div>
+                         </div>
                       </div>
 
                       <button 
                         onClick={() => setExamShowSubmitConfirm(true)}
-                        className="px-12 py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-200 flex items-center gap-4"
+                        className="px-8 py-3.5 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.1em] hover:bg-rose-700 active:scale-95 transition-all shadow-lg shadow-rose-200 flex items-center gap-3"
                       >
-                        <Send size={18} /> Submit Examination (S)
+                        <Send size={16} /> Submit Exam
                       </button>
                     </div>
                   </div>
