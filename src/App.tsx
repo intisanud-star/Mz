@@ -1957,6 +1957,112 @@ function ExonaApp() {
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
+  // --- E-EXAMINATION JAMB REPLICA STATES ---
+  const [isExamStarted, setIsExamStarted] = useState(false);
+  const [examCurrentSubject, setExamCurrentSubject] = useState('Use of English');
+  const [examCurrentQuestionIndex, setExamCurrentQuestionIndex] = useState(0);
+  const [examAnswers, setExamAnswers] = useState<{[subject: string]: {[index: number]: string}}>({});
+  const [examTimeRemaining, setExamTimeRemaining] = useState(7200); // 2 hours
+  const [examShowSubmitConfirm, setExamShowSubmitConfirm] = useState(false);
+  const [examResult, setExamResult] = useState<any>(null);
+
+  const mockRegNumber = useMemo(() => {
+    return '2026' + Math.floor(10000000 + Math.random() * 90000000).toString() + 'JB';
+  }, []);
+
+  const examQuestionsStore = useMemo(() => {
+    const subjects: {[key: string]: any[]} = {};
+    ['Use of English', 'Mathematics', 'Physics', 'Chemistry'].forEach(subject => {
+      const count = subject === 'Use of English' ? 60 : 40;
+      subjects[subject] = Array.from({ length: count }, (_, i) => ({
+        id: `${subject}-${i}`,
+        question: subject === 'Use of English' 
+          ? `In English Language question ${i + 1}, identify the most appropriate synonym for the underlined word in context.`
+          : `Solve the following ${subject} problem (Question ${i + 1}): If X = ${i * 2} and Y = ${Math.floor(i / 3) + 5}, what is the value of X + Y?`,
+        options: {
+          A: subject === 'Use of English' ? 'Conscientious' : `${(i * 2) + Math.floor(i / 3) + 5}`,
+          B: subject === 'Use of English' ? 'Inadvertent' : `${(i * 2) + Math.floor(i / 3) + 10}`,
+          C: subject === 'Use of English' ? 'Meticulous' : `${(i * 2) + Math.floor(i / 3) - 5}`,
+          D: subject === 'Use of English' ? 'Ambiguous' : `${(i * 2) + Math.floor(i / 3) + 15}`
+        },
+        correctAnswer: 'A'
+      }));
+    });
+    return subjects;
+  }, []);
+
+  const handleExamAnswer = (choice: string) => {
+    setExamAnswers(prev => ({
+      ...prev,
+      [examCurrentSubject]: {
+        ...(prev[examCurrentSubject] || {}),
+        [examCurrentQuestionIndex]: choice
+      }
+    }));
+  };
+
+  const handleExamNext = () => {
+    const subjectQs = examQuestionsStore[examCurrentSubject];
+    if (examCurrentQuestionIndex < subjectQs.length - 1) {
+      setExamCurrentQuestionIndex(prev => prev + 1);
+    } else {
+      // Switch to next subject if available
+      const subjects = Object.keys(examQuestionsStore);
+      const currentSubIdx = subjects.indexOf(examCurrentSubject);
+      if (currentSubIdx < subjects.length - 1) {
+        setExamCurrentSubject(subjects[currentSubIdx + 1]);
+        setExamCurrentQuestionIndex(0);
+      }
+    }
+  };
+
+  const handleExamPrev = () => {
+    if (examCurrentQuestionIndex > 0) {
+      setExamCurrentQuestionIndex(prev => prev - 1);
+    } else {
+      // Switch to previous subject if available
+      const subjects = Object.keys(examQuestionsStore);
+      const currentSubIdx = subjects.indexOf(examCurrentSubject);
+      if (currentSubIdx > 0) {
+        const prevSubject = subjects[currentSubIdx - 1];
+        setExamCurrentSubject(prevSubject);
+        setExamCurrentQuestionIndex(examQuestionsStore[prevSubject].length - 1);
+      }
+    }
+  };
+
+  const calculateExamScore = () => {
+    let totalScore = 0;
+    let subjectScores: {[key: string]: number} = {};
+    
+    Object.keys(examQuestionsStore).forEach(subject => {
+      let subjectCorrect = 0;
+      const questions = examQuestionsStore[subject];
+      const answers = examAnswers[subject] || {};
+      
+      questions.forEach((q, idx) => {
+        if (answers[idx] === q.correctAnswer) {
+          subjectCorrect++;
+        }
+      });
+      
+      // Calculate JAMB-style score (max 100 per subject usually)
+      const maxPossible = questions.length;
+      const score = Math.round((subjectCorrect / maxPossible) * 100);
+      subjectScores[subject] = score;
+      totalScore += score;
+    });
+    
+    return { totalScore, subjectScores };
+  };
+
+  const handleExamSubmit = () => {
+    const results = calculateExamScore();
+    setExamResult(results);
+    setIsExamStarted(false);
+    setExamShowSubmitConfirm(false);
+  };
+
   // Check if current time is within Sunday 7:00 PM - 7:55 PM
   const isBattleWindowOpen = () => {
     const now = new Date();
@@ -2058,6 +2164,55 @@ function ExonaApp() {
     }
     return () => clearInterval(interval);
   }, [isTimerActive, battleTimeLeft, battleStep, guestInfo, battleScore, currentBattleQuestions, user]);
+
+  // E-EXAM TIMER LOGIC
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isExamStarted && examTimeRemaining > 0 && !examShowSubmitConfirm) {
+      interval = setInterval(() => {
+        setExamTimeRemaining(prev => prev - 1);
+      }, 1000);
+    } else if (examTimeRemaining === 0 && isExamStarted) {
+      handleExamSubmit();
+    }
+    return () => clearInterval(interval);
+  }, [isExamStarted, examTimeRemaining, examShowSubmitConfirm]);
+
+  // E-EXAM KEYBOARD SHORTCUTS
+  useEffect(() => {
+    if (!isExamStarted) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toUpperCase();
+      
+      // Prevent browser default for some keys
+      if (['A', 'B', 'C', 'D', 'N', 'P', 'S', 'R'].includes(key)) {
+        // e.preventDefault(); // Might interfere with inputs if any, but JAMB doesn't have other inputs
+      }
+
+      if (['A', 'B', 'C', 'D'].includes(key)) {
+        handleExamAnswer(key);
+      } else if (key === 'N') {
+        handleExamNext();
+      } else if (key === 'P') {
+        handleExamPrev();
+      } else if (key === 'S') {
+        setExamShowSubmitConfirm(true);
+      } else if (key === 'R') {
+        setExamShowSubmitConfirm(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExamStarted, examCurrentSubject, examCurrentQuestionIndex]);
+
+  const formatExamTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const renderBrainBattle = () => (
     <BrainBattleModal 
@@ -8704,6 +8859,330 @@ function ExonaApp() {
 
         if (activeWorkspaceTool === 'e-exam') {
           const activeInst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+          
+          if (isExamStarted) {
+            const currentQuestions = examQuestionsStore[examCurrentSubject] || [];
+            const currentQ = currentQuestions[examCurrentQuestionIndex];
+            const subjects = Object.keys(examQuestionsStore);
+            
+            return (
+              <div className="fixed inset-0 z-[150] bg-[#f0f2f5] flex flex-col font-sans select-none overflow-hidden">
+                {/* JAMB HEADER */}
+                <div className="bg-white border-b border-gray-200 px-6 py-2 flex items-center justify-between shadow-sm">
+                  <div className="flex items-center gap-4">
+                    <div className="h-14 w-11 bg-gray-100 border border-gray-300 rounded overflow-hidden flex items-center justify-center">
+                      {user?.photoURL ? (
+                        <img src={user.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <UserIcon size={24} className="text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Candidate Name</span>
+                      <span className="text-sm font-black text-ink uppercase">{user?.displayName || 'Guest Candidate'}</span>
+                      <div className="flex gap-4 mt-0.5">
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Reg Number</span>
+                          <span className="text-[10px] font-bold text-ink font-mono">{mockRegNumber}</span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Center</span>
+                          <span className="text-[10px] font-bold text-ink uppercase tracking-tight">{activeInst?.name || 'Main Hall A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end">
+                    <div className="bg-rose-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-3 shadow-sm">
+                      <Clock size={18} className="animate-pulse" />
+                      <div className="flex flex-col leading-none">
+                         <span className="text-[8px] font-bold uppercase tracking-widest opacity-80">Time Remaining</span>
+                         <span className="text-xl font-black font-mono tracking-tighter">{formatExamTime(examTimeRemaining)}</span>
+                      </div>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="h-1.5 w-32 bg-gray-100 rounded-full overflow-hidden">
+                         <motion.div 
+                          className="h-full bg-rose-500" 
+                          animate={{ width: `${(examTimeRemaining / 7200) * 100}%` }}
+                         />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SUBJECT TABS */}
+                <div className="bg-[#e7e9eb] px-6 flex items-end gap-1 pt-2">
+                  {subjects.map((sub) => {
+                    const isActive = examCurrentSubject === sub;
+                    const answers = Object.keys(examAnswers[sub] || {}).length;
+                    const total = examQuestionsStore[sub].length;
+                    return (
+                      <button
+                        key={sub}
+                        onClick={() => {
+                          setExamCurrentSubject(sub);
+                          setExamCurrentQuestionIndex(0);
+                        }}
+                        className={`px-6 py-3 rounded-t-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                          isActive 
+                            ? 'bg-white text-ink border-t-2 border-rose-600 shadow-sm' 
+                            : 'bg-gray-200/80 text-muted hover:bg-gray-200'
+                        }`}
+                      >
+                        {sub}
+                        <span className="ml-2 px-1.5 py-0.5 bg-gray-100 rounded text-[9px] text-muted">
+                          {answers}/{total}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* MAIN EXAM AREA */}
+                <div className="flex-1 flex overflow-hidden">
+                  {/* Left: Question Content */}
+                  <div className="flex-1 bg-white p-12 overflow-y-auto border-r border-gray-200">
+                    <div className="max-w-3xl mx-auto">
+                      <div className="flex items-center gap-3 mb-8">
+                        <span className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center font-black">
+                          {examCurrentQuestionIndex + 1}
+                        </span>
+                        <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-muted">Question Context</h4>
+                      </div>
+
+                      <div className="text-xl font-bold text-ink leading-relaxed mb-12 min-h-[100px]">
+                        {currentQ?.question}
+                      </div>
+
+                      <div className="space-y-4">
+                        {['A', 'B', 'C', 'D'].map((option) => {
+                          const isSelected = examAnswers[examCurrentSubject]?.[examCurrentQuestionIndex] === option;
+                          return (
+                            <button
+                              key={option}
+                              onClick={() => handleExamAnswer(option)}
+                              className={`w-full p-5 rounded-[1.5rem] border-2 text-left flex items-center justify-between transition-all group ${
+                                isSelected 
+                                  ? 'bg-rose-50 border-rose-600 shadow-lg shadow-rose-100' 
+                                  : 'bg-gray-50 border-transparent hover:border-gray-200'
+                              }`}
+                            >
+                              <div className="flex items-center gap-6">
+                                <div className={`h-8 w-8 rounded-full flex items-center justify-center font-black text-sm transition-all ${
+                                  isSelected ? 'bg-rose-600 text-white' : 'bg-white text-ink border border-gray-200 group-hover:border-rose-400'
+                                }`}>
+                                  {option}
+                                </div>
+                                <span className={`text-[15px] font-bold ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
+                                  {currentQ?.options[option]}
+                                </span>
+                              </div>
+                              {isSelected && <CheckCircle2 size={20} className="text-rose-600" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Navigation Grid */}
+                  <div className="w-80 bg-[#f7f9fb] p-6 overflow-y-auto flex flex-col">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted mb-6 flex items-center gap-2">
+                       <LayoutGrid size={14} /> Subject Navigation
+                    </h3>
+
+                    <div className="grid grid-cols-5 gap-2 mb-8">
+                      {currentQuestions.map((_, idx) => {
+                        const isCurrent = examCurrentQuestionIndex === idx;
+                        const isAnswered = !!examAnswers[examCurrentSubject]?.[idx];
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => setExamCurrentQuestionIndex(idx)}
+                            className={`h-10 rounded-lg text-xs font-black transition-all ${
+                              isCurrent 
+                                ? 'bg-ink text-white ring-4 ring-ink/10 scale-105 z-10' 
+                                : isAnswered 
+                                  ? 'bg-rose-500 text-white' 
+                                  : 'bg-white text-ink border border-gray-200 hover:bg-gray-50'
+                            }`}
+                          >
+                            {idx + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-auto space-y-3">
+                       <div className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm mb-4">
+                          <h5 className="text-[9px] font-black uppercase tracking-widest text-muted mb-3 flex items-center justify-between">
+                             Legend
+                             <HelpCircle size={10} />
+                          </h5>
+                          <div className="space-y-2">
+                             <div className="flex items-center gap-2 text-[10px] font-bold text-ink">
+                                <div className="h-3 w-3 bg-rose-500 rounded-sm" /> Answered
+                             </div>
+                             <div className="flex items-center gap-2 text-[10px] font-bold text-ink">
+                                <div className="h-3 w-3 bg-ink rounded-sm" /> Current
+                             </div>
+                             <div className="flex items-center gap-2 text-[10px] font-bold text-ink">
+                                <div className="h-3 w-3 bg-white border border-gray-200 rounded-sm" /> Not Visited
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-3">
+                          <button 
+                            onClick={handleExamPrev}
+                            className="py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                          >
+                            <ArrowLeft size={14} /> (P) rev
+                          </button>
+                          <button 
+                            onClick={handleExamNext}
+                            className="py-4 bg-white border border-gray-200 rounded-2xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2"
+                          >
+                            (N) ext <ArrowRight size={14} />
+                          </button>
+                       </div>
+                       <button 
+                        onClick={() => setExamShowSubmitConfirm(true)}
+                        className="w-full py-5 bg-rose-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] hover:bg-rose-700 active:scale-95 transition-all shadow-xl shadow-rose-200 flex items-center justify-center gap-3"
+                       >
+                         <Lock size={16} /> Finish Exam (S)
+                       </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* OVERLAY: SUBMIT CONFIRMATION */}
+                <AnimatePresence>
+                  {examShowSubmitConfirm && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 z-[200] bg-ink/90 backdrop-blur-md flex items-center justify-center p-6"
+                    >
+                      <motion.div 
+                        initial={{ scale: 0.9, y: 20 }}
+                        animate={{ scale: 1, y: 0 }}
+                        className="bg-white rounded-[3rem] w-full max-w-lg p-12 text-center shadow-2xl relative overflow-hidden"
+                      >
+                         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
+                            <Shield size={200} />
+                         </div>
+
+                         <div className="h-20 w-20 bg-rose-50 text-rose-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                            <AlertTriangle size={40} />
+                         </div>
+
+                         <h2 className="text-3xl font-black text-ink mb-4 leading-tight">Ready to Submit?</h2>
+                         <p className="text-muted font-bold mb-10 leading-relaxed">
+                            You are about to end your session. You cannot return to your questions once you submit.
+                            Please review all subjects before final transmission.
+                         </p>
+
+                         <div className="grid grid-cols-2 gap-4">
+                            <button 
+                              onClick={() => setExamShowSubmitConfirm(false)}
+                              className="py-5 bg-gray-50 text-muted rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
+                            >
+                               <ArrowLeft size={14} /> (R) eturn
+                            </button>
+                            <button 
+                              onClick={handleExamSubmit}
+                              className="py-5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 shadow-xl shadow-rose-200 transition-all flex items-center justify-center gap-2"
+                            >
+                               Confirm (S) <ArrowRight size={14} />
+                            </button>
+                         </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          }
+
+          if (examResult) {
+             return (
+              <WordLayout
+                title="Examination Results"
+                subtitle="Official Assessment Transcript"
+                icon={BadgeCheck}
+                branding={{ name: activeInst?.name || 'Institution' }}
+                showNotification={showNotification}
+                handlePrint={handlePrint}
+                hideSaveImage={true}
+                toolbar={
+                  <button 
+                    onClick={() => { setExamResult(null); setActiveWorkspaceTool(null); }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Exit Results
+                  </button>
+                }
+              >
+                <div className="max-w-4xl mx-auto">
+                   <div className="bg-white border border-gray-100 rounded-[3rem] p-12 shadow-xl mb-12 relative overflow-hidden">
+                      <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
+                         <div className="h-48 w-48 bg-rose-50 border-8 border-white rounded-full flex flex-col items-center justify-center shadow-2xl">
+                            <span className="text-5xl font-black text-rose-600 tracking-tighter">{examResult.totalScore}</span>
+                            <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Aggregate</span>
+                         </div>
+                         <div className="flex-1 text-center md:text-left">
+                           <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
+                              <div className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Verified Transcript</div>
+                              <div className="px-3 py-1 bg-ink text-white rounded-full text-[9px] font-black uppercase tracking-widest">JAMB Standard</div>
+                           </div>
+                           <h2 className="text-4xl font-black text-ink mb-2">Detailed Performance</h2>
+                           <p className="text-muted font-bold leading-relaxed">Generated result for {user?.displayName || 'Candidate'}. Registration Number: {mockRegNumber}. Verified on {new Date().toLocaleDateString()}.</p>
+                         </div>
+                      </div>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {Object.entries(examResult.subjectScores).map(([sub, score]: any) => (
+                        <div key={sub} className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 flex items-center justify-between group hover:bg-white transition-all shadow-sm hover:shadow-xl hover:shadow-gray-100 hover:-translate-y-1">
+                           <div>
+                              <h4 className="text-sm font-black text-muted uppercase tracking-[0.2em] mb-1">{sub}</h4>
+                              <div className="h-2 w-32 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                                 <motion.div 
+                                    className={`h-full ${score >= 50 ? 'bg-green-500' : 'bg-rose-500'}`}
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${score}%` }}
+                                 />
+                              </div>
+                           </div>
+                           <div className="text-3xl font-black text-ink group-hover:text-rose-600 transition-colors">{score}</div>
+                        </div>
+                      ))}
+                   </div>
+                   
+                   <div className="flex justify-center mt-12 gap-4">
+                      <button 
+                        onClick={() => handlePrint()}
+                        className="px-10 py-5 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform flex items-center gap-3"
+                      >
+                         <Printer size={16} /> Print Result Slip
+                      </button>
+                      <button 
+                        onClick={() => { setExamResult(null); setActiveWorkspaceTool(null); }}
+                        className="px-10 py-5 bg-white border border-gray-200 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
+                      >
+                         Discard Result
+                      </button>
+                   </div>
+                </div>
+              </WordLayout>
+             );
+          }
+
           return (
             <WordLayout
               title="Official E-Examination"
@@ -8725,7 +9204,7 @@ function ExonaApp() {
             >
               <div className="max-w-5xl">
                 <div className="p-12 bg-white border border-gray-100 rounded-[4rem] mb-12 shadow-sm relative overflow-hidden">
-                   <div className="absolute top-0 right-0 p-12 opacity-5">
+                   <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
                       <FileBarChart size={240} />
                    </div>
                    
@@ -8739,8 +9218,17 @@ function ExonaApp() {
                      </p>
                      
                      <div className="flex flex-wrap gap-4">
-                        <button className="px-10 py-5 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-ink/20 hover:scale-105 transition-transform">
-                          Setup New Exam Session
+                        <button 
+                          onClick={() => {
+                            setIsExamStarted(true);
+                            setExamTimeRemaining(7200);
+                            setExamAnswers({});
+                            setExamCurrentSubject('Use of English');
+                            setExamCurrentQuestionIndex(0);
+                          }}
+                          className="px-10 py-5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-rose-200 hover:scale-105 transition-transform"
+                        >
+                          Start Mock Exam Session
                         </button>
                         <button className="px-10 py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
                           Review Results
@@ -8770,16 +9258,6 @@ function ExonaApp() {
                          Configure Store <ArrowRight size={14} />
                       </button>
                    </div>
-                </div>
-
-                <div className="flex justify-start mt-12">
-                  <button 
-                    onClick={() => setActiveWorkspaceTool(null)}
-                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
-                  >
-                    <ArrowLeft size={14} />
-                    Back to Workspace
-                  </button>
                 </div>
               </div>
             </WordLayout>
