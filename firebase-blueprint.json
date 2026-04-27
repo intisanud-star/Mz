@@ -275,6 +275,20 @@
         "uid": { "type": "string", "description": "Optional user UID if logged in" }
       },
       "required": ["name", "email", "phone", "address", "score", "timestamp"]
+    },
+    "KeyRequest": {
+      "title": "KeyRequest",
+      "description": "Request for institution portal access key",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "institutionName": { "type": "string" },
+        "requesterUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["institutionId", "requesterUid", "status", "timestamp"]
     }
   },
   "firestore": {
@@ -294,6 +308,7 @@
     "/cloudFiles/{fileId}": { "schema": "CloudFile", "description": "User uploaded files" },
     "/chatGroups/{groupId}": { "schema": "ChatGroup", "description": "Group chat definitions" },
     "/calls/{callId}": { "schema": "Call", "description": "Voice call signaling documents" },
-    "/brainBattleLeads/{leadId}": { "schema": "BrainBattleParticipation", "description": "Game leads and results" }
+    "/brainBattleLeads/{leadId}": { "schema": "BrainBattleParticipation", "description": "Game leads and results" },
+    "/keyRequests/{requestId}": { "schema": "KeyRequest", "description": "Access key requests" }
   }
 }

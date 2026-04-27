@@ -2373,7 +2373,7 @@ function ExonaApp() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPendingKeyRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
-      console.error('Error fetching key requests:', error);
+      handleFirestoreError(error, OperationType.GET, 'keyRequests');
     });
     return unsubscribe;
   }, [userDoc]);
@@ -2383,7 +2383,13 @@ function ExonaApp() {
     const inst = schools.find(s => s.creatorUid === user.uid) || places.find(p => p.creatorUid === user.uid);
     if (!inst) return;
     
-    const q = query(collection(db, 'keyRequests'), where('institutionId', '==', inst.id), orderBy('timestamp', 'desc'), limit(1));
+    const q = query(
+      collection(db, 'keyRequests'), 
+      where('institutionId', '==', inst.id), 
+      where('requesterUid', '==', user.uid),
+      orderBy('timestamp', 'desc'), 
+      limit(1)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
         setActiveKeyRequest(snapshot.docs[0].data());
@@ -2391,7 +2397,7 @@ function ExonaApp() {
         setActiveKeyRequest(null);
       }
     }, (error) => {
-      console.error('Error fetching institution key request:', error);
+      handleFirestoreError(error, OperationType.GET, 'keyRequests');
     });
     return unsubscribe;
   }, [user, schools, places]);
@@ -5505,7 +5511,7 @@ function ExonaApp() {
                                 await batch.commit();
                                 showNotification('Key request approved and key generated', 'success');
                               } catch (e) {
-                                console.error("Approval error:", e);
+                                handleFirestoreError(e, OperationType.WRITE, 'keyRequests/batch');
                                 showNotification('Failed to approve request', 'error');
                               }
                             }}
@@ -5519,7 +5525,7 @@ function ExonaApp() {
                                  await updateDoc(doc(db, 'keyRequests', request.id), { status: 'rejected' });
                                  showNotification('Request rejected');
                                } catch (e) {
-                                 console.error("Rejection error:", e);
+                                 handleFirestoreError(e, OperationType.UPDATE, `keyRequests/${request.id}`);
                                }
                              }}
                              className="flex-1 sm:flex-none px-6 py-3 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-all"
@@ -8942,44 +8948,44 @@ function ExonaApp() {
 
                 {/* MAIN EXAM AREA */}
                 <div className="flex-1 flex overflow-hidden">
-                  {/* Left: Question Content */}
-                  <div className="flex-1 bg-white p-12 overflow-y-auto border-r border-gray-200">
-                    <div className="max-w-3xl mx-auto">
-                      <div className="flex items-center gap-3 mb-8">
-                        <span className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center font-black">
-                          {examCurrentQuestionIndex + 1}
-                        </span>
-                        <h4 className="text-[11px] font-black uppercase tracking-[0.3em] text-muted">Question Context</h4>
+                  {/* Left: Question Content (Expanded) */}
+                  <div className="flex-1 bg-white p-8 md:p-14 overflow-y-auto border-r border-gray-200">
+                    <div className="max-w-4xl mx-auto">
+                      <div className="flex items-center gap-4 mb-10">
+                        <div className="px-4 py-2 bg-ink text-white rounded-lg flex items-center justify-center font-black text-xs uppercase tracking-widest">
+                          Question {examCurrentQuestionIndex + 1}
+                        </div>
+                        <div className="h-px flex-1 bg-gray-100" />
                       </div>
 
-                      <div className="text-xl font-bold text-ink leading-relaxed mb-12 min-h-[100px]">
+                      <div className="text-2xl font-bold text-ink leading-relaxed mb-16 min-h-[120px]">
                         {currentQ?.question}
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 gap-5">
                         {['A', 'B', 'C', 'D'].map((option) => {
                           const isSelected = examAnswers[examCurrentSubject]?.[examCurrentQuestionIndex] === option;
                           return (
                             <button
                               key={option}
                               onClick={() => handleExamAnswer(option)}
-                              className={`w-full p-5 rounded-[1.5rem] border-2 text-left flex items-center justify-between transition-all group ${
+                              className={`w-full p-6 rounded-[2rem] border-2 text-left flex items-center justify-between transition-all group ${
                                 isSelected 
-                                  ? 'bg-rose-50 border-rose-600 shadow-lg shadow-rose-100' 
-                                  : 'bg-gray-50 border-transparent hover:border-gray-200'
+                                  ? 'bg-rose-50 border-rose-600 shadow-xl shadow-rose-100' 
+                                  : 'bg-gray-50 border-transparent hover:border-gray-200 hover:bg-white'
                               }`}
                             >
                               <div className="flex items-center gap-6">
-                                <div className={`h-8 w-8 rounded-full flex items-center justify-center font-black text-sm transition-all ${
+                                <div className={`h-10 w-10 rounded-full flex items-center justify-center font-black text-sm transition-all ${
                                   isSelected ? 'bg-rose-600 text-white' : 'bg-white text-ink border border-gray-200 group-hover:border-rose-400'
                                 }`}>
                                   {option}
                                 </div>
-                                <span className={`text-[15px] font-bold ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
+                                <span className={`text-lg font-bold ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
                                   {currentQ?.options[option]}
                                 </span>
                               </div>
-                              {isSelected && <CheckCircle2 size={20} className="text-rose-600" />}
+                              {isSelected && <CheckCircle2 size={24} className="text-rose-600" />}
                             </button>
                           );
                         })}
@@ -8987,13 +8993,13 @@ function ExonaApp() {
                     </div>
                   </div>
 
-                  {/* Right: Navigation Grid */}
-                  <div className="w-80 bg-[#f7f9fb] p-6 overflow-y-auto flex flex-col">
-                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted mb-6 flex items-center gap-2">
-                       <LayoutGrid size={14} /> Subject Navigation
+                  {/* Right: Navigation Grid (Compact Sidebar) */}
+                  <div className="w-64 bg-[#f7f9fb] p-5 overflow-y-auto flex flex-col border-l border-gray-100">
+                    <h3 className="text-[9px] font-black uppercase tracking-[0.2em] text-muted mb-5 flex items-center gap-2">
+                       <LayoutGrid size={12} /> Question Map
                     </h3>
 
-                    <div className="grid grid-cols-5 gap-2 mb-8">
+                    <div className="grid grid-cols-4 gap-1.5 mb-8">
                       {currentQuestions.map((_, idx) => {
                         const isCurrent = examCurrentQuestionIndex === idx;
                         const isAnswered = !!examAnswers[examCurrentSubject]?.[idx];
@@ -9001,11 +9007,11 @@ function ExonaApp() {
                           <button
                             key={idx}
                             onClick={() => setExamCurrentQuestionIndex(idx)}
-                            className={`h-10 rounded-lg text-xs font-black transition-all ${
+                            className={`h-9 rounded-md text-[10px] font-black transition-all ${
                               isCurrent 
-                                ? 'bg-ink text-white ring-4 ring-ink/10 scale-105 z-10' 
+                                ? 'bg-ink text-white ring-2 ring-ink/10 scale-105 z-10' 
                                 : isAnswered 
-                                  ? 'bg-rose-500 text-white' 
+                                  ? 'bg-rose-500 text-white shadow-sm shadow-rose-200' 
                                   : 'bg-white text-ink border border-gray-200 hover:bg-gray-50'
                             }`}
                           >
@@ -10618,7 +10624,7 @@ function ExonaApp() {
                             showNotification('Access key request submitted');
                             setActiveKeyRequest({ status: 'pending' });
                           } catch (e) {
-                            console.error("Failed to request key", e);
+                            handleFirestoreError(e, OperationType.WRITE, 'keyRequests');
                             showNotification('Failed to submit request', 'error');
                           } finally {
                             setIsRequestingKey(false);

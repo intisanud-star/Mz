@@ -363,6 +363,22 @@ service cloud.firestore {
       allow create: if isValidCloudFile(request.resource.data);
     }
 
+    match /keyRequests/{requestId} {
+      allow list: if isAdmin() || (isAuthenticated() && (
+        resource.data.get('requesterUid', '') == request.auth.uid
+      ));
+      allow get: if isAdmin() || (isAuthenticated() && (
+        resource.data.get('requesterUid', '') == request.auth.uid ||
+        isSchoolManager(resource.data.get('institutionId', ''))
+      ));
+      allow create: if isAuthenticated() && 
+                    request.resource.data.get('requesterUid', '') == request.auth.uid &&
+                    request.resource.data.get('status', '') == 'pending' &&
+                    request.resource.data.get('timestamp', null) == request.time;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
     match /brainBattleLeads/{leadId} {
       allow create, read, list: if true; // Allowed for guests to participate and see results
       allow update, delete: if isAdmin();
