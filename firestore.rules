@@ -284,14 +284,14 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isSchoolManager(schoolId) || isAdmin() || isFollowAction());
+      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || (isSchoolManager(schoolId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
       allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isSchoolManager(placeId) || isAdmin() || isFollowAction());
+      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || (isSchoolManager(placeId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
       allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 

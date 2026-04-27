@@ -10856,37 +10856,41 @@ function ExonaApp() {
                     </div>
                     <h3 className="text-3xl font-black text-ink mb-4">Add Access Keys</h3>
                     <p className="text-muted font-medium mb-12 leading-relaxed">
-                      To conduct e-tests and examinations, your institution must add a security access key. You can generate one instantly below to begin.
+                      To conduct e-tests and examinations, your institution must have a security access key. {userDoc?.role === 'admin' ? 'As an administrator, you can generate one or approve pending requests.' : 'Apply below to request an access key from our administrators.'}
                     </p>
 
                     <div className="flex flex-col gap-4">
-                      <button 
-                        disabled={isRequestingKey}
-                        onClick={async () => {
-                          if (!institutionId) return;
-                          setIsRequestingKey(true);
-                          try {
-                            const newKey = Math.random().toString(36).substring(2, 10).toUpperCase();
-                            const schoolType = userInstitution?.type === 'school' ? 'schools' : 'places';
-                            await updateDoc(doc(db, schoolType, institutionId), {
-                              portalSecretKey: newKey
-                            });
-                            showNotification('Secret Key Generated Successfully', 'success');
-                          } catch (e) {
-                            showNotification('Failed to generate key', 'error');
-                          } finally {
-                            setIsRequestingKey(false);
-                          }
-                        }}
-                        className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-[0.98]"
-                      >
-                        Generate Secret Key
-                      </button>
+                      {userDoc?.role === 'admin' && (
+                        <>
+                          <button 
+                            disabled={isRequestingKey}
+                            onClick={async () => {
+                              if (!institutionId) return;
+                              setIsRequestingKey(true);
+                              try {
+                                const newKey = Math.random().toString(36).substring(2, 10).toUpperCase();
+                                const schoolType = userInstitution?.type === 'school' ? 'schools' : 'places';
+                                await updateDoc(doc(db, schoolType, institutionId), {
+                                  portalSecretKey: newKey
+                                });
+                                showNotification('Secret Key Generated Successfully', 'success');
+                              } catch (e) {
+                                showNotification('Failed to generate key', 'error');
+                              } finally {
+                                setIsRequestingKey(false);
+                              }
+                            }}
+                            className="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black text-[10px] uppercase tracking-[0.2em] hover:shadow-xl hover:shadow-indigo-200 transition-all active:scale-[0.98]"
+                          >
+                            Generate Secret Key
+                          </button>
 
-                      <div className="relative py-4">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-                        <div className="relative flex justify-center text-[8px] uppercase tracking-widest font-black text-muted"><span className="bg-white px-4">Or Request Support</span></div>
-                      </div>
+                          <div className="relative py-4">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
+                            <div className="relative flex justify-center text-[8px] uppercase tracking-widest font-black text-muted"><span className="bg-white px-4">Admin Control</span></div>
+                          </div>
+                        </>
+                      )}
 
                       {activeKeyRequest?.status === 'pending' ? (
                       <div className="p-8 bg-amber-50 border border-amber-100 rounded-[2rem] text-center">
