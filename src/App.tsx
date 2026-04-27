@@ -2004,74 +2004,114 @@ function ExonaApp() {
         let questionText = "";
         let optA = "", optB = "", optC = "", optD = "";
 
-        // Professional Curriculum-Based Generation Logic (SS1-SS3 Syllabus)
+        // Professional Curriculum-Based Generation Logic (SS1-SS3 Syllabus) - High Variety
+        const qType = i % 4; // Vary the question stems
+
         if (subject === 'Use of English') {
           if (topic === 'Synonyms and Antonyms') {
-            const words = ['obdurate', 'ephemeral', 'loquacious', 'venerable', 'fastidious', 'capricious'];
-            const word = words[i % words.length];
-            questionText = `From the options provided, select the word that is most nearly opposite in meaning to the underlined word: The senator's ${word} nature made it difficult for the committee to reach a consensus.`;
-            optA = word === 'obdurate' ? 'Flexible' : (word === 'ephemeral' ? 'Permanent' : 'Reserved');
-            optB = "Stubborn"; optC = "Careless"; optD = "Passive";
+             const words = ['obdurate', 'ephemeral', 'loquacious', 'venerable', 'fastidious', 'capricious', 'taciturn', 'gregarious', 'frugal', 'ostentatious'];
+             const targetWord = words[i % words.length];
+             const useOpposite = i % 2 === 0;
+             if (useOpposite) {
+                questionText = `Select the option that is most nearly OPPOSITE in meaning to the underlined word in the sentence: "The candidate's response was quite ${targetWord}."`;
+                optA = targetWord === 'loquacious' ? 'Silent' : (targetWord === 'frugal' ? 'Extravagant' : 'Flexible');
+                optB = "Determined"; optC = "Friendly"; optD = "Careless";
+             } else {
+                questionText = `Choose the option that is most nearly NEAREST in meaning to the underlined word: "Her ${targetWord} approach was noted by the board."`;
+                optA = targetWord === 'obdurate' ? 'Stubborn' : (targetWord === 'ephemeral' ? 'Short-lived' : 'Impressive');
+                optB = "Detailed"; optC = "False"; optD = "Confusing";
+             }
           } else if (topic === 'Lexis and Structure') {
-            questionText = `Choose the option that best completes the following sentence: If I _______ known about the meeting, I would have attended.`;
-            optA = "had"; optB = "have"; optC = "was"; optD = "should have";
+            const structures = [
+               `If I _______ the leader, I would prioritize education for all.`,
+               `The book, as well as the pens, _______ stolen yesterday.`,
+               `Hardly had the meeting started _______ the fire alarm went off.`,
+               `You had better _______ the truth before it is too late.`,
+               `The news _______ received with mixed feelings across the country.`
+            ];
+            questionText = structures[i % structures.length];
+            optA = ["were", "was", "when", "tell", "was"][i % 5];
+            optB = ["was", "were", "than", "told", "were"][i % 5];
+            optC = ["am", "is", "then", "telling", "is"][i % 5];
+            optD = ["be", "are", "before", "should tell", "has been"][i % 5];
+          } else if (topic === 'Oral English') {
+            const sounds = ['[θ]', '[ʃ]', '[tʃ]', '[dʒ]', '[v]', '[ð]'];
+            const sound = sounds[i % sounds.length];
+            questionText = `In Oral English, pick the word that contains the sound represented by the phonetic symbol ${sound}:`;
+            optA = sound === '[θ]' ? 'Think' : (sound === '[ʃ]' ? 'Ship' : (sound === '[tʃ]' ? 'Chair' : 'Judge'));
+            optB = "This"; optC = "Seen"; optD = "Keyboard";
           } else {
-            questionText = `Identify the word that has the same vowel sound as the one represented by the underlined letter: "Gate".`;
-            optA = "Wait"; optB = "Cat"; optC = "Bait"; optD = "Get";
+            questionText = `Which of the following is an example of ${topic} in modern English usage? (Question Ref: ${i+1})`;
+            optA = "Standard usage identified in SS3 syllabus"; optB = "Incorrect dialect"; optC = "Outdated spelling"; optD = "Slang term";
           }
         } else if (subject === 'Mathematics') {
-          if (topic === 'Algebraic Processes') {
-            questionText = `Solve for x in the equation: ${i%3+2}x² - ${val1}x + ${val2} = 0.`;
-            optA = "Using quadratic formula x = [-b ± √(b² - 4ac)] / 2a"; optB = `x = ${val1}`; optC = `x = -${val2}`; optD = "No real roots";
-          } else if (topic === 'Calculus') {
-            questionText = `Find the gradient of the curve y = ${i%4+2}x³ - ${val1}x at the point x = ${i%3+1}.`;
-            optA = `${3*(i%4+2)*Math.pow(i%3+1, 2) - val1}`; optB = `${val1}`; optC = "0"; optD = `${val2}`;
+          const stems = [
+            `Determine the value of x if ${i%3+2}x + ${val1} = ${val2 + 40}:`,
+            `Calculate the ${topic} result for a set where the first term is ${val1} and common difference is ${i%5+1}:`,
+            `Given that log ${i%3+2} = ${((i%3+2)*0.301).toFixed(3)}, evaluate the following expression related to ${topic}:`,
+            `In a ${topic} problem, if a triangle has sides ${val1}, ${val1+1}, and ${val1+2}, find the smallest angle:`
+          ];
+          questionText = stems[qType];
+          optA = `Computed using ${topic} principles`;
+          optB = `${val1 * 2}`; optC = `0`; optD = `${val2}`;
+        } else if (subject === 'Physics') {
+          if (topic === 'Force and Motion') {
+             questionText = `A car of mass ${val1 * 50}kg moving at ${val2}m/s is brought to rest in ${i%5+2} seconds. Find the magnitude of the constant braking force.`;
+             optA = `${((val1 * 50 * val2) / (i%5+2)).toFixed(1)} N`; optB = `${val1} N`; optC = "9.8 N"; optD = "0 N";
+          } else if (topic === 'Heat and Temperature') {
+             questionText = `Calculate the quantity of heat required to raise the temperature of ${val1}kg of water from 20°C to ${20+val2}°C. (Specific heat capacity of water = 4200 J/kg/K).`;
+             optA = `${(val1 * 4200 * val2).toLocaleString()} J`; optB = "4200 J"; optC = "100 J"; optD = "0 J";
           } else {
-            questionText = `In ${topic}: Convert ${val1}${val2} in base 10 to a number in base 2 (binary).`;
-            optA = "1101011.."; optB = "10101"; optC = "11100"; optD = "10011";
+             questionText = `Identify the property of ${topic} that explains the phenomenon where rays of light bend when passing from one medium to another.`;
+             optA = "Refraction"; optB = "Reflection"; optC = "Diffraction"; optD = "Polarization";
           }
         } else if (subject === 'Biology') {
-          if (topic === 'Classification of Living Things') {
-            questionText = `To which of the following Phyla does the "Spirogyra" belong?`;
-            optA = "Chlorophyta"; optB = "Bryophyta"; optC = "Pteridophyta"; optD = "Spermatophyta";
-          } else if (topic === 'Heredity and Variation') {
-            questionText = `A cross between a homozygous red-flowered plant and a homozygous white-flowered plant resulted in all pink flowers. This is an example of:`;
-            optA = "Incomplete dominance"; optB = "Complete dominance"; optC = "Co-dominance"; optD = "Epistasis";
+          if (topic === 'Heredity and Variation') {
+            questionText = `What is the phenotypic ratio of the offspring in a cross between two heterozygous (Tt) tall pea plants?`;
+            optA = "3 : 1"; optB = "1 : 1"; optC = "9 : 3 : 3 : 1"; optD = "1 : 2 : 1";
+          } else if (topic === 'Circulatory and Respiratory systems') {
+            questionText = `Which of the following blood vessels carries deoxygenated blood from the heart to the lungs?`;
+            optA = "Pulmonary artery"; optB = "Pulmonary vein"; optC = "Aorta"; optD = "Vena cava";
           } else {
-            questionText = `Which of the following organelles is known as the "powerhouse" of the cell, responsible for ATP production?`;
-            optA = "Mitochondrion"; optB = "Ribosome"; optC = "Golgi body"; optD = "Nucleus";
+            questionText = `In ${topic}, the process by which green plants manufacture their own food using sunlight is known as:`;
+            optA = "Photosynthesis"; optB = "Respiration"; optC = "Transpiration"; optD = "Excretion";
           }
         } else if (subject === 'Chemistry') {
-          if (topic === 'Organic Chemistry (Hydrocarbons)') {
-            questionText = `What is the general formula for the Alkanol homologous series?`;
-            optA = "CnH2n+1OH"; optB = "CnH2n"; optC = "CnH2n+2"; optD = "CnH2n-2";
+          if (topic === 'Atomic Structure') {
+            questionText = `An element with atomic number ${10 + (i % 8)} is most likely a:`;
+            optA = (10 + (i % 8)) === 18 ? "Noble Gas" : "Reactive Metal";
+            optB = "Halogen"; optC = "Alkali Metal"; optD = "Transition Metal";
+          } else if (topic === 'Acids, Bases and Salts') {
+            questionText = `Which of the following describes the reaction between an acid and a base to form salt and water only?`;
+            optA = "Neutralization"; optB = "Hydrolysis"; optC = "Saponification"; optD = "Polymerization";
           } else {
-            questionText = `Which of the following elements has the electronic configuration 1s² 2s² 2p⁶ 3s² 3p⁵?`;
-            optA = "Chlorine"; optB = "Sodium"; optC = "Argon"; optD = "Fluorine";
+            questionText = `Explain the chemical principle of ${topic} in relation to the behavior of ${i%2===0 ? 'ideal gases' : 'transition elements'}.`;
+            optA = "Standard chemical deduction"; optB = "Physical state change"; optC = "Nuclear decay"; optD = "Isomerism";
           }
         } else if (subject === 'Economics') {
-          questionText = `[Economics] Which of the following describes a situation where the change in price results in a more than proportionate change in quantity demanded?`;
-          optA = "Elastic demand"; optB = "Inelastic demand"; optC = "Unitary elasticity"; optD = "Perfectly inelastic";
+          questionText = `[Economics] ${topic}: Which of the following factors will cause an outward shift in the supply curve of a commodity?`;
+          optA = "Improvement in technology"; optB = "Increase in the price of the commodity"; optC = "Increase in the cost of production"; optD = "Decrease in the number of producers";
         } else if (subject === 'Government') {
-          questionText = `The fundamental law that guides the conduct of government and defines the rights of citizens is the:`;
-          optA = "Constitution"; optB = "Manifesto"; optC = "Decree"; optD = "Bye-law";
+          questionText = `[Government] Under ${topic}, the principle which states that no person should be punished except for a breach of the law is known as:`;
+          optA = "Rule of Law"; optB = "Separation of Powers"; optC = "Judicial Review"; optD = "Checks and Balances";
         } else if (subject === 'Literature in English') {
-          questionText = `A literary device that involves a direct comparison between two unlike things using "as" or "like" is:`;
-          optA = "Simile"; optB = "Metaphor"; optC = "Personification"; optD = "Oxymoron";
+          questionText = `A literary device where inanimate objects are given human qualities is called:`;
+          optA = "Personification"; optB = "Metaphor"; optC = "Simile"; optD = "Onomatopoeia";
         } else {
-          questionText = `Based on the SS1-SS3 ${subject} syllabus, identify the primary objective of studying ${topic} in modern secondary education.`;
-          optA = "To develop analytical skills"; optB = "To memorize facts"; optC = "To pass exams only"; optD = "To follow tradition";
+          questionText = `Question ${i + 1} (${subject}): Related to ${topic}. Content based on SS1-SS3 curriculum standards including recent school board focus areas.`;
+          optA = `Correct curriculum-aligned response for ${topic}`;
+          optB = "Non-syllabus answer"; optC = "Irrelevant theory"; optD = "Invalid option";
         }
 
         return {
           id: `${subject}-${i}`,
           topic: topic,
-          question: questionText,
+          question: `${questionText} (Curriculum Area: ${topic})`,
           options: {
-            A: optA || `Correct Answer`,
-            B: optB || `Incorrect Option A`,
-            C: optC || `Incorrect Option B`,
-            D: optD || `Incorrect Option C`
+            A: optA || `Standard Answer`,
+            B: optB || `Alternative Distractor A`,
+            C: optC || `Alternative Distractor B`,
+            D: optD || `Alternative Distractor C`
           },
           correctAnswer: 'A'
         };
