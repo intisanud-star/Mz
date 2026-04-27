@@ -1848,17 +1848,17 @@ function ExonaApp() {
       showNotification('Creative Editor is a Premium feature. Please upgrade to unlock.', 'error');
       return;
     }
-    if (toolId === 'e-test' || toolId === 'e-exam') {
+
+    const isAdmin = userDoc?.role === 'admin';
+    if (isAdmin) {
+      setActiveWorkspaceTool(toolId);
+      return;
+    }
+
+    if (toolId === 'e-test') {
       // Find the relevant institution: selected one or one owned by user
       const inst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
       
-      const isAdmin = userDoc?.role === 'admin';
-      
-      if (isAdmin) {
-        setActiveWorkspaceTool(toolId);
-        return;
-      }
-
       if (!inst) {
         showNotification('Select a school or place to access this portal', 'success');
         return;
@@ -1874,9 +1874,6 @@ function ExonaApp() {
         const instData = inst as any;
         if (!instData.portalSecretKey) {
           showNotification('This institution has no Secret Key. Please add one in Secret Keys tool to continue.', 'error');
-          // Still open modal so they know it's locked? 
-          // User said "tell user to add secret keys to continue"
-          // Maybe just redirect them to secret keys if they are the owner?
           if (inst.creatorUid === user?.uid) {
             setPendingInstitutionAccess(inst.id);
             setIsSecretKeyModalOpen(true);
@@ -1887,6 +1884,13 @@ function ExonaApp() {
           setIsSecretKeyModalOpen(true);
         }
       }
+    } else if (toolId === 'e-exam') {
+      const inst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+      if (!inst) {
+        showNotification('Select a school or place to access this portal', 'success');
+        return;
+      }
+      setActiveWorkspaceTool(toolId);
     } else {
       setActiveWorkspaceTool(toolId);
     }
@@ -2160,7 +2164,7 @@ function ExonaApp() {
 
   const calculateExamScore = () => {
     let totalScore = 0;
-    let subjectScores: {[key: string]: number} = {};
+    let subjectScores: {[key: string]: any} = {};
     
     examSelectedSubjects.forEach(subject => {
       let subjectCorrect = 0;
@@ -2173,10 +2177,13 @@ function ExonaApp() {
         }
       });
       
-      // Calculate JAMB-style score (max 100 per subject usually)
       const maxPossible = questions.length || 1;
       const score = Math.round((subjectCorrect / maxPossible) * 100);
-      subjectScores[subject] = score;
+      subjectScores[subject] = {
+        score: score,
+        correct: subjectCorrect,
+        total: questions.length
+      };
       totalScore += score;
     });
     
@@ -9265,21 +9272,106 @@ function ExonaApp() {
                    </div>
 
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {Object.entries(examResult.subjectScores).map(([sub, score]: any) => (
+                      {Object.entries(examResult.subjectScores).map(([sub, data]: any) => (
                         <div key={sub} className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 flex items-center justify-between group hover:bg-white transition-all shadow-sm hover:shadow-xl hover:shadow-gray-100 hover:-translate-y-1">
                            <div>
                               <h4 className="text-sm font-black text-muted uppercase tracking-[0.2em] mb-1">{sub}</h4>
-                              <div className="h-2 w-32 bg-gray-200 rounded-full mt-2 overflow-hidden">
+                              <div className="flex items-center gap-2 mb-1">
+                                 <span className="text-[10px] font-bold text-muted">{data.correct} / {data.total} Correct</span>
+                              </div>
+                              <div className="h-2 w-32 bg-gray-200 rounded-full mt-1 overflow-hidden">
                                  <motion.div 
-                                    className={`h-full ${score >= 50 ? 'bg-green-500' : 'bg-rose-500'}`}
+                                    className={`h-full ${data.score >= 50 ? 'bg-green-500' : 'bg-rose-500'}`}
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${score}%` }}
+                                    animate={{ width: `${data.score}%` }}
                                  />
                               </div>
                            </div>
-                           <div className="text-3xl font-black text-ink group-hover:text-rose-600 transition-colors">{score}</div>
+                           <div className="text-3xl font-black text-ink group-hover:text-rose-600 transition-colors">{data.score}</div>
                         </div>
                       ))}
+                   </div>
+
+                   <div className="mt-16 bg-white border border-gray-100 rounded-[3rem] p-10">
+                      <div className="flex items-center justify-between mb-10 flex-wrap gap-4">
+                         <div>
+                            <h3 className="text-2xl font-black text-ink uppercase tracking-tight">Question Corrections</h3>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">Review your performance per subject</p>
+                         </div>
+                         <div className="flex flex-wrap gap-2">
+                            {examSelectedSubjects.map(sub => (
+                               <button 
+                                 key={sub}
+                                 onClick={() => setExamCurrentSubject(sub)}
+                                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                   examCurrentSubject === sub ? 'bg-ink text-white' : 'bg-gray-100 text-muted hover:bg-gray-200'
+                                 }`}
+                               >
+                                  {sub}
+                               </button>
+                            ))}
+                         </div>
+                      </div>
+                      
+                      <div className="space-y-6">
+                         {(activeExamQuestions[examCurrentSubject] || []).map((q: any, idx: number) => {
+                            const userAns = examAnswers[examCurrentSubject]?.[idx];
+                            const isCorrect = userAns === q.correctAnswer;
+                            return (
+                               <div key={idx} className="p-6 border border-gray-100 rounded-2xl bg-gray-50/20">
+                                  <div className="flex flex-col md:flex-row items-start gap-6">
+                                     <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm shadow-sm ${isCorrect ? 'bg-green-500 text-white' : 'bg-rose-500 text-white'}`}>
+                                        {idx + 1}
+                                     </div>
+                                     <div className="flex-1">
+                                        <p className="font-bold text-ink text-lg mb-6">{q.question}</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                           {Object.entries(q.options).map(([key, val]: any) => {
+                                              const isUserChoice = userAns === key;
+                                              const isCorrectChoice = q.correctAnswer === key;
+                                              
+                                              let bgColor = "bg-white";
+                                              let borderColor = "border-gray-200 text-muted";
+                                              let statusIcon = null;
+                                              
+                                              if (isUserChoice) {
+                                                 if (isCorrect) {
+                                                    bgColor = "bg-green-50";
+                                                    borderColor = "border-green-500 text-green-900 font-bold ring-2 ring-green-500/10";
+                                                    statusIcon = <CheckCircle2 size={16} className="text-green-600" />;
+                                                 } else {
+                                                    bgColor = "bg-rose-50";
+                                                    borderColor = "border-rose-500 text-rose-900 font-bold ring-2 ring-rose-500/10";
+                                                    statusIcon = <XCircle size={16} className="text-rose-600" />;
+                                                 }
+                                              } else if (isCorrectChoice) {
+                                                 bgColor = "bg-green-50/50";
+                                                 borderColor = "border-green-300 text-green-800 font-bold border-dashed";
+                                                 statusIcon = <BadgeCheck size={16} className="text-green-500" />;
+                                              }
+
+                                              return (
+                                                 <div key={key} className={`p-4 rounded-xl border transition-all ${bgColor} ${borderColor} text-xs flex items-center gap-3`}>
+                                                    <div className={`h-6 w-6 rounded-lg flex items-center justify-center font-black text-[10px] ${isUserChoice ? (isCorrect ? 'bg-green-600 text-white' : 'bg-rose-600 text-white') : (isCorrectChoice ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-ink')}`}>
+                                                       {key}
+                                                    </div>
+                                                    <span className="flex-1">{val}</span>
+                                                    {statusIcon}
+                                                 </div>
+                                              );
+                                           })}
+                                        </div>
+                                        {!isCorrect && (
+                                          <div className="mt-4 flex items-center gap-2 px-3 py-2 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold border border-rose-100 w-fit">
+                                             <Info size={14} /> Correct Option was <strong>{q.correctAnswer}</strong>
+                                          </div>
+                                        )}
+                                     </div>
+                                  </div>
+                               </div>
+                            );
+                         })}
+                      </div>
                    </div>
                    
                    <div className="flex justify-center mt-12 gap-4">
@@ -10088,7 +10180,7 @@ function ExonaApp() {
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
           { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
           { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
-          { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for E-Test & Examination', icon: Lock, color: 'indigo-600' },
+          { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for the E-Test portal', icon: Lock, color: 'indigo-600' },
           { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
           { id: 'exona-premium', name: 'Exona Premium Quiz', description: 'The ultimate challenge for elite scholars with exclusive rewards.', icon: Stars, color: 'yellow-600' },
         ];
@@ -10733,7 +10825,7 @@ function ExonaApp() {
                     </div>
                     <h3 className="text-2xl font-black text-ink mb-4">Portal Access Approved</h3>
                     <p className="text-muted font-medium mb-10 leading-relaxed">
-                      Your institution has been granted access to the E-Test and Examination portals. Use the secret key below to authenticate access.
+                      Your institution has been granted access to the E-Test portal. Use the secret key below to authenticate access.
                     </p>
                     
                     <div className="bg-gray-50 p-8 rounded-[2rem] border border-dashed border-gray-200 mb-8 relative group">
