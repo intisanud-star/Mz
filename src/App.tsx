@@ -6019,6 +6019,7 @@ function ExonaApp() {
       console.error('Post operation failed', error);
       showNotification('Transmission failed. Re-opening editor...', 'error');
       setIsPostModalOpen(true);
+      handleFirestoreError(error, isEditing ? OperationType.UPDATE : OperationType.CREATE, 'posts');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

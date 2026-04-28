@@ -179,22 +179,30 @@ service cloud.firestore {
     }
 
     function isValidInstitution(data, isCreate) {
-      return isAuthenticated() && 
+      return isVerified() && 
              data.get('name', '') is string && data.get('name', '').size() > 0 &&
              (isCreate ? data.get('creatorUid', '') == request.auth.uid : true) &&
              (!('replyPermission' in data) || data.get('replyPermission', 'everyone') in ['everyone', 'followers', 'none']);
     }
 
     function isValidPost(data) {
-      return isAuthenticated() && data.get('authorUid', '') == request.auth.uid;
+      return isVerified() && 
+             data.get('authorUid', '') == request.auth.uid &&
+             data.get('content', '') is string && data.get('content', '').size() > 0 && data.get('content', '').size() <= 10000 &&
+             data.get('timestamp', null) == request.time &&
+             data.get('likes', 0) == 0 &&
+             data.get('likedBy', []) is list && data.get('likedBy', []).size() == 0 &&
+             data.get('commentsCount', 0) == 0 &&
+             data.get('reshares', 0) == 0 &&
+             (data.get('isOfficial', false) == false || isSchoolManager(data.get('schoolId', '')));
     }
 
     function isValidRecord(data) {
-      return isAuthenticated() && (isSchoolManager(data.get('schoolId', '')) || isAdmin());
+      return isVerified() && (isSchoolManager(data.get('schoolId', '')) || isAdmin());
     }
 
     function isValidMessage(data) {
-      return isAuthenticated() && 
+      return isVerified() && 
              data.get('senderUid', '') == request.auth.uid &&
              (
                (data.get('isGroup', false) == false && 
@@ -210,7 +218,7 @@ service cloud.firestore {
     }
 
     function isValidCall(data) {
-      return isAuthenticated() && 
+      return isVerified() && 
              data.get('callerUid', '') == request.auth.uid &&
              data.get('receiverUid', '') is string &&
              data.get('participants', []) is list &&
@@ -221,7 +229,7 @@ service cloud.firestore {
     }
 
     function isValidGroup(data) {
-      return isAuthenticated() && 
+      return isVerified() && 
              data.get('name', '') is string && data.get('name', '').size() > 0 &&
              data.get('creatorUid', '') == request.auth.uid &&
              data.get('members', []) is list &&
@@ -229,7 +237,7 @@ service cloud.firestore {
     }
 
     function isValidStory(data) {
-      return isAuthenticated() &&
+      return isVerified() &&
              data.get('authorUid', '') == request.auth.uid &&
              data.get('authorName', '') is string && data.get('authorName', '').size() > 0 &&
              data.get('mediaUrl', '') is string && data.get('mediaUrl', '').size() > 0 &&
@@ -238,7 +246,7 @@ service cloud.firestore {
     }
 
     function isValidSettlement(data) {
-      return isAuthenticated() &&
+      return isVerified() &&
              data.get('authorUid', '') == request.auth.uid &&
              data.get('schoolId', '') is string &&
              isSchoolManager(data.get('schoolId', '')) &&
@@ -249,7 +257,7 @@ service cloud.firestore {
     }
 
     function isValidCloudFile(data) {
-      return isAuthenticated() &&
+      return isVerified() &&
              data.get('ownerUid', '') == request.auth.uid &&
              data.get('name', '') is string && data.get('name', '').size() > 0 && data.get('name', '').size() <= 255 &&
              data.get('url', '') is string && data.get('url', '').size() > 0 && data.get('url', '').size() <= 2048 &&
@@ -325,12 +333,12 @@ service cloud.firestore {
     match /posts/{postId} {
       allow read: if true;
       
-      allow create: if isAuthenticated() && isValidPost(request.resource.data);
+      allow create: if isValidId(postId) && isValidPost(request.resource.data);
       
       allow update: if isAuthenticated() && (
         (resource.data.get('authorUid', '') == request.auth.uid && request.resource.data.get('authorUid', '') == request.auth.uid) || 
         isAdmin() ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount', 'sharesCount', 'repostsCount']))
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy', 'commentsCount', 'reshares']))
       );
       
       allow delete: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isAdmin());
