@@ -1,0 +1,16 @@
+{
+  "name": "Exona Protocol",
+  "short_name": "Exona",
+  "description": "National Enterprise Communication & Assets",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

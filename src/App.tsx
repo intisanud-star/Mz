@@ -2050,6 +2050,22 @@ function ExonaApp() {
     throw new Error(JSON.stringify(errInfo));
   };
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+  }, []);
+
+  const installApp = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
+  };
+
   const [notificationFilter, setNotificationFilter] = useState<'all' | 'system' | 'social' | 'treasury'>('all');
 
   const markAllNotificationsAsRead = async () => {
@@ -2114,6 +2130,13 @@ function ExonaApp() {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
     }
+
+    // Register Service Worker for true background/lock-screen notifications
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('Communication Core Synced (SW):', reg.scope))
+        .catch(err => console.warn('SW Sync failed:', err));
+    }
   }, []);
 
   const playNotificationSound = (type: 'message' | 'call' = 'message') => {
@@ -2170,17 +2193,33 @@ function ExonaApp() {
   };
 
   const triggerSystemNotification = (title: string, body: string, category: string = 'system') => {
+    const appName = 'Exona Protocol';
+    const fullTitle = `${appName}: ${title}`;
+
     // If in Telegram, we can also use their native UI for critical alerts
     if (window.Telegram?.WebApp && (category === 'treasury' || category === 'system')) {
-      window.Telegram.WebApp.showConfirm(`${title}: ${body}`);
+      window.Telegram.WebApp.showConfirm(`${fullTitle}\n\n${body}`);
     }
 
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
-        new Notification(title, {
-          body,
-          icon: '/favicon.ico', // Fallback
-          tag: category
+        // Try to use the service worker for better background reliability
+        navigator.serviceWorker.ready.then(registration => {
+          (registration as any).showNotification(fullTitle, {
+            body,
+            icon: '/favicon.ico',
+            badge: '/favicon.ico',
+            tag: category,
+            vibrate: category === 'social' ? [200, 100, 200] : [100],
+            requireInteraction: category === 'social' || category === 'treasury'
+          });
+        }).catch(() => {
+          // Fallback to standard notification if SW is not ready
+          new Notification(fullTitle, {
+            body,
+            icon: '/favicon.ico',
+            tag: category
+          });
         });
       }
     }
@@ -2770,6 +2809,15 @@ function ExonaApp() {
                <div className="px-8 mt-6">
                   <div className="flex items-center justify-between mb-3 px-2">
                      <h5 className="text-[9px] font-black text-ink uppercase tracking-widest">Protocol Sync Status</h5>
+                     {deferredPrompt && (
+                        <button 
+                          onClick={installApp}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest animate-bounce"
+                        >
+                           <Download size={10} />
+                           Install APK/App
+                        </button>
+                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                      {/* Telegram Status */}
