@@ -3123,88 +3123,132 @@ function ExonaApp() {
     );
   };
 
-  const HelpCentreModal = () => (
-    <AnimatePresence>
-      {isHelpCentreModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
-          <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            className="w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-white/20"
-          >
-            <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
-               <div>
-                 <h3 className="text-3xl font-black text-ink uppercase tracking-tight italic">Exona Help Core</h3>
-                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">System Support & Institutional Guidelines</p>
-               </div>
-               <button 
-                 onClick={() => setIsHelpCentreModalOpen(false)}
-                 className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
-               >
-                 <X size={24} />
-               </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-                 {[
-                   { icon: Book, title: 'Knowledge Base', desc: 'Detailed manuals for every institutional module.' },
-                   { icon: ShieldCheck, title: 'Security Brief', desc: 'Overview of Layer-5 decentralized encryption.' },
-                   { icon: Zap, title: 'System Pulse', desc: 'Real-time status of all Exona institutional nodes.' },
-                   { icon: MessageSquare, title: 'Auditor Chat', desc: 'Direct secure line to system administrators.' }
-                 ].map((item, idx) => (
-                   <button key={idx} className="p-6 rounded-[2.5rem] bg-white border border-gray-100 text-left hover:border-accent hover:shadow-xl hover:shadow-accent/5 transition-all group">
-                     <div className="h-12 w-12 rounded-2xl bg-accent/5 text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                       <item.icon size={24} />
-                     </div>
-                     <h4 className="text-sm font-black text-ink uppercase tracking-tight mb-1">{item.title}</h4>
-                     <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed">{item.desc}</p>
-                   </button>
-                 ))}
-               </div>
+  const HelpCentreModal = () => {
+    const [searchQuery, setSearchQuery] = useState('');
+    
+    return (
+      <AnimatePresence>
+        {isHelpCentreModalOpen && (
+          <div className="fixed inset-0 z-[750] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-white/20"
+            >
+              <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+                 <div>
+                   <div className="flex items-center gap-3 mb-1">
+                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active Support Node</span>
+                   </div>
+                   <h3 className="text-3xl font-black text-ink uppercase tracking-tight italic">Exona Help Core</h3>
+                   <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">System Support & Institutional Guidelines</p>
+                 </div>
+                 <button 
+                   onClick={() => setIsHelpCentreModalOpen(false)}
+                   className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+                 >
+                   <X size={24} />
+                 </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
+                 {/* Search Bar */}
+                 <div className="relative mb-10">
+                   <div className="absolute inset-y-0 left-6 flex items-center text-muted/40 pointer-events-none">
+                     <Search size={20} />
+                   </div>
+                   <input 
+                     type="text"
+                     placeholder="QUERY THE KNOWLEDGE ARCHIVE..."
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="w-full h-18 bg-white border border-gray-100 rounded-[2rem] pl-16 pr-8 text-sm font-black uppercase tracking-tight focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all outline-none"
+                   />
+                 </div>
 
-               <div className="space-y-8">
-                 <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Core Documentation</h4>
-                 <div className="space-y-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
                    {[
-                     { q: "How are my records secured?", a: "Every record is hashed and distributed across decentralized nodes, making them immutable and impossible to forge." },
-                     { q: "What is an Institutional Auditor?", a: "Auditors are certified administrators who oversee the integrity of institutional data and handle disputes." },
-                     { q: "Can I use Exona offline?", a: "Limited core features are available offline via PWA caching; sync resumes when connectivity is restored." }
-                   ].map((faq, i) => (
-                     <div key={i} className="p-6 rounded-3xl bg-white border border-gray-100">
-                       <p className="text-[13px] font-black text-ink mb-2 uppercase tracking-tight">{faq.q}</p>
-                       <p className="text-[11px] text-muted font-medium leading-relaxed">{faq.a}</p>
-                     </div>
+                     { icon: Book, title: 'Knowledge Base', desc: 'Detailed manuals for every institutional module.', count: '142 Articles' },
+                     { icon: ShieldCheck, title: 'Security Brief', desc: 'Overview of Layer-5 decentralized encryption.', count: 'Verified' },
+                     { icon: Zap, title: 'System Pulse', desc: 'Real-time status of all Exona institutional nodes.', count: 'Stable' },
+                     { icon: MessageSquare, title: 'Auditor Chat', desc: 'Direct secure line to system administrators.', count: 'Instant' }
+                   ].map((item, idx) => (
+                     <button key={idx} className="p-6 rounded-[2.5rem] bg-white border border-gray-100 text-left hover:border-accent hover:shadow-xl hover:shadow-accent/5 transition-all group overflow-hidden relative">
+                       <div className="absolute top-0 right-0 p-4 opacity-[0.03] -rotate-12 transform group-hover:scale-125 transition-transform duration-700">
+                         <item.icon size={80} />
+                       </div>
+                       <div className="flex items-start justify-between mb-4 relative z-10">
+                         <div className="h-12 w-12 rounded-2xl bg-accent/5 text-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+                           <item.icon size={24} />
+                         </div>
+                         <span className="text-[8px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-1 rounded-full">{item.count}</span>
+                       </div>
+                       <h4 className="text-sm font-black text-ink uppercase tracking-tight mb-1 relative z-10">{item.title}</h4>
+                       <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed relative z-10">{item.desc}</p>
+                     </button>
                    ))}
                  </div>
-               </div>
-            </div>
 
-            <div className="p-8 bg-ink text-white flex items-center justify-between shrink-0">
-               <div className="flex items-center gap-4">
-                 <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
-                    <Mail size={18} className="text-accent" />
+                 {/* Help Categories */}
+                 <div className="space-y-8">
+                   <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Institutional IQ</h4>
+                   <div className="grid grid-cols-3 gap-3">
+                     {['Admissions', 'Financials', 'Governance', 'Technical', 'Security', 'Academic'].map((cat) => (
+                       <button key={cat} className="py-4 rounded-2xl bg-white border border-gray-100 text-[10px] font-black uppercase tracking-widest text-ink hover:bg-gray-50 transition-all">
+                         {cat}
+                       </button>
+                     ))}
+                   </div>
                  </div>
-                 <div>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Need more help?</p>
-                    <p className="text-[12px] font-black uppercase tracking-tight">support@exona.io</p>
+
+                 <div className="mt-12 space-y-8">
+                   <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Core Documentation</h4>
+                   <div className="space-y-4">
+                     {[
+                       { q: "How are my records secured?", a: "Every record is hashed and distributed across decentralized nodes, making them immutable and impossible to forge." },
+                       { q: "What is an Institutional Auditor?", a: "Auditors are certified administrators who oversee the integrity of institutional data and handle disputes." },
+                       { q: "Can I use Exona offline?", a: "Limited core features are available offline via PWA caching; sync resumes when connectivity is restored." },
+                       { q: "Institutional Data Recovery", a: "Lost credentials can only be recovered through biometric verification at a certified Exona node." }
+                     ].map((faq, i) => (
+                       <div key={i} className="p-6 rounded-3xl bg-white border border-gray-100 group hover:border-accent transition-colors">
+                         <div className="flex items-center gap-3 mb-2">
+                           <HelpCircle size={14} className="text-accent" />
+                           <p className="text-[13px] font-black text-ink uppercase tracking-tight">{faq.q}</p>
+                         </div>
+                         <p className="text-[11px] text-muted font-medium leading-relaxed pl-7">{faq.a}</p>
+                       </div>
+                     ))}
+                   </div>
                  </div>
-               </div>
-               <button className="px-6 py-3 bg-white/10 hover:bg-white text-white hover:text-ink rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                  Open Support Ticket
-               </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
+              </div>
+
+              <div className="p-8 bg-ink text-white flex items-center justify-between shrink-0">
+                 <div className="flex items-center gap-4">
+                   <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
+                      <Mail size={18} className="text-accent" />
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Need more help?</p>
+                      <p className="text-[12px] font-black uppercase tracking-tight">support@exona.io</p>
+                   </div>
+                 </div>
+                 <button className="px-6 py-3 bg-white/10 hover:bg-white text-white hover:text-ink rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                    Open Support Ticket
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    );
+  };
 
   const LegalModal = () => (
     <AnimatePresence>
       {isLegalModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 backdrop-blur-3xl p-4 sm:p-8">
+        <div className="fixed inset-0 z-[800] flex items-center justify-center bg-black/60 backdrop-blur-3xl p-4 sm:p-8">
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 10 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -3246,6 +3290,24 @@ function ExonaApp() {
 
                  <section>
                     <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Intellectual Property
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       All algorithms, interface designs, and modular architectures within the Exona Protocol are the exclusive intellectual property of the Network Foundation. Unauthorized redistribution or modification of core binaries is strictly prohibited.
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> User Responsibilities
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       Users are responsible for maintaining the confidentiality of their decentralized keys. Compromised keys must be reported immediately to the closest Regional Auditor Node for account quarantine.
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
                        <span className="h-[1px] w-8 bg-accent" /> Record Persistence
                     </h4>
                     <p className="text-[14px] text-muted font-medium leading-relaxed">
@@ -3282,12 +3344,12 @@ function ExonaApp() {
   const SecurityModal = () => (
     <AnimatePresence>
       {isSecurityModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6">
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6 transition-all duration-500">
           <motion.div 
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col"
+            className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col pointer-events-auto"
           >
             <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
               <div>
@@ -3440,8 +3502,11 @@ function ExonaApp() {
 
                   {/* Help Centre */}
                   <button 
-                    onClick={() => setIsHelpCentreModalOpen(true)}
-                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-blue-200 transition-all w-full mt-4"
+                    onClick={() => {
+                      setIsSecurityModalOpen(false);
+                      setTimeout(() => setIsHelpCentreModalOpen(true), 100);
+                    }}
+                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-blue-200 transition-all w-full mt-4 cursor-pointer relative z-20"
                   >
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -3457,8 +3522,11 @@ function ExonaApp() {
 
                   {/* Terms & Privacy */}
                   <button 
-                    onClick={() => setIsLegalModalOpen(true)}
-                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-gray-300 transition-all w-full mt-4"
+                    onClick={() => {
+                      setIsSecurityModalOpen(false);
+                      setTimeout(() => setIsLegalModalOpen(true), 100);
+                    }}
+                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-gray-300 transition-all w-full mt-4 cursor-pointer relative z-20"
                   >
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -13328,10 +13396,14 @@ function ExonaApp() {
                 <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Support & Legal</h3>
                 <div className="grid grid-cols-1 gap-3">
                   {[
-                    { icon: AlertCircle, label: 'Help Center', desc: 'Get assistance and documentation' },
-                    { icon: FileText, label: 'Terms of Service', desc: 'Review our legal agreements' }
+                    { icon: AlertCircle, label: 'Help Center', desc: 'Get assistance and documentation', onClick: () => setIsHelpCentreModalOpen(true) },
+                    { icon: FileText, label: 'Terms of Service', desc: 'Review our legal agreements', onClick: () => setIsLegalModalOpen(true) }
                   ].map((item, i) => (
-                    <button key={i} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group">
+                    <button 
+                      key={i} 
+                      onClick={item.onClick}
+                      className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:shadow-xl hover:shadow-gray-100/50 transition-all group cursor-pointer"
+                    >
                       <div className="flex items-center gap-5">
                         <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-muted group-hover:text-ink transition-colors">
                           <item.icon size={20} />
