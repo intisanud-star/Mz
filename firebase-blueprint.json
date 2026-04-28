@@ -289,6 +289,30 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["institutionId", "requesterUid", "status", "timestamp"]
+    },
+    "ExonWallet": {
+      "title": "ExonWallet",
+      "description": "Custom virtual currency wallet",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "balance": { "type": "integer" },
+        "tier": { "type": "string" },
+        "last_transaction": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "balance", "tier"]
+    },
+    "TransactionHistory": {
+      "title": "TransactionHistory",
+      "description": "Wallet transaction log",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "integer" },
+        "type": { "type": "string", "enum": ["credit", "debit"] },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["amount", "type", "description", "timestamp"]
     }
   },
   "firestore": {
@@ -309,6 +333,8 @@
     "/chatGroups/{groupId}": { "schema": "ChatGroup", "description": "Group chat definitions" },
     "/calls/{callId}": { "schema": "Call", "description": "Voice call signaling documents" },
     "/brainBattleLeads/{leadId}": { "schema": "BrainBattleParticipation", "description": "Game leads and results" },
-    "/keyRequests/{requestId}": { "schema": "KeyRequest", "description": "Access key requests" }
+    "/keyRequests/{requestId}": { "schema": "KeyRequest", "description": "Access key requests" },
+    "/wallets/{userId}": { "schema": "ExonWallet", "description": "User currency wallets" },
+    "/wallets/{userId}/history/{txId}": { "schema": "TransactionHistory", "description": "Transaction logs" }
   }
 }

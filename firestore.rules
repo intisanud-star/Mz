@@ -395,5 +395,15 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (request.auth.uid in resource.data.get('participants', []));
       allow delete: if isAdmin();
     }
+
+    match /wallets/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if false;
+
+      match /history/{txId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow write: if false;
+      }
+    }
   }
 }
