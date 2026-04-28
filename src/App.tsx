@@ -2091,6 +2091,14 @@ function ExonaApp() {
     }
   };
   const [showInsufficientStarsAlert, setShowInsufficientStarsAlert] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
   const playNotificationSound = (type: 'message' | 'call' = 'message') => {
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -2156,11 +2164,23 @@ function ExonaApp() {
   };
 
   const requestNotificationPermission = async () => {
-    if (!('Notification' in window)) return;
-    const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      showNotification('System notifications enabled', 'success');
-      new Notification('Exona Enabled', { body: 'You will now receive system-level alerts.' });
+    if (!('Notification' in window)) {
+      showNotification('Push notifications not supported by this browser/environment', 'error');
+      return;
+    }
+    
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === 'granted') {
+        showNotification('System notifications enabled', 'success');
+        triggerSystemNotification('Security Verified', 'System-level alerts are now active on this terminal.', 'system');
+      } else if (permission === 'denied') {
+        showNotification('Notifications blocked. Reset permissions in browser settings.', 'error');
+      }
+    } catch (err) {
+      console.error('Permission request failed:', err);
+      showNotification('Failed to request permission', 'error');
     }
   };
 
@@ -2684,13 +2704,13 @@ function ExonaApp() {
                <div className="px-8 py-3 flex items-center justify-between bg-white border-b border-gray-50">
                   <div className="flex items-center gap-3">
                     <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Active Archives</span>
-                    {('Notification' in window && Notification.permission !== 'granted') && (
+                    {notificationPermission !== 'granted' && (
                       <button 
                         onClick={requestNotificationPermission}
                         className="flex items-center gap-1.5 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-[8px] font-black uppercase text-accent animate-pulse"
                       >
                          <ShieldCheck size={10} />
-                         Activate System Alerts
+                         Activate Phone Alerts
                       </button>
                     )}
                   </div>
@@ -2881,6 +2901,39 @@ function ExonaApp() {
                         className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
                       />
                     </button>
+                  </div>
+
+                  {/* System Alerts */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-blue-200 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Bell size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">System Alerts</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Desktop & Phone Push</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {notificationPermission === 'granted' && (
+                        <button 
+                          onClick={() => triggerSystemNotification('Test Broadcast', 'Verification signal received. Communication active.', 'system')}
+                          className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center text-muted hover:bg-accent hover:text-white transition-all"
+                          title="Test Signal"
+                        >
+                          <Zap size={14} />
+                        </button>
+                      )}
+                      <button 
+                        onClick={notificationPermission === 'granted' ? () => showNotification('System alerts are currently enabled', 'success') : requestNotificationPermission}
+                        className={`w-12 h-6 rounded-full relative transition-all duration-300 ${notificationPermission === 'granted' ? 'bg-blue-600' : 'bg-gray-200'}`}
+                      >
+                        <motion.div 
+                          animate={{ x: notificationPermission === 'granted' ? 24 : 0 }}
+                          className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </section>
