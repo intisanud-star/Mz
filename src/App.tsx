@@ -1660,16 +1660,21 @@ const FeedPost = ({
             </button>
 
             <button 
-              onClick={() => onForward?.(post)}
-              className="flex items-center gap-1 px-2 py-2 rounded-xl text-muted hover:text-green-500 hover:bg-green-50 transition-all"
+              onClick={() => {
+                if (navigator.share) {
+                  navigator.share({
+                    title: 'Exona Protocol',
+                    text: post.text,
+                    url: window.location.href
+                  }).catch(() => {});
+                } else {
+                  onForward?.(post);
+                }
+              }}
+              className="flex items-center gap-1 px-2 py-2 rounded-xl text-muted hover:text-blue-500 hover:bg-blue-50 transition-all"
+              title="Share Post"
             >
-              <Repeat size={20} />
-            </button>
-
-            <button 
-              className="flex items-center gap-1 px-2 py-2 rounded-xl text-muted hover:text-ink hover:bg-gray-100 transition-all"
-            >
-              <Send size={20} />
+              <Share2 size={20} />
             </button>
             
             {!isOwnPost && (
