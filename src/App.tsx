@@ -1640,52 +1640,54 @@ const FeedPost = ({
             </div>
           )}
 
-          {/* Action Row - Threads Style (Tight) */}
-          <div className="flex items-center gap-1 -ml-2">
-            <button 
-              onClick={() => onLike?.(post.id, post.likedBy || [])}
-              className={`flex items-center gap-1 px-2 py-2 rounded-xl transition-all ${isLiked ? 'text-accent' : 'text-muted hover:text-accent hover:bg-accent/5'}`}
-            >
-              <Heart size={20} className={isLiked ? 'fill-accent' : ''} />
-              {post.likes > 0 && <span className="text-[11px] font-black tabular-nums">{post.likes}</span>}
-            </button>
-
-            <button 
-              onClick={() => canReply && onComment?.(post)}
-              className={`flex items-center gap-1 px-2 py-2 rounded-xl transition-all ${canReply ? 'text-muted hover:text-blue-500 hover:bg-blue-50' : 'text-muted/30 cursor-not-allowed'}`}
-              disabled={!canReply}
-            >
-              <MessageCircle size={20} />
-              {post.commentsCount > 0 && <span className="text-[11px] font-black tabular-nums">{post.commentsCount}</span>}
-            </button>
-
-            <button 
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({
-                    title: 'Exona Protocol',
-                    text: post.text,
-                    url: window.location.href
-                  }).catch(() => {});
-                } else {
-                  onForward?.(post);
-                }
-              }}
-              className="flex items-center gap-1 px-2 py-2 rounded-xl text-muted hover:text-blue-500 hover:bg-blue-50 transition-all"
-              title="Share Post"
-            >
-              <Share2 size={20} />
-            </button>
-            
-            {!isOwnPost && (
+          {/* High-Precision Action Row */}
+          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-100/50">
+            <div className="flex items-center gap-6 sm:gap-8">
               <button 
-                onClick={() => onMessage?.(post)}
-                className="flex items-center px-2 py-2 rounded-xl text-muted hover:text-accent hover:bg-accent/5 transition-all"
-                title="Message Author"
+                onClick={() => onLike?.(post.id, post.likedBy || [])}
+                className={`group flex items-center gap-2 transition-all active:scale-90 ${isLiked ? 'text-rose-500' : 'text-muted hover:text-rose-500'}`}
               >
-                <Smartphone size={20} />
+                <div className={`p-2.5 rounded-2xl transition-all duration-300 ${isLiked ? 'bg-rose-50 shadow-sm shadow-rose-100' : 'group-hover:bg-rose-50'}`}>
+                  <Heart size={18} strokeWidth={2} className={isLiked ? 'fill-rose-500' : ''} />
+                </div>
+                {post.likes > 0 && <span className="text-[11px] font-black tabular-nums tracking-tight">{post.likes}</span>}
               </button>
-            )}
+
+              <button 
+                onClick={() => canReply && onComment?.(post)}
+                className={`group flex items-center gap-2 transition-all active:scale-90 ${canReply ? 'text-muted hover:text-blue-500' : 'text-muted/20 cursor-not-allowed'}`}
+                disabled={!canReply}
+              >
+                <div className="p-2.5 rounded-2xl group-hover:bg-blue-50 transition-all duration-300">
+                  <MessageCircle size={18} strokeWidth={2} />
+                </div>
+                {post.commentsCount > 0 && <span className="text-[11px] font-black tabular-nums tracking-tight">{post.commentsCount}</span>}
+              </button>
+
+              <button 
+                onClick={() => onReshare?.(post)}
+                className="group flex items-center gap-2 transition-all active:scale-90 text-muted hover:text-emerald-500"
+                title="Institutional Share"
+              >
+                <div className="p-2.5 rounded-2xl group-hover:bg-emerald-50 transition-all duration-300">
+                  <Share size={18} strokeWidth={2} />
+                </div>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {!isOwnPost && (
+                <button 
+                  onClick={() => onMessage?.(post)}
+                  className="group flex items-center transition-all active:scale-90 text-muted hover:text-accent"
+                  title="Direct Secure Message"
+                >
+                  <div className="p-2.5 rounded-2xl group-hover:bg-accent/5 transition-all duration-300">
+                    <Smartphone size={18} strokeWidth={2} />
+                  </div>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2056,6 +2058,8 @@ function ExonaApp() {
   };
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
   const [isDataStorageModalOpen, setIsDataStorageModalOpen] = useState(false);
+  const [isHelpCentreModalOpen, setIsHelpCentreModalOpen] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -3008,88 +3012,92 @@ function ExonaApp() {
     return (
       <AnimatePresence>
         {isDataStorageModalOpen && (
-          <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6">
+          <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="w-full max-w-lg bg-card rounded-[3.5rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-white/10"
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-white/20"
             >
-              <div className="p-10 bg-gradient-to-br from-gray-50 to-white border-b border-gray-100 relative overflow-hidden">
+              <div className="p-12 bg-gradient-to-b from-gray-50/50 to-white border-b border-gray-100/80 relative overflow-hidden">
                 <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="h-2 w-2 rounded-full bg-accent animate-ping" />
-                    <span className="text-[10px] font-black text-accent uppercase tracking-[0.2em]">Institutional Data Stream</span>
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="h-2 w-2 rounded-full bg-accent relative">
+                      <div className="absolute inset-0 rounded-full bg-accent animate-ping" />
+                    </div>
+                    <span className="text-[10px] font-black text-ink uppercase tracking-[0.4em] opacity-60">Archive Integrity: Verified</span>
                   </div>
-                  <h3 className="text-3xl font-black text-ink tracking-tight mb-2">Workspace Vault</h3>
-                  <p className="text-[11px] text-muted font-medium max-w-[280px] leading-relaxed">Real-time audit of all records persisted in your encrypted environment.</p>
+                  <h3 className="text-4xl font-black text-ink tracking-tight mb-3">Institutional Vault</h3>
+                  <p className="text-[12px] text-muted font-medium max-w-[320px] leading-relaxed">Continuous audit of decentralized records Persisted within your secure workspace.</p>
                 </div>
-                <div className="absolute top-0 right-0 p-8">
+                <div className="absolute top-0 right-0 p-10">
                   <button 
                     onClick={() => setIsDataStorageModalOpen(false)}
-                    className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm"
+                    className="h-14 w-14 bg-white border border-gray-100 rounded-3xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm hover:shadow-md active:scale-90"
                   >
-                    <X size={24} />
+                    <X size={20} strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar bg-white">
+              <div className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar">
                 <section>
-                  <div className="flex items-center justify-between mb-4 px-2">
-                    <h4 className="text-[10px] font-black text-muted uppercase tracking-widest">Active Workspace Load</h4>
-                    <span className="text-[10px] font-black text-ink uppercase">{totalRecords} Saved Objects</span>
+                  <div className="flex items-center justify-between mb-6 px-2">
+                    <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em]">Grid Analysis</h4>
+                    <span className="text-[11px] font-black text-ink tabular-nums">{totalRecords} Persisted Objects</span>
                   </div>
-                  <div className="h-24 w-full bg-gray-50 rounded-[2.5rem] p-6 border border-gray-100 flex items-center gap-6">
-                    <div className="h-12 w-12 rounded-2xl bg-accent/10 text-accent flex items-center justify-center shadow-lg shadow-accent/5">
-                      <Database size={24} />
+                  <div className="h-32 w-full bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100/60 flex items-center gap-8 group">
+                    <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 text-accent flex items-center justify-center shadow-lg shadow-gray-200/20 group-hover:scale-105 transition-transform duration-500">
+                      <Database size={24} strokeWidth={1.2} />
                     </div>
-                    <div className="flex-1 space-y-3">
-                      <div className="h-3 w-full bg-gray-200 rounded-full overflow-hidden">
+                    <div className="flex-1 space-y-4">
+                      <div className="h-4 w-full bg-gray-200/50 rounded-full overflow-hidden p-0.5">
                         <motion.div 
-                          className="h-full bg-accent"
+                          className="h-full bg-accent rounded-full shadow-[0_0_15px_rgba(var(--accent-rgb),0.3)]"
                           initial={{ width: 0 }}
                           animate={{ width: `${usage}%` }}
-                          transition={{ type: 'spring', delay: 0.5 }}
+                          transition={{ type: 'spring', damping: 25, stiffness: 40, delay: 0.3 }}
                         />
                       </div>
-                      <div className="flex justify-between items-center text-[9px] font-black text-muted uppercase tracking-[0.2em]">
-                        <span>Registry Delta: 0.0ms</span>
-                        <span>Capacity Used: {usage.toFixed(1)}%</span>
+                      <div className="flex justify-between items-center font-mono text-[9px] font-bold text-muted uppercase tracking-widest">
+                        <span>Cluster Latency: 0.00ms</span>
+                        <span>Capacity: {usage.toFixed(2)}%</span>
                       </div>
                     </div>
                   </div>
                 </section>
 
                 <section>
-                  <h4 className="text-[10px] font-black text-muted uppercase tracking-widest mb-4 px-2">Recent Registry Writes</h4>
-                  <div className="space-y-3">
+                  <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-6 px-2 text-center underline decoration-accent/20 underline-offset-8">Registry Activity Log</h4>
+                  <div className="space-y-4">
                     <AnimatePresence mode="popLayout">
-                      {combinedActivity.length > 0 ? combinedActivity.slice(0, 15).map((item) => (
+                      {combinedActivity.length > 0 ? combinedActivity.slice(0, 15).map((item, idx) => (
                         <motion.div 
                           key={item.id}
                           layout
-                          initial={{ x: -20, opacity: 0 }}
-                          animate={{ x: 0, opacity: 1 }}
-                          className="p-5 rounded-[2rem] bg-gray-50/50 border border-transparent flex items-center justify-between group hover:bg-white hover:border-accent/10 hover:shadow-xl transition-all"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0, transition: { delay: idx * 0.03 } }}
+                          className="group p-6 rounded-[2.5rem] bg-white border border-gray-100 hover:border-accent/20 hover:shadow-2xl hover:shadow-gray-100 transition-all cursor-default"
                         >
-                          <div className="flex items-center gap-5">
-                            <div className="h-10 w-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-[7px] font-black text-muted shadow-sm group-hover:text-accent transition-colors p-1 text-center leading-tight">
-                              {item.type}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-6">
+                              <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-[8px] font-black text-muted/60 tracking-tighter group-hover:bg-accent/5 group-hover:text-accent transition-colors duration-500">
+                                {item.type}
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-black text-ink tracking-tight uppercase leading-none mb-1">{item.label}</p>
+                                <p className="text-[9px] font-mono font-bold text-muted uppercase tracking-widest">{item.time.toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-[12px] font-black text-ink tracking-tight uppercase tracking-widest line-clamp-1">{item.label}</p>
-                              <p className="text-[9px] text-muted font-bold uppercase tracking-[0.2em] mt-1">{item.time.toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}</p>
+                            <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50/50 rounded-full border border-emerald-100/50">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{item.status}</span>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-gray-100 shadow-sm">
-                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                             <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{item.status}</span>
                           </div>
                         </motion.div>
                       )) : (
-                        <div className="p-10 text-center border-2 border-dashed border-gray-100 rounded-[3rem]">
-                           <p className="text-[10px] font-black text-muted uppercase tracking-widest">No Records Found in Workspace</p>
+                        <div className="p-16 text-center border-2 border-dashed border-gray-100 rounded-[3.5rem] bg-gray-50/30">
+                           <p className="text-[10px] font-black text-muted uppercase tracking-[0.5em]">System Idle: No Persistent Data</p>
                         </div>
                       )}
                     </AnimatePresence>
@@ -3097,15 +3105,14 @@ function ExonaApp() {
                 </section>
               </div>
 
-              <div className="p-10 bg-gray-50 border-t border-gray-100">
+              <div className="p-12 bg-ink text-white">
                 <div className="flex items-center justify-between">
-                  <div className="text-left">
-                    <p className="text-[10px] font-black text-ink uppercase tracking-widest">Integrity Level: Institutional</p>
-                    <p className="text-[8px] font-bold text-muted uppercase tracking-[0.3em] mt-1">Direct Workspace Access</p>
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/50">Status</p>
+                    <p className="text-[14px] font-black uppercase tracking-widest">Master Ledger: Stable</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                     <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                     <span className="text-[10px] font-black text-ink uppercase tracking-widest">Zero Mock Latency</span>
+                  <div className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                     <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
                   </div>
                 </div>
               </div>
@@ -3116,6 +3123,161 @@ function ExonaApp() {
     );
   };
 
+  const HelpCentreModal = () => (
+    <AnimatePresence>
+      {isHelpCentreModalOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            className="w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-white/20"
+          >
+            <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+               <div>
+                 <h3 className="text-3xl font-black text-ink uppercase tracking-tight italic">Exona Help Core</h3>
+                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">System Support & Institutional Guidelines</p>
+               </div>
+               <button 
+                 onClick={() => setIsHelpCentreModalOpen(false)}
+                 className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+               >
+                 <X size={24} />
+               </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                 {[
+                   { icon: Book, title: 'Knowledge Base', desc: 'Detailed manuals for every institutional module.' },
+                   { icon: ShieldCheck, title: 'Security Brief', desc: 'Overview of Layer-5 decentralized encryption.' },
+                   { icon: Zap, title: 'System Pulse', desc: 'Real-time status of all Exona institutional nodes.' },
+                   { icon: MessageSquare, title: 'Auditor Chat', desc: 'Direct secure line to system administrators.' }
+                 ].map((item, idx) => (
+                   <button key={idx} className="p-6 rounded-[2.5rem] bg-white border border-gray-100 text-left hover:border-accent hover:shadow-xl hover:shadow-accent/5 transition-all group">
+                     <div className="h-12 w-12 rounded-2xl bg-accent/5 text-accent flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                       <item.icon size={24} />
+                     </div>
+                     <h4 className="text-sm font-black text-ink uppercase tracking-tight mb-1">{item.title}</h4>
+                     <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed">{item.desc}</p>
+                   </button>
+                 ))}
+               </div>
+
+               <div className="space-y-8">
+                 <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Core Documentation</h4>
+                 <div className="space-y-4">
+                   {[
+                     { q: "How are my records secured?", a: "Every record is hashed and distributed across decentralized nodes, making them immutable and impossible to forge." },
+                     { q: "What is an Institutional Auditor?", a: "Auditors are certified administrators who oversee the integrity of institutional data and handle disputes." },
+                     { q: "Can I use Exona offline?", a: "Limited core features are available offline via PWA caching; sync resumes when connectivity is restored." }
+                   ].map((faq, i) => (
+                     <div key={i} className="p-6 rounded-3xl bg-white border border-gray-100">
+                       <p className="text-[13px] font-black text-ink mb-2 uppercase tracking-tight">{faq.q}</p>
+                       <p className="text-[11px] text-muted font-medium leading-relaxed">{faq.a}</p>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+            </div>
+
+            <div className="p-8 bg-ink text-white flex items-center justify-between shrink-0">
+               <div className="flex items-center gap-4">
+                 <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Mail size={18} className="text-accent" />
+                 </div>
+                 <div>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Need more help?</p>
+                    <p className="text-[12px] font-black uppercase tracking-tight">support@exona.io</p>
+                 </div>
+               </div>
+               <button className="px-6 py-3 bg-white/10 hover:bg-white text-white hover:text-ink rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                  Open Support Ticket
+               </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const LegalModal = () => (
+    <AnimatePresence>
+      {isLegalModalOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-black/60 backdrop-blur-3xl p-4 sm:p-8">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            className="w-full max-w-2xl bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[85vh] border border-white/20"
+          >
+            <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+               <div>
+                 <h3 className="text-3xl font-black text-ink uppercase tracking-tight">Legal Protocols</h3>
+                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Exona Governance & Privacy Framework</p>
+               </div>
+               <button 
+                 onClick={() => setIsLegalModalOpen(false)}
+                 className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+               >
+                 <X size={24} />
+               </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
+               <div className="prose prose-sm max-w-none space-y-12">
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Agreement of Use
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       By accessing the Exona Network, users agree to abide by institutional guidelines. All records created are subject to verification by designated auditors. Misuse of platform capabilities for falsifying records result in immediate account termination and institutional reporting.
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Privacy & Encryption
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       Your data is encrypted using Layer-5 decentralized protocols. Private metadata is never sold or shared with external advertising engines. Data access is strictly compartmentalized based on verified institutional roles (Admin, Faculty, Student).
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Record Persistence
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       Verified records are stored within the Exona secure ledger. Once a record has been authorized, it becomes a permanent part of the institutional history, ensuring data integrity across future audits.
+                    </p>
+                 </section>
+
+                 <div className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center gap-6">
+                    <div className="h-16 w-16 bg-accent/5 rounded-2xl flex items-center justify-center text-accent shrink-0">
+                       <ShieldCheck size={32} />
+                    </div>
+                    <div>
+                       <h5 className="font-black text-ink uppercase tracking-tight text-sm mb-1">Standard Security Compliance</h5>
+                       <p className="text-[11px] text-muted font-bold tracking-widest uppercase">Verified April 2026</p>
+                    </div>
+                 </div>
+               </div>
+            </div>
+
+            <div className="p-8 bg-white border-t border-gray-100 shrink-0">
+               <button 
+                 onClick={() => setIsLegalModalOpen(false)}
+                 className="w-full py-5 bg-ink text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] hover:bg-black transition-all shadow-xl shadow-ink/10"
+               >
+                 I Acknowledge Governance
+               </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
 
   const SecurityModal = () => (
     <AnimatePresence>
@@ -3275,6 +3437,40 @@ function ExonaApp() {
                       </div>
                     )}
                   </div>
+
+                  {/* Help Centre */}
+                  <button 
+                    onClick={() => setIsHelpCentreModalOpen(true)}
+                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-blue-200 transition-all w-full mt-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <HelpCircle size={18} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Help Centre</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Support & Documentation</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
+                  </button>
+
+                  {/* Terms & Privacy */}
+                  <button 
+                    onClick={() => setIsLegalModalOpen(true)}
+                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-gray-300 transition-all w-full mt-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <FileText size={18} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Legal Protocols</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Terms & Privacy Agreement</p>
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
+                  </button>
                 </div>
               </section>
 
@@ -8309,10 +8505,10 @@ function ExonaApp() {
                   {canManageInstitution(selectedSchool) && (
                     <button 
                       onClick={() => setIsRecordModalOpen(true)}
-                      className="flex items-center gap-2 px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all"
+                      className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all hover:shadow-xl hover:shadow-ink/20 active:scale-95 group"
                     >
-                      <Plus size={14} />
-                      New Record
+                      <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
+                      Initialize Record
                     </button>
                   )}
                 </div>
@@ -8340,10 +8536,10 @@ function ExonaApp() {
               <div className="md:hidden mb-12">
                 <button 
                   onClick={() => setIsRecordModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-3 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 active:scale-[0.98] transition-all"
+                  className="w-full flex items-center justify-center gap-4 py-6 bg-ink text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl shadow-ink/20 active:scale-[0.98] transition-all"
                 >
-                  <Plus size={20} />
-                  New Record
+                  <Plus size={18} strokeWidth={2} />
+                  Initialize Record
                 </button>
               </div>
             )}
@@ -9238,10 +9434,10 @@ function ExonaApp() {
                       {canManageInstitution(selectedSchool) && (
                         <button 
                           onClick={() => setIsAttendanceModalOpen(true)}
-                          className="flex items-center gap-2 px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all"
+                          className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all hover:shadow-xl hover:shadow-ink/20 active:scale-95 group"
                         >
-                          <Plus size={14} />
-                          Record {labels.attendance}
+                          <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
+                          Initialize {labels.attendance} log
                         </button>
                       )}
                 </div>
@@ -9270,10 +9466,10 @@ function ExonaApp() {
               <div className="md:hidden mb-12">
                 <button 
                   onClick={() => setIsAttendanceModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-3 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-ink/10 active:scale-[0.98] transition-all"
+                  className="w-full flex items-center justify-center gap-4 py-6 bg-ink text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.4em] shadow-2xl shadow-ink/20 active:scale-[0.98] transition-all"
                 >
-                  <Plus size={20} />
-                  Record {labels.attendance}
+                  <Plus size={18} strokeWidth={2} />
+                  Authorize {labels.attendance}
                 </button>
               </div>
             )}
@@ -15031,6 +15227,8 @@ function ExonaApp() {
       <ExonWealthModal />
       <SecurityModal />
       <NotificationsModal />
+      <HelpCentreModal />
+      <LegalModal />
       <DataStorageModal />
       <InsufficientStarsAlert />
 
