@@ -152,6 +152,28 @@ service cloud.firestore {
     // Domain Validators
     // ===============================================================
 
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidWallet(data) {
+      return data.userId is string && data.userId.size() <= 128 &&
+             data.balance is int && data.balance >= 0 &&
+             (!('excoin_balance' in data) || (data.excoin_balance is int && data.excoin_balance >= 0)) &&
+             data.tier is string && data.tier.size() <= 50;
+    }
+
+    function isValidTransaction(data) {
+      return data.amount is int && data.amount > 0 &&
+             data.type in ['credit', 'debit'] &&
+             data.currency in ['stars', 'excoins'] &&
+             data.description is string && data.description.size() <= 500 &&
+             data.timestamp == request.time;
+    }
+
     function isValidUser(data) {
       return isAuthenticated() && (data.uid == request.auth.uid || !('uid' in data));
     }
@@ -397,13 +419,21 @@ service cloud.firestore {
     }
 
     match /wallets/{userId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if false;
+      allow get: if isAuthenticated() && request.auth.uid == userId && isValidId(userId);
+      allow list: if false; // Users shouldn't list all wallets
 
       match /history/{txId} {
-        allow read: if isAuthenticated() && request.auth.uid == userId;
-        allow write: if false;
+        allow list: if isAuthenticated() && request.auth.uid == userId;
+        allow get: if isAuthenticated() && request.auth.uid == userId && isValidId(txId);
+        allow create: if isAuthenticated() && request.auth.uid == userId && 
+                         isValidTransaction(incoming());
       }
+
+      allow create: if isAuthenticated() && request.auth.uid == userId && 
+                       isValidWallet(incoming()) && incoming().userId == request.auth.uid;
+      allow update: if isAuthenticated() && request.auth.uid == userId &&
+                       isValidWallet(incoming()) &&
+                       incoming().userId == existing().userId; // Immutable userId
     }
   }
 }

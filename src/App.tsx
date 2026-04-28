@@ -8,7 +8,8 @@ import {
   Image as ImageIcon, Video as VideoIcon, Paperclip,
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
   MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint, Eye, EyeOff,
-  BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
+   BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
+  UserCheck,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Stars, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Mic, Play, Pause, PhoneOff, StopCircle, RefreshCw,
@@ -1979,11 +1980,62 @@ function ExonaApp() {
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
   const [currentBattleQuestions, setCurrentBattleQuestions] = useState<any[]>(BRAIN_BATTLE_QUESTIONS);
   const [isExonWalletOpen, setIsExonWalletOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [showWealthFloatingChip, setShowWealthFloatingChip] = useState(false);
+  const [isGhostIdentityEnabled, setIsGhostIdentityEnabled] = useState(false);
+  const [isBiometricGuardEnabled, setIsBiometricGuardEnabled] = useState(true);
   const [isExonWealthOpen, setIsExonWealthOpen] = useState(false);
   const [exonWallet, setExonWallet] = useState<ExonWallet | null>(null);
   const [exonHistory, setExonHistory] = useState<ExonTransaction[]>([]);
   const [excoinBalance, setExcoinBalance] = useState(0);
   const [excoinHistory, setExcoinHistory] = useState<any[]>([]);
+
+  enum OperationType {
+    CREATE = 'create',
+    UPDATE = 'update',
+    DELETE = 'delete',
+    LIST = 'list',
+    GET = 'get',
+    WRITE = 'write',
+  }
+
+  interface FirestoreErrorInfo {
+    error: string;
+    operationType: OperationType;
+    path: string | null;
+    authInfo: {
+      userId?: string | null;
+      email?: string | null;
+      emailVerified?: boolean | null;
+      isAnonymous?: boolean | null;
+      tenantId?: string | null;
+      providerInfo?: {
+        providerId?: string | null;
+        email?: string | null;
+      }[];
+    }
+  }
+
+  const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        tenantId: auth.currentUser?.tenantId,
+        providerInfo: auth.currentUser?.providerData?.map(provider => ({
+          providerId: provider.providerId,
+          email: provider.email,
+        })) || []
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [showInsufficientStarsAlert, setShowInsufficientStarsAlert] = useState(false);
   const [starsNeeded, setStarsNeeded] = useState(0);
   const [battleTimeLeft, setBattleTimeLeft] = useState(300); // 5 minutes
@@ -2454,7 +2506,149 @@ function ExonaApp() {
     />
   );
 
-  const ExonStarsWalletModal = () => (
+  const SecurityModal = () => (
+    <AnimatePresence>
+      {isSecurityModalOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="w-full max-w-md bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col"
+          >
+            <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-ink tracking-tight">Security & Privacy</h3>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">National Defense Protocols</p>
+              </div>
+              <button 
+                onClick={() => setIsSecurityModalOpen(false)}
+                className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 px-2">
+                  <Shield size={14} className="text-accent" />
+                  <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Access Controls</h4>
+                </div>
+                
+                <div className="space-y-2">
+                  {/* Floating Chip Toggle */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-accent/20 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Zap size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Wealth Display (HUD)</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Toggle dynamic island</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setShowWealthFloatingChip(!showWealthFloatingChip)}
+                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${showWealthFloatingChip ? 'bg-accent' : 'bg-gray-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: showWealthFloatingChip ? 24 : 0 }}
+                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300" 
+                      />
+                    </button>
+                  </div>
+
+                  {/* Biometric Guard */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-emerald-200 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Fingerprint size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Biometric Audit</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Secure Transaction Check</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsBiometricGuardEnabled(!isBiometricGuardEnabled)}
+                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isBiometricGuardEnabled ? 'bg-emerald-600' : 'bg-gray-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isBiometricGuardEnabled ? 24 : 0 }}
+                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                      />
+                    </button>
+                  </div>
+
+                  {/* Ghost Mode */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-purple-200 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <UserCheck size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Ghost Mode</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Vanish from search</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsGhostIdentityEnabled(!isGhostIdentityEnabled)}
+                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isGhostIdentityEnabled ? 'bg-purple-600' : 'bg-gray-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isGhostIdentityEnabled ? 24 : 0 }}
+                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                      />
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="p-6 bg-ink rounded-[2.5rem] text-white relative overflow-hidden">
+                <div className="relative z-10">
+                   <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                        <span className="text-[8px] font-black uppercase tracking-[0.4em]">Blockchain Integrity</span>
+                      </div>
+                      <span className="text-[8px] font-bold opacity-30 uppercase tracking-[0.2em]">Layer-5</span>
+                   </div>
+                   <div className="space-y-3">
+                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
+                         <span>Syncing Encryption</span>
+                         <span>99.9% Secure</span>
+                      </div>
+                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                         <motion.div 
+                           className="h-full bg-accent"
+                           initial={{ width: 0 }}
+                           animate={{ width: '100%' }}
+                           transition={{ duration: 3, repeat: Infinity }}
+                         />
+                      </div>
+                   </div>
+                   <p className="text-[7px] font-bold text-white/20 uppercase tracking-[0.3em] mt-4 leading-relaxed">
+                     End-to-End Presidential Level Encryption active across all institutional nodes.
+                   </p>
+                </div>
+                {/* Decorative BG */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-10">
+                   <Shield size={200} className="text-white/20 -rotate-12" />
+                </div>
+              </section>
+            </div>
+
+            <div className="p-8 bg-gray-50 text-center">
+               <p className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Institutional ID: {user.uid.slice(0, 12).toUpperCase()}</p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const ExonWealthModal = () => (
     <AnimatePresence>
       {isExonWealthOpen && (
         <div className="fixed inset-0 z-[500] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
@@ -4397,28 +4591,19 @@ function ExonaApp() {
 
       const success = await runTransaction(db, async (transaction) => {
         const walletDoc = await transaction.get(walletRef);
+        if (!walletDoc.exists()) return { success: false, currentBalance: 0 };
         
-        let currentBalance = 0;
-        let currentTier = 'Standard';
-        
-        if (walletDoc.exists()) {
-          const data = walletDoc.data();
-          currentBalance = data.balance || 0;
-          currentTier = data.tier || 'Standard';
-        }
+        const data = walletDoc.data();
+        const currentBalance = data.balance || 0;
 
         if (currentBalance < amount) {
           return { success: false, currentBalance };
         }
 
-        const newBalance = currentBalance - amount;
-        
-        transaction.set(walletRef, {
-          userId: user.uid,
-          balance: newBalance,
-          tier: currentTier,
+        transaction.update(walletRef, {
+          balance: currentBalance - amount,
           last_transaction: serverTimestamp()
-        }, { merge: true });
+        });
 
         transaction.set(historyRef, {
           amount: amount,
@@ -4440,8 +4625,7 @@ function ExonaApp() {
       showNotification(`Spent ${amount} Exon Stars`, 'success');
       return true;
     } catch (error) {
-      console.error('Debit Error:', error);
-      showNotification('Transaction failed', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
       return false;
     }
   };
@@ -4454,13 +4638,21 @@ function ExonaApp() {
 
       await runTransaction(db, async (transaction) => {
         const walletDoc = await transaction.get(walletRef);
-        let data = walletDoc.exists() ? walletDoc.data() : { excoin_balance: 0 };
-        const currentBalance = data.excoin_balance || 0;
-        
-        transaction.set(walletRef, {
-          excoin_balance: currentBalance + amount,
-          last_transaction: serverTimestamp()
-        }, { merge: true });
+        if (!walletDoc.exists()) {
+          transaction.set(walletRef, {
+            userId: user.uid,
+            balance: 0,
+            excoin_balance: amount,
+            tier: 'Standard',
+            last_transaction: serverTimestamp()
+          });
+        } else {
+          const currentBalance = walletDoc.data().excoin_balance || 0;
+          transaction.update(walletRef, {
+            excoin_balance: currentBalance + amount,
+            last_transaction: serverTimestamp()
+          });
+        }
 
         transaction.set(historyRef, {
           amount,
@@ -4472,7 +4664,7 @@ function ExonaApp() {
       });
       showNotification(`Received ${amount} Excoins`, 'success');
     } catch (error) {
-      console.error('Excoin Credit Error:', error);
+      handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
     }
   };
 
@@ -4491,10 +4683,10 @@ function ExonaApp() {
 
         if (currentBalance < amount) return { success: false };
 
-        transaction.set(walletRef, {
+        transaction.update(walletRef, {
           excoin_balance: currentBalance - amount,
           last_transaction: serverTimestamp()
-        }, { merge: true });
+        });
 
         transaction.set(historyRef, {
           amount,
@@ -4512,7 +4704,7 @@ function ExonaApp() {
       }
       return true;
     } catch (error) {
-      console.error('Excoin Debit Error:', error);
+      handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
       return false;
     }
   };
@@ -4562,8 +4754,7 @@ function ExonaApp() {
       showNotification(`Successfully converted to ${starsToReceive} Star(s)`, 'success');
       return true;
     } catch (err) {
-      console.error(err);
-      showNotification('Conversion failed', 'error');
+      handleFirestoreError(err, OperationType.WRITE, `wallets/${user.uid}`);
       return false;
     }
   };
@@ -4577,23 +4768,21 @@ function ExonaApp() {
       await runTransaction(db, async (transaction) => {
         const walletDoc = await transaction.get(walletRef);
         
-        let currentBalance = 0;
-        let currentTier = 'Standard';
-        
-        if (walletDoc.exists()) {
-          const data = walletDoc.data();
-          currentBalance = data.balance || 0;
-          currentTier = data.tier || 'Standard';
+        if (!walletDoc.exists()) {
+          transaction.set(walletRef, {
+            userId: user.uid,
+            balance: amount,
+            excoin_balance: 0,
+            tier: 'Standard',
+            last_transaction: serverTimestamp()
+          });
+        } else {
+          const currentBalance = walletDoc.data().balance || 0;
+          transaction.update(walletRef, {
+            balance: currentBalance + amount,
+            last_transaction: serverTimestamp()
+          });
         }
-
-        const newBalance = currentBalance + amount;
-        
-        transaction.set(walletRef, {
-          userId: user.uid,
-          balance: newBalance,
-          tier: currentTier,
-          last_transaction: serverTimestamp()
-        }, { merge: true });
 
         transaction.set(historyRef, {
           amount: amount,
@@ -4606,8 +4795,7 @@ function ExonaApp() {
       
       showNotification(`Received ${amount} Exon Stars`, 'success');
     } catch (error) {
-      console.error('Credit Error:', error);
-      showNotification('Gift failed', 'error');
+      handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
     }
   };
 
@@ -5343,7 +5531,7 @@ function ExonaApp() {
           setExcoinBalance(0);
         }
       }, (error) => {
-        console.error('Wallet listener error:', error);
+        handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}`);
       });
 
       // Wallet History
@@ -5355,7 +5543,7 @@ function ExonaApp() {
       unsubWalletHistory = onSnapshot(qHistory, (snap) => {
         setExonHistory(snap.docs.map(d => ({ id: d.id, ...d.data() } as ExonTransaction)));
       }, (error) => {
-        console.error('Wallet History listener error:', error);
+        handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}/history`);
       });
       // Notifications
       const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
@@ -12184,7 +12372,7 @@ function ExonaApp() {
                 <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
                 <div className="grid grid-cols-1 gap-3">
                   {[
-                    { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-600' },
+                    { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-600', onClick: () => setIsSecurityModalOpen(true) },
                     { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500' },
                     { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-600', onClick: () => setIsThemeModalOpen(true) },
                     { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'accent' }
@@ -14090,8 +14278,8 @@ function ExonaApp() {
         </motion.div>
       </main>
 
-      {user && !['splash', 'login', 'onboarding'].includes(view) && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-3 no-print overflow-hidden p-2">
+      {user && !['splash', 'login', 'onboarding'].includes(view) && showWealthFloatingChip && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-3 no-print p-2">
           <motion.button 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -14112,7 +14300,8 @@ function ExonaApp() {
         </div>
       )}
 
-      <ExonStarsWalletModal />
+      <ExonWealthModal />
+      <SecurityModal />
       <InsufficientStarsAlert />
 
       {/* Bottom Nav */}

@@ -297,6 +297,7 @@
       "properties": {
         "userId": { "type": "string" },
         "balance": { "type": "integer" },
+        "excoin_balance": { "type": "integer" },
         "tier": { "type": "string" },
         "last_transaction": { "type": "string", "format": "date-time" }
       },
@@ -309,10 +310,11 @@
       "properties": {
         "amount": { "type": "integer" },
         "type": { "type": "string", "enum": ["credit", "debit"] },
+        "currency": { "type": "string", "enum": ["stars", "excoins"] },
         "description": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["amount", "type", "description", "timestamp"]
+      "required": ["amount", "type", "currency", "description", "timestamp"]
     }
   },
   "firestore": {
