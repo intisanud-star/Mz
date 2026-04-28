@@ -387,7 +387,7 @@ service cloud.firestore {
 
     match /cloudFiles/{fileId} {
       allow read, delete: if isAuthenticated() && resource.data.get('ownerUid', '') == request.auth.uid;
-      allow create: if isValidCloudFile(request.resource.data);
+      allow create, update: if isValidCloudFile(request.resource.data);
     }
 
     match /keyRequests/{requestId} {
