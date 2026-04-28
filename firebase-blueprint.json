@@ -6,11 +6,12 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "type": { "type": "string", "enum": ["message", "follower_request", "system", "like", "comment"] },
+        "type": { "type": "string", "enum": ["message", "follower_request", "system", "like", "comment", "alert", "reward"] },
         "title": { "type": "string" },
         "text": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
         "isRead": { "type": "boolean" },
+        "category": { "type": "string", "enum": ["all", "system", "social", "treasury"] },
         "link": { "type": "string" },
         "senderUid": { "type": "string" },
         "targetId": { "type": "string" }

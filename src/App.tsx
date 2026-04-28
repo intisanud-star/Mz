@@ -1112,14 +1112,15 @@ interface Message {
 
 interface Notification {
   id: string;
-  type: 'message' | 'follower_request' | 'system' | 'like' | 'comment';
+  type: 'message' | 'follower_request' | 'system' | 'like' | 'comment' | 'alert' | 'reward';
   title: string;
   text: string;
   timestamp: any;
   isRead: boolean;
+  category?: 'all' | 'system' | 'social' | 'treasury';
   link?: string;
   senderUid?: string;
-  targetId?: string; // id of post, chat etc
+  targetId?: string;
 }
 
 interface UserDoc {
@@ -2036,7 +2037,133 @@ function ExonaApp() {
     console.error('Firestore Error: ', JSON.stringify(errInfo));
     throw new Error(JSON.stringify(errInfo));
   };
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [notificationFilter, setNotificationFilter] = useState<'all' | 'system' | 'social' | 'treasury'>('all');
+
+  const markAllNotificationsAsRead = async () => {
+    if (!user) return;
+    const unreadNotifications = notifications.filter(n => !n.isRead);
+    if (unreadNotifications.length === 0) return;
+
+    try {
+      const batch = writeBatch(db);
+      unreadNotifications.forEach((notification) => {
+        const ref = doc(db, `users/${user.uid}/notifications`, notification.id);
+        batch.update(ref, { isRead: true });
+      });
+      await batch.commit();
+      showNotification('All notifications marked as read', 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/notifications`);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    if (!user || notifications.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach((notification) => {
+        const ref = doc(db, `users/${user.uid}/notifications`, notification.id);
+        batch.delete(ref);
+      });
+      await batch.commit();
+      showNotification('Notification center cleared', 'success');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}/notifications`);
+    }
+  };
+
+  const deleteNotification = async (id: string) => {
+    if (!user) return;
+    try {
+      await deleteDoc(doc(db, `users/${user.uid}/notifications`, id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `users/${user.uid}/notifications/${id}`);
+    }
+  };
+
+  const markNotificationAsRead = async (id: string) => {
+    if (!user) return;
+    try {
+      await updateDoc(doc(db, `users/${user.uid}/notifications`, id), { isRead: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${user.uid}/notifications/${id}`);
+    }
+  };
   const [showInsufficientStarsAlert, setShowInsufficientStarsAlert] = useState(false);
+  const playNotificationSound = (type: 'message' | 'call' = 'message') => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      if (type === 'call') {
+        // More insistent ring-like sound
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+        
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+        
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 1);
+        
+        // Repeat after a short delay for call effect
+        setTimeout(() => {
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.frequency.setValueAtTime(440, audioCtx.currentTime);
+          osc2.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+          gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+          osc2.start();
+          osc2.stop(audioCtx.currentTime + 1);
+        }, 1200);
+      } else {
+        // Simple chime
+        oscillator.type = 'triangle';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.2);
+        
+        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.5);
+      }
+    } catch (e) {
+      console.warn('Audio play failed:', e);
+    }
+  };
+
+  const triggerSystemNotification = (title: string, body: string, category: string = 'system') => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body,
+          icon: '/favicon.ico', // Fallback
+          tag: category
+        });
+        playNotificationSound(category === 'social' ? 'call' : 'message');
+      }
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) return;
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      showNotification('System notifications enabled', 'success');
+      new Notification('Exona Enabled', { body: 'You will now receive system-level alerts.' });
+    }
+  };
+
   const [starsNeeded, setStarsNeeded] = useState(0);
   const [battleTimeLeft, setBattleTimeLeft] = useState(300); // 5 minutes
   const [isTimerActive, setIsTimerActive] = useState(false);
@@ -2504,6 +2631,159 @@ function ExonaApp() {
       onShareResult={handleShareBattleResult}
       onCheckParticipation={checkParticipation}
     />
+  );
+
+  const NotificationsModal = () => (
+    <AnimatePresence>
+      {isNotificationsModalOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl overflow-hidden flex flex-col h-[85vh]"
+          >
+            <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                   <h3 className="text-2xl font-black text-ink tracking-tight">Broadcast Feed</h3>
+                   <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[8px] font-black uppercase tracking-widest">Live</span>
+                   </div>
+                </div>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">National Communication Protocol</p>
+              </div>
+              <button 
+                onClick={() => setIsNotificationsModalOpen(false)}
+                className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 flex flex-col overflow-hidden">
+               {/* Categories */}
+               <div className="px-8 py-4 flex gap-2 border-b border-gray-50 overflow-x-auto no-scrollbar">
+                  {['all', 'system', 'social', 'treasury'].map((cat) => (
+                    <button 
+                      key={cat}
+                      onClick={() => setNotificationFilter(cat as any)}
+                      className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                        notificationFilter === cat 
+                          ? 'bg-ink text-white shadow-lg' 
+                          : 'bg-gray-50 text-muted hover:bg-gray-100'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+               </div>
+
+               {/* Action Bar */}
+               <div className="px-8 py-3 flex items-center justify-between bg-white border-b border-gray-50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Active Archives</span>
+                    {('Notification' in window && Notification.permission !== 'granted') && (
+                      <button 
+                        onClick={requestNotificationPermission}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-[8px] font-black uppercase text-accent animate-pulse"
+                      >
+                         <ShieldCheck size={10} />
+                         Activate System Alerts
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                     <button 
+                       onClick={markAllNotificationsAsRead}
+                       className="text-[9px] font-black text-accent uppercase tracking-widest hover:underline"
+                     >
+                        Mark Read
+                     </button>
+                     <button 
+                       onClick={clearAllNotifications}
+                       className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline"
+                     >
+                        Clear Feed
+                     </button>
+                  </div>
+               </div>
+
+               <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-12">
+                       <div className="h-20 w-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-200 mb-4">
+                          <Bell size={40} />
+                       </div>
+                       <p className="text-sm font-black text-ink uppercase tracking-wider">Feed Zero</p>
+                       <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Institutional quiet mode active</p>
+                    </div>
+                  ) : (
+                    notifications
+                      .filter(n => notificationFilter === 'all' || n.category === notificationFilter)
+                      .map((n) => (
+                        <motion.div 
+                          layout
+                          key={n.id}
+                          className={`p-6 rounded-[2rem] border transition-all relative group ${
+                            n.isRead 
+                              ? 'bg-gray-50/50 border-gray-100' 
+                              : 'bg-white border-accent/20 shadow-xl shadow-accent/5 ring-1 ring-accent/5'
+                          }`}
+                        >
+                           {!n.isRead && <div className="absolute top-6 right-6 w-2 h-2 bg-accent rounded-full animate-pulse" />}
+                           <div className="flex gap-5">
+                              <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                n.type === 'alert' ? 'bg-red-50 text-red-600' :
+                                n.type === 'reward' ? 'bg-emerald-50 text-emerald-600' :
+                                'bg-blue-50 text-blue-600'
+                              }`}>
+                                 {n.type === 'alert' ? <AlertTriangle size={24} /> :
+                                  n.type === 'reward' ? <Sparkles size={24} /> :
+                                  <Bell size={24} />}
+                              </div>
+                              <div className="flex-1">
+                                 <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-muted">{n.category || 'Archive'}</span>
+                                    <span className="text-gray-200">•</span>
+                                    <span className="text-[10px] font-bold text-muted">{formatTime(n.timestamp)}</span>
+                                 </div>
+                                 <h4 className="text-sm font-black text-ink tracking-tight mb-1">{n.title}</h4>
+                                 <p className="text-xs text-muted font-medium leading-relaxed">{n.text}</p>
+                                 
+                                 <div className="flex items-center gap-3 mt-4">
+                                    {!n.isRead && (
+                                       <button 
+                                         onClick={() => markNotificationAsRead(n.id)}
+                                         className="px-4 py-1.5 rounded-xl bg-ink text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
+                                       >
+                                          Acknowledge
+                                       </button>
+                                    )}
+                                    <button 
+                                      onClick={() => deleteNotification(n.id)}
+                                      className="p-1.5 text-muted hover:text-red-500 transition-colors"
+                                    >
+                                       <Trash2 size={16} />
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                        </motion.div>
+                      ))
+                  )}
+               </div>
+            </div>
+
+            <div className="p-8 bg-gray-50 flex items-center justify-center gap-3 border-t border-gray-100">
+               <ShieldCheck size={14} className="text-emerald-600" />
+               <p className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Communication Core: Synced & Encryption Verified</p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 
   const SecurityModal = () => (
@@ -5546,9 +5826,20 @@ function ExonaApp() {
         handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}/history`);
       });
       // Notifications
+      let isInitialLoad = true;
       const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
       unsubNotifications = onSnapshot(qNotifications, (snap) => {
         setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
+        
+        if (!isInitialLoad) {
+          snap.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              const data = change.doc.data();
+              triggerSystemNotification(data.title || 'Exona Broadcast', data.text || '', data.category);
+            }
+          });
+        }
+        isInitialLoad = false;
       }, (error) => {
         console.error('Notifications listener error:', error);
         if (user) {
@@ -12373,7 +12664,7 @@ function ExonaApp() {
                 <div className="grid grid-cols-1 gap-3">
                   {[
                     { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-600', onClick: () => setIsSecurityModalOpen(true) },
-                    { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500' },
+                    { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
                     { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-600', onClick: () => setIsThemeModalOpen(true) },
                     { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'accent' }
                   ].map((item, i) => (
@@ -14302,6 +14593,7 @@ function ExonaApp() {
 
       <ExonWealthModal />
       <SecurityModal />
+      <NotificationsModal />
       <InsufficientStarsAlert />
 
       {/* Bottom Nav */}
