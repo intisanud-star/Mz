@@ -30,6 +30,13 @@ import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import { PDFDocument } from 'pdf-lib';
+
+declare global {
+  interface Window {
+    Telegram?: any;
+  }
+}
+
 import { 
   auth, 
   googleProvider, 
@@ -1990,6 +1997,11 @@ function ExonaApp() {
   const [exonHistory, setExonHistory] = useState<ExonTransaction[]>([]);
   const [excoinBalance, setExcoinBalance] = useState(0);
   const [excoinHistory, setExcoinHistory] = useState<any[]>([]);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone);
+  }, []);
 
   enum OperationType {
     CREATE = 'create',
@@ -2097,60 +2109,72 @@ function ExonaApp() {
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
     }
+    // Initialize Telegram WebApp if present
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.ready();
+      window.Telegram.WebApp.expand();
+    }
   }, []);
 
   const playNotificationSound = (type: 'message' | 'call' = 'message') => {
+    // Handle Telegram Haptic Feedback
+    if (window.Telegram?.WebApp?.HapticFeedback) {
+      if (type === 'call') {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+      } else {
+        window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+    }
+
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
+      
+      const playPattern = (freq: number, duration: number, startTime: number) => {
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        oscillator.type = type === 'call' ? 'sine' : 'triangle';
+        oscillator.frequency.setValueAtTime(freq, startTime);
+        
+        gainNode.gain.setValueAtTime(0.3, startTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
+        
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration);
+      };
 
       if (type === 'call') {
-        // More insistent ring-like sound
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+        // Insistent triple-tone sequence like a pager or urgent call
+        playPattern(440, 0.5, audioCtx.currentTime);
+        playPattern(660, 0.5, audioCtx.currentTime + 0.3);
+        playPattern(880, 0.8, audioCtx.currentTime + 0.6);
         
-        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-        
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 1);
-        
-        // Repeat after a short delay for call effect
-        setTimeout(() => {
-          const osc2 = audioCtx.createOscillator();
-          const gain2 = audioCtx.createGain();
-          osc2.connect(gain2);
-          gain2.connect(audioCtx.destination);
-          osc2.frequency.setValueAtTime(440, audioCtx.currentTime);
-          osc2.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
-          gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
-          gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-          osc2.start();
-          osc2.stop(audioCtx.currentTime + 1);
-        }, 1200);
+        // Vibration pattern: [Wait, Pulse, Wait, Pulse...]
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 200, 100, 500]);
+        }
       } else {
-        // Simple chime
-        oscillator.type = 'triangle';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.2);
+        // Modern tech chime
+        playPattern(880, 0.3, audioCtx.currentTime);
+        playPattern(1046.5, 0.4, audioCtx.currentTime + 0.1);
         
-        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-        
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.5);
+        if ('vibrate' in navigator) {
+          navigator.vibrate(100);
+        }
       }
     } catch (e) {
-      console.warn('Audio play failed:', e);
+      console.warn('Audio/Vibration feedback blocked:', e);
     }
   };
 
   const triggerSystemNotification = (title: string, body: string, category: string = 'system') => {
+    // If in Telegram, we can also use their native UI for critical alerts
+    if (window.Telegram?.WebApp && (category === 'treasury' || category === 'system')) {
+      window.Telegram.WebApp.showConfirm(`${title}: ${body}`);
+    }
+
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         new Notification(title, {
@@ -2158,9 +2182,10 @@ function ExonaApp() {
           icon: '/favicon.ico', // Fallback
           tag: category
         });
-        playNotificationSound(category === 'social' ? 'call' : 'message');
       }
     }
+    // Always play sound/haptic regardless of browser permissions if app is open
+    playNotificationSound(category === 'social' ? 'call' : 'message');
   };
 
   const requestNotificationPermission = async () => {
@@ -2169,14 +2194,25 @@ function ExonaApp() {
       return;
     }
     
+    // Check if in iframe - permissions are often restricted here
+    const isIframe = window.self !== window.top;
+
+    if (Notification.permission === 'denied') {
+      showNotification(
+        isIframe 
+          ? 'Notifications blocked. Try opening in a New Tab to reset permissions.' 
+          : 'Notifications blocked. Click the lock icon in your browser address bar to reset.', 
+        'error'
+      );
+      return;
+    }
+
     try {
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
       if (permission === 'granted') {
         showNotification('System notifications enabled', 'success');
         triggerSystemNotification('Security Verified', 'System-level alerts are now active on this terminal.', 'system');
-      } else if (permission === 'denied') {
-        showNotification('Notifications blocked. Reset permissions in browser settings.', 'error');
       }
     } catch (err) {
       console.error('Permission request failed:', err);
@@ -2730,6 +2766,74 @@ function ExonaApp() {
                   </div>
                </div>
 
+               {/* Device Integration Status */}
+               <div className="px-8 mt-6">
+                  <div className="flex items-center justify-between mb-3 px-2">
+                     <h5 className="text-[9px] font-black text-ink uppercase tracking-widest">Protocol Sync Status</h5>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                     {/* Telegram Status */}
+                     <div className={`p-4 rounded-[2rem] border transition-all ${
+                       window.Telegram?.WebApp 
+                         ? 'bg-blue-50/50 border-blue-100' 
+                         : 'bg-gray-50 border-gray-100 grayscale opacity-60'
+                     }`}>
+                        <div className="flex items-center gap-2 mb-3">
+                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${window.Telegram?.WebApp ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-gray-200 text-gray-400'}`}>
+                              <Send size={14} />
+                           </div>
+                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Telegram</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           <div className={`w-1 h-1 rounded-full ${window.Telegram?.WebApp ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                           <span className={`text-[8px] font-bold uppercase tracking-widest ${window.Telegram?.WebApp ? 'text-emerald-600' : 'text-muted'}`}>
+                              {window.Telegram?.WebApp ? 'Connected' : 'Offline'}
+                           </span>
+                        </div>
+                     </div>
+
+                     {/* Web Push Status */}
+                     <div className={`p-4 rounded-[2rem] border transition-all ${
+                       notificationPermission === 'granted'
+                         ? 'bg-purple-50/50 border-purple-100' 
+                         : 'bg-gray-50 border-gray-100'
+                     }`}>
+                        <div className="flex items-center gap-2 mb-3">
+                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${notificationPermission === 'granted' ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20' : 'bg-gray-200 text-gray-400'}`}>
+                              <Zap size={14} />
+                           </div>
+                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Push Engine</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           <div className={`w-1 h-1 rounded-full ${notificationPermission === 'granted' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                           <span className={`text-[8px] font-bold uppercase tracking-widest ${notificationPermission === 'granted' ? 'text-emerald-600' : 'text-muted'}`}>
+                              {notificationPermission === 'granted' ? 'Active' : 'Standby'}
+                           </span>
+                        </div>
+                     </div>
+
+                     {/* APK/Standalone Status */}
+                     <div className={`p-4 rounded-[2rem] border transition-all ${
+                       isStandalone
+                         ? 'bg-emerald-50/50 border-emerald-100' 
+                         : 'bg-gray-50 border-gray-100'
+                     }`}>
+                        <div className="flex items-center gap-2 mb-3">
+                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${isStandalone ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-gray-200 text-gray-400'}`}>
+                              <Smartphone size={14} />
+                           </div>
+                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Native Shell</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           <div className={`w-1 h-1 rounded-full ${isStandalone ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                           <span className={`text-[8px] font-bold uppercase tracking-widest ${isStandalone ? 'text-emerald-600' : 'text-muted'}`}>
+                              {isStandalone ? 'Institutional' : 'Standard Web'}
+                           </span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
                <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
                   {notifications.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center p-12">
@@ -2904,36 +3008,65 @@ function ExonaApp() {
                   </div>
 
                   {/* System Alerts */}
-                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-blue-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Bell size={18} />
+                  <div className={`p-5 rounded-3xl border transition-all ${
+                    notificationPermission === 'denied' 
+                      ? 'bg-red-50/30 border-red-100' 
+                      : 'bg-gray-50/50 border-gray-100 hover:bg-white hover:border-blue-200'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                       <div className="flex items-center gap-4">
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-transform ${
+                          notificationPermission === 'granted' ? 'bg-blue-50 text-blue-600' :
+                          notificationPermission === 'denied' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-muted'
+                        }`}>
+                          <Bell size={18} />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-black text-ink uppercase tracking-tight">System Alerts</p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${
+                            notificationPermission === 'denied' ? 'text-red-500' : 'text-muted'
+                          }`}>
+                            {notificationPermission === 'denied' ? 'Communication Blocked' : 'Desktop & Phone Push'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">System Alerts</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Desktop & Phone Push</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {notificationPermission === 'granted' && (
+                      <div className="flex items-center gap-3">
+                        {notificationPermission === 'granted' && (
+                          <button 
+                            onClick={() => triggerSystemNotification('Test Broadcast', 'Verification signal received. Communication active.', 'system')}
+                            className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center text-muted hover:bg-accent hover:text-white transition-all"
+                            title="Test Signal"
+                          >
+                            <Zap size={14} />
+                          </button>
+                        )}
                         <button 
-                          onClick={() => triggerSystemNotification('Test Broadcast', 'Verification signal received. Communication active.', 'system')}
-                          className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center text-muted hover:bg-accent hover:text-white transition-all"
-                          title="Test Signal"
+                          onClick={requestNotificationPermission}
+                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
+                            notificationPermission === 'granted' ? 'bg-blue-600' : 
+                            notificationPermission === 'denied' ? 'bg-red-400 opacity-50 cursor-not-allowed' : 'bg-gray-200'
+                          }`}
                         >
-                          <Zap size={14} />
+                          <motion.div 
+                            animate={{ x: notificationPermission === 'granted' ? 24 : 0 }}
+                            className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                          />
                         </button>
-                      )}
-                      <button 
-                        onClick={notificationPermission === 'granted' ? () => showNotification('System alerts are currently enabled', 'success') : requestNotificationPermission}
-                        className={`w-12 h-6 rounded-full relative transition-all duration-300 ${notificationPermission === 'granted' ? 'bg-blue-600' : 'bg-gray-200'}`}
-                      >
-                        <motion.div 
-                          animate={{ x: notificationPermission === 'granted' ? 24 : 0 }}
-                          className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
-                        />
-                      </button>
+                      </div>
                     </div>
+                    
+                    {notificationPermission === 'denied' && (
+                      <div className="mt-3 p-3 bg-white rounded-2xl border border-red-50 flex items-center justify-between">
+                         <span className="text-[8px] font-bold text-red-600 uppercase tracking-widest">Iframe restrictions detected</span>
+                         <button 
+                           onClick={() => window.open(window.location.href, '_blank')}
+                           className="flex items-center gap-2 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:scale-105 transition-all"
+                         >
+                            <ArrowUpRight size={10} />
+                            Open in New Tab
+                         </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </section>
@@ -5734,6 +5867,23 @@ function ExonaApp() {
           const storedRef = localStorage.getItem('exona_ref');
           const docData = await ensureUserDocument(currentUser, storedRef);
           
+          // Telegram Mini App Sync
+          if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
+            try {
+              const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+              await updateDoc(doc(db, 'users', currentUser.uid), {
+                telegramId: tgUser.id,
+                telegramUsername: tgUser.username || null,
+                telegramFirstName: tgUser.first_name || null,
+                telegramLastName: tgUser.last_name || null,
+                isTelegramMiniApp: true,
+                lastTelegramSync: serverTimestamp()
+              });
+            } catch (e) {
+              console.warn('Silent Telegram sync failed');
+            }
+          }
+          
           if (!docData?.country) {
             setView('onboarding');
           }
@@ -5882,7 +6032,8 @@ function ExonaApp() {
       let isInitialLoad = true;
       const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
       unsubNotifications = onSnapshot(qNotifications, (snap) => {
-        setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification)));
+        const newNotifications = snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification));
+        setNotifications(newNotifications);
         
         if (!isInitialLoad) {
           snap.docChanges().forEach((change) => {
@@ -5891,6 +6042,9 @@ function ExonaApp() {
               triggerSystemNotification(data.title || 'Exona Broadcast', data.text || '', data.category);
             }
           });
+        } else if (newNotifications.length === 0) {
+          // If first time user (no notifications) and we just loaded, send a welcome hint
+          console.log('New user detected or empty archives');
         }
         isInitialLoad = false;
       }, (error) => {
@@ -6114,6 +6268,17 @@ function ExonaApp() {
     setAuthError(null);
     try { 
       await signInWithPopup(auth, googleProvider); 
+      // Request notification permission during the sign-in gesture
+      if ('Notification' in window && Notification.permission === 'default') {
+        setTimeout(async () => {
+          try {
+            const permission = await Notification.requestPermission();
+            setNotificationPermission(permission);
+          } catch (e) {
+            console.warn('Silent permission request failed:', e);
+          }
+        }, 1500); // Slight delay for smoother flow
+      }
     } catch (e: any) { 
       console.error('Google Login Error:', e);
       setAuthError(e.message || 'Failed to sign in with Google.');
@@ -6133,6 +6298,18 @@ function ExonaApp() {
         country: selectedSignupCountry.name,
         currency: selectedSignupCountry.currency
       });
+      
+      // Request notification permission during the sign-up gesture
+      if ('Notification' in window && Notification.permission === 'default') {
+        setTimeout(async () => {
+          try {
+            const permission = await Notification.requestPermission();
+            setNotificationPermission(permission);
+          } catch (e) {
+            console.warn('Silent permission request failed:', e);
+          }
+        }, 1500);
+      }
       // Email verification is no longer mandatory for core features
     } catch (e: any) {
       console.error('Sign Up Error:', e);
