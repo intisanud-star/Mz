@@ -17,7 +17,7 @@ const clientApp = initializeClientApp(firebaseConfig);
 const db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
 // Basic DB Connectivity Check
-getDocs(collection(db, 'users'))
+getDocs(query(collection(db, 'users'), where('source', '==', 'telegram'), limit(1)))
   .then((snap) => {
     console.log('Successfully connected to Firestore (Client SDK). Total users observed:', snap.size);
   })
@@ -89,10 +89,21 @@ function setupBot(botInstance: Telegraf) {
     }
   });
 
+  // Handle media received
+  botInstance.on('photo', async (ctx) => {
+    const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
+    await ctx.reply(`I received your photo, ${username}! It has been archived in the Exona vault.`);
+  });
+
+  botInstance.on('video', async (ctx) => {
+    const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
+    await ctx.reply(`Presidential alert: Video received from ${username}. Processing for broadcasting...`);
+  });
+
   // Optional: Bot command for admin stats
   botInstance.command('stats', async (ctx) => {
     try {
-      const snapshot = await getDocs(collection(db, 'users'));
+      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
       const count = snapshot.size;
       await ctx.reply(`Total community size: ${count} users.`);
     } catch (error) {
@@ -126,7 +137,7 @@ async function startServer() {
   // 2. Admin function to see total community size (API Endpoint)
   app.get('/api/admin/stats', async (req, res) => {
     try {
-      const snapshot = await getDocs(collection(db, 'users'));
+      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
       const totalCount = snapshot.size;
       
       res.json({
@@ -134,15 +145,15 @@ async function startServer() {
         communitySize: totalCount,
         timestamp: new Date().toISOString()
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching admin stats:', error);
-      res.status(500).json({ success: false, error: 'Internal Server Error' });
+      res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
     }
   });
 
   // 3. Broadcast API Endpoint
   app.post('/api/admin/broadcast', async (req, res) => {
-    const { message, imageUrl, button } = req.body;
+    const { message, imageUrl, videoUrl, button } = req.body;
     const botInstance = getBot();
 
     if (!botInstance) {
@@ -154,7 +165,7 @@ async function startServer() {
     }
 
     try {
-      const snapshot = await getDocs(query(collection(db, 'users'), where('chat_id', '!=', null)));
+      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
       const users = snapshot.docs.map(doc => doc.data());
       
       let successCount = 0;
@@ -170,7 +181,9 @@ async function startServer() {
             };
           }
 
-          if (imageUrl) {
+          if (videoUrl) {
+            await botInstance.telegram.sendVideo(chatId, videoUrl, { caption: message, ...extra });
+          } else if (imageUrl) {
             await botInstance.telegram.sendPhoto(chatId, imageUrl, { caption: message, ...extra });
           } else {
             await botInstance.telegram.sendMessage(chatId, message, extra);

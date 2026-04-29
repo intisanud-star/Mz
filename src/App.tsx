@@ -1745,6 +1745,11 @@ function ExonaApp() {
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [communitySize, setCommunitySize] = useState<number | null>(null);
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
+  const [broadcastVideoUrl, setBroadcastVideoUrl] = useState('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/stats')
@@ -7352,6 +7357,110 @@ function ExonaApp() {
                 </motion.div>
               ))}
             </div>
+
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="bg-white p-8 sm:p-12 rounded-[2.5rem] border border-gray-100 shadow-sm mb-16"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <div className="p-3 bg-cyan-50 rounded-2xl text-cyan-500">
+                  <Send size={24} />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold font-display text-ink">Telegram Broadcast</h3>
+                  <p className="text-xs text-muted font-medium">Send an instant alert to all {communitySize || ''} community members</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <textarea
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="Type your announcement here..."
+                  className="w-full h-32 p-6 rounded-3xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-ink placeholder:text-muted/50 resize-none font-sans"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Image URL (Optional)</label>
+                    <input 
+                      type="text" 
+                      value={broadcastImageUrl}
+                      onChange={(e) => setBroadcastImageUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Video URL (Optional)</label>
+                    <input 
+                      type="text" 
+                      value={broadcastVideoUrl}
+                      onChange={(e) => setBroadcastVideoUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6 pt-4">
+                  {broadcastResult && (
+                    <motion.p 
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className={`text-xs font-bold ${broadcastResult.success ? 'text-green-600' : 'text-red-500'}`}
+                    >
+                      {broadcastResult.message}
+                    </motion.p>
+                  )}
+                  <div className="flex-1" />
+                  <button
+                    disabled={isBroadcasting || !broadcastMessage.trim()}
+                    onClick={async () => {
+                      if (!broadcastMessage.trim()) return;
+                      setIsBroadcasting(true);
+                      setBroadcastResult(null);
+                      try {
+                        const res = await fetch('/api/admin/broadcast', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            message: broadcastMessage,
+                            imageUrl: broadcastImageUrl,
+                            videoUrl: broadcastVideoUrl
+                          })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setBroadcastResult({ success: true, message: `Successfully sent to ${data.stats.delivered} users!` });
+                          setBroadcastMessage('');
+                          setBroadcastImageUrl('');
+                          setBroadcastVideoUrl('');
+                        } else {
+                          setBroadcastResult({ success: false, message: data.error || 'Failed to send' });
+                        }
+                      } catch (e) {
+                        setBroadcastResult({ success: false, message: 'Network error' });
+                      } finally {
+                        setIsBroadcasting(false);
+                      }
+                    }}
+                    className={`w-full sm:w-auto px-10 py-4 rounded-2xl bg-cyan-500 text-white font-bold text-sm tracking-wide shadow-lg shadow-cyan-500/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-3`}
+                  >
+                    {isBroadcasting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Send size={18} />
+                        Send Broadcast
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
 
             <div className="grid grid-cols-1 gap-12">
               <motion.div 

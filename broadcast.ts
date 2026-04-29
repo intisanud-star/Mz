@@ -26,7 +26,7 @@ async function runBroadcast(message: string, imageUrl?: string, button?: { text:
   console.log('--- Starting Broadcast ---');
   
   try {
-    const snapshot = await getDocs(query(collection(db, 'users'), where('chat_id', '!=', null)));
+    const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
     const users = snapshot.docs.map(doc => doc.data());
     
     console.log(`Found ${users.length} users with Telegram chat IDs.`);
