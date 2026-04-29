@@ -269,7 +269,7 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isAuthenticated(); 
+      allow read: if isAuthenticated() || userId.matches('^tg_.*'); 
       allow create: if isOwner(userId) || userId.matches('^tg_.*');
       allow update: if isOwner(userId) || (
         isAuthenticated() && 
