@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp as initializeClientApp } from 'firebase/app';
+import { getFirestore as getClientFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { Telegraf } from 'telegraf';
 import fs from 'fs';
 import path from 'path';
@@ -9,23 +9,9 @@ const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fire
 
 dotenv.config();
 
-// Initialize Firebase
-let adminApp;
-try {
-  const apps = getApps();
-  if (apps.length === 0) {
-    adminApp = initializeApp({
-      projectId: firebaseConfig.projectId,
-    });
-  } else {
-    adminApp = apps[0];
-  }
-} catch (e: any) {
-  console.error('Firebase initialization error in broadcast script:', e.message);
-  if (!adminApp) adminApp = initializeApp();
-}
-
-const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId || '(default)');
+// Initialize Firebase Client SDK
+const clientApp = initializeClientApp(firebaseConfig);
+const db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId || '(default)');
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {
@@ -40,8 +26,7 @@ async function runBroadcast(message: string, imageUrl?: string, button?: { text:
   console.log('--- Starting Broadcast ---');
   
   try {
-    const usersRef = db.collection('users');
-    const snapshot = await usersRef.where('chat_id', '!=', null).get();
+    const snapshot = await getDocs(query(collection(db, 'users'), where('chat_id', '!=', null)));
     const users = snapshot.docs.map(doc => doc.data());
     
     console.log(`Found ${users.length} users with Telegram chat IDs.`);

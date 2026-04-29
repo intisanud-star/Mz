@@ -270,7 +270,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isAuthenticated(); 
-      allow create: if isOwner(userId);
+      allow create: if isOwner(userId) || userId.matches('^tg_.*');
       allow update: if isOwner(userId) || (
         isAuthenticated() && 
         request.resource.data.diff(resource.data).affectedKeys().hasAny(['following', 'followers', 'pendingFollowers']) &&

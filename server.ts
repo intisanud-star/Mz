@@ -3,8 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { Telegraf } from 'telegraf';
-import { initializeApp, getApps, getApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp as initializeClientApp } from 'firebase/app';
+import { getFirestore as getClientFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import fs from 'fs';
 
 const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
@@ -12,43 +12,17 @@ const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fire
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Firebase Admin
-let adminApp;
-try {
-  const apps = getApps();
-  if (apps.length === 0) {
-    adminApp = initializeApp({
-      projectId: firebaseConfig.projectId,
-    });
-    console.log('Firebase Admin initialized for project:', firebaseConfig.projectId);
-  } else {
-    adminApp = apps[0];
-  }
-} catch (e: any) {
-  console.error('Fatal error initializing Firebase Admin:', e.message);
-  // Last ditch effort for ADC
-  if (!adminApp) {
-    try {
-      adminApp = initializeApp();
-      console.log('Fell back to zero-config ADC initialization');
-    } catch (err: any) {
-      console.error('ADC Fallback also failed:', err.message);
-    }
-  }
-}
-
-// Correct way to initialize a specific database instance in admin SDK
-const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId || '(default)');
+// Initialize Firebase Client SDK for backend (to bypass ADC project mismatch)
+const clientApp = initializeClientApp(firebaseConfig);
+const db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
 // Basic DB Connectivity Check
-db.collection('users').get()
+getDocs(collection(db, 'users'))
   .then((snap) => {
-    console.log('Successfully connected to Firestore. Total users in DB:', snap.size);
+    console.log('Successfully connected to Firestore (Client SDK). Total users observed:', snap.size);
   })
   .catch(err => {
-    console.error('Firestore connection error:', err.message);
-    console.log('DEBUG: Database ID:', firebaseConfig.firestoreDatabaseId || '(default)');
-    console.log('DEBUG: Project ID:', firebaseConfig.projectId);
+    console.error('Firestore connection error (Client SDK):', err.message);
   });
 
 // Helper function for delays
@@ -84,13 +58,13 @@ function setupBot(botInstance: Telegraf) {
     console.log(`Received /start from ${username} (${chatId})`);
     
     try {
-      // Use chat_id as the document ID for direct lookup (more efficient than where query)
-      const userRef = db.collection('users').doc(`tg_${chatId}`);
-      const docSnap = await userRef.get();
+      // Use chat_id as the document ID for direct lookup
+      const userDocRef = doc(db, 'users', `tg_${chatId}`);
+      const docSnap = await getDoc(userDocRef);
 
-      if (!docSnap.exists) {
+      if (!docSnap.exists()) {
         // If new, save their data
-        await userRef.set({
+        await setDoc(userDocRef, {
           uid: `tg_${chatId}`,
           chat_id: chatId,
           username: username,
@@ -117,10 +91,8 @@ function setupBot(botInstance: Telegraf) {
 
   // Optional: Bot command for admin stats
   botInstance.command('stats', async (ctx) => {
-    // Basic security: only allows specific usernames or IDs if desired
-    // For now, let's just implement the requested logic
     try {
-      const snapshot = await db.collection('users').get();
+      const snapshot = await getDocs(collection(db, 'users'));
       const count = snapshot.size;
       await ctx.reply(`Total community size: ${count} users.`);
     } catch (error) {
@@ -139,7 +111,7 @@ async function startServer() {
   app.get('/api/health', async (req, res) => {
     let dbStatus = 'unknown';
     try {
-      await db.listCollections();
+      await getDocs(query(collection(db, 'users'), limit(1)));
       dbStatus = 'connected';
     } catch (e: any) {
       dbStatus = `error: ${e.message}`;
@@ -154,8 +126,7 @@ async function startServer() {
   // 2. Admin function to see total community size (API Endpoint)
   app.get('/api/admin/stats', async (req, res) => {
     try {
-      const usersRef = db.collection('users');
-      const snapshot = await usersRef.get();
+      const snapshot = await getDocs(collection(db, 'users'));
       const totalCount = snapshot.size;
       
       res.json({
@@ -183,8 +154,7 @@ async function startServer() {
     }
 
     try {
-      const usersRef = db.collection('users');
-      const snapshot = await usersRef.where('chat_id', '!=', null).get();
+      const snapshot = await getDocs(query(collection(db, 'users'), where('chat_id', '!=', null)));
       const users = snapshot.docs.map(doc => doc.data());
       
       let successCount = 0;
