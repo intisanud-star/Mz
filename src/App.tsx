@@ -1734,6 +1734,7 @@ function ExonaApp() {
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const currencySymbol = useMemo(() => userDoc?.currency || '₦', [userDoc?.currency]);
   const [selectedUserProfileDoc, setSelectedUserProfileDoc] = useState<any>(null);
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -2139,6 +2140,10 @@ function ExonaApp() {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
+      window.Telegram.WebApp.setHeaderColor('#000000');
+      window.Telegram.WebApp.setBackgroundColor('#000000');
+      // Enable vertical swipe down to close if desired, otherwise standard is fine
+      // window.Telegram.WebApp.isVerticalSwipesEnabled = false; 
     }
 
     // Register Service Worker for true background/lock-screen notifications
@@ -2579,6 +2584,7 @@ function ExonaApp() {
 
   // Fetch leaderboard data
   const fetchLeaderboard = async () => {
+    setIsLeaderboardLoading(true);
     try {
       const q = query(
         collection(db, 'brainBattleLeads'),
@@ -2591,6 +2597,8 @@ function ExonaApp() {
       setLeaderboard(leads);
     } catch (e) {
       console.error("Failed to fetch leaderboard", e);
+    } finally {
+      setIsLeaderboardLoading(false);
     }
   };
 
@@ -5769,6 +5777,7 @@ function ExonaApp() {
     }
   };
 
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const handleForgotPassword = async () => {
     if (!email.trim()) {
@@ -6763,6 +6772,7 @@ function ExonaApp() {
       return;
     }
     setAuthError(null);
+    setIsAuthenticating(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
@@ -6794,6 +6804,8 @@ function ExonaApp() {
       } else {
         setAuthError('Something went wrong. Please try again.');
       }
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -6803,6 +6815,7 @@ function ExonaApp() {
       return;
     }
     setAuthError(null);
+    setIsAuthenticating(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (e: any) {
@@ -6814,6 +6827,8 @@ function ExonaApp() {
       } else {
         setAuthError('Failed to sign in. Please check your connection.');
       }
+    } finally {
+      setIsAuthenticating(false);
     }
   };
 
@@ -13483,7 +13498,27 @@ function ExonaApp() {
     );
   }
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-paper text-ink overflow-hidden relative">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gray-100 blur-[120px] rounded-full animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gray-50 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
+        </div>
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="relative z-10 flex flex-col items-center"
+        >
+          <h1 className="text-8xl font-bold tracking-tight text-ink mb-2 font-display">Exona</h1>
+          <div className="flex items-center gap-3 mt-8">
+            <div className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce [animation-duration:0.8s]"></div>
+            <div className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce [animation-duration:0.8s] [animation-delay:0.2s]"></div>
+            <div className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce [animation-duration:0.8s] [animation-delay:0.4s]"></div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (view === 'onboarding') {
     return (
@@ -13685,9 +13720,11 @@ function ExonaApp() {
 
             <button 
               onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
-              className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 shadow-lg shadow-accent/20 transition-all mb-4 active:scale-[0.98]"
+              disabled={isAuthenticating}
+              className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 shadow-lg shadow-accent/20 transition-all mb-4 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              {authMode === 'signin' ? 'Sign In' : 'Create Account'}
+              {isAuthenticating && <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+              {authMode === 'signin' ? (isAuthenticating ? 'Authorizing...' : 'Sign In') : (isAuthenticating ? 'Creating Account...' : 'Create Account')}
             </button>
 
             <div className="w-full flex items-center gap-4 mb-4">
