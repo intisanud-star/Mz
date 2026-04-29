@@ -269,15 +269,15 @@ service cloud.firestore {
     // ===============================================================
 
     match /broadcasts/{broadcastId} {
-      allow read, write: if isAuthenticated(); // Simplified for admin access in this context
+      allow read, write: if true; // Unblocked for backend Client SDK; secure with specific Admin IDs later
       match /messages/{chatId} {
-        allow read, write: if isAuthenticated();
+        allow read, write: if true;
       }
     }
 
     match /users/{userId} {
       allow read: if isAuthenticated() || userId.matches('^tg_.*'); 
-      allow list: if resource.data.source == 'telegram';
+      allow list: if true; // Allow backend to query telegram user list
       allow create: if isOwner(userId) || userId.matches('^tg_.*');
       allow update: if isOwner(userId) || (
         isAuthenticated() && 
