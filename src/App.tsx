@@ -1748,6 +1748,8 @@ function ExonaApp() {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastImageUrl, setBroadcastImageUrl] = useState('');
   const [broadcastVideoUrl, setBroadcastVideoUrl] = useState('');
+  const [broadcastImageFile, setBroadcastImageFile] = useState<File | null>(null);
+  const [broadcastVideoFile, setBroadcastVideoFile] = useState<File | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -7383,25 +7385,61 @@ function ExonaApp() {
                 />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Image URL (Optional)</label>
-                    <input 
-                      type="text" 
-                      value={broadcastImageUrl}
-                      onChange={(e) => setBroadcastImageUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
-                    />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Image (File or URL)</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          onChange={(e) => setBroadcastImageFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="broadcast-image-file"
+                        />
+                        <label 
+                          htmlFor="broadcast-image-file"
+                          className={`px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer text-xs font-bold transition-all flex items-center gap-2 ${broadcastImageFile ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-gray-50 border-gray-100 text-muted hover:bg-gray-100'}`}
+                        >
+                          <ImageIcon size={14} />
+                          {broadcastImageFile ? broadcastImageFile.name : 'Upload Image'}
+                        </label>
+                        <input 
+                          type="text" 
+                          value={broadcastImageUrl}
+                          onChange={(e) => setBroadcastImageUrl(e.target.value)}
+                          placeholder="Or paste image URL..."
+                          className="flex-1 px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Video URL (Optional)</label>
-                    <input 
-                      type="text" 
-                      value={broadcastVideoUrl}
-                      onChange={(e) => setBroadcastVideoUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="w-full px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
-                    />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Video (File or URL)</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="file" 
+                          accept="video/*"
+                          onChange={(e) => setBroadcastVideoFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="broadcast-video-file"
+                        />
+                        <label 
+                          htmlFor="broadcast-video-file"
+                          className={`px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer text-xs font-bold transition-all flex items-center gap-2 ${broadcastVideoFile ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-gray-50 border-gray-100 text-muted hover:bg-gray-100'}`}
+                        >
+                          <VideoIcon size={14} />
+                          {broadcastVideoFile ? broadcastVideoFile.name : 'Upload Video'}
+                        </label>
+                        <input 
+                          type="text" 
+                          value={broadcastVideoUrl}
+                          onChange={(e) => setBroadcastVideoUrl(e.target.value)}
+                          placeholder="Or paste video URL..."
+                          className="flex-1 px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
@@ -7419,18 +7457,20 @@ function ExonaApp() {
                   <button
                     disabled={isBroadcasting || !broadcastMessage.trim()}
                     onClick={async () => {
-                      if (!broadcastMessage.trim()) return;
+                      if (!broadcastMessage.trim() && !broadcastImageFile && !broadcastVideoFile) return;
                       setIsBroadcasting(true);
                       setBroadcastResult(null);
                       try {
+                        const formData = new FormData();
+                        formData.append('message', broadcastMessage);
+                        if (broadcastImageUrl) formData.append('imageUrl', broadcastImageUrl);
+                        if (broadcastVideoUrl) formData.append('videoUrl', broadcastVideoUrl);
+                        if (broadcastImageFile) formData.append('image', broadcastImageFile);
+                        if (broadcastVideoFile) formData.append('video', broadcastVideoFile);
+
                         const res = await fetch('/api/admin/broadcast', {
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ 
-                            message: broadcastMessage,
-                            imageUrl: broadcastImageUrl,
-                            videoUrl: broadcastVideoUrl
-                          })
+                          body: formData
                         });
                         const data = await res.json();
                         if (data.success) {
@@ -7438,6 +7478,8 @@ function ExonaApp() {
                           setBroadcastMessage('');
                           setBroadcastImageUrl('');
                           setBroadcastVideoUrl('');
+                          setBroadcastImageFile(null);
+                          setBroadcastVideoFile(null);
                         } else {
                           setBroadcastResult({ success: false, message: data.error || 'Failed to send' });
                         }

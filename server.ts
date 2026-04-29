@@ -6,6 +6,12 @@ import { Telegraf } from 'telegraf';
 import { initializeApp as initializeClientApp } from 'firebase/app';
 import { getFirestore as getClientFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import fs from 'fs';
+import multer from 'multer';
+
+const upload = multer({ dest: 'uploads/' });
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
 
 const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
 
@@ -152,16 +158,17 @@ async function startServer() {
   });
 
   // 3. Broadcast API Endpoint
-  app.post('/api/admin/broadcast', async (req, res) => {
+  app.post('/api/admin/broadcast', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req: any, res) => {
     const { message, imageUrl, videoUrl, button } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const botInstance = getBot();
 
     if (!botInstance) {
       return res.status(500).json({ success: false, error: 'Telegram bot is not configured' });
     }
 
-    if (!message) {
-      return res.status(400).json({ success: false, error: 'Message content is required' });
+    if (!message && !files?.image?.[0] && !files?.video?.[0]) {
+      return res.status(400).json({ success: false, error: 'Message content or media is required' });
     }
 
     try {
@@ -181,8 +188,13 @@ async function startServer() {
             };
           }
 
-          if (videoUrl) {
+          // Priority: Local File Video > Video URL > Local File Photo > Photo URL > Text
+          if (files?.video?.[0]) {
+            await botInstance.telegram.sendVideo(chatId, { source: files.video[0].path }, { caption: message, ...extra });
+          } else if (videoUrl) {
             await botInstance.telegram.sendVideo(chatId, videoUrl, { caption: message, ...extra });
+          } else if (files?.image?.[0]) {
+            await botInstance.telegram.sendPhoto(chatId, { source: files.image[0].path }, { caption: message, ...extra });
           } else if (imageUrl) {
             await botInstance.telegram.sendPhoto(chatId, imageUrl, { caption: message, ...extra });
           } else {
@@ -193,9 +205,12 @@ async function startServer() {
           console.error(`Failed to broadcast to ${chatId}:`, err);
           failCount++;
         }
-        // Mandatory delay to avoid rate limiting
         await delay(50);
       }
+
+      // Cleanup files
+      if (files?.image?.[0]) try { fs.unlinkSync(files.image[0].path); } catch(e) {}
+      if (files?.video?.[0]) try { fs.unlinkSync(files.video[0].path); } catch(e) {}
 
       res.json({
         success: true,
