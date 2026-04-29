@@ -5,7 +5,9 @@ import { createServer as createViteServer } from 'vite';
 import { Telegraf } from 'telegraf';
 import { initializeApp, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
+import fs from 'fs';
+
+const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,45 +15,40 @@ const __dirname = path.dirname(__filename);
 // Initialize Firebase Admin
 let adminApp;
 try {
-  if (getApps().length === 0) {
-    // Attempting zero-config initialization (leverages ADC on Cloud Run)
-    adminApp = initializeApp();
-    console.log('Firebase Admin initialized with zero-config (ADC)');
-  } else {
-    adminApp = getApp();
-  }
-} catch (e: any) {
-  console.log('Zero-config initialization failed, falling back to JSON config:', e.message);
-  try {
+  const apps = getApps();
+  if (apps.length === 0) {
     adminApp = initializeApp({
       projectId: firebaseConfig.projectId,
     });
-    console.log('Firebase Admin initialized with JSON config project:', firebaseConfig.projectId);
-  } catch (e2: any) {
-    console.error('Fatal error initializing Firebase Admin:', e2.message);
+    console.log('Firebase Admin initialized for project:', firebaseConfig.projectId);
+  } else {
+    adminApp = apps[0];
+  }
+} catch (e: any) {
+  console.error('Fatal error initializing Firebase Admin:', e.message);
+  // Last ditch effort for ADC
+  if (!adminApp) {
+    try {
+      adminApp = initializeApp();
+      console.log('Fell back to zero-config ADC initialization');
+    } catch (err: any) {
+      console.error('ADC Fallback also failed:', err.message);
+    }
   }
 }
 
 // Correct way to initialize a specific database instance in admin SDK
 const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
-// Basic DB Connectivity Check - using a simpler check
-db.collection('users').limit(1).get()
-  .then(() => {
-    console.log('Successfully connected to Firestore with database ID:', firebaseConfig.firestoreDatabaseId);
+// Basic DB Connectivity Check
+db.collection('users').get()
+  .then((snap) => {
+    console.log('Successfully connected to Firestore. Total users in DB:', snap.size);
   })
   .catch(err => {
     console.error('Firestore connection error:', err.message);
-    console.log('Details: Database ID:', firebaseConfig.firestoreDatabaseId, 'Project ID:', firebaseConfig.projectId);
-    
-    // Fallback attempt to default database if named one fails
-    if (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)') {
-      console.log('Trying fallback to (default) database...');
-      const defaultDb = getFirestore(adminApp);
-      defaultDb.collection('users').limit(1).get()
-        .then(() => console.log('Successfully connected to (default) database instead.'))
-        .catch(e => console.error('Default database fallback also failed:', e.message));
-    }
+    console.log('DEBUG: Database ID:', firebaseConfig.firestoreDatabaseId || '(default)');
+    console.log('DEBUG: Project ID:', firebaseConfig.projectId);
   });
 
 // Helper function for delays

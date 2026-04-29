@@ -1,17 +1,31 @@
 import { initializeApp, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Telegraf } from 'telegraf';
-import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
+import fs from 'fs';
+import path from 'path';
 import dotenv from 'dotenv';
+
+const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
 
 dotenv.config();
 
 // Initialize Firebase
-const adminApp = getApps().length === 0 
-  ? initializeApp({ projectId: firebaseConfig.projectId }) 
-  : getApp();
+let adminApp;
+try {
+  const apps = getApps();
+  if (apps.length === 0) {
+    adminApp = initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+  } else {
+    adminApp = apps[0];
+  }
+} catch (e: any) {
+  console.error('Firebase initialization error in broadcast script:', e.message);
+  if (!adminApp) adminApp = initializeApp();
+}
 
-const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId || '(default)');
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {

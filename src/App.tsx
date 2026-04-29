@@ -1744,6 +1744,16 @@ function ExonaApp() {
   const [postsLimit, setPostsLimit] = useState(10);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [communitySize, setCommunitySize] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/stats')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setCommunitySize(data.communitySize);
+      })
+      .catch(err => console.error('Failed to fetch community stats:', err));
+  }, []);
   const [records, setRecords] = useState<Record[]>([]);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
@@ -7315,11 +7325,12 @@ function ExonaApp() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
               {[
                 { label: 'Total Schools', value: schoolCount, color: 'accent' },
                 { label: 'Total Places', value: placeCount, color: 'purple-600' },
-                { label: 'Total Members', value: totalMembers, color: 'green-600' }
+                { label: 'Total Members', value: totalMembers, color: 'green-600' },
+                { label: 'Telegram Users', value: communitySize !== null ? communitySize : '...', color: 'cyan-500' }
               ].map((stat, i) => (
                 <motion.div 
                   key={i}

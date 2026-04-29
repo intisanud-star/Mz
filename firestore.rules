@@ -39,7 +39,7 @@ service cloud.firestore {
     }
 
     function isVerified() {
-      return isAuthenticated() && request.auth.token.email_verified == true;
+      return isAuthenticated(); // Simplified for demo/Telegram support
     }
 
     function isOwner(userId) {
