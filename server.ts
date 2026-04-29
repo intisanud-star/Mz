@@ -3,22 +3,19 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { Telegraf } from 'telegraf';
-import admin from 'firebase-admin';
+import { initializeApp, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
+import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize Firebase Admin
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
-}
+const adminApp = getApps().length === 0 
+  ? initializeApp({ projectId: firebaseConfig.projectId }) 
+  : getApp();
 
-// Correct way to initialize a specific database instance in admin SDK
-const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
 
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -62,8 +59,11 @@ function setupBot(botInstance: Telegraf) {
         await usersRef.add({
           chat_id: chatId,
           username: username,
-          join_date: admin.firestore.FieldValue.serverTimestamp(),
-          source: 'telegram'
+          join_date: new Date().toISOString(), // Use ISO string if serverTimestamp is tricky or needs FieldValue
+          source: 'telegram',
+          uid: `tg_${chatId}`, // Provide a dummy UID to fulfill User schema if needed
+          email: `${chatId}@telegram.bot`, // Dummy email
+          displayName: username
         });
         await ctx.reply(`Welcome to Exona! Your account has been registered with chat ID: ${chatId}`);
         console.log(`New user registered: ${username} (${chatId})`);

@@ -1,19 +1,17 @@
-import admin from 'firebase-admin';
+import { initializeApp, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Telegraf } from 'telegraf';
-import firebaseConfig from './firebase-applet-config.json' assert { type: 'json' };
+import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 // Initialize Firebase
-if (admin.apps.length === 0) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
-}
+const adminApp = getApps().length === 0 
+  ? initializeApp({ projectId: firebaseConfig.projectId }) 
+  : getApp();
 
-const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {

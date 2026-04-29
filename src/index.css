@@ -26,12 +26,12 @@
 }
 
 [data-theme='dark'] {
-  --paper: #020617;
-  --card: #0F172A;
-  --ink: #F8FAFC;
-  --accent: #38BDF8;
-  --muted: #94A3B8;
-  --border: #1E293B;
+  --paper: #000000;
+  --card: #0A0A0A;
+  --ink: #FFFFFF;
+  --accent: #FFFFFF;
+  --muted: #71717A;
+  --border: #18181B;
 }
 
 [data-theme='blue'] {
