@@ -17,6 +17,11 @@ const adminApp = getApps().length === 0
 
 const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
 
+// Basic DB Connectivity Check
+db.listCollections()
+  .then(() => console.log('Successfully connected to Firestore with database ID:', firebaseConfig.firestoreDatabaseId))
+  .catch(err => console.error('Firestore connection error:', err.message));
+
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -50,20 +55,20 @@ function setupBot(botInstance: Telegraf) {
     console.log(`Received /start from ${username} (${chatId})`);
     
     try {
-      // Check if user exists by querying for chat_id field
-      const usersRef = db.collection('users');
-      const snapshot = await usersRef.where('chat_id', '==', chatId).limit(1).get();
+      // Use chat_id as the document ID for direct lookup (more efficient than where query)
+      const userRef = db.collection('users').doc(`tg_${chatId}`);
+      const docSnap = await userRef.get();
 
-      if (snapshot.empty) {
+      if (!docSnap.exists) {
         // If new, save their data
-        await usersRef.add({
+        await userRef.set({
+          uid: `tg_${chatId}`,
           chat_id: chatId,
           username: username,
-          join_date: new Date().toISOString(), // Use ISO string if serverTimestamp is tricky or needs FieldValue
-          source: 'telegram',
-          uid: `tg_${chatId}`, // Provide a dummy UID to fulfill User schema if needed
-          email: `${chatId}@telegram.bot`, // Dummy email
-          displayName: username
+          displayName: username,
+          email: `${chatId}@telegram.bot`,
+          join_date: new Date().toISOString(),
+          source: 'telegram'
         });
         await ctx.reply(`Welcome to Exona! Your account has been registered with chat ID: ${chatId}`);
         console.log(`New user registered: ${username} (${chatId})`);
@@ -73,11 +78,11 @@ function setupBot(botInstance: Telegraf) {
       }
     } catch (error: any) {
       console.error('Error in Telegram /start command:', error);
-      // Log more details about the error if possible
-      if (error.code) console.error('Error code:', error.code);
-      if (error.details) console.error('Error details:', error.details);
+      const errorMsg = error.message || String(error);
+      const errorCode = error.code || 'N/A';
       
-      await ctx.reply('Sorry, there was an error processing your request. Please try again later.');
+      // Detailed error for the user to help debug
+      await ctx.reply(`System Error: ${errorMsg}\nCode: ${errorCode}\nPlease ensure your Firebase project is properly configured.`);
     }
   });
 
@@ -102,8 +107,19 @@ async function startServer() {
   app.use(express.json());
 
   // API Health Check
-  app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  app.get('/api/health', async (req, res) => {
+    let dbStatus = 'unknown';
+    try {
+      await db.listCollections();
+      dbStatus = 'connected';
+    } catch (e: any) {
+      dbStatus = `error: ${e.message}`;
+    }
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: dbStatus
+    });
   });
 
   // 2. Admin function to see total community size (API Endpoint)
