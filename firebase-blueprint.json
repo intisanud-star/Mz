@@ -320,6 +320,36 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["amount", "type", "currency", "description", "timestamp"]
+    },
+    "Broadcast": {
+      "title": "Broadcast",
+      "description": "Log of an admin broadcast",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image", "video"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "total": { "type": "number" },
+            "delivered": { "type": "number" },
+            "failed": { "type": "number" }
+          }
+        }
+      },
+      "required": ["id", "message", "timestamp"]
+    },
+    "BroadcastMessage": {
+      "title": "BroadcastMessage",
+      "description": "Mapping of target user to sent message ID",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "messageId": { "type": "number" }
+      },
+      "required": ["chatId", "messageId"]
     }
   },
   "firestore": {
@@ -342,6 +372,8 @@
     "/brainBattleLeads/{leadId}": { "schema": "BrainBattleParticipation", "description": "Game leads and results" },
     "/keyRequests/{requestId}": { "schema": "KeyRequest", "description": "Access key requests" },
     "/wallets/{userId}": { "schema": "ExonWallet", "description": "User currency wallets" },
-    "/wallets/{userId}/history/{txId}": { "schema": "TransactionHistory", "description": "Transaction logs" }
+    "/wallets/{userId}/history/{txId}": { "schema": "TransactionHistory", "description": "Transaction logs" },
+    "/broadcasts/{broadcastId}": { "schema": "Broadcast", "description": "Admin broadcast logs" },
+    "/broadcasts/{broadcastId}/messages/{chatId}": { "schema": "BroadcastMessage", "description": "Individual message IDs for unsend/deletion" }
   }
 }

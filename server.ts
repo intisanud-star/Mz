@@ -171,12 +171,24 @@ async function startServer() {
       return res.status(400).json({ success: false, error: 'Message content or media is required' });
     }
 
+    const broadcastId = `br_${Date.now()}`;
+    const broadcastType = files?.video?.[0] || videoUrl ? 'video' : (files?.image?.[0] || imageUrl ? 'image' : 'text');
+
     try {
       const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
       const users = snapshot.docs.map(doc => doc.data());
       
       let successCount = 0;
       let failCount = 0;
+
+      // Save Initial Broadcast record
+      await setDoc(doc(db, 'broadcasts', broadcastId), {
+        id: broadcastId,
+        message: message || '',
+        type: broadcastType,
+        timestamp: new Date().toISOString(),
+        stats: { total: users.length, delivered: 0, failed: 0 }
+      });
 
       for (const user of users) {
         const chatId = user.chat_id;
@@ -188,19 +200,28 @@ async function startServer() {
             };
           }
 
+          let sentMsg: any;
           // Priority: Local File Video > Video URL > Local File Photo > Photo URL > Text
           if (files?.video?.[0]) {
-            await botInstance.telegram.sendVideo(chatId, { source: files.video[0].path }, { caption: message, ...extra });
+            sentMsg = await botInstance.telegram.sendVideo(chatId, { source: files.video[0].path }, { caption: message, ...extra });
           } else if (videoUrl) {
-            await botInstance.telegram.sendVideo(chatId, videoUrl, { caption: message, ...extra });
+            sentMsg = await botInstance.telegram.sendVideo(chatId, videoUrl, { caption: message, ...extra });
           } else if (files?.image?.[0]) {
-            await botInstance.telegram.sendPhoto(chatId, { source: files.image[0].path }, { caption: message, ...extra });
+            sentMsg = await botInstance.telegram.sendPhoto(chatId, { source: files.image[0].path }, { caption: message, ...extra });
           } else if (imageUrl) {
-            await botInstance.telegram.sendPhoto(chatId, imageUrl, { caption: message, ...extra });
+            sentMsg = await botInstance.telegram.sendPhoto(chatId, imageUrl, { caption: message, ...extra });
           } else {
-            await botInstance.telegram.sendMessage(chatId, message, extra);
+            sentMsg = await botInstance.telegram.sendMessage(chatId, message, extra);
           }
-          successCount++;
+
+          if (sentMsg) {
+            // Log message ID for possibility of recall
+            await setDoc(doc(db, 'broadcasts', broadcastId, 'messages', chatId), {
+              chatId,
+              messageId: sentMsg.message_id
+            });
+            successCount++;
+          }
         } catch (err) {
           console.error(`Failed to broadcast to ${chatId}:`, err);
           failCount++;
@@ -208,12 +229,18 @@ async function startServer() {
         await delay(50);
       }
 
+      // Update final stats
+      await setDoc(doc(db, 'broadcasts', broadcastId), {
+        stats: { total: users.length, delivered: successCount, failed: failCount }
+      }, { merge: true });
+
       // Cleanup files
       if (files?.image?.[0]) try { fs.unlinkSync(files.image[0].path); } catch(e) {}
       if (files?.video?.[0]) try { fs.unlinkSync(files.video[0].path); } catch(e) {}
 
       res.json({
         success: true,
+        broadcastId,
         stats: {
           total: users.length,
           delivered: successCount,
@@ -223,6 +250,47 @@ async function startServer() {
     } catch (error) {
       console.error('Broadcast error:', error);
       res.status(500).json({ success: false, error: 'Broadcast failed' });
+    }
+  });
+
+  // 4. API to see broadcast history
+  app.get('/api/admin/broadcasts', async (req, res) => {
+    try {
+      const snapshot = await getDocs(query(collection(db, 'broadcasts'), limit(20)));
+      const broadcasts = snapshot.docs.map(doc => doc.data());
+      res.json({ success: true, broadcasts: broadcasts.sort((a,b) => b.timestamp.localeCompare(a.timestamp)) });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // 5. API to delete/recall a broadcast
+  app.delete('/api/admin/broadcast/:id', async (req, res) => {
+    const broadcastId = req.params.id;
+    const botInstance = getBot();
+    if (!botInstance) return res.status(500).json({ success: false, error: 'Bot not ready' });
+
+    try {
+      const messagesSnap = await getDocs(collection(db, 'broadcasts', broadcastId, 'messages'));
+      const messages = messagesSnap.docs.map(doc => doc.data());
+      
+      let deletedCount = 0;
+      for (const msg of messages) {
+        try {
+          await botInstance.telegram.deleteMessage(msg.chatId, msg.messageId);
+          deletedCount++;
+        } catch (e) {
+          console.error(`Failed to delete message in ${msg.chatId}:`, e);
+        }
+        await delay(20);
+      }
+
+      // Mark broadcast as recalled/deleted in DB instead of actually deleting the record
+      await setDoc(doc(db, 'broadcasts', broadcastId), { recalled: true, recalledAt: new Date().toISOString() }, { merge: true });
+
+      res.json({ success: true, deletedCount });
+    } catch (e: any) {
+      res.status(500).json({ success: false, error: e.message });
     }
   });
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, Component, ErrorInfo, ReactNode, useMemo, useRef } from 'react';
+import React, { useEffect, useState, Component, ErrorInfo, ReactNode, useMemo, useRef, useCallback } from 'react';
 import { 
   GraduationCap, LogIn, User as UserIcon, 
   BookOpen, Calendar, Bell, Search, Menu, X, 
@@ -7,7 +7,7 @@ import {
   Heart, MessageCircle, Share2, Plus, Filter, Send, Repeat, PlusSquare,
   Image as ImageIcon, Video as VideoIcon, Paperclip,
   MoreVertical, Trash2, Edit2, UserPlus, UserMinus,
-  MoreHorizontal, ArrowUpRight, CreditCard, Fingerprint, Eye, EyeOff,
+  MoreHorizontal, History, ArrowUpRight, CreditCard, Fingerprint, Eye, EyeOff,
    BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   UserCheck,
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Stars, Shield,
@@ -1752,6 +1752,16 @@ function ExonaApp() {
   const [broadcastVideoFile, setBroadcastVideoFile] = useState<File | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
+
+  const fetchBroadcastHistory = useCallback(() => {
+    fetch('/api/admin/broadcasts')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setBroadcastHistory(data.broadcasts);
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     fetch('/api/admin/stats')
@@ -1760,7 +1770,9 @@ function ExonaApp() {
         if (data.success) setCommunitySize(data.communitySize);
       })
       .catch(err => console.error('Failed to fetch community stats:', err));
-  }, []);
+    
+    fetchBroadcastHistory();
+  }, [fetchBroadcastHistory]);
   const [records, setRecords] = useState<Record[]>([]);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
@@ -7480,6 +7492,7 @@ function ExonaApp() {
                           setBroadcastVideoUrl('');
                           setBroadcastImageFile(null);
                           setBroadcastVideoFile(null);
+                          fetchBroadcastHistory();
                         } else {
                           setBroadcastResult({ success: false, message: data.error || 'Failed to send' });
                         }
@@ -7503,6 +7516,74 @@ function ExonaApp() {
                 </div>
               </div>
             </motion.div>
+
+            {broadcastHistory.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                className="bg-white p-8 sm:p-12 rounded-[2.5rem] border border-gray-100 shadow-sm mb-16"
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-amber-50 rounded-2xl text-amber-500">
+                      <History size={24} />
+                    </div>
+                    <h3 className="text-2xl font-bold font-display text-ink">Broadcast History</h3>
+                  </div>
+                  <button onClick={fetchBroadcastHistory} className="text-xs font-bold text-cyan-500 hover:underline">Refresh Logs</button>
+                </div>
+
+                <div className="space-y-4">
+                  {broadcastHistory.map((broadcast) => (
+                    <div key={broadcast.id} className="p-6 rounded-3xl bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter ${broadcast.type === 'video' ? 'bg-purple-100 text-purple-600' : broadcast.type === 'image' ? 'bg-cyan-100 text-cyan-600' : 'bg-gray-200 text-gray-600'}`}>
+                            {broadcast.type}
+                          </span>
+                          <span className="text-[10px] font-medium text-muted">{new Date(broadcast.timestamp).toLocaleString()}</span>
+                        </div>
+                        <p className="text-sm font-medium text-ink line-clamp-1">{broadcast.message || '(No text content)'}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                           <span className="text-[10px] font-bold text-green-600">Delivered: {broadcast.stats?.delivered || 0}</span>
+                           <span className="text-[10px] font-bold text-red-400">Failed: {broadcast.stats?.failed || 0}</span>
+                           {broadcast.recalled && <span className="text-[10px] font-bold text-amber-500">Recalled at {new Date(broadcast.recalledAt).toLocaleTimeString()}</span>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {broadcast.recalled ? (
+                          <div className="px-6 py-2 rounded-xl bg-amber-50 text-amber-600 text-xs font-bold ring-1 ring-amber-100">Recalled</div>
+                        ) : (
+                          <button 
+                            onClick={async () => {
+                              if (!window.confirm('Presidential alert: Are you sure you want to recall this broadcast from ALL users? This will delete the messages from their chats.')) return;
+                              try {
+                                const res = await fetch(`/api/admin/broadcast/${broadcast.id}`, { method: 'DELETE' });
+                                const data = await res.json();
+                                if (data.success) {
+                                  alert(`Successfully recalled! Deleted from ${data.deletedCount} users.`);
+                                  fetchBroadcastHistory();
+                                } else {
+                                  alert('Recall failed: ' + (data.error || 'Unknown error'));
+                                }
+                              } catch (e) {
+                                alert('Network error during recall');
+                              }
+                            }}
+                            className="px-6 py-2 rounded-xl bg-white border border-red-100 text-red-500 text-xs font-bold hover:bg-red-50 transition-all flex items-center gap-2 shadow-sm"
+                          >
+                            <Trash2 size={14} />
+                            Recall
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
 
             <div className="grid grid-cols-1 gap-12">
               <motion.div 

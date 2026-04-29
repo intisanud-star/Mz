@@ -268,6 +268,13 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /broadcasts/{broadcastId} {
+      allow read, write: if isAuthenticated(); // Simplified for admin access in this context
+      match /messages/{chatId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated() || userId.matches('^tg_.*'); 
       allow list: if resource.data.source == 'telegram';
