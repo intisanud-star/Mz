@@ -11,16 +11,48 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize Firebase Admin
-const adminApp = getApps().length === 0 
-  ? initializeApp({ projectId: firebaseConfig.projectId }) 
-  : getApp();
+let adminApp;
+try {
+  if (getApps().length === 0) {
+    // Attempting zero-config initialization (leverages ADC on Cloud Run)
+    adminApp = initializeApp();
+    console.log('Firebase Admin initialized with zero-config (ADC)');
+  } else {
+    adminApp = getApp();
+  }
+} catch (e: any) {
+  console.log('Zero-config initialization failed, falling back to JSON config:', e.message);
+  try {
+    adminApp = initializeApp({
+      projectId: firebaseConfig.projectId,
+    });
+    console.log('Firebase Admin initialized with JSON config project:', firebaseConfig.projectId);
+  } catch (e2: any) {
+    console.error('Fatal error initializing Firebase Admin:', e2.message);
+  }
+}
 
-const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId);
+// Correct way to initialize a specific database instance in admin SDK
+const db = getFirestore(adminApp, firebaseConfig.firestoreDatabaseId || '(default)');
 
-// Basic DB Connectivity Check
-db.listCollections()
-  .then(() => console.log('Successfully connected to Firestore with database ID:', firebaseConfig.firestoreDatabaseId))
-  .catch(err => console.error('Firestore connection error:', err.message));
+// Basic DB Connectivity Check - using a simpler check
+db.collection('users').limit(1).get()
+  .then(() => {
+    console.log('Successfully connected to Firestore with database ID:', firebaseConfig.firestoreDatabaseId);
+  })
+  .catch(err => {
+    console.error('Firestore connection error:', err.message);
+    console.log('Details: Database ID:', firebaseConfig.firestoreDatabaseId, 'Project ID:', firebaseConfig.projectId);
+    
+    // Fallback attempt to default database if named one fails
+    if (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)') {
+      console.log('Trying fallback to (default) database...');
+      const defaultDb = getFirestore(adminApp);
+      defaultDb.collection('users').limit(1).get()
+        .then(() => console.log('Successfully connected to (default) database instead.'))
+        .catch(e => console.error('Default database fallback also failed:', e.message));
+    }
+  });
 
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
