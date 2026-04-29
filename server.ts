@@ -17,7 +17,8 @@ if (admin.apps.length === 0) {
   });
 }
 
-const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+// Correct way to initialize a specific database instance in admin SDK
+const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
 
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -34,7 +35,11 @@ function getBot() {
     }
     bot = new Telegraf(token);
     setupBot(bot);
-    bot.launch().catch(err => console.error('Failed to launch Telegram bot:', err));
+    bot.launch().then(() => {
+      console.log('Telegram bot launched successfully');
+    }).catch(err => {
+      console.error('Failed to launch Telegram bot:', err);
+    });
   }
   return bot;
 }
@@ -45,10 +50,12 @@ function setupBot(botInstance: Telegraf) {
     const chatId = ctx.chat.id.toString();
     const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
     
+    console.log(`Received /start from ${username} (${chatId})`);
+    
     try {
       // Check if user exists by querying for chat_id field
       const usersRef = db.collection('users');
-      const snapshot = await usersRef.where('chat_id', '==', chatId).get();
+      const snapshot = await usersRef.where('chat_id', '==', chatId).limit(1).get();
 
       if (snapshot.empty) {
         // If new, save their data
@@ -59,12 +66,18 @@ function setupBot(botInstance: Telegraf) {
           source: 'telegram'
         });
         await ctx.reply(`Welcome to Exona! Your account has been registered with chat ID: ${chatId}`);
+        console.log(`New user registered: ${username} (${chatId})`);
       } else {
         await ctx.reply(`Welcome back, ${username}!`);
+        console.log(`User returned: ${username} (${chatId})`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in Telegram /start command:', error);
-      await ctx.reply('Sorry, there was an error processing your request.');
+      // Log more details about the error if possible
+      if (error.code) console.error('Error code:', error.code);
+      if (error.details) console.error('Error details:', error.details);
+      
+      await ctx.reply('Sorry, there was an error processing your request. Please try again later.');
     }
   });
 

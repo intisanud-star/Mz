@@ -13,7 +13,7 @@ if (admin.apps.length === 0) {
   });
 }
 
-const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(admin.app(), firebaseConfig.firestoreDatabaseId);
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {
