@@ -835,22 +835,22 @@ const BrainBattleModal = ({
                   </div>
 
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <button 
+                    <div className="flex flex-col gap-4">
+                      {/* <button 
                          onClick={saveAsImage}
                          className="flex items-center justify-center gap-2 py-5 bg-white text-ink rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] border border-gray-100 hover:bg-gray-50 transition-all"
                       >
-                        <Download size={16} /> Save Scorecard
-                      </button>
+                         <Download size={16} /> Save Scorecard
+                      </button> */}
                       {user && (
                         <button 
                            onClick={() => {
                              onShareResult(score);
                              onNotify('Achievement shared to Exona Records!', 'success');
                            }}
-                           className="flex items-center justify-center gap-2 py-5 bg-indigo-50 text-indigo-600 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] border border-indigo-100 hover:bg-indigo-100 transition-all"
+                           className="w-full py-5 bg-indigo-50 text-indigo-600 rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] border border-indigo-100 hover:bg-indigo-100 transition-all flex items-center justify-center gap-2"
                         >
-                          <Zap size={16} /> Share to Records
+                           <Zap size={16} /> Share to Records
                         </button>
                       )}
                     </div>
@@ -1368,7 +1368,7 @@ const WordLayout = ({
               <Printer size={14} />
               Print
             </button>
-            {!hideSaveImage && (
+            {/* {!hideSaveImage && (
               <button 
                 onClick={handleSaveAsImage}
                 disabled={isExporting}
@@ -1381,7 +1381,7 @@ const WordLayout = ({
                 )}
                 {isExporting ? 'Exporting...' : 'Save as Image'}
               </button>
-            )}
+            )} */}
           </div>
         </div>
         {/* Toolbar / Ribbon Tabs */}
@@ -15268,7 +15268,7 @@ function ExonaApp() {
               </div>
 
               <div className="flex flex-col gap-3">
-                <button 
+                {/* <button 
                   onClick={handleDownloadReceipt}
                   disabled={isExporting}
                   className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
@@ -15279,7 +15279,7 @@ function ExonaApp() {
                     <Download size={18} />
                   )}
                   {isExporting ? 'Generating...' : 'Save as Image'}
-                </button>
+                </button> */}
                 <div className="grid grid-cols-2 gap-3">
                   <button 
                     onClick={handlePrint}
