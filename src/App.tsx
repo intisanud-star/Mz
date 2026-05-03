@@ -67,228 +67,8 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
  */
 
 // --- CONSTANTS ---
-const BRAIN_BATTLE_QUESTIONS = [
-  // General Knowledge
-  {
-    question: "Which is the largest continent in the world by land area?",
-    options: ["Africa", "Asia", "North America", "Europe"],
-    answer: "Asia",
-    category: "General Knowledge"
-  },
-  {
-    question: "What is the hardest natural substance known to man?",
-    options: ["Gold", "Iron", "Diamond", "Quartz"],
-    answer: "Diamond",
-    category: "General Knowledge"
-  },
-  {
-    question: "Who is the author of the famous novel 'Things Fall Apart'?",
-    options: ["Wole Soyinka", "Chinua Achebe", "Chimamanda Adichie", "Femi Osofisan"],
-    answer: "Chinua Achebe",
-    category: "General Knowledge"
-  },
-  {
-    question: "How many planets are currently in our Solar System?",
-    options: ["7", "8", "9", "10"],
-    answer: "8",
-    category: "General Knowledge"
-  },
-  {
-    question: "What is the capital city of France?",
-    options: ["Marseille", "Lyon", "Paris", "Nice"],
-    answer: "Paris",
-    category: "General Knowledge"
-  },
-  {
-    question: "Who painted the Mona Lisa?",
-    options: ["Vincent van Gogh", "Pablo Picasso", "Leonardo da Vinci", "Claude Monet"],
-    answer: "Leonardo da Vinci",
-    category: "General Knowledge"
-  },
-  {
-    question: "What is the largest ocean on Earth?",
-    options: ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
-    answer: "Pacific Ocean",
-    category: "General Knowledge"
-  },
+const BRAIN_BATTLE_QUESTIONS = [];
 
-  // School Questions
-  {
-    question: "What is the result of 12 multiplied by 12?",
-    options: ["124", "144", "164", "142"],
-    answer: "144",
-    category: "School Questions"
-  },
-  {
-    question: "Which organ in the human body is responsible for pumping blood?",
-    options: ["Lungs", "Brain", "Liver", "Heart"],
-    answer: "Heart",
-    category: "School Questions"
-  },
-  {
-    question: "What is the chemical symbol for Gold?",
-    options: ["Ag", "Fe", "Au", "Pb"],
-    answer: "Au",
-    category: "School Questions"
-  },
-  {
-    question: "What is the boiling point of pure water at sea level?",
-    options: ["90°C", "100°C", "110°C", "120°C"],
-    answer: "100°C",
-    category: "School Questions"
-  },
-  {
-    question: "How many continents are there on Earth?",
-    options: ["5", "6", "7", "8"],
-    answer: "7",
-    category: "School Questions"
-  },
-  {
-    question: "What is the closest star to Earth?",
-    options: ["Mars", "The Sun", "Proxima Centauri", "Venus"],
-    answer: "The Sun",
-    category: "School Questions"
-  },
-  {
-    question: "Which planet is known as the Red Planet?",
-    options: ["Jupiter", "Venus", "Mars", "Saturn"],
-    answer: "Mars",
-    category: "School Questions"
-  },
-
-  // Nigeria Trivia
-  {
-    question: "In what year did Nigeria become an independent nation?",
-    options: ["1950", "1960", "1963", "1970"],
-    answer: "1960",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "Which Nigerian city is famously known as the 'Center of Excellence'?",
-    options: ["Abuja", "Kano", "Lagos", "Port Harcourt"],
-    answer: "Lagos",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "What are the primary colors on the Nigerian national flag?",
-    options: ["Green and Blue", "Green and White", "Green and Yellow", "Red and White"],
-    answer: "Green and White",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "Who was the first ceremonial President of Nigeria?",
-    options: ["Tafawa Balewa", "Obafemi Awolowo", "Nnamdi Azikiwe", "Murtala Muhammed"],
-    answer: "Nnamdi Azikiwe",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "What is the official language of Nigeria?",
-    options: ["Hausa", "Igbo", "Yoruba", "English"],
-    answer: "English",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "Which river is the longest in Nigeria?",
-    options: ["River Benue", "River Niger", "River Ogun", "River Kaduna"],
-    answer: "River Niger",
-    category: "Nigeria Trivia"
-  },
-  {
-    question: "Who is on the Nigerian 200 Naira note?",
-    options: ["Ahmadu Bello", "Nnamdi Azikiwe", "Obafemi Awolowo", "Herbert Macaulay"],
-    answer: "Ahmadu Bello",
-    category: "Nigeria Trivia"
-  },
-
-  // Islamic Questions
-  {
-    question: "How many daily obligatory prayers (Salat) are performed by Muslims?",
-    options: ["3", "4", "5", "6"],
-    answer: "5",
-    category: "Islamic Questions"
-  },
-  {
-    question: "What is the name of the holy book revealed to Prophet Muhammad (SAW)?",
-    options: ["Torah", "Injeel", "Zabur", "Quran"],
-    answer: "Quran",
-    category: "Islamic Questions"
-  },
-  {
-    question: "In which city was the Prophet Muhammad (SAW) born?",
-    options: ["Medina", "Jerusalem", "Mecca", "Riyadh"],
-    answer: "Mecca",
-    category: "Islamic Questions"
-  },
-  {
-    question: "What is the name of the month in which Muslims fast from dawn to sunset?",
-    options: ["Muharram", "Ramadan", "Shawwal", "Dhul-Hijjah"],
-    answer: "Ramadan",
-    category: "Islamic Questions"
-  },
-  {
-    question: "Who was the first person to embrace Islam after the Prophet (SAW)?",
-    options: ["Abu Bakr", "Umar", "Ali", "Khadijah"],
-    answer: "Khadijah",
-    category: "Islamic Questions"
-  },
-  {
-    question: "How many chapters (Surahs) are in the Holy Quran?",
-    options: ["110", "112", "114", "116"],
-    answer: "114",
-    category: "Islamic Questions"
-  },
-  {
-    question: "Which Surah is known as the 'Heart of the Quran'?",
-    options: ["Surah Fatiha", "Surah Yaseen", "Surah Rahman", "Surah Ikhlas"],
-    answer: "Surah Yaseen",
-    category: "Islamic Questions"
-  },
-
-  // Science & Tech
-  {
-    question: "What is the main gas found in the Earth's atmosphere?",
-    options: ["Oxygen", "Carbon Dioxide", "Nitrogen", "Hydrogen"],
-    answer: "Nitrogen",
-    category: "Science & Tech"
-  },
-  {
-    question: "Which company developed the iPhone?",
-    options: ["Samsung", "Google", "Microsoft", "Apple"],
-    answer: "Apple",
-    category: "Science & Tech"
-  },
-  {
-    question: "What does 'WWW' stand for?",
-    options: ["Word Wide Web", "World Wide Web", "Wide World Web", "World Web Wide"],
-    answer: "World Wide Web",
-    category: "Science & Tech"
-  },
-  // Logic & Riddles
-  {
-    question: "What gets wetter and wetter the more it dries?",
-    options: ["Water", "A Towel", "Clouds", "Rain"],
-    answer: "A Towel",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "I have keys but no locks. I have a space but no room. What am I?",
-    options: ["A House", "A Keyboard", "A Car", "A Map"],
-    answer: "A Keyboard",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "How many months in the year have 28 days?",
-    options: ["1", "6", "12", "0"],
-    answer: "12",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "I have one eye but cannot see. What am I?",
-    options: ["A Cyclops", "A Needle", "A Potato", "A Storm"],
-    answer: "A Needle",
-    category: "Logic & Riddles"
-  }
-];
 
 const BrainBattleModal = ({ 
   isActive, 
@@ -439,12 +219,20 @@ const BrainBattleModal = ({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <button 
-                        onClick={() => setStep('entry')}
-                        className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
-                      >
-                        <Zap size={18} /> Start Sunday Battle
-                      </button>
+                      {BRAIN_BATTLE_QUESTIONS.length > 0 ? (
+                        <button 
+                          onClick={() => setStep('entry')}
+                          className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
+                        >
+                          <Zap size={18} /> Start Sunday Battle
+                        </button>
+                      ) : (
+                        <div className="p-8 bg-gray-50 border border-gray-100 rounded-[2rem] text-center mb-6">
+                          <Clock size={32} className="mx-auto text-muted mb-4 opacity-50" />
+                          <p className="text-sm font-black text-ink mb-1">Questions Loading...</p>
+                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">New questions will be available at 7:00 PM on Sunday.</p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 gap-4">
                         <button 
                           onClick={() => {
@@ -2169,8 +1957,10 @@ function ExonaApp() {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
-      window.Telegram.WebApp.setHeaderColor('#000000');
-      window.Telegram.WebApp.setBackgroundColor('#000000');
+      // Set initial color based on user preference or default to white
+      const initialColor = userDoc?.telegramHeaderColor || '#FFFFFF';
+      window.Telegram.WebApp.setHeaderColor(initialColor);
+      window.Telegram.WebApp.setBackgroundColor(initialColor);
       // Enable vertical swipe down to close if desired, otherwise standard is fine
       // window.Telegram.WebApp.isVerticalSwipesEnabled = false; 
     }
@@ -2609,6 +2399,10 @@ function ExonaApp() {
 
     // Sunday (0), 7 PM (19:00) to 7:55 PM (19:55)
     return day === 0 && hour === 19 && minute <= 55;
+  };
+
+  const isEntryAllowed = () => {
+    return isBattleWindowOpen() && BRAIN_BATTLE_QUESTIONS.length > 0;
   };
 
   // Fetch leaderboard data
@@ -4183,6 +3977,13 @@ function ExonaApp() {
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#ffffff');
+
+  useEffect(() => {
+    if (window.Telegram?.WebApp && userDoc?.telegramHeaderColor) {
+      window.Telegram.WebApp.setHeaderColor(userDoc.telegramHeaderColor);
+    }
+  }, [userDoc?.telegramHeaderColor]);
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
   const [institutionFollowerDocs, setInstitutionFollowerDocs] = useState<UserDoc[]>([]);
@@ -14930,10 +14731,76 @@ function ExonaApp() {
                     {currentTheme === theme.id && (
                       <div className="absolute top-4 right-4 h-6 w-6 bg-accent rounded-full flex items-center justify-center text-white">
                         <Check size={12} />
-                      </div>
+                       </div>
                     )}
                   </button>
                 ))}
+              </div>
+
+              {/* Telegram Customization Section */}
+              <div className="mt-12 pt-8 border-t border-border">
+                <div className="flex items-center gap-3 mb-6">
+                   <div className="h-8 w-8 bg-blue-500 rounded-lg flex items-center justify-center text-white">
+                      <Send size={14} className="rotate-[-20deg]" />
+                   </div>
+                   <h4 className="text-[10px] font-black text-ink uppercase tracking-widest">Telegram Mini App Settings</h4>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-5 bg-gray-50/50 rounded-[2rem] border border-border">
+                    <div>
+                      <p className="text-xs font-bold text-ink">Header Color</p>
+                      <p className="text-[9px] text-muted font-medium">Customize the top bar color</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       {['#FFFFFF', '#000000', '#2481CC', '#F28B82', '#FBBC04', '#34A853'].map((color) => (
+                         <button
+                           key={color}
+                           onClick={async () => {
+                             if (!user) return;
+                             try {
+                               await updateDoc(doc(db, 'users', user.uid), {
+                                 telegramHeaderColor: color
+                               });
+                               showNotification('Telegram header applied', 'success');
+                               if (window.Telegram?.WebApp) {
+                                 window.Telegram.WebApp.setHeaderColor(color);
+                                 window.Telegram.WebApp.setBackgroundColor(color);
+                               }
+                             } catch (e) {
+                               console.error(e);
+                               showNotification('Failed to update telegram color', 'error');
+                             }
+                           }}
+                           className={`h-6 w-6 rounded-full border border-border transition-transform active:scale-95 ${
+                             (userDoc?.telegramHeaderColor || '#FFFFFF') === color ? 'ring-2 ring-accent ring-offset-2' : ''
+                           }`}
+                           style={{ backgroundColor: color }}
+                         />
+                       ))}
+                       <input 
+                         type="color" 
+                         value={userDoc?.telegramHeaderColor || '#FFFFFF'}
+                         onChange={async (e) => {
+                           const color = e.target.value;
+                           if (!user) return;
+                           try {
+                             await updateDoc(doc(db, 'users', user.uid), {
+                               telegramHeaderColor: color
+                             });
+                             if (window.Telegram?.WebApp) {
+                               window.Telegram.WebApp.setHeaderColor(color);
+                               window.Telegram.WebApp.setBackgroundColor(color);
+                             }
+                           } catch (e) {
+                             console.error(e);
+                           }
+                         }}
+                         className="h-6 w-6 rounded-full border-none p-0 overflow-hidden cursor-pointer bg-transparent"
+                       />
+                    </div>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>
