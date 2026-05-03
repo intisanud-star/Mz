@@ -67,8 +67,148 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
  */
 
 // --- CONSTANTS ---
-const BRAIN_BATTLE_QUESTIONS = [];
+const BRAIN_BATTLE_QUESTIONS = [
+  // General Knowledge
+  {
+    question: "Which planet is known as the Red Planet?",
+    options: ["Venus", "Mars", "Jupiter", "Saturn"],
+    answer: "Mars",
+    category: "General Knowledge"
+  },
+  {
+    question: "Which continent is the Sahara Desert located in?",
+    options: ["Asia", "Africa", "Australia", "Europe"],
+    answer: "Africa",
+    category: "General Knowledge"
+  },
+  {
+    question: "What is the fastest land animal?",
+    options: ["Lion", "Tiger", "Cheetah", "Leopard"],
+    answer: "Cheetah",
+    category: "General Knowledge"
+  },
+  {
+    question: "How many days are there in a leap year?",
+    options: ["365", "366", "364", "367"],
+    answer: "366",
+    category: "General Knowledge"
+  },
 
+  // School Questions
+  {
+    question: "What is 15 × 6?",
+    options: ["80", "85", "90", "95"],
+    answer: "90",
+    category: "School Questions"
+  },
+  {
+    question: "What is the chemical symbol for Sodium?",
+    options: ["So", "Sd", "Na", "Sn"],
+    answer: "Na",
+    category: "School Questions"
+  },
+  {
+    question: "Which part of speech is the word 'quickly'?",
+    options: ["Noun", "Verb", "Adjective", "Adverb"],
+    answer: "Adverb",
+    category: "School Questions"
+  },
+  {
+    question: "What is 100 ÷ 4?",
+    options: ["20", "25", "30", "40"],
+    answer: "25",
+    category: "School Questions"
+  },
+
+  // Nigeria Trivia
+  {
+    question: "Which city is known as the 'Centre of Commerce' in Nigeria?",
+    options: ["Lagos", "Kano", "Abuja", "Port Harcourt"],
+    answer: "Kano",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "What is the Nigerian currency called?",
+    options: ["Dollar", "Naira", "Pound", "Cedi"],
+    answer: "Naira",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Which geopolitical zone is Kano State in?",
+    options: ["South West", "North East", "North West", "South South"],
+    answer: "North West",
+    category: "Nigeria Trivia"
+  },
+  {
+    question: "Who designed the Nigerian flag?",
+    options: ["Nnamdi Azikiwe", "Taiwo Akinkunmi", "Obafemi Awolowo", "Ahmadu Bello"],
+    answer: "Taiwo Akinkunmi",
+    category: "Nigeria Trivia"
+  },
+
+  // Islamic Questions
+  {
+    question: "How many Surahs are in the Qur’an?",
+    options: ["100", "110", "114", "120"],
+    answer: "114",
+    category: "Islamic Questions"
+  },
+  {
+    question: "What is the night of decree called?",
+    options: ["Laylatul Qadr", "Laylatul Bara’ah", "Laylatul Isra", "Laylatul Mi’raj"],
+    answer: "Laylatul Qadr",
+    category: "Islamic Questions"
+  },
+  {
+    question: "Which angel delivered revelation to Prophet Muhammad (SAW)?",
+    options: ["Mikail", "Israfil", "Jibril", "Malik"],
+    answer: "Jibril",
+    category: "Islamic Questions"
+  },
+  {
+    question: "How many Rak’ahs are in Fajr prayer?",
+    options: ["2", "3", "4", "5"],
+    answer: "2",
+    category: "Islamic Questions"
+  },
+
+  // Logic & Riddles
+  {
+    question: "What has hands but cannot clap?",
+    options: ["Robot", "Clock", "Tree", "Baby"],
+    answer: "Clock",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "If you have 10 mangoes and give out 4, how many are left?",
+    options: ["4", "5", "6", "7"],
+    answer: "6",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "Which number comes next: 2, 4, 8, 16, ?",
+    options: ["18", "20", "24", "32"],
+    answer: "32",
+    category: "Logic & Riddles"
+  },
+  {
+    question: "I have a neck but no head, two arms but no hands. What am I?",
+    options: ["Bottle", "Shirt", "Chair", "Sho shoe"],
+    answer: "Shirt",
+    category: "Logic & Riddles"
+  }
+];
+
+
+const isBattleWindowOpen = () => {
+  const now = new Date();
+  const day = now.getDay(); // 0 is Sunday
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+
+  // Sunday (0), 7 PM (19:00) to 7:55 PM (19:55)
+  return day === 0 && hour === 19 && minute <= 55;
+};
 
 const BrainBattleModal = ({ 
   isActive, 
@@ -85,6 +225,7 @@ const BrainBattleModal = ({
   setAnswered, 
   questions, 
   user, 
+  userDoc,
   onNotify, 
   onJoin,
   timeLeft,
@@ -106,20 +247,35 @@ const BrainBattleModal = ({
   const [isChecking, setIsChecking] = useState(false);
   const [existingResult, setExistingResult] = useState<any>(null);
 
-  // Proactive check for logged in user
   useEffect(() => {
-    if (isActive && user?.email && step === 'welcome' && !existingResult && !isChecking) {
+    if (user || userDoc) {
+      setGuestInfo((prev: any) => ({
+        ...prev,
+        email: user?.email || prev.email || '',
+        name: userDoc?.displayName || user?.displayName || prev.name || '',
+      }));
+    }
+  }, [user, userDoc]);
+
+  useEffect(() => {
+    if (isActive && step === 'welcome' && !existingResult && !isChecking) {
       const checkSelf = async () => {
-        setIsChecking(true);
-        const record = await onCheckParticipation(user.email);
-        setIsChecking(false);
-        if (record) {
-          setExistingResult(record);
+        const identifiers: any = {};
+        if (user?.email) identifiers.email = user.email;
+        if (userDoc?.telegramId) identifiers.telegramId = userDoc.telegramId;
+        
+        if (Object.keys(identifiers).length > 0) {
+          setIsChecking(true);
+          const record = await onCheckParticipation(identifiers);
+          setIsChecking(false);
+          if (record) {
+            setExistingResult(record);
+          }
         }
       };
       checkSelf();
     }
-  }, [isActive, user, step]);
+  }, [isActive, user, userDoc, step]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -219,7 +375,7 @@ const BrainBattleModal = ({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {BRAIN_BATTLE_QUESTIONS.length > 0 ? (
+                      {isBattleWindowOpen() ? (
                         <button 
                           onClick={() => setStep('entry')}
                           className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
@@ -229,8 +385,8 @@ const BrainBattleModal = ({
                       ) : (
                         <div className="p-8 bg-gray-50 border border-gray-100 rounded-[2rem] text-center mb-6">
                           <Clock size={32} className="mx-auto text-muted mb-4 opacity-50" />
-                          <p className="text-sm font-black text-ink mb-1">Questions Loading...</p>
-                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">New questions will be available at 7:00 PM on Sunday.</p>
+                          <p className="text-sm font-black text-ink mb-1">Battle Starts Soon</p>
+                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">The Brain Battle will be available at 7:00 PM tonight.</p>
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-4">
@@ -287,7 +443,7 @@ const BrainBattleModal = ({
                       }
                       
                       setIsChecking(true);
-                      const record: any = await onCheckParticipation(guestInfo.email);
+                      const record: any = await onCheckParticipation({ email: guestInfo.email });
                       setIsChecking(false);
 
                       if (record) {
@@ -490,7 +646,11 @@ const BrainBattleModal = ({
                       }
                       
                       setIsChecking(true);
-                      const record: any = await onCheckParticipation(guestInfo.email);
+                      const record: any = await onCheckParticipation({ 
+                        email: guestInfo.email, 
+                        phone: guestInfo.phone,
+                        telegramId: userDoc?.telegramId
+                      });
                       setIsChecking(false);
 
                       if (record) {
@@ -612,6 +772,7 @@ const BrainBattleModal = ({
                               try {
                                 await addDoc(collection(db, 'brainBattleLeads'), {
                                   ...guestInfo,
+                                  telegramId: userDoc?.telegramId || null,
                                   score: score + (isCorrect ? 10 : 0),
                                   totalQuestions: questions.length,
                                   timestamp: serverTimestamp(),
@@ -2435,16 +2596,6 @@ function ExonaApp() {
   };
 
   // Check if current time is within Sunday 7:00 PM - 7:55 PM
-  const isBattleWindowOpen = () => {
-    const now = new Date();
-    const day = now.getDay(); // 0 is Sunday
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-
-    // Sunday (0), 7 PM (19:00) to 7:55 PM (19:55)
-    return day === 0 && hour === 19 && minute <= 55;
-  };
-
   const isEntryAllowed = () => {
     return isBattleWindowOpen() && BRAIN_BATTLE_QUESTIONS.length > 0;
   };
@@ -2469,23 +2620,34 @@ function ExonaApp() {
     }
   };
 
-  const checkParticipation = async (email: string) => {
+  const checkParticipation = async (identifiers: { email?: string, phone?: string, telegramId?: string }) => {
     try {
       const now = new Date();
       const lastSunday = new Date(now);
       lastSunday.setDate(now.getDate() - now.getDay());
       lastSunday.setHours(0, 0, 0, 0);
 
-      const q = query(
-        collection(db, 'brainBattleLeads'),
-        where('email', '==', email),
-        where('timestamp', '>=', lastSunday),
-        limit(1)
-      );
+      // Check for existing record by any of the identifiers
+      const collectionsRef = collection(db, 'brainBattleLeads');
       
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return null;
-      return snapshot.docs[0].data();
+      // We'll run separate checks for each identifier provided
+      const checks = [];
+      if (identifiers.email) {
+        checks.push(query(collectionsRef, where('email', '==', identifiers.email), where('timestamp', '>=', lastSunday), limit(1)));
+      }
+      if (identifiers.phone) {
+        checks.push(query(collectionsRef, where('phone', '==', identifiers.phone), where('timestamp', '>=', lastSunday), limit(1)));
+      }
+      if (identifiers.telegramId) {
+        checks.push(query(collectionsRef, where('telegramId', '==', identifiers.telegramId), where('timestamp', '>=', lastSunday), limit(1)));
+      }
+
+      for (const q of checks) {
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) return snapshot.docs[0].data();
+      }
+      
+      return null;
     } catch (e) {
       console.error("Error checking participation:", e);
       return null;
@@ -2527,6 +2689,7 @@ function ExonaApp() {
         try {
           await addDoc(collection(db, 'brainBattleLeads'), {
             ...guestInfo,
+            telegramId: userDoc?.telegramId || null,
             score: battleScore,
             totalQuestions: currentBattleQuestions.length,
             timestamp: serverTimestamp(),
@@ -2608,6 +2771,7 @@ function ExonaApp() {
       setAnswered={setAnsweredQuestions}
       questions={currentBattleQuestions}
       user={user}
+      userDoc={userDoc}
       onNotify={showNotification}
       onJoin={() => setAuthMode('signup')}
       timeLeft={battleTimeLeft}
