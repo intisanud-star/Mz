@@ -1551,6 +1551,50 @@ function ExonaApp() {
       .catch(console.error);
   }, []);
 
+  const startY = useRef(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (scrollContainerRef.current?.scrollTop === 0) {
+      startY.current = e.touches[0].pageY;
+    } else {
+      startY.current = 0;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY.current === 0 || refreshing) return;
+    const currentY = e.touches[0].pageY;
+    const diff = currentY - startY.current;
+    if (diff > 0 && scrollContainerRef.current && scrollContainerRef.current.scrollTop <= 0) {
+      setPullDistance(diff);
+      // Prevent browser's native pull-to-refresh
+      if (e.cancelable) e.preventDefault();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (pullDistance > 80 && !refreshing) {
+      setRefreshing(true);
+      // Clear posts to force a visual refresh and handle the case where postsLimit is already 10
+      setPosts([]);
+      setPostsLimit(10);
+      setHasMorePosts(true);
+      
+      // Also refresh broadcast history and other stats
+      fetchBroadcastHistory();
+      
+      setTimeout(() => {
+        setRefreshing(false);
+        setPullDistance(0);
+        showNotification('Feed Updated', 'success');
+      }, 1200);
+    } else {
+      setPullDistance(0);
+    }
+    startY.current = 0;
+  };
+
   useEffect(() => {
     fetch('/api/admin/stats')
       .then(res => res.json())
@@ -6498,12 +6542,15 @@ function ExonaApp() {
   };
 
   useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
     const handleScroll = () => {
-      if (view !== 'feed') return;
+      if (view !== 'feed' && view !== 'school-feed') return;
       
-      const scrollHeight = document.documentElement.scrollHeight;
-      const scrollTop = document.documentElement.scrollTop;
-      const clientHeight = document.documentElement.clientHeight;
+      const scrollHeight = container.scrollHeight;
+      const scrollTop = container.scrollTop;
+      const clientHeight = container.clientHeight;
       
       if (scrollTop + clientHeight >= scrollHeight - 300) {
         if (!isLoadingMore && hasMorePosts) {
@@ -6512,8 +6559,8 @@ function ExonaApp() {
       }
     };
     
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
   }, [isLoadingMore, hasMorePosts, view]);
 
   useEffect(() => {
@@ -15377,13 +15424,13 @@ function ExonaApp() {
 
       {/* Main Area */}
       <main 
+        ref={scrollContainerRef}
         className="flex-1 overflow-y-auto bg-card relative"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onScroll={(e) => {
           if (refreshing) return;
-          const target = e.currentTarget;
-          if (target.scrollTop === 0) {
-            // Can start pull
-          }
         }}
       >
         <AnimatePresence>
