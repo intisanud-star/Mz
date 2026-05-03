@@ -2604,15 +2604,28 @@ function ExonaApp() {
   const fetchLeaderboard = async () => {
     setIsLeaderboardLoading(true);
     try {
+      const now = new Date();
+      const lastSunday = new Date(now);
+      lastSunday.setDate(now.getDate() - now.getDay());
+      lastSunday.setHours(0, 0, 0, 0);
+
       const q = query(
         collection(db, 'brainBattleLeads'),
-        orderBy('score', 'desc'),
-        orderBy('timestamp', 'asc'),
-        limit(50)
+        where('timestamp', '>=', lastSunday),
+        orderBy('timestamp', 'asc'), // Filter requires index, or same field sort
+        limit(100) // Get more to sort manually if needed or let firestore handle
       );
+      
       const snapshot = await getDocs(q);
-      const leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setLeaderboard(leads);
+      const leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      
+      // Sort by score desc, then time asc since composite index might not be ready
+      const sortedLeads = leads.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0);
+      });
+
+      setLeaderboard(sortedLeads.slice(0, 50));
     } catch (e) {
       console.error("Failed to fetch leaderboard", e);
     } finally {
@@ -3691,39 +3704,39 @@ function ExonaApp() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h4 className="text-xs font-black text-ink uppercase tracking-wider">Treasury Conversion Gate</h4>
-                    <p className="text-[10px] text-muted font-medium mt-1">Rate: 100 Excoins = 1 Exon Star</p>
+                    <p className="text-[10px] text-muted font-medium mt-1">Rate: 100 Exon Stars = 1 Excoin</p>
                   </div>
                   <RefreshCw size={18} className="text-accent/40" />
                 </div>
                 
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
-                     <span className="text-[10px] font-black text-muted uppercase tracking-widest">Available {excoinBalance}</span>
-                     <button 
-                        disabled={excoinBalance < 100}
-                        onClick={() => handleConvertExcoinToStars(100)}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                          excoinBalance >= 100 
-                            ? 'bg-ink text-white hover:scale-105 hover:bg-black active:scale-95' 
-                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        }`}
-                     >
-                       Convert 100
-                     </button>
-                  </div>
-                </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
+                         <span className="text-[10px] font-black text-muted uppercase tracking-widest">Available {exonWallet?.balance || 0} Stars</span>
+                         <button 
+                            disabled={(exonWallet?.balance || 0) < 100}
+                            onClick={() => handleConvertStarsToExcoin(100)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                              (exonWallet?.balance || 0) >= 100 
+                                ? 'bg-ink text-white hover:scale-105 hover:bg-black active:scale-95' 
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                         >
+                           Convert 100
+                         </button>
+                      </div>
+                    </div>
               </div>
 
               {/* Quick Actions */}
               <div className="grid grid-cols-2 gap-4 mb-12">
                 <button 
-                   onClick={() => handleCreditExcoin(500, 'Daily Treasury Allowance')}
+                   onClick={() => handleCreditExonStars(10, 'Daily Treasury Allowance')}
                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-accent/30 hover:bg-white transition-all group"
                 >
-                  <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-slate-400 group-hover:scale-110 transition-transform">
-                    <Gift size={24} />
+                  <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                    <Stars size={24} />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-ink">Claim Allowance</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink">Daily 10 Stars</span>
                 </button>
                 <button 
                   onClick={() => setIsExonWalletOpen(false)}
@@ -5692,10 +5705,10 @@ function ExonaApp() {
     }
   };
 
-  const handleConvertExcoinToStars = async (coins: number) => {
-    if (!user || coins < 100) return;
-    const starsToReceive = Math.floor(coins / 100);
-    const coinsToDeduct = starsToReceive * 100;
+  const handleConvertStarsToExcoin = async (stars: number) => {
+    if (!user || stars < 100) return;
+    const excoinsToReceive = Math.floor(stars / 100);
+    const starsToDeduct = excoinsToReceive * 100;
     
     try {
       const walletRef = doc(db, 'wallets', user.uid);
@@ -5709,32 +5722,32 @@ function ExonaApp() {
         const currentStars = data.balance || 0;
         const currentCoins = data.excoin_balance || 0;
 
-        if (currentCoins < coinsToDeduct) throw new Error('Insufficient Excoins');
+        if (currentStars < starsToDeduct) throw new Error('Insufficient Stars');
 
         transaction.update(walletRef, {
-          balance: currentStars + starsToReceive,
-          excoin_balance: currentCoins - coinsToDeduct,
+          balance: currentStars - starsToDeduct,
+          excoin_balance: currentCoins + excoinsToReceive,
           last_transaction: serverTimestamp()
         });
 
         transaction.set(historyRef, {
-          amount: coinsToDeduct,
+          amount: starsToDeduct,
           type: 'debit',
-          currency: 'excoins',
-          description: `Converted ${coinsToDeduct} Excoins to ${starsToReceive} Star(s)`,
+          currency: 'stars',
+          description: `Converted ${starsToDeduct} Stars to ${excoinsToReceive} Excoin(s)`,
           timestamp: serverTimestamp()
         });
 
         const historyRef2 = doc(collection(db, `wallets/${user.uid}/history`));
         transaction.set(historyRef2, {
-          amount: starsToReceive,
+          amount: excoinsToReceive,
           type: 'credit',
-          currency: 'stars',
-          description: `Received from Excoin conversion`,
+          currency: 'excoins',
+          description: `Received from Star conversion`,
           timestamp: serverTimestamp()
         });
       });
-      showNotification(`Successfully converted to ${starsToReceive} Star(s)`, 'success');
+      showNotification(`Successfully converted to ${excoinsToReceive} Excoin(s)`, 'success');
       return true;
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `wallets/${user.uid}`);
