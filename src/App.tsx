@@ -12640,7 +12640,41 @@ function ExonaApp() {
         ];
 
         if (activeTool === 'export-attendance') {
-          const baseAttendance = allAttendance.length > 0 ? allAttendance : attendance;
+          if (!selectedSchool) {
+            const manageable = [...schools, ...places].filter(inst => canManageInstitution(inst));
+            return (
+              <WordLayout 
+                title="Participation Hub"
+                subtitle="Select an institution to begin export"
+                icon={Users}
+                toolbar={<button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>}
+                showNotification={showNotification}
+                handlePrint={handlePrint}
+              >
+                <div className="py-20 text-center max-w-2xl mx-auto">
+                  <div className="h-20 w-20 bg-orange-50 text-orange-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                    <Users size={40} />
+                  </div>
+                  <h3 className="text-3xl font-black text-ink mb-4">Choose Institution</h3>
+                  <p className="text-muted font-medium mb-12">Please select an institution to view and export participation records.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {manageable.map(inst => (
+                      <button 
+                        key={inst.id}
+                        onClick={() => setSelectedSchool(inst as any)}
+                        className="p-6 bg-white border border-gray-100 rounded-3xl hover:border-orange-200 transition-all text-left group"
+                      >
+                        <h4 className="font-bold text-ink mb-1">{inst.name}</h4>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{inst.type}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </WordLayout>
+            );
+          }
+
+          const baseAttendance = (allAttendance.length > 0 ? allAttendance : attendance).filter(a => a.schoolId === selectedSchool.id);
           const filteredAttendance = baseAttendance.filter(a => {
             if (!exportStartDate && !exportEndDate) return true;
             const recordDate = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.date);
@@ -12667,6 +12701,12 @@ function ExonaApp() {
               hideIcon={true}
               toolbar={
                 <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setSelectedSchool(null)} 
+                    className="px-4 py-1.5 bg-white border border-gray-200 text-muted rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all"
+                  >
+                    Switch Institution
+                  </button>
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
                   <button 
                     onClick={() => { setExportStartDate(''); setExportEndDate(''); }} 
@@ -12877,7 +12917,41 @@ function ExonaApp() {
         }
 
         if (activeTool === 'export') {
-          const baseRecords = allRecords.length > 0 ? allRecords : records;
+          if (!selectedSchool) {
+            const manageable = [...schools, ...places].filter(inst => canManageInstitution(inst));
+            return (
+              <WordLayout 
+                title="Download Center"
+                subtitle="Select an institution to begin export"
+                icon={Download}
+                toolbar={<button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>}
+                showNotification={showNotification}
+                handlePrint={handlePrint}
+              >
+                <div className="py-20 text-center max-w-2xl mx-auto">
+                  <div className="h-20 w-20 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                    <Download size={40} />
+                  </div>
+                  <h3 className="text-3xl font-black text-ink mb-4">Choose Institution</h3>
+                  <p className="text-muted font-medium mb-12">Please select an institution to view and export your record summaries.</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {manageable.map(inst => (
+                      <button 
+                        key={inst.id}
+                        onClick={() => setSelectedSchool(inst as any)}
+                        className="p-6 bg-white border border-gray-100 rounded-3xl hover:border-blue-200 transition-all text-left group"
+                      >
+                        <h4 className="font-bold text-ink mb-1">{inst.name}</h4>
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{inst.type}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </WordLayout>
+            );
+          }
+
+          const baseRecords = (allRecords.length > 0 ? allRecords : records).filter(r => r.schoolId === selectedSchool.id);
           const filteredRecords = baseRecords.filter(r => {
             // Category Filter
             if (exportCategory !== 'all' && r.type !== exportCategory) return false;
@@ -12958,6 +13032,12 @@ function ExonaApp() {
               hideIcon={true}
               toolbar={
                 <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setSelectedSchool(null)} 
+                    className="px-4 py-1.5 bg-white border border-gray-200 text-muted rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all"
+                  >
+                    Switch Institution
+                  </button>
                   <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
                   <button 
                     onClick={() => { setExportStartDate(''); setExportEndDate(''); }} 
