@@ -9,8 +9,12 @@ import fs from 'fs';
 import multer from 'multer';
 
 const upload = multer({ dest: 'uploads/' });
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
+try {
+  if (!fs.existsSync('uploads')) {
+    fs.mkdirSync('uploads', { recursive: true });
+  }
+} catch (err) {
+  console.error('Failed to create uploads directory:', err);
 }
 
 let firebaseConfig = {};
@@ -33,15 +37,6 @@ let db: any;
 if ((firebaseConfig as any).projectId) {
   const clientApp = initializeClientApp(firebaseConfig);
   db = getClientFirestore(clientApp, (firebaseConfig as any).firestoreDatabaseId || '(default)');
-
-  // Basic DB Connectivity Check
-  getDocs(query(collection(db, 'users'), where('source', '==', 'telegram'), limit(1)))
-    .then((snap) => {
-      console.log('Successfully connected to Firestore (Client SDK). Total users observed:', snap.size);
-    })
-    .catch(err => {
-      console.error('Firestore connection error (Client SDK):', err.message);
-    });
 } else {
   console.error('Firebase configuration is incomplete. Database operations will fail.');
 }
@@ -316,9 +311,6 @@ async function startServer() {
     res.json({ success: true, message: 'Transaction authorized by Presidential treasury' });
   });
 
-  // Start the bot
-  getBot();
-
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -333,9 +325,30 @@ async function startServer() {
     });
   }
 
+  // Start the bot and other async services AFTER the server is listening
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Presidential Server active on http://localhost:${PORT}`);
+    
+    // Initialize Bot and DB connectivity checks in the background
+    try {
+      getBot();
+      process.nextTick(async () => {
+        if (db) {
+          try {
+            const snap = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram'), limit(1)));
+            console.log('Successfully connected to Firestore. Total users observed:', snap.size);
+          } catch (err: any) {
+            console.error('Initial Firestore connectivity check failed:', err.message);
+          }
+        }
+      });
+    } catch (err) {
+      console.error('Failed to initialize background services:', err);
+    }
   });
 }
 
-startServer();
+startServer().catch(err => {
+  console.error('FATAL ERROR STARTING PRESIDENTIAL SERVER:', err);
+  process.exit(1);
+});
