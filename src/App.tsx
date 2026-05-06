@@ -6391,6 +6391,18 @@ function ExonaApp() {
         if (!currentUser.emailVerified && currentUser.providerData.some(p => p.providerId === 'password')) {
           setUser(currentUser);
           setLoading(false);
+          
+          // Auto-trigger verification email for returning unverified users
+          if (!verificationSent) {
+            try {
+              await sendEmailVerification(currentUser);
+              setVerificationSent(true);
+            } catch (ve) {
+              console.warn('Auto-verification email check:', ve);
+              // We still set verificationSent true to avoid loops in this session
+              setVerificationSent(true);
+            }
+          }
           return;
         }
 
@@ -6835,6 +6847,14 @@ function ExonaApp() {
         currency: selectedSignupCountry.currency
       });
       
+      // Send email verification
+      try {
+        await sendEmailVerification(userCredential.user);
+      } catch (verifyErr) {
+        console.error('Initial verification email failed:', verifyErr);
+      }
+      setVerificationSent(true);
+      
       // Request notification permission during the sign-up gesture
       if ('Notification' in window && Notification.permission === 'default') {
         setTimeout(async () => {
@@ -6871,7 +6891,16 @@ function ExonaApp() {
     setAuthError(null);
     setIsAuthenticating(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Auto-send verification if not verified
+      if (userCredential.user && !userCredential.user.emailVerified) {
+        try {
+          await sendEmailVerification(userCredential.user);
+        } catch (verifyErr) {
+          console.error('Login verification email failed:', verifyErr);
+        }
+        setVerificationSent(true);
+      }
     } catch (e: any) {
       console.error('Sign In Error:', e);
       if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
@@ -13897,6 +13926,22 @@ function ExonaApp() {
                   className="w-full py-2 bg-accent text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all"
                 >
                   I've verified my email
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (auth.currentUser) {
+                      try {
+                        await sendEmailVerification(auth.currentUser);
+                        showNotification('Verification email resent!', 'success');
+                      } catch (err: any) {
+                        console.error('Resend Error:', err);
+                        showNotification('Failed to resend email. Please wait a moment before trying again.', 'error');
+                      }
+                    }
+                  }} 
+                  className="w-full py-2 border border-accent text-accent rounded-lg font-bold text-sm hover:bg-accent/5 transition-all"
+                >
+                  Resend verification email
                 </button>
                 <button 
                   onClick={() => {
