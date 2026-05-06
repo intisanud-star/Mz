@@ -2190,7 +2190,17 @@ function ExonaApp() {
     // Register Service Worker for true background/lock-screen notifications
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('Communication Core Synced (SW):', reg.scope))
+        .then(reg => {
+          console.log('Communication Core Synced (SW):', reg.scope);
+          // Request notification permission if not already granted
+          if (Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+              if (permission === 'granted') {
+                console.log('Notification permission granted.');
+              }
+            });
+          }
+        })
         .catch(err => console.warn('SW Sync failed:', err));
     }
   }, []);
