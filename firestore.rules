@@ -121,6 +121,21 @@ service cloud.firestore {
       );
     }
 
+    function isAuditorAction() {
+      let incoming = request.resource.data;
+      let existing = resource.data;
+      let diff = incoming.diff(existing);
+      
+      // Request access (Add self to pendingAuditors)
+      // Anyone authenticated can request access to become an auditor
+      let isRequesting = diff.affectedKeys().hasOnly(['pendingAuditors']) &&
+                         incoming.get('pendingAuditors', []).hasAll(existing.get('pendingAuditors', [])) &&
+                         request.auth.uid in incoming.get('pendingAuditors', []) &&
+                         incoming.get('pendingAuditors', []).size() == existing.get('pendingAuditors', []).size() + 1;
+      
+      return isRequesting;
+    }
+
     function canReply(schoolId) {
       return (schoolId == null || schoolId == "") || 
              getPostPermission(schoolId) == 'everyone' ||
@@ -327,14 +342,14 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || (isSchoolManager(schoolId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
+      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || isAuditorAction() || (isSchoolManager(schoolId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
       allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || (isSchoolManager(placeId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
+      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || isAuditorAction() || (isSchoolManager(placeId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
       allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 

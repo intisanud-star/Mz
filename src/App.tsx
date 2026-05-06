@@ -4096,28 +4096,32 @@ function ExonaApp() {
 
   useEffect(() => {
     if (!user) return;
-    const inst = schools.find(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)) || 
-                 places.find(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid));
-    if (!inst) return;
     
+    // Listen for ALL key requests made by current user, globally
     const q = query(
       collection(db, 'keyRequests'), 
-      where('institutionId', '==', inst.id), 
       where('requesterUid', '==', user.uid),
-      orderBy('timestamp', 'desc'), 
-      limit(1)
+      orderBy('timestamp', 'desc'),
+      limit(20)
     );
+    
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
-        setActiveKeyRequest(snapshot.docs[0].data());
+        // If we have a selected school, prefer its request, otherwise use most recent
+        const currentReq = selectedSchool 
+          ? snapshot.docs.find(d => d.data().institutionId === selectedSchool.id)
+          : snapshot.docs[0];
+          
+        setActiveKeyRequest(currentReq ? currentReq.data() : null);
       } else {
         setActiveKeyRequest(null);
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'keyRequests');
+      // Don't log full detailed error for 403s on keyRequests as they might be pre-auth
+      console.warn('Key requests listener inhibited:', error);
     });
     return unsubscribe;
-  }, [user, schools, places]);
+  }, [user, selectedSchool?.id]);
 
   useEffect(() => {
     if (!selectedSchool) return;
@@ -8164,7 +8168,7 @@ function ExonaApp() {
                     {!selectedSchool.administrativeViewers?.includes(user?.uid || '') && !(selectedSchool as any).pendingAuditors?.includes(user?.uid || '') && (
                       <button 
                         onClick={() => handleRequestAuditorAccess(selectedSchool)}
-                        className="w-full px-8 py-3 bg-white border border-gray-100 text-muted rounded-2xl font-bold text-sm hover:bg-gray-50 transition-all"
+                        className={`w-full px-8 py-3 rounded-2xl font-bold text-sm transition-all ${!canSeeContent ? 'bg-white border border-gray-100 text-muted hover:bg-gray-50' : 'bg-accent/10 text-accent hover:bg-accent/20 my-4'}`}
                       >
                         Request Management Access
                       </button>
@@ -8705,7 +8709,7 @@ function ExonaApp() {
                  </div>
                </button>
 
-               {(myInstitutions.length > 0 || userDoc?.role === 'admin' || schools.some(s => s.administrativeViewers?.includes(user?.uid || '')) || places.some(s => s.administrativeViewers?.includes(user?.uid || ''))) && (
+               {(myInstitutions.length > 0 || userDoc?.role === 'admin' || [...schools, ...places].some(s => canAccessInstitutionData(s))) && (
                  <button 
                    onClick={() => handleNavigateToData('records')}
                    className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
@@ -12584,8 +12588,10 @@ function ExonaApp() {
       case 'tools': {
         const isOwner = selectedSchool?.creatorUid === user?.uid;
         const canAccessAdmin = isOwner || selectedSchool?.administrativeViewers?.includes(user?.uid || '');
+        const isFollower = selectedSchool?.followers?.includes(user?.uid || '');
+        const canAccessAny = canAccessAdmin || isFollower;
 
-        const userInstitution = canAccessAdmin ? selectedSchool : (schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid));
+        const userInstitution = canAccessAny ? selectedSchool : (schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid));
         
         const tools = [
           { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
@@ -15569,8 +15575,8 @@ function ExonaApp() {
                   onClick={() => { setView('tools'); setSidebarOpen(false); }} 
                 />
                 
-                {(schools.some(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')) || 
-                  places.some(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')) || 
+                {(schools.some(s => canAccessInstitutionData(s)) || 
+                  places.some(s => canAccessInstitutionData(s)) || 
                   userDoc?.role === 'admin') && (
                   <>
                     <div className="px-4 py-4">
