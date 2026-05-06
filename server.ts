@@ -46,21 +46,49 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Initialize Telegram Bot
 let bot: Telegraf | null = null;
+let isBotLaunching = false;
+
+async function stopBot() {
+  if (bot) {
+    console.log('Stopping Telegram bot...');
+    try {
+      await bot.stop();
+      bot = null;
+    } catch (err) {
+      console.error('Error stopping bot:', err);
+    }
+  }
+}
 
 function getBot() {
+  if (isBotLaunching) return bot;
+  
   if (!bot) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     if (!token) {
-      console.warn('TELEGRAM_BOT_TOKEN is not set. Telegram bot will not be active.');
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('TELEGRAM_BOT_TOKEN is not set. Telegram bot will not be active.');
+      }
       return null;
     }
-    bot = new Telegraf(token);
-    setupBot(bot);
-    bot.launch().then(() => {
+    
+    isBotLaunching = true;
+    const newBot = new Telegraf(token);
+    setupBot(newBot);
+    
+    newBot.launch().then(() => {
       console.log('Telegram bot launched successfully');
+      bot = newBot;
+      isBotLaunching = false;
     }).catch(err => {
       console.error('Failed to launch Telegram bot:', err);
+      isBotLaunching = false;
+      // If it's a conflict error on startup, it might be a lingering process.
+      // Telegraf usually handles the 'terminated by other request' after one retry,
+      // but we log it for visibility.
     });
+    
+    bot = newBot;
   }
   return bot;
 }
@@ -335,7 +363,7 @@ async function startServer() {
   }
 
   // Start the bot and other async services AFTER the server is listening
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Presidential Server active on http://localhost:${PORT}`);
     
     // Initialize Bot and DB connectivity checks in the background
@@ -355,6 +383,25 @@ async function startServer() {
       console.error('Failed to initialize background services:', err);
     }
   });
+
+  // Handle graceful shutdown
+  const shutdown = async (signal: string) => {
+    console.log(`Received ${signal}. Shutting down Presidential server...`);
+    await stopBot();
+    server.close(() => {
+      console.log('Server closed. Exit.');
+      process.exit(0);
+    });
+    
+    // Force exit if server doesn't close in 5s
+    setTimeout(() => {
+      console.error('Forcing exit after timeout');
+      process.exit(1);
+    }, 5000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 startServer().catch(err => {
