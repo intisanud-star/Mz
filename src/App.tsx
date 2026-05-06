@@ -1030,7 +1030,7 @@ interface StudentRecord {
   category: string;
   paid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms' | 'services' | 'products';
+  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary';
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   schoolId?: string;
@@ -1045,7 +1045,7 @@ interface Record {
   category: string;
   paid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms' | 'services' | 'products';
+  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary';
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   placeId?: string;
@@ -1211,6 +1211,11 @@ const getLabels = (type?: 'school' | 'place') => {
     books: 'Books',
     uniforms: 'Uniforms',
     general: 'General',
+    'Pre Nursery': 'Pre Nursery',
+    'Nursery': 'Nursery',
+    'Primary': 'Primary',
+    'Junior Secondary': 'Junior Secondary',
+    'Senior Secondary': 'Senior Secondary',
     school: 'School',
     attendance: 'Attendance',
     system: 'School Management System',
@@ -1832,7 +1837,7 @@ function ExonaApp() {
     }
   };
 
-  const [recordTab, setRecordTab] = useState<'general' | 'books' | 'uniforms' | 'services' | 'products'>('general');
+  const [recordTab, setRecordTab] = useState<string>('general');
   const [recordViewMode, setRecordViewMode] = useState<'classic' | 'microsoft' | 'bento'>('classic');
   const [hasChosenView, setHasChosenView] = useState(false);
   const [calcTuition, setCalcTuition] = useState<string>('');
@@ -5436,6 +5441,10 @@ function ExonaApp() {
       ]);
       showNotification('Institution deleted');
       setIsDeleteSchoolModalOpen(false);
+      if (selectedSchool?.id === schoolToDelete) {
+        setSelectedSchool(null);
+        setView('schools');
+      }
       setSchoolToDelete(null);
     } catch (error) {
       showNotification('Failed to delete institution', 'error');
@@ -7710,6 +7719,7 @@ function ExonaApp() {
                         <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institution</th>
                         <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Type</th>
                         <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Member Count</th>
+                        <th className="px-10 py-6 text-[10px] font-bold text-muted uppercase tracking-[0.3em] text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -7738,6 +7748,15 @@ function ExonaApp() {
                               </span>
                             </td>
                             <td className="px-10 py-8 font-mono font-bold text-ink text-sm">{memberCount} Members</td>
+                            <td className="px-10 py-8 text-right">
+                              <button 
+                                onClick={() => { setSchoolToDelete(school.id); setIsDeleteSchoolModalOpen(true); }}
+                                className="p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                title="Delete Institution"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </td>
                           </tr>
                         );
                       })}
@@ -7771,7 +7790,15 @@ function ExonaApp() {
                             <p className="text-[8px] font-black text-muted uppercase tracking-widest mb-0.5">Community Size</p>
                             <p className="font-mono font-black text-ink text-xs">{memberCount} Members</p>
                           </div>
-                          <ChevronRight size={14} className="text-muted/30" />
+                          <div className="flex gap-2">
+                             <button 
+                               onClick={() => { setSchoolToDelete(school.id); setIsDeleteSchoolModalOpen(true); }}
+                               className="p-2 text-red-400 hover:text-red-600 bg-white border border-gray-100 rounded-lg transition-all"
+                             >
+                               <Trash2 size={14} />
+                             </button>
+                             <ChevronRight size={14} className="text-muted/30 my-auto" />
+                          </div>
                         </div>
                       </div>
                     );
@@ -8377,7 +8404,7 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Edit Details</span>
                     </button>
-                    {selectedSchool.creatorUid === user?.uid && (
+                    {(selectedSchool.creatorUid === user?.uid || userDoc?.role === 'admin') && (
                       <button 
                         onClick={() => { setSchoolToDelete(selectedSchool.id); setIsDeleteSchoolModalOpen(true); }}
                         className="flex flex-col items-center gap-3 p-6 bg-red-50/30 rounded-2xl border border-transparent hover:border-red-100 transition-all group"
@@ -8804,7 +8831,7 @@ function ExonaApp() {
         }
         const labels = getLabels(selectedSchool?.type);
         const filteredRecords = records
-          .filter(r => r.type === recordTab)
+          .filter(r => recordTab === 'general' ? true : r.type === recordTab)
           .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()))
           .sort((a, b) => {
             if (recordSort === 'alphabet') {
@@ -8867,6 +8894,11 @@ function ExonaApp() {
           );
         }
 
+        const isSchool = selectedSchool?.type === 'school';
+        const currentRecordTabs = isSchool 
+          ? ['general', 'Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary']
+          : ['general', 'books', 'uniforms'];
+
         return (
           <WordLayout 
             title="Institutional Records"
@@ -8882,13 +8914,13 @@ function ExonaApp() {
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
                 <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
-                  {(['general', 'books', 'uniforms'] as const).map(tab => (
+                  {currentRecordTabs.map(tab => (
                     <button 
                       key={tab}
                       onClick={() => setRecordTab(tab)}
                       className={`px-3 sm:px-4 py-1.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
                     >
-                      {tab === 'general' ? labels.general : tab === 'books' ? labels.books : labels.uniforms}
+                      {(labels as any)[tab] || tab}
                     </button>
                   ))}
                 </div>
@@ -8948,7 +8980,7 @@ function ExonaApp() {
             }
           >
             <div className="mb-16 border-b border-gray-100 pb-12">
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Records • {new Date().toLocaleDateString()}</p>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{(labels as any)[recordTab] || recordTab} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
@@ -14570,8 +14602,8 @@ function ExonaApp() {
                 <div>
                   <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">
                     {editingRecord 
-                      ? `Edit ${recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Record` 
-                      : `Add ${recordTab === 'general' ? labels.general : recordTab === 'books' ? labels.books : labels.uniforms} Record`}
+                      ? `Edit ${(labels as any)[recordTab] || recordTab} Record` 
+                      : `Add ${(labels as any)[recordTab] || recordTab} Record`}
                   </h3>
                   <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
@@ -14810,7 +14842,7 @@ function ExonaApp() {
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Educational Levels</label>
                     <div className="flex flex-wrap gap-2">
-                      {['Pre-Nursery', 'Nursery', 'Primary', 'Secondary', 'Tertiary'].map((level) => (
+                      {['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary'].map((level) => (
                         <button
                           key={level}
                           type="button"
