@@ -4046,6 +4046,14 @@ function ExonaApp() {
     return unsubscribe;
   }, [user, schools, places]);
 
+  useEffect(() => {
+    if (!selectedSchool) return;
+    const updated = schools.find(s => s.id === selectedSchool.id) || places.find(p => p.id === selectedSchool.id);
+    if (updated && JSON.stringify(updated) !== JSON.stringify(selectedSchool)) {
+      setSelectedSchool(updated);
+    }
+  }, [schools, places, selectedSchool]);
+
   const [finance, setFinance] = useState<SchoolFinance | null>(null);
   const [settlementStep, setSettlementStep] = useState<'selection' | 'exona' | 'other' | 'airtime' | 'data' | 'bills' | 'pin' | 'success' | 'deposit'>('selection');
   const [settlementAmount, setSettlementAmount] = useState('');
@@ -7159,12 +7167,18 @@ function ExonaApp() {
   };
 
   const canManageInstitution = (school: School | Place | null) => {
-    if (!user || !userDoc) return false;
-    if (userDoc.role === 'admin') return true;
+    if (!user) return false;
+    if (userDoc?.role === 'admin') return true;
     if (!school) return false;
+    
+    // Always check main state for latest data to bypass stale props/state
+    const latestSchool = schools.find(s => s.id === school.id) || 
+                         places.find(p => p.id === school.id) || 
+                         school;
+
     // EXTENDED ACCESS: Creators and Administrative Viewers have full management access
-    return school.creatorUid === user.uid || 
-           school.administrativeViewers?.includes(user.uid);
+    return latestSchool.creatorUid === user.uid || 
+           latestSchool.administrativeViewers?.includes(user.uid);
   };
 
 
@@ -7360,14 +7374,22 @@ function ExonaApp() {
     return canManageInstitution(school) || userDoc?.role === 'admin';
   };
 
-  const handleNavigateToData = (targetView: string) => {
-    if (!selectedSchool) {
+  const handleNavigateToData = (targetView: string, schoolOverride?: School | Place | null) => {
+    const baseSchool = schoolOverride || selectedSchool;
+    if (!baseSchool) {
       showNotification('Please select an institution first', 'error');
       setView('schools');
       setSidebarOpen(false);
       return;
     }
-    if (canAccessInstitutionData(selectedSchool)) {
+
+    // Always use the latest data from the collections to ensure current permissions are used
+    const school = schools.find(s => s.id === baseSchool.id) || 
+                   places.find(p => p.id === baseSchool.id) || 
+                   baseSchool;
+
+    if (canAccessInstitutionData(school)) {
+      setSelectedSchool(school); // Sync it just in case
       setView(targetView as any);
       setSidebarOpen(false);
     } else {
@@ -7915,17 +7937,17 @@ function ExonaApp() {
                           </div>
                           
                           {/* Institution Action Buttons */}
-                          {(school.creatorUid === user?.uid || userDoc?.role === 'admin' || school.administrativeViewers?.includes(user?.uid || '')) && (
+                          {canManageInstitution(school) && (
                             <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                               <button 
-                                onClick={() => { setSelectedSchool(school); handleNavigateToData('records'); }}
+                                onClick={() => { setSelectedSchool(school); handleNavigateToData('records', school); }}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
                               >
                                 <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
                                 <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
                               </button>
                               <button 
-                                onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance'); }}
+                                onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance', school); }}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
                               >
                                 <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
@@ -9949,7 +9971,7 @@ function ExonaApp() {
 
         const institutionPosts = posts.filter(p => p.schoolId === inst.id);
         const isFollowing = userDoc?.following?.includes(inst.id);
-        const canManage = userDoc?.role === 'admin' || inst.creatorUid === user?.uid || inst.administrativeViewers?.includes(user?.uid || '');
+        const canManage = canManageInstitution(inst);
         const instLabels = getLabels(inst.type);
 
         return (
@@ -10042,14 +10064,14 @@ function ExonaApp() {
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">Administrative Access</p>
                   <div className="flex flex-wrap gap-3">
                     <button 
-                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records'); }}
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records', inst as School); }}
                       className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
                     >
                       <ClipboardList size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.student} Records</span>
                     </button>
                     <button 
-                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance'); }}
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance', inst as School); }}
                       className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
                     >
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
@@ -13460,6 +13482,21 @@ function ExonaApp() {
                       <div className="flex items-center gap-2">
                         <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
                         <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
+                        {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await sendEmailVerification(user);
+                                showNotification('Verification email sent!');
+                              } catch (e: any) {
+                                showNotification(e.message || 'Failed to send verification', 'error');
+                              }
+                            }}
+                            className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
+                          >
+                            Verify Email
+                          </button>
+                        )}
                       </div>
                     </motion.div>
                   )}
