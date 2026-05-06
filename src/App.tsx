@@ -5364,6 +5364,10 @@ function ExonaApp() {
   const handleCreateRecord = async () => {
     console.log('handleCreateRecord started', { user: !!user, studentName: newRecord.studentName, selectedSchool: !!selectedSchool });
     if (!user) { setView('login'); return; }
+    if (!canManageInstitution(selectedSchool)) {
+      showNotification('Unauthorized action', 'error');
+      return;
+    }
     if (!newRecord.studentName.trim() || !selectedSchool) {
       console.warn('handleCreateRecord: missing required fields', { studentName: newRecord.studentName, selectedSchool: !!selectedSchool });
       return;
@@ -5415,6 +5419,10 @@ function ExonaApp() {
     console.log('handleCreateAttendance started', { user: !!user, selectedSchool: !!selectedSchool, teacherName: newAttendance.teacherName });
     if (!user || !selectedSchool || !newAttendance.teacherName.trim()) {
       console.warn('handleCreateAttendance aborted: missing required fields', { user: !!user, selectedSchool: !!selectedSchool, teacherName: newAttendance.teacherName });
+      return;
+    }
+    if (!canManageInstitution(selectedSchool)) {
+      showNotification('Unauthorized action', 'error');
       return;
     }
     setIsUploading(true);
@@ -6601,8 +6609,8 @@ function ExonaApp() {
       // Personalized Feed
       const following = userDoc.following || [];
       const managedIds = [
-        ...schools.filter(s => s.creatorUid === user.uid).map(s => s.id),
-        ...places.filter(p => p.creatorUid === user.uid).map(p => p.id)
+        ...schools.filter(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)).map(s => s.id),
+        ...places.filter(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid)).map(p => p.id)
       ];
       const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
       
@@ -7154,10 +7162,9 @@ function ExonaApp() {
     if (!user || !userDoc) return false;
     if (userDoc.role === 'admin') return true;
     if (!school) return false;
-    // EXTENDED ACCESS: Creators, Administrative Viewers, and Approved Followers have access
+    // EXTENDED ACCESS: Creators and Administrative Viewers have full management access
     return school.creatorUid === user.uid || 
-           school.administrativeViewers?.includes(user.uid) || 
-           school.followers?.includes(user.uid);
+           school.administrativeViewers?.includes(user.uid);
   };
 
 
@@ -7217,7 +7224,7 @@ function ExonaApp() {
   };
 
   const handleApproveFollower = async (school: School | Place, followerUid: string) => {
-    if (!user) return;
+    if (!user || !canManageInstitution(school)) return;
     try {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
@@ -7251,7 +7258,7 @@ function ExonaApp() {
   };
 
   const handleRejectFollower = async (school: School | Place, followerUid: string) => {
-    if (!user) return;
+    if (!user || !canManageInstitution(school)) return;
     try {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
@@ -7297,7 +7304,7 @@ function ExonaApp() {
   };
 
   const handleApproveAuditor = async (school: School | Place, applicantUid: string) => {
-    if (!user) return;
+    if (!user || !canManageInstitution(school)) return;
     try {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
@@ -7323,7 +7330,7 @@ function ExonaApp() {
   };
 
   const handleRejectAuditor = async (school: School | Place, applicantUid: string) => {
-    if (!user) return;
+    if (!user || !canManageInstitution(school)) return;
     try {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
