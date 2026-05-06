@@ -134,6 +134,15 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Basic root health check
+  app.get('/ping', (req, res) => res.send('pong'));
+
+  // Log all incoming requests for debugging
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
   // API Health Check
   app.get('/api/health', async (req, res) => {
     let dbStatus = 'unknown';

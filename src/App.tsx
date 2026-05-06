@@ -1705,11 +1705,17 @@ function ExonaApp() {
 
   const fetchBroadcastHistory = useCallback(() => {
     fetch('/api/admin/broadcasts')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (data.success) setBroadcastHistory(data.broadcasts);
       })
-      .catch(console.error);
+      .catch(err => {
+        console.error('Failed to fetch broadcasts:', err);
+        showNotification(`Broadcast history error: ${err.message}`, 'error');
+      });
   }, []);
 
   const startY = useRef(0);
@@ -1758,11 +1764,17 @@ function ExonaApp() {
 
   useEffect(() => {
     fetch('/api/admin/stats')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (data.success) setCommunitySize(data.communitySize);
       })
-      .catch(err => console.error('Failed to fetch community stats:', err));
+      .catch(err => {
+        console.error('Failed to fetch community stats:', err);
+        showNotification(`API Error: ${err.message}`, 'error');
+      });
     
     fetchBroadcastHistory();
   }, [fetchBroadcastHistory]);
@@ -3963,6 +3975,66 @@ function ExonaApp() {
   const [verifiedPortalAccess, setVerifiedPortalAccess] = useState<string[]>([]);
   const [pendingKeyRequests, setPendingKeyRequests] = useState<any[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
+
+  function canManageInstitution(school: School | Place | null) {
+    if (!user) return false;
+    if (userDoc?.role === 'admin') return true;
+    if (!school) return false;
+    
+    // Always check main state for latest data
+    const latestSchool = schools.find(s => s.id === school.id) || 
+                         places.find(p => p.id === school.id) || 
+                         school;
+
+    return latestSchool.creatorUid === user.uid || 
+           (latestSchool.administrativeViewers && latestSchool.administrativeViewers.includes(user.uid));
+  }
+
+  function canAccessInstitutionData(school: School | Place | null) {
+    if (!user || !school) return false;
+    if (userDoc?.role === 'admin') return true;
+
+    const latest = schools.find(s => s.id === school.id) || 
+                   places.find(p => p.id === school.id) || 
+                   school;
+    
+    // Access allowed for: Creator, Administrative Viewers (Auditors), and Approved Followers (Members)
+    return latest.creatorUid === user.uid || 
+           (latest.administrativeViewers && latest.administrativeViewers.includes(user.uid)) ||
+           (latest.followers && latest.followers.includes(user.uid));
+  }
+
+  function handleNavigateToData(targetView: string, schoolOverride?: School | Place | null) {
+    const baseSchool = schoolOverride || selectedSchool;
+    if (!baseSchool) {
+      showNotification('Please select an institution first', 'error');
+      setView('schools');
+      setSidebarOpen(false);
+      return;
+    }
+
+    // Always use the latest data from the collections to ensure current permissions are used
+    const school = schools.find(s => s.id === baseSchool.id) || 
+                   places.find(p => p.id === baseSchool.id) || 
+                   baseSchool;
+
+    if (canAccessInstitutionData(school)) {
+      setSelectedSchool(school); // Sync it just in case
+      setView(targetView as any);
+      setSidebarOpen(false);
+    } else {
+      showNotification('Access denied. You must be an approved member.', 'error');
+    }
+  }
+
+  function canUserReply(post: Post, school: any) {
+    if (!user) return false;
+    if (canManageInstitution(school) || userDoc?.role === 'admin') return true;
+    const permission = school?.replyPermission || 'everyone';
+    if (permission === 'everyone') return true;
+    if (permission === 'followers') return school?.followers?.includes(user.uid);
+    return false;
+  }
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
   useEffect(() => {
@@ -4932,7 +5004,6 @@ function ExonaApp() {
       window.history.replaceState({}, '', newUrl);
     }
   }, []);
-
   const managedInstitutions = [...schools, ...places].filter(s => canManageInstitution(s));
 
   useEffect(() => {
@@ -7167,22 +7238,6 @@ function ExonaApp() {
     }
   };
 
-  const canManageInstitution = (school: School | Place | null) => {
-    if (!user) return false;
-    if (userDoc?.role === 'admin') return true;
-    if (!school) return false;
-    
-    // Always check main state for latest data
-    const latestSchool = schools.find(s => s.id === school.id) || 
-                         places.find(p => p.id === school.id) || 
-                         school;
-
-    return latestSchool.creatorUid === user.uid || 
-           (latestSchool.administrativeViewers && latestSchool.administrativeViewers.includes(user.uid));
-  };
-
-
-
   const handleFollowInstitution = async (school: School | Place) => {
     if (!user) { setView('login'); return; }
     try {
@@ -7359,51 +7414,6 @@ function ExonaApp() {
     }
   };
 
-  const canUserReply = (post: Post, school: any) => {
-    if (!user) return false;
-    if (canManageInstitution(school) || userDoc?.role === 'admin') return true;
-    const permission = school?.replyPermission || 'everyone';
-    if (permission === 'everyone') return true;
-    if (permission === 'followers') return school?.followers?.includes(user.uid);
-    return false;
-  };
-
-  const canAccessInstitutionData = (school: School | Place | null) => {
-    if (!user || !school) return false;
-    if (userDoc?.role === 'admin') return true;
-
-    const latest = schools.find(s => s.id === school.id) || 
-                   places.find(p => p.id === school.id) || 
-                   school;
-    
-    // Access allowed for: Creator, Administrative Viewers (Auditors), and Approved Followers (Members)
-    return latest.creatorUid === user.uid || 
-           (latest.administrativeViewers && latest.administrativeViewers.includes(user.uid)) ||
-           (latest.followers && latest.followers.includes(user.uid));
-  };
-
-  const handleNavigateToData = (targetView: string, schoolOverride?: School | Place | null) => {
-    const baseSchool = schoolOverride || selectedSchool;
-    if (!baseSchool) {
-      showNotification('Please select an institution first', 'error');
-      setView('schools');
-      setSidebarOpen(false);
-      return;
-    }
-
-    // Always use the latest data from the collections to ensure current permissions are used
-    const school = schools.find(s => s.id === baseSchool.id) || 
-                   places.find(p => p.id === baseSchool.id) || 
-                   baseSchool;
-
-    if (canAccessInstitutionData(school)) {
-      setSelectedSchool(school); // Sync it just in case
-      setView(targetView as any);
-      setSidebarOpen(false);
-    } else {
-      showNotification('Access denied. You must be an approved member.', 'error');
-    }
-  };
 
   const renderView = () => {
     switch (view) {
