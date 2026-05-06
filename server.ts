@@ -13,23 +13,38 @@ if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
 
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
+let firebaseConfig = {};
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  } else {
+    console.warn('firebase-applet-config.json not found in', configPath);
+  }
+} catch (err) {
+  console.error('Failed to load firebase-applet-config.json:', err);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Initialize Firebase Client SDK for backend (to bypass ADC project mismatch)
-const clientApp = initializeClientApp(firebaseConfig);
-const db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId || '(default)');
+let db: any;
+if ((firebaseConfig as any).projectId) {
+  const clientApp = initializeClientApp(firebaseConfig);
+  db = getClientFirestore(clientApp, (firebaseConfig as any).firestoreDatabaseId || '(default)');
 
-// Basic DB Connectivity Check
-getDocs(query(collection(db, 'users'), where('source', '==', 'telegram'), limit(1)))
-  .then((snap) => {
-    console.log('Successfully connected to Firestore (Client SDK). Total users observed:', snap.size);
-  })
-  .catch(err => {
-    console.error('Firestore connection error (Client SDK):', err.message);
-  });
+  // Basic DB Connectivity Check
+  getDocs(query(collection(db, 'users'), where('source', '==', 'telegram'), limit(1)))
+    .then((snap) => {
+      console.log('Successfully connected to Firestore (Client SDK). Total users observed:', snap.size);
+    })
+    .catch(err => {
+      console.error('Firestore connection error (Client SDK):', err.message);
+    });
+} else {
+  console.error('Firebase configuration is incomplete. Database operations will fail.');
+}
 
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

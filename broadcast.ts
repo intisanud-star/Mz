@@ -5,13 +5,24 @@ import fs from 'fs';
 import path from 'path';
 import dotenv from 'dotenv';
 
-const firebaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'firebase-applet-config.json'), 'utf8'));
+let firebaseConfig = {};
+try {
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  if (fs.existsSync(configPath)) {
+    firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  }
+} catch (err) {
+  console.error('Failed to load firebase-applet-config.json in broadcast.ts');
+}
 
 dotenv.config();
 
 // Initialize Firebase Client SDK
-const clientApp = initializeClientApp(firebaseConfig);
-const db = getClientFirestore(clientApp, firebaseConfig.firestoreDatabaseId || '(default)');
+let db: any;
+if ((firebaseConfig as any).projectId) {
+  const clientApp = initializeClientApp(firebaseConfig);
+  db = getClientFirestore(clientApp, (firebaseConfig as any).firestoreDatabaseId || '(default)');
+}
 const token = process.env.TELEGRAM_BOT_TOKEN;
 
 if (!token) {
