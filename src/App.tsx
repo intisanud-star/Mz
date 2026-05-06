@@ -1914,7 +1914,7 @@ function ExonaApp() {
 
     if (toolId === 'e-test') {
       // Find the relevant institution: selected one or one owned by user
-      const inst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+      const inst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
       
       if (!inst) {
         showNotification('Select a school or place to access this portal', 'success');
@@ -1942,7 +1942,7 @@ function ExonaApp() {
         }
       }
     } else if (toolId === 'e-exam') {
-      const inst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+      const inst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
       if (!inst) {
         showNotification('Select a school or place to access this portal', 'success');
         return;
@@ -4024,7 +4024,8 @@ function ExonaApp() {
 
   useEffect(() => {
     if (!user) return;
-    const inst = schools.find(s => s.creatorUid === user.uid) || places.find(p => p.creatorUid === user.uid);
+    const inst = schools.find(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)) || 
+                 places.find(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid));
     if (!inst) return;
     
     const q = query(
@@ -4932,7 +4933,7 @@ function ExonaApp() {
     }
   }, []);
 
-  const managedInstitutions = [...schools, ...places].filter(s => s.creatorUid === user?.uid);
+  const managedInstitutions = [...schools, ...places].filter(s => canManageInstitution(s));
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -6690,7 +6691,7 @@ function ExonaApp() {
         });
       } else {
         // Non-admins see records for institutions they own, manage, OR follow (for complete access)
-        const ownedIds = [...schools, ...places].filter(s => s.creatorUid === user.uid).map(s => s.id);
+        const ownedIds = [...schools, ...places].filter(s => canManageInstitution(s)).map(s => s.id);
         const followedIds = [...schools, ...places].filter(s => s.followers?.includes(user.uid)).map(s => s.id);
         const viewerIds = [...schools, ...places].filter(s => s.administrativeViewers?.includes(user.uid)).map(s => s.id);
         
@@ -7171,14 +7172,13 @@ function ExonaApp() {
     if (userDoc?.role === 'admin') return true;
     if (!school) return false;
     
-    // Always check main state for latest data to bypass stale props/state
+    // Always check main state for latest data
     const latestSchool = schools.find(s => s.id === school.id) || 
                          places.find(p => p.id === school.id) || 
                          school;
 
-    // EXTENDED ACCESS: Creators and Administrative Viewers have full management access
     return latestSchool.creatorUid === user.uid || 
-           latestSchool.administrativeViewers?.includes(user.uid);
+           (latestSchool.administrativeViewers && latestSchool.administrativeViewers.includes(user.uid));
   };
 
 
@@ -7370,8 +7370,16 @@ function ExonaApp() {
 
   const canAccessInstitutionData = (school: School | Place | null) => {
     if (!user || !school) return false;
-    // Only creators, administrative viewers, and system admins can see sensitive institutional data
-    return canManageInstitution(school) || userDoc?.role === 'admin';
+    if (userDoc?.role === 'admin') return true;
+
+    const latest = schools.find(s => s.id === school.id) || 
+                   places.find(p => p.id === school.id) || 
+                   school;
+    
+    // Access allowed for: Creator, Administrative Viewers (Auditors), and Approved Followers (Members)
+    return latest.creatorUid === user.uid || 
+           (latest.administrativeViewers && latest.administrativeViewers.includes(user.uid)) ||
+           (latest.followers && latest.followers.includes(user.uid));
   };
 
   const handleNavigateToData = (targetView: string, schoolOverride?: School | Place | null) => {
@@ -8514,7 +8522,7 @@ function ExonaApp() {
         const invitesCount = userDoc?.invitesCount || 0;
         const isQualified = userDoc?.isLifetimeFree || invitesCount >= 3;
         const inviteProgress = Math.min(invitesCount, 3);
-        const myInstitutions = [...schools, ...places].filter(s => s.creatorUid === user?.uid);
+        const myInstitutions = [...schools, ...places].filter(s => canManageInstitution(s));
 
         return (
           <div className="w-full max-w-xl mx-auto pb-32">
@@ -11065,7 +11073,7 @@ function ExonaApp() {
         ];
 
         if (activeWorkspaceTool === 'e-test') {
-          const activeInst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+          const activeInst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
           return (
             <WordLayout
               title="E-Test Portal"
@@ -11209,7 +11217,7 @@ function ExonaApp() {
         }
 
         if (activeWorkspaceTool === 'e-exam') {
-          const activeInst = selectedSchool || selectedPlace || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid);
+          const activeInst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
           
           if (isExamStarted) {
             const currentQuestions = activeExamQuestions[examCurrentSubject] || [];
@@ -13665,7 +13673,7 @@ function ExonaApp() {
 
               {/* Institutional Profile Management */}
               {(() => {
-                const myInstitutions = [...schools, ...places].filter(inst => inst.creatorUid === user?.uid);
+                const myInstitutions = [...schools, ...places].filter(inst => canManageInstitution(inst));
                 if (myInstitutions.length === 0) return null;
                 return (
                   <section>
@@ -15959,7 +15967,7 @@ function ExonaApp() {
                       </button>
 
                       {/* Post as Institution */}
-                      {[...schools, ...places].filter(s => s.creatorUid === user?.uid).map(s => (
+                      {[...schools, ...places].filter(s => canManageInstitution(s)).map(s => (
                         <button 
                           key={s.id}
                           onClick={() => {
