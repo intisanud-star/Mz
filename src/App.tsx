@@ -948,6 +948,7 @@ interface TeacherAttendance {
   category?: string;
   status: 'present' | 'absent' | 'late';
   date: string;
+  time?: string;
   timestamp: any;
   addedBy: string;
 }
@@ -2036,7 +2037,7 @@ function ExonaApp() {
   const [myFollowers, setMyFollowers] = useState<UserDoc[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [isAddRoutineModalOpen, setIsAddRoutineModalOpen] = useState(false);
-  const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'] });
+  const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'], time: '' });
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
@@ -5605,11 +5606,12 @@ function ExonaApp() {
         category: newAttendance.category.trim() || 'General',
         status: newAttendance.status,
         date: new Date().toISOString().split('T')[0],
+        time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         addedBy: user.displayName || 'Anonymous',
         timestamp: serverTimestamp()
       });
       console.log('Attendance record added successfully');
-      setNewAttendance({ teacherName: '', category: '', status: 'present' });
+      setNewAttendance({ teacherName: '', category: '', status: 'present', time: '' });
       setIsAttendanceModalOpen(false);
     } catch (error) {
       console.error('Attendance operation failed', error);
@@ -10003,9 +10005,70 @@ function ExonaApp() {
         );
       }
       case 'daily-routine': {
-        if (!user || !selectedSchool) { setView('schools'); return null; }
-        const isManager = canManageInstitution(selectedSchool);
+        if (!user) { setView('login'); return null; }
+        
+        // If no school selected, show selection UI
+        if (!selectedSchool) {
+          const myInstitutions = [...schools, ...places].filter(s => 
+            s.creatorUid === user.uid || s.followers?.includes(user.uid) || s.administrativeViewers?.includes(user.uid)
+          );
 
+          return (
+            <WordLayout 
+              title={labels.routine}
+              subtitle="Select Institution to View routine"
+              icon={Activity}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+            >
+              <div className="max-w-4xl mx-auto py-12 px-4 text-center">
+                <div className="h-20 w-20 bg-accent/5 text-accent rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                  <Activity size={40} />
+                </div>
+                <h2 className="text-3xl font-extrabold text-ink mb-2">Institutional Schedules</h2>
+                <p className="text-muted font-medium mb-12">Select an institution to view or manage its daily routine</p>
+                
+                {myInstitutions.length === 0 ? (
+                  <div className="p-12 bg-gray-50 rounded-[2.5rem] border border-dashed border-gray-200">
+                    <p className="text-muted font-bold mb-6">You don't have any registered institutions yet.</p>
+                    <button onClick={() => setView('schools')} className="px-8 py-4 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-ink/90 transition-all">
+                      Go to Directory
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {myInstitutions.map(inst => (
+                      <button
+                        key={inst.id}
+                        onClick={() => { setSelectedSchool(inst); handleNavigateToData('daily-routine', inst); }}
+                        className="group p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-accent hover:shadow-xl hover:shadow-accent/5 transition-all text-left flex items-center gap-4"
+                      >
+                        <div className="h-14 w-14 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100 shrink-0">
+                          {inst.logo ? (
+                            <img src={inst.logo} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-accent text-lg font-black uppercase">
+                              {inst.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-ink truncate">{inst.name}</h3>
+                          <p className="text-[10px] text-muted uppercase tracking-wider font-bold truncate">
+                            {inst.type === 'school' ? 'Educational' : 'Operations'}
+                          </p>
+                        </div>
+                        <ChevronRight size={18} className="text-gray-300 group-hover:text-accent transition-colors" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </WordLayout>
+          );
+        }
+
+        const isManager = canManageInstitution(selectedSchool);
         const routineCategories = Array.from(new Set(dailyRoutines.map(r => r.category || 'General').filter(Boolean)));
         const filteredRoutines = dailyRoutines.filter(r => {
           return routineCategoryFilter === 'all' || (r.category || 'General') === routineCategoryFilter;
@@ -10024,13 +10087,16 @@ function ExonaApp() {
             hideBranding={true}
             hideIcon={true}
             toolbar={
-              <div className="flex items-center gap-4">
-                <button onClick={() => setView('school-feed')} className="px-4 py-1.5 bg-white border border-gray-100 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back</button>
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
+                <button onClick={() => setView('school-feed')} className="px-3 sm:px-4 py-1.5 bg-white border border-gray-100 text-ink rounded-lg font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back</button>
+                <button onClick={() => setSelectedSchool(null)} className="px-3 sm:px-4 py-1.5 bg-gray-50 border border-gray-100 text-muted rounded-lg font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-white transition-all flex items-center gap-2">
+                  <Repeat size={12} /> Switch
+                </button>
                 {routineCategories.length > 0 && (
                   <select
                     value={routineCategoryFilter}
                     onChange={(e) => setRoutineCategoryFilter(e.target.value)}
-                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg outline-none text-[11px] font-medium text-ink focus:border-accent"
+                    className="px-2 sm:px-3 py-1.5 bg-white border border-gray-200 rounded-lg outline-none text-[10px] sm:text-[11px] font-bold text-ink focus:border-accent"
                   >
                     <option value="all">All Categories</option>
                     {routineCategories.map(cat => (
@@ -10039,7 +10105,7 @@ function ExonaApp() {
                   </select>
                 )}
                 {isManager && (
-                  <button onClick={() => setIsAddRoutineModalOpen(true)} className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-2">
+                  <button onClick={() => setIsAddRoutineModalOpen(true)} className="px-3 sm:px-4 py-1.5 bg-ink text-white rounded-lg font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-2">
                     <Plus size={14} /> Add Routine
                   </button>
                 )}
@@ -10223,6 +10289,7 @@ function ExonaApp() {
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Time</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
                   </tr>
@@ -10250,6 +10317,7 @@ function ExonaApp() {
                             {record.status}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-[12px] font-bold text-ink">{record.time || '--:--'}</td>
                         <td className="px-6 py-4 text-[12px] font-medium text-muted">{record.date}</td>
                         <td className="px-6 py-4 text-right text-[12px] font-medium text-muted">{record.addedBy}</td>
                       </tr>
@@ -10284,7 +10352,10 @@ function ExonaApp() {
                         <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Recorded By</span>
                         <span className="text-[10px] font-medium text-ink">{record.addedBy}</span>
                       </div>
-                      <span className="text-[10px] font-medium text-muted">{record.date}</span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-bold text-ink">{record.time || '--:--'}</span>
+                        <span className="text-[10px] font-medium text-muted">{record.date}</span>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -15531,6 +15602,16 @@ function ExonaApp() {
                       </button>
                     )}
                   </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Record Time (Optional)</label>
+                  <input 
+                    type="text" 
+                    value={newAttendance.time}
+                    onChange={(e) => setNewAttendance({...newAttendance, time: e.target.value})}
+                    placeholder={`e.g. ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                    className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                  />
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Presence Status</label>
