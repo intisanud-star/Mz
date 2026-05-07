@@ -958,6 +958,7 @@ interface DailyRoutine {
   creatorUid: string;
   title: string;
   activity: string;
+  category?: string;
   timeSlot: string;
   notes?: string;
   timestamp: any;
@@ -1217,7 +1218,8 @@ const getLabels = (type?: 'school' | 'place') => {
       school: 'Place',
       attendance: 'Participation',
       system: 'Management System',
-      educationalLevel: 'Category'
+      educationalLevel: 'Category',
+      routine: 'Schedule'
     };
   }
   return {
@@ -1236,7 +1238,8 @@ const getLabels = (type?: 'school' | 'place') => {
     school: 'School',
     attendance: 'Attendance',
     system: 'School Management System',
-    educationalLevel: 'Class/Level'
+    educationalLevel: 'Class/Level',
+    routine: 'Daily Routine'
   };
 };
 
@@ -1802,7 +1805,7 @@ function ExonaApp() {
   }, [fetchBroadcastHistory]);
   const [records, setRecords] = useState<Record[]>([]);
   const [dailyRoutines, setDailyRoutines] = useState<DailyRoutine[]>([]);
-  const [newRoutine, setNewRoutine] = useState({ title: '', activity: '', timeSlot: '', notes: '' });
+  const [newRoutine, setNewRoutine] = useState({ title: '', activity: '', category: '', timeSlot: '', notes: '' });
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
@@ -4314,6 +4317,7 @@ function ExonaApp() {
   const [recordSearch, setRecordSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [attendanceCategoryFilter, setAttendanceCategoryFilter] = useState('all');
+  const [routineCategoryFilter, setRoutineCategoryFilter] = useState('all');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
   const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date' | 'class'>('alphabet');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
@@ -5629,12 +5633,13 @@ function ExonaApp() {
     try {
       await addDoc(collection(db, 'dailyRoutines'), {
         ...newRoutine,
+        category: newRoutine.category.trim() || 'General',
         institutionId: selectedSchool.id,
         creatorUid: user.uid,
         timestamp: serverTimestamp()
       });
       showNotification('Daily routine added');
-      setNewRoutine({ title: '', activity: '', timeSlot: '', notes: '' });
+      setNewRoutine({ title: '', activity: '', category: '', timeSlot: '', notes: '' });
       setIsAddRoutineModalOpen(false);
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'dailyRoutines');
@@ -8446,7 +8451,7 @@ function ExonaApp() {
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
                         <Activity size={20} />
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Daily Routine</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
                     </button>
                   </div>
                 </div>
@@ -10001,9 +10006,14 @@ function ExonaApp() {
         if (!user || !selectedSchool) { setView('schools'); return null; }
         const isManager = canManageInstitution(selectedSchool);
 
+        const routineCategories = Array.from(new Set(dailyRoutines.map(r => r.category || 'General').filter(Boolean)));
+        const filteredRoutines = dailyRoutines.filter(r => {
+          return routineCategoryFilter === 'all' || (r.category || 'General') === routineCategoryFilter;
+        });
+
         return (
           <WordLayout 
-            title="Daily Routine"
+            title={labels.routine}
             subtitle="Activity Schedule & Tasks"
             icon={Activity}
             branding={{ name: selectedSchool.name }}
@@ -10016,6 +10026,18 @@ function ExonaApp() {
             toolbar={
               <div className="flex items-center gap-4">
                 <button onClick={() => setView('school-feed')} className="px-4 py-1.5 bg-white border border-gray-100 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back</button>
+                {routineCategories.length > 0 && (
+                  <select
+                    value={routineCategoryFilter}
+                    onChange={(e) => setRoutineCategoryFilter(e.target.value)}
+                    className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg outline-none text-[11px] font-medium text-ink focus:border-accent"
+                  >
+                    <option value="all">All Categories</option>
+                    {routineCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                )}
                 {isManager && (
                   <button onClick={() => setIsAddRoutineModalOpen(true)} className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-2">
                     <Plus size={14} /> Add Routine
@@ -10036,17 +10058,17 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                {dailyRoutines.length === 0 ? (
+                {filteredRoutines.length === 0 ? (
                   <div className="py-20 text-center">
                     <div className="h-20 w-20 bg-gray-50 text-gray-300 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
                       <Clock size={32} />
                     </div>
-                    <p className="text-muted font-bold text-sm">No daily routines recorded yet.</p>
+                    <p className="text-muted font-bold text-sm">No {routineCategoryFilter !== 'all' ? routineCategoryFilter : 'daily'} routines recorded yet.</p>
                     {isManager && <p className="text-[10px] text-muted uppercase tracking-widest mt-2">Click "Add Routine" to get started</p>}
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {dailyRoutines.map(routine => (
+                    {filteredRoutines.map(routine => (
                       <div key={routine.id} className="group p-6 bg-gray-50 rounded-3xl border border-transparent hover:border-gray-100 transition-all flex items-start justify-between">
                         <div className="flex gap-6">
                           <div className="h-12 w-12 bg-white rounded-2xl flex flex-col items-center justify-center text-accent border border-gray-100 shrink-0">
@@ -10054,7 +10076,10 @@ function ExonaApp() {
                             <span className="text-[9px] font-black mt-0.5">{routine.timeSlot || '--:--'}</span>
                           </div>
                           <div>
-                            <h4 className="font-bold text-ink text-base mb-1">{routine.title}</h4>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h4 className="font-bold text-ink text-base">{routine.title}</h4>
+                              <span className="text-[9px] font-bold text-muted uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-gray-100">{routine.category || 'General'}</span>
+                            </div>
                             <p className="text-sm text-neutral-600 mb-2 leading-relaxed">{routine.activity}</p>
                             {routine.notes && (
                               <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded-lg text-[10px] font-bold text-muted uppercase tracking-widest">
@@ -12895,6 +12920,7 @@ function ExonaApp() {
           { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
           { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
           { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for the E-Test portal', icon: Lock, color: 'indigo-600' },
+          { id: 'daily-routine', name: labels.routine, description: 'Manage institutional activity schedule', icon: Activity, color: 'cyan-600' },
           { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
           { id: 'exona-premium', name: 'Exona Premium Quiz', description: 'The ultimate challenge for elite scholars with exclusive rewards.', icon: Stars, color: 'yellow-600' },
         ];
@@ -13764,6 +13790,10 @@ function ExonaApp() {
                   whileHover={{ scale: 1.02, y: -5 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
+                    if (tool.id === 'daily-routine') {
+                      setView('daily-routine');
+                      return;
+                    }
                     if (tool.id === 'brain-battle') {
                       if (!isBattleWindowOpen()) {
                         fetchLeaderboard();
@@ -15562,6 +15592,54 @@ function ExonaApp() {
               
               <div className="space-y-6">
                 <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">{labels.educationalLevel} / Category</label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {Array.from(new Set([
+                      ...(selectedSchool?.educationalLevels || []),
+                      'General', 'Science', 'Arts', 'Commercial', 'Staff', 'Management'
+                    ])).map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setNewRoutine({...newRoutine, category: cat})}
+                        className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                          newRoutine.category === cat 
+                            ? 'bg-ink text-white border-ink' 
+                            : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newRoutine.category}
+                      onChange={(e) => setNewRoutine({...newRoutine, category: e.target.value})}
+                      placeholder="Or enter custom category..."
+                      className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                    {newRoutine.category && selectedSchool && !(selectedSchool.educationalLevels || []).includes(newRoutine.category) && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const schoolRef = doc(db, 'schools', selectedSchool.id);
+                            await updateDoc(schoolRef, {
+                              educationalLevels: arrayUnion(newRoutine.category)
+                            });
+                            showNotification('Category saved to list', 'success');
+                          } catch (error) {
+                            console.error('Failed to save category', error);
+                          }
+                        }}
+                        className="px-6 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                      >
+                        Save
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Routine Title (e.g. Morning Assembly)</label>
                   <input 
                     type="text" 
@@ -16202,6 +16280,12 @@ function ExonaApp() {
                       label={labels.attendance} 
                       active={view === 'attendance'} 
                       onClick={() => handleNavigateToData('attendance')} 
+                    />
+                    <SidebarItem 
+                      icon={Activity} 
+                      label={labels.routine} 
+                      active={view === 'daily-routine'} 
+                      onClick={() => { setView('daily-routine'); setSidebarOpen(false); }} 
                     />
                     <SidebarItem 
                       icon={Shield} 

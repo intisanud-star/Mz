@@ -364,6 +364,7 @@
         "creatorUid": { "type": "string" },
         "title": { "type": "string" },
         "activity": { "type": "string" },
+        "category": { "type": "string" },
         "timeSlot": { "type": "string" },
         "notes": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" }
