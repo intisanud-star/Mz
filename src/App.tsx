@@ -904,6 +904,7 @@ interface Place {
   creatorUid: string;
   timestamp: any;
   isOfficial?: boolean;
+  educationalLevels?: string[];
   followers?: string[];
   pendingFollowers?: string[];
   replyPermission?: 'everyone' | 'followers' | 'none';
@@ -944,10 +945,22 @@ interface TeacherAttendance {
   id: string;
   teacherName: string;
   schoolId: string;
+  category?: string;
   status: 'present' | 'absent' | 'late';
   date: string;
   timestamp: any;
   addedBy: string;
+}
+
+interface DailyRoutine {
+  id: string;
+  institutionId: string;
+  creatorUid: string;
+  title: string;
+  activity: string;
+  timeSlot: string;
+  notes?: string;
+  timestamp: any;
 }
 
 interface School {
@@ -1027,10 +1040,12 @@ interface Story {
 interface StudentRecord {
   id: string;
   studentName: string;
+  studentClass?: string;
+  parentNumber?: string;
   category: string;
   paid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary';
+  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary' | string;
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   schoolId?: string;
@@ -1042,10 +1057,12 @@ interface StudentRecord {
 interface Record {
   id: string;
   studentName: string;
+  studentClass?: string;
+  parentNumber?: string;
   category: string;
   paid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary';
+  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary' | string;
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   placeId?: string;
@@ -1670,7 +1687,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -1784,6 +1801,8 @@ function ExonaApp() {
     fetchBroadcastHistory();
   }, [fetchBroadcastHistory]);
   const [records, setRecords] = useState<Record[]>([]);
+  const [dailyRoutines, setDailyRoutines] = useState<DailyRoutine[]>([]);
+  const [newRoutine, setNewRoutine] = useState({ title: '', activity: '', timeSlot: '', notes: '' });
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
@@ -2013,7 +2032,8 @@ function ExonaApp() {
   const [chatGroups, setChatGroups] = useState<any[]>([]);
   const [myFollowers, setMyFollowers] = useState<UserDoc[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
-  const [newAttendance, setNewAttendance] = useState({ teacherName: '', status: 'present' as TeacherAttendance['status'] });
+  const [isAddRoutineModalOpen, setIsAddRoutineModalOpen] = useState(false);
+  const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'] });
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
@@ -2181,8 +2201,10 @@ function ExonaApp() {
       window.Telegram.WebApp.expand();
       // Set initial color based on user preference or default to white
       const initialColor = userDoc?.telegramHeaderColor || '#FFFFFF';
-      window.Telegram.WebApp.setHeaderColor(initialColor);
-      window.Telegram.WebApp.setBackgroundColor(initialColor);
+      if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
+        window.Telegram.WebApp.setHeaderColor(initialColor);
+        window.Telegram.WebApp.setBackgroundColor(initialColor);
+      }
       // Enable vertical swipe down to close if desired, otherwise standard is fine
       // window.Telegram.WebApp.isVerticalSwipesEnabled = false; 
     }
@@ -2264,7 +2286,9 @@ function ExonaApp() {
 
     // If in Telegram, we can also use their native UI for critical alerts
     if (window.Telegram?.WebApp && (category === 'treasury' || category === 'system')) {
-      window.Telegram.WebApp.showConfirm(`${fullTitle}\n\n${body}`);
+      if (window.Telegram.WebApp.isVersionAtLeast?.('6.2')) {
+        window.Telegram.WebApp.showConfirm(`${fullTitle}\n\n${body}`);
+      }
     }
 
     if ('Notification' in window) {
@@ -4289,8 +4313,9 @@ function ExonaApp() {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [recordSearch, setRecordSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
+  const [attendanceCategoryFilter, setAttendanceCategoryFilter] = useState('all');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
-  const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date'>('alphabet');
+  const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date' | 'class'>('alphabet');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -4302,7 +4327,9 @@ function ExonaApp() {
 
   useEffect(() => {
     if (window.Telegram?.WebApp && userDoc?.telegramHeaderColor) {
-      window.Telegram.WebApp.setHeaderColor(userDoc.telegramHeaderColor);
+      if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
+        window.Telegram.WebApp.setHeaderColor(userDoc.telegramHeaderColor);
+      }
     }
   }, [userDoc?.telegramHeaderColor]);
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
@@ -4696,7 +4723,17 @@ function ExonaApp() {
     educationalLevels: [] as string[],
     replyPermission: 'everyone' as 'everyone' | 'followers' | 'none'
   });
-  const [newRecord, setNewRecord] = useState({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
+  const [newRecord, setNewRecord] = useState({ 
+    studentName: '', 
+    studentClass: '',
+    parentNumber: '',
+    category: '', 
+    paid: 0, 
+    balance: 0, 
+    visibility: 'private' as Record['visibility'], 
+    sharedWith: '' 
+  });
 
   const labels = getLabels(selectedSchool?.type);
 
@@ -5318,6 +5355,15 @@ function ExonaApp() {
     }
   };
 
+  const handleAddCustomCategory = () => {
+    if (!customCategoryInput.trim()) return;
+    const levels = newSchool.educationalLevels || [];
+    if (!levels.includes(customCategoryInput.trim())) {
+      setNewSchool({ ...newSchool, educationalLevels: [...levels, customCategoryInput.trim()] });
+    }
+    setCustomCategoryInput('');
+  };
+
   const handleCreateSchool = async () => {
     console.log('handleCreateSchool started', { newSchool, user: user?.uid, editingSchool: editingSchool?.id });
     if (!newSchool.name.trim() || !user) {
@@ -5365,7 +5411,9 @@ function ExonaApp() {
           logo: logoUrl,
           type: newSchool.type,
           category: newSchool.type === 'place' ? newSchool.category : null,
-          educationalLevels: newSchool.type === 'school' ? newSchool.educationalLevels : [],
+          educationalLevels: (newSchool.type === 'place' && newSchool.category && !(newSchool.educationalLevels || []).includes(newSchool.category)) 
+            ? [newSchool.category, ...(newSchool.educationalLevels || [])] 
+            : (newSchool.educationalLevels || []),
           replyPermission: newSchool.replyPermission || 'everyone'
         }, { merge: true });
         console.log('Institution update queued');
@@ -5381,7 +5429,9 @@ function ExonaApp() {
           logo: logoUrl,
           type: newSchool.type,
           category: newSchool.type === 'place' ? newSchool.category : null,
-          educationalLevels: newSchool.type === 'school' ? (newSchool.educationalLevels || []) : [],
+          educationalLevels: (newSchool.type === 'place' && newSchool.category && !(newSchool.educationalLevels || []).includes(newSchool.category)) 
+            ? [newSchool.category, ...(newSchool.educationalLevels || [])] 
+            : (newSchool.educationalLevels || []),
           creatorUid: user.uid,
           followers: [user.uid],
           replyPermission: newSchool.replyPermission || 'everyone',
@@ -5482,6 +5532,8 @@ function ExonaApp() {
         console.log('Updating record', editingRecord.id);
         await setDoc(doc(db, path, editingRecord.id), {
           studentName: newRecord.studentName.trim(),
+          studentClass: newRecord.studentClass.trim(),
+          parentNumber: newRecord.parentNumber.trim(),
           category: newRecord.category.trim() || 'General',
           paid: Number(newRecord.paid),
           balance: Number(newRecord.balance),
@@ -5493,6 +5545,8 @@ function ExonaApp() {
         await addDoc(collection(db, path), {
           schoolId: selectedSchool.id,
           studentName: newRecord.studentName.trim(),
+          studentClass: newRecord.studentClass.trim(),
+          parentNumber: newRecord.parentNumber.trim(),
           category: newRecord.category.trim() || 'General',
           creatorUid: user.uid,
           addedBy: user.displayName || 'Anonymous',
@@ -5506,7 +5560,16 @@ function ExonaApp() {
       }
       console.log('Record operation successful');
       showNotification(editingRecord ? 'Record updated' : 'Record synchronized');
-      setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private', sharedWith: '' });
+      setNewRecord({ 
+        studentName: '', 
+        studentClass: '',
+        parentNumber: '',
+        category: '', 
+        paid: 0, 
+        balance: 0, 
+        visibility: 'private' as Record['visibility'], 
+        sharedWith: '' 
+      });
       setIsRecordModalOpen(false);
       setEditingRecord(null);
     } catch (error) {
@@ -5535,19 +5598,56 @@ function ExonaApp() {
       await addDoc(collection(db, path), {
         schoolId: selectedSchool.id,
         teacherName: newAttendance.teacherName.trim(),
+        category: newAttendance.category.trim() || 'General',
         status: newAttendance.status,
         date: new Date().toISOString().split('T')[0],
         addedBy: user.displayName || 'Anonymous',
         timestamp: serverTimestamp()
       });
       console.log('Attendance record added successfully');
-      setNewAttendance({ teacherName: '', status: 'present' });
+      setNewAttendance({ teacherName: '', category: '', status: 'present' });
       setIsAttendanceModalOpen(false);
     } catch (error) {
       console.error('Attendance operation failed', error);
       handleFirestoreError(error, OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleCreateRoutine = async () => {
+    if (!user || !selectedSchool) return;
+    if (!canManageInstitution(selectedSchool)) {
+      showNotification('Unauthorized to manage institution', 'error');
+      return;
+    }
+    if (!newRoutine.title.trim() || !newRoutine.activity.trim()) {
+      showNotification('Please fill in title and activity', 'error');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'dailyRoutines'), {
+        ...newRoutine,
+        institutionId: selectedSchool.id,
+        creatorUid: user.uid,
+        timestamp: serverTimestamp()
+      });
+      showNotification('Daily routine added');
+      setNewRoutine({ title: '', activity: '', timeSlot: '', notes: '' });
+      setIsAddRoutineModalOpen(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'dailyRoutines');
+    }
+  };
+
+  const handleDeleteRoutine = async (routineId: string) => {
+    if (!canManageInstitution(selectedSchool)) return;
+    try {
+      await deleteDoc(doc(db, 'dailyRoutines', routineId));
+      showNotification('Routine deleted');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `dailyRoutines/${routineId}`);
     }
   };
 
@@ -6048,6 +6148,8 @@ function ExonaApp() {
     setEditingRecord(record);
     setNewRecord({
       studentName: record.studentName,
+      studentClass: record.studentClass || '',
+      parentNumber: record.parentNumber || '',
       category: record.category,
       paid: record.paid,
       balance: record.balance,
@@ -6908,7 +7010,15 @@ function ExonaApp() {
       }
     });
 
-    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); };
+    const unsubRoutines = onSnapshot(query(collection(db, 'dailyRoutines'), where('institutionId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
+      setDailyRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() } as DailyRoutine)));
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'dailyRoutines');
+      }
+    });
+
+    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); unsubRoutines(); };
   }, [selectedSchool, user?.uid, userDoc?.role]);
 
   const renderIconForNotification = (type: Notification['type']) => {
@@ -8329,6 +8439,15 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
                     </button>
+                    <button 
+                      onClick={() => setView('daily-routine')}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                        <Activity size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Daily Routine</span>
+                    </button>
                   </div>
                 </div>
 
@@ -8852,6 +8971,13 @@ function ExonaApp() {
               const dateA = a.timestamp?.seconds || 0;
               const dateB = b.timestamp?.seconds || 0;
               return dateB - dateA;
+            } else if (recordSort === 'class') {
+              const classA = (a as any).studentClass || '';
+              const classB = (b as any).studentClass || '';
+              if (classA !== classB) {
+                return classA.localeCompare(classB);
+              }
+              return a.studentName.localeCompare(b.studentName);
             }
             return 0;
           });
@@ -8905,9 +9031,19 @@ function ExonaApp() {
         }
 
         const isSchool = selectedSchool?.type === 'school';
-        const currentRecordTabs = isSchool 
-          ? ['general', 'Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary']
-          : ['general', 'books', 'uniforms'];
+        const currentRecordTabs = [
+          'general',
+          ...(isSchool ? [] : ['books', 'uniforms']),
+          ...((selectedSchool as any).educationalLevels || []).filter((l: string) => l !== 'general' && (isSchool ? true : !['books', 'uniforms'].includes(l)))
+        ];
+        // Ensure Pre Nursery etc are there for schools if not already in educationalLevels
+        if (isSchool) {
+          ['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary'].forEach(level => {
+            if (!currentRecordTabs.includes(level)) {
+              currentRecordTabs.push(level);
+            }
+          });
+        }
 
         return (
           <WordLayout 
@@ -8940,13 +9076,13 @@ function ExonaApp() {
                     <div className="px-2 text-muted mr-1 border-r border-gray-50">
                       <ArrowUpDown size={10} />
                     </div>
-                    {(['alphabet', 'amount', 'date'] as const).map(s => (
+                    {(['alphabet', 'class', 'amount', 'date'] as const).map(s => (
                       <button 
                         key={s}
                         onClick={() => setRecordSort(s)}
                         className={`px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all ${recordSort === s ? 'bg-gray-50 text-ink' : 'text-muted hover:text-ink'}`}
                       >
-                        {s === 'alphabet' ? 'A-Z' : s === 'amount' ? 'Paid' : 'Date'}
+                        {s === 'alphabet' ? 'A-Z' : s === 'class' ? 'Class' : s === 'amount' ? 'Paid' : 'Date'}
                       </button>
                     ))}
                   </div>
@@ -9025,6 +9161,7 @@ function ExonaApp() {
                     <thead>
                       <tr className="bg-white border-b border-gray-200">
                         <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.student}</th>
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Class</th>
                         <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
                         <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Paid</th>
                         <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Balance</th>
@@ -9045,6 +9182,9 @@ function ExonaApp() {
                           <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
                             <td className="px-6 py-4">
                               <span className="font-bold text-ink text-sm">{record.studentName}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-[10px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-1 rounded">{record.studentClass || 'N/A'}</span>
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-[10px] font-bold text-muted uppercase tracking-wider">{record.category}</span>
@@ -9157,6 +9297,7 @@ function ExonaApp() {
                   <thead className="bg-[#f3f2f1] border-b border-gray-200">
                     <tr>
                       <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">{labels.student}</th>
+                      <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Class</th>
                       <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Category</th>
                       <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Amount Paid</th>
                       <th className="px-4 py-2 font-semibold text-gray-700 border-r border-gray-200">Pending Balance</th>
@@ -9174,6 +9315,7 @@ function ExonaApp() {
                       filteredRecords.map((record) => (
                         <tr key={record.id} className="hover:bg-[#f3f2f1]/50 border-b border-gray-50 group">
                           <td className="px-4 py-2.5 font-semibold text-[#0078d4] border-r border-gray-50">{record.studentName}</td>
+                          <td className="px-4 py-2.5 border-r border-gray-50 text-gray-600 font-bold">{record.studentClass || '-'}</td>
                           <td className="px-4 py-2.5 border-r border-gray-50">
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-gray-100 text-[9px] font-semibold text-gray-600 uppercase">
                               {record.category}
@@ -9223,7 +9365,10 @@ function ExonaApp() {
                         </div>
 
                         <h4 className="text-lg font-black text-ink mb-1 truncate">{record.studentName}</h4>
-                        <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-6">{record.category}</p>
+                        <div className="flex gap-2 items-center mb-6">
+                          <span className="text-[10px] font-black text-accent uppercase tracking-wider bg-accent/5 px-2 py-0.5 rounded">{record.studentClass || 'No Class'}</span>
+                          <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">{record.category}</span>
+                        </div>
 
                         <div className="space-y-3 mb-6">
                           <div className="flex items-center justify-between p-3 bg-green-50/50 rounded-2xl ring-1 ring-green-100">
@@ -9852,6 +9997,89 @@ function ExonaApp() {
           </WordLayout>
         );
       }
+      case 'daily-routine': {
+        if (!user || !selectedSchool) { setView('schools'); return null; }
+        const isManager = canManageInstitution(selectedSchool);
+
+        return (
+          <WordLayout 
+            title="Daily Routine"
+            subtitle="Activity Schedule & Tasks"
+            icon={Activity}
+            branding={{ name: selectedSchool.name }}
+            showNotification={showNotification}
+            handlePrint={handlePrint}
+            hideOfficialBadge={true}
+            hideSaveImage={true}
+            hideBranding={true}
+            hideIcon={true}
+            toolbar={
+              <div className="flex items-center gap-4">
+                <button onClick={() => setView('school-feed')} className="px-4 py-1.5 bg-white border border-gray-100 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back</button>
+                {isManager && (
+                  <button onClick={() => setIsAddRoutineModalOpen(true)} className="px-4 py-1.5 bg-ink text-white rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-ink/90 transition-all flex items-center gap-2">
+                    <Plus size={14} /> Add Routine
+                  </button>
+                )}
+              </div>
+            }
+          >
+            <div className="max-w-4xl mx-auto space-y-8 py-8 px-4">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                <div className="flex items-center gap-6 mb-8">
+                  <div className="h-16 w-16 bg-accent/5 text-accent rounded-3xl flex items-center justify-center">
+                    <Activity size={32} />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-extrabold text-ink">{selectedSchool.name} Routine</h1>
+                    <p className="text-muted font-medium">Standard daily activities and operational schedule</p>
+                  </div>
+                </div>
+
+                {dailyRoutines.length === 0 ? (
+                  <div className="py-20 text-center">
+                    <div className="h-20 w-20 bg-gray-50 text-gray-300 rounded-[2rem] flex items-center justify-center mx-auto mb-6">
+                      <Clock size={32} />
+                    </div>
+                    <p className="text-muted font-bold text-sm">No daily routines recorded yet.</p>
+                    {isManager && <p className="text-[10px] text-muted uppercase tracking-widest mt-2">Click "Add Routine" to get started</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {dailyRoutines.map(routine => (
+                      <div key={routine.id} className="group p-6 bg-gray-50 rounded-3xl border border-transparent hover:border-gray-100 transition-all flex items-start justify-between">
+                        <div className="flex gap-6">
+                          <div className="h-12 w-12 bg-white rounded-2xl flex flex-col items-center justify-center text-accent border border-gray-100 shrink-0">
+                            <ClockIcon size={16} />
+                            <span className="text-[9px] font-black mt-0.5">{routine.timeSlot || '--:--'}</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-ink text-base mb-1">{routine.title}</h4>
+                            <p className="text-sm text-neutral-600 mb-2 leading-relaxed">{routine.activity}</p>
+                            {routine.notes && (
+                              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-gray-100 rounded-lg text-[10px] font-bold text-muted uppercase tracking-widest">
+                                <Info size={10} /> {routine.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {isManager && (
+                          <button 
+                            onClick={() => handleDeleteRoutine(routine.id)}
+                            className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </WordLayout>
+        );
+      }
       case 'attendance': {
         if (!user) { setView('login'); return null; }
         const labels = selectedSchool ? getLabels(selectedSchool.type) : getLabels();
@@ -9874,9 +10102,12 @@ function ExonaApp() {
             </div>
           );
         }
-        const filteredAttendance = attendance.filter(r => 
-          r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase())
-        );
+        const categories = Array.from(new Set(attendance.map(a => a.category || 'General').filter(Boolean)));
+        const filteredAttendance = attendance.filter(r => {
+          const nameMatches = r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase());
+          const categoryMatches = attendanceCategoryFilter === 'all' || (r.category || 'General') === attendanceCategoryFilter;
+          return nameMatches && categoryMatches;
+        });
         const presentToday = filteredAttendance.filter(r => r.status === 'present').length;
         const absentToday = filteredAttendance.filter(r => r.status === 'absent').length;
 
@@ -9905,6 +10136,18 @@ function ExonaApp() {
                       className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-32 sm:w-48" 
                     />
                   </div>
+                  {categories.length > 0 && (
+                    <select
+                      value={attendanceCategoryFilter}
+                      onChange={(e) => setAttendanceCategoryFilter(e.target.value)}
+                      className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg outline-none text-[11px] font-medium text-ink focus:border-accent"
+                    >
+                      <option value="all">All Categories</option>
+                      {categories.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  )}
                       {canManageInstitution(selectedSchool) && (
                         <button 
                           onClick={() => setIsAttendanceModalOpen(true)}
@@ -9953,6 +10196,7 @@ function ExonaApp() {
                 <thead>
                   <tr className="bg-white border-b border-gray-200">
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
+                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
@@ -9961,7 +10205,7 @@ function ExonaApp() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredAttendance.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-20 text-center">
+                      <td colSpan={5} className="px-6 py-20 text-center">
                         <p className="font-bold text-lg text-muted">No {labels.attendance.toLowerCase()} records found</p>
                       </td>
                     </tr>
@@ -9970,6 +10214,9 @@ function ExonaApp() {
                       <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
                         <td className="px-6 py-4">
                           <span className="font-bold text-ink text-sm">{record.teacherName}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-[10px] font-bold text-muted uppercase tracking-widest bg-gray-50 px-2 py-1 rounded border border-gray-100">{record.category || 'General'}</span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
@@ -9996,8 +10243,11 @@ function ExonaApp() {
               ) : (
                 filteredAttendance.map((record) => (
                   <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="font-bold text-ink">{record.teacherName}</h4>
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="font-bold text-ink">{record.teacherName}</h4>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || 'General'}</p>
+                      </div>
                       <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                         record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
                       }`}>
@@ -14712,6 +14962,28 @@ function ExonaApp() {
                     className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                   />
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="group">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.student} Class</label>
+                    <input 
+                      type="text" 
+                      value={newRecord.studentClass}
+                      onChange={(e) => setNewRecord({...newRecord, studentClass: e.target.value})}
+                      placeholder="e.g. JSS2 A, Grade 5"
+                      className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                  </div>
+                  <div className="group">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Parent Phone Number</label>
+                    <input 
+                      type="tel" 
+                      value={newRecord.parentNumber}
+                      onChange={(e) => setNewRecord({...newRecord, parentNumber: e.target.value})}
+                      placeholder="+234..."
+                      className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                  </div>
+                </div>
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Category/{labels.educationalLevel}</label>
                   {selectedSchool?.educationalLevels && selectedSchool.educationalLevels.length > 0 ? (
@@ -14744,22 +15016,64 @@ function ExonaApp() {
                           );
                         })}
                       </div>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={newRecord.category}
+                          onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
+                          placeholder="Or specify exact class (e.g. SS3 A)"
+                          className="flex-1 px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                        />
+                        {newRecord.category && selectedSchool && !(selectedSchool.educationalLevels || []).includes(newRecord.category) && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              try {
+                                const schoolRef = doc(db, 'schools', selectedSchool.id);
+                                await updateDoc(schoolRef, {
+                                  educationalLevels: arrayUnion(newRecord.category)
+                                });
+                                showNotification('Category saved to list', 'success');
+                              } catch (error) {
+                                console.error('Failed to save category', error);
+                              }
+                            }}
+                            className="px-6 py-5 bg-gray-50 text-ink rounded-[2rem] font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                          >
+                            Save
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
                       <input 
                         type="text" 
                         value={newRecord.category}
                         onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
-                        placeholder="Or specify exact class (e.g. SS3 A)"
-                        className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                        placeholder="e.g. JSS1, SS3"
+                        className="flex-1 px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                       />
+                      {newRecord.category && selectedSchool && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const schoolRef = doc(db, 'schools', selectedSchool.id);
+                              await updateDoc(schoolRef, {
+                                educationalLevels: arrayUnion(newRecord.category)
+                              });
+                              showNotification('Category saved to list', 'success');
+                            } catch (error) {
+                              console.error('Failed to save category', error);
+                            }
+                          }}
+                          className="px-6 py-5 bg-white border border-gray-100 text-ink rounded-[2rem] font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
+                        >
+                          Save
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <input 
-                      type="text" 
-                      value={newRecord.category}
-                      onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
-                      placeholder="e.g. JSS1, SS3"
-                      className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
-                    />
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-6">
@@ -14931,8 +15245,8 @@ function ExonaApp() {
                 {newSchool.type === 'school' && (
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Educational Levels</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary'].map((level) => (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary', 'Books', 'Uniforms'].map((level) => (
                         <button
                           key={level}
                           type="button"
@@ -14960,8 +15274,8 @@ function ExonaApp() {
                 {newSchool.type === 'place' && (
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Space Category</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['School', 'Business', 'Community', 'Personal', 'Other'].map((c) => (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {['School', 'Business', 'Community', 'Personal', 'Books', 'Uniforms', 'Other'].map((c) => (
                         <button
                           key={c}
                           type="button"
@@ -14978,6 +15292,43 @@ function ExonaApp() {
                     </div>
                   </div>
                 )}
+
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Custom Categories</label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {(newSchool.educationalLevels || []).filter(l => !['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary', 'School', 'Business', 'Community', 'Personal', 'Other'].includes(l)).map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => {
+                          const levels = newSchool.educationalLevels || [];
+                          setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
+                        }}
+                        className="px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-ink text-white border border-ink transition-all flex items-center gap-2 group"
+                      >
+                        {level}
+                        <X size={10} className="group-hover:scale-125 transition-transform" />
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-3">
+                    <input 
+                      type="text"
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomCategory())}
+                      placeholder="Add custom category..."
+                      className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                    <button 
+                      onClick={handleAddCustomCategory}
+                      type="button"
+                      className="px-8 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Institution Name</label>
                   <input 
@@ -15104,6 +15455,54 @@ function ExonaApp() {
                   />
                 </div>
                 <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">{labels.educationalLevel} / Category</label>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {Array.from(new Set([
+                      ...(selectedSchool?.educationalLevels || []),
+                      'General', 'Science', 'Arts', 'Commercial', 'Staff', 'Management'
+                    ])).map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setNewAttendance({...newAttendance, category: cat})}
+                        className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                          newAttendance.category === cat 
+                            ? 'bg-ink text-white border-ink' 
+                            : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newAttendance.category}
+                      onChange={(e) => setNewAttendance({...newAttendance, category: e.target.value})}
+                      placeholder="Or enter custom department..."
+                      className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                    {newAttendance.category && selectedSchool && !(selectedSchool.educationalLevels || []).includes(newAttendance.category) && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const schoolRef = doc(db, 'schools', selectedSchool.id);
+                            await updateDoc(schoolRef, {
+                              educationalLevels: arrayUnion(newAttendance.category)
+                            });
+                            showNotification('Category saved to list', 'success');
+                          } catch (error) {
+                            console.error('Failed to save category', error);
+                          }
+                        }}
+                        className="px-6 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                      >
+                        Save Category
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Presence Status</label>
                   <div className="grid grid-cols-3 gap-4">
                     {(['present', 'absent', 'late'] as const).map((s) => (
@@ -15138,6 +15537,79 @@ function ExonaApp() {
                   )}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isAddRoutineModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl bg-card rounded-[2.5rem] p-8 md:p-12 border border-gray-100 my-auto shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-ink mb-1">Add Daily Routine</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Schedule New Activity</p>
+                </div>
+                <button onClick={() => setIsAddRoutineModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Routine Title (e.g. Morning Assembly)</label>
+                  <input 
+                    type="text" 
+                    value={newRoutine.title}
+                    onChange={(e) => setNewRoutine({...newRoutine, title: e.target.value})}
+                    placeholder="Enter short title"
+                    className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Time Slot</label>
+                  <input 
+                    type="text" 
+                    value={newRoutine.timeSlot}
+                    onChange={(e) => setNewRoutine({...newRoutine, timeSlot: e.target.value})}
+                    placeholder="e.g. 08:30 AM - 09:00 AM"
+                    className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Activity Description</label>
+                  <textarea 
+                    value={newRoutine.activity}
+                    onChange={(e) => setNewRoutine({...newRoutine, activity: e.target.value})}
+                    placeholder="Describe the activity..."
+                    rows={4}
+                    className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Optional Notes</label>
+                  <input 
+                    type="text" 
+                    value={newRoutine.notes}
+                    onChange={(e) => setNewRoutine({...newRoutine, notes: e.target.value})}
+                    placeholder="Special instructions..."
+                    className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleCreateRoutine}
+                disabled={!newRoutine.title.trim() || !newRoutine.activity.trim()}
+                className="w-full mt-10 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+              >
+                Schedule Activity
+              </button>
             </motion.div>
           </motion.div>
         )}
@@ -15223,8 +15695,10 @@ function ExonaApp() {
                                });
                                showNotification('Telegram header applied', 'success');
                                if (window.Telegram?.WebApp) {
-                                 window.Telegram.WebApp.setHeaderColor(color);
-                                 window.Telegram.WebApp.setBackgroundColor(color);
+                                 if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
+                                   window.Telegram.WebApp.setHeaderColor(color);
+                                   window.Telegram.WebApp.setBackgroundColor(color);
+                                 }
                                }
                              } catch (e) {
                                console.error(e);
@@ -15248,8 +15722,10 @@ function ExonaApp() {
                                telegramHeaderColor: color
                              });
                              if (window.Telegram?.WebApp) {
-                               window.Telegram.WebApp.setHeaderColor(color);
-                               window.Telegram.WebApp.setBackgroundColor(color);
+                               if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
+                                 window.Telegram.WebApp.setHeaderColor(color);
+                                 window.Telegram.WebApp.setBackgroundColor(color);
+                               }
                              }
                            } catch (e) {
                              console.error(e);
@@ -15474,6 +15950,17 @@ function ExonaApp() {
                     <div>
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
                       <p className="text-sm font-bold text-ink underline decoration-ink/10 underline-offset-4">{recordForReceipt.studentName}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Student Class</p>
+                        <p className="text-xs font-bold text-accent uppercase tracking-wider">{recordForReceipt.studentClass || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Parent Contact</p>
+                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{recordForReceipt.parentNumber || 'N/A'}</p>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

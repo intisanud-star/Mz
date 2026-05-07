@@ -449,6 +449,12 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /dailyRoutines/{routineId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
+      allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
+    }
+
     match /wallets/{userId} {
       allow get: if isAuthenticated() && request.auth.uid == userId && isValidId(userId);
       allow list: if false; // Users shouldn't list all wallets

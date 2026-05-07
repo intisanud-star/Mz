@@ -76,16 +76,20 @@ function getBot() {
     const newBot = new Telegraf(token);
     setupBot(newBot);
     
-    newBot.launch().then(() => {
+    // Proactively delete any existing webhook to ensure long-polling can start
+    newBot.telegram.deleteWebhook().then(() => {
+      return newBot.launch();
+    }).then(() => {
       console.log('Telegram bot launched successfully');
-      bot = newBot;
       isBotLaunching = false;
     }).catch(err => {
       console.error('Failed to launch Telegram bot:', err);
       isBotLaunching = false;
-      // If it's a conflict error on startup, it might be a lingering process.
-      // Telegraf usually handles the 'terminated by other request' after one retry,
-      // but we log it for visibility.
+      bot = null; // Reset so next call to getBot() can try again if token is valid
+      
+      if (err.description && err.description.includes('Conflict')) {
+        console.warn('Telegram Bot Conflict detected: Another instance is already running. This session will be retried on next demand.');
+      }
     });
     
     bot = newBot;
@@ -387,17 +391,26 @@ async function startServer() {
   // Handle graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`Received ${signal}. Shutting down Presidential server...`);
-    await stopBot();
-    server.close(() => {
-      console.log('Server closed. Exit.');
-      process.exit(0);
-    });
     
-    // Force exit if server doesn't close in 5s
-    setTimeout(() => {
-      console.error('Forcing exit after timeout');
+    // Set a timeout for the entire shutdown process
+    const shutdownTimeout = setTimeout(() => {
+      console.error('Shutdown timed out, forcing exit.');
       process.exit(1);
-    }, 5000);
+    }, 10000);
+
+    try {
+      await stopBot();
+      console.log('Bot stopped. Closing server...');
+      
+      server.close(() => {
+        clearTimeout(shutdownTimeout);
+        console.log('Server closed gracefully. Exit.');
+        process.exit(0);
+      });
+    } catch (err) {
+      console.error('Error during graceful shutdown:', err);
+      process.exit(1);
+    }
   };
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));

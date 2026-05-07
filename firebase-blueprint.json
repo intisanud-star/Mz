@@ -108,6 +108,8 @@
       "properties": {
         "id": { "type": "string" },
         "studentName": { "type": "string" },
+        "studentClass": { "type": "string" },
+        "parentNumber": { "type": "string" },
         "category": { "type": "string" },
         "paid": { "type": "number" },
         "balance": { "type": "number" },
@@ -129,6 +131,7 @@
         "id": { "type": "string" },
         "teacherName": { "type": "string" },
         "schoolId": { "type": "string" },
+        "category": { "type": "string" },
         "status": { "type": "string", "enum": ["present", "absent", "late"] },
         "date": { "type": "string" },
         "timestamp": { "type": "string", "format": "date-time" },
@@ -350,6 +353,22 @@
         "messageId": { "type": "number" }
       },
       "required": ["chatId", "messageId"]
+    },
+    "DailyRoutine": {
+      "title": "DailyRoutine",
+      "description": "Educational or business daily schedule activity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "creatorUid": { "type": "string" },
+        "title": { "type": "string" },
+        "activity": { "type": "string" },
+        "timeSlot": { "type": "string" },
+        "notes": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "institutionId", "creatorUid", "title", "activity"]
     }
   },
   "firestore": {
@@ -374,6 +393,7 @@
     "/wallets/{userId}": { "schema": "ExonWallet", "description": "User currency wallets" },
     "/wallets/{userId}/history/{txId}": { "schema": "TransactionHistory", "description": "Transaction logs" },
     "/broadcasts/{broadcastId}": { "schema": "Broadcast", "description": "Admin broadcast logs" },
-    "/broadcasts/{broadcastId}/messages/{chatId}": { "schema": "BroadcastMessage", "description": "Individual message IDs for unsend/deletion" }
+    "/broadcasts/{broadcastId}/messages/{chatId}": { "schema": "BroadcastMessage", "description": "Individual message IDs for unsend/deletion" },
+    "/dailyRoutines/{routineId}": { "schema": "DailyRoutine", "description": "Institutional routine schedule" }
   }
 }
