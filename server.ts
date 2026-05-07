@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
@@ -164,6 +165,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(cors());
   app.use(express.json());
 
   // Basic root health check
@@ -189,23 +191,6 @@ async function startServer() {
       timestamp: new Date().toISOString(),
       database: dbStatus
     });
-  });
-
-  // 2. Admin function to see total community size (API Endpoint)
-  app.get('/api/admin/stats', async (req, res) => {
-    try {
-      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
-      const totalCount = snapshot.size;
-      
-      res.json({
-        success: true,
-        communitySize: totalCount,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error: any) {
-      console.error('Error fetching admin stats:', error);
-      res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
-    }
   });
 
   // 3. Broadcast API Endpoint
@@ -306,12 +291,47 @@ async function startServer() {
 
   // 4. API to see broadcast history
   app.get('/api/admin/broadcasts', async (req, res) => {
+    console.log('GET /api/admin/broadcasts request received');
     try {
+      if (!db) {
+        console.error('Database not initialized for broadcasts');
+        return res.status(500).json({ success: false, error: 'Database not initialized' });
+      }
       const snapshot = await getDocs(query(collection(db, 'broadcasts'), limit(20)));
-      const broadcasts = snapshot.docs.map(doc => doc.data());
-      res.json({ success: true, broadcasts: broadcasts.sort((a,b) => b.timestamp.localeCompare(a.timestamp)) });
+      const broadcasts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Robust sorting
+      broadcasts.sort((a: any, b: any) => {
+        const tA = a.timestamp || '';
+        const tB = b.timestamp || '';
+        return tB.localeCompare(tA);
+      });
+
+      res.json({ success: true, broadcasts });
     } catch (e: any) {
+      console.error('Error in /api/admin/broadcasts:', e);
       res.status(500).json({ success: false, error: e.message });
+    }
+  });
+
+  // 4b. API to see admin stats
+  app.get('/api/admin/stats', async (req, res) => {
+    console.log('GET /api/admin/stats request received');
+    try {
+      if (!db) {
+        return res.status(500).json({ success: false, error: 'Database not initialized' });
+      }
+      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
+      const totalCount = snapshot.size;
+      
+      res.json({
+        success: true,
+        communitySize: totalCount,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      console.error('Error fetching admin stats:', error);
+      res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
     }
   });
 

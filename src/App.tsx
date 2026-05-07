@@ -600,7 +600,7 @@ const BrainBattleModal = ({
                       <input 
                         type="text" 
                         placeholder="Your Name"
-                        value={guestInfo.name}
+                        value={guestInfo.name || ''}
                         onChange={(e) => setGuestInfo({...guestInfo, name: e.target.value})}
                         className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
                       />
@@ -610,7 +610,7 @@ const BrainBattleModal = ({
                       <input 
                         type="email" 
                         placeholder="your@email.com"
-                        value={guestInfo.email}
+                        value={guestInfo.email || ''}
                         onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
                         className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
                       />
@@ -620,7 +620,7 @@ const BrainBattleModal = ({
                       <input 
                         type="tel" 
                         placeholder="080 0000 0000"
-                        value={guestInfo.phone}
+                        value={guestInfo.phone || ''}
                         onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
                         className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
                       />
@@ -630,7 +630,7 @@ const BrainBattleModal = ({
                       <input 
                         type="text" 
                         placeholder="Residential Address"
-                        value={guestInfo.address}
+                        value={guestInfo.address || ''}
                         onChange={(e) => setGuestInfo({...guestInfo, address: e.target.value})}
                         className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:ring-4 focus:ring-accent/5 focus:bg-white transition-all text-sm font-bold"
                       />
@@ -1732,7 +1732,11 @@ function ExonaApp() {
   const fetchBroadcastHistory = useCallback(() => {
     fetch('/api/admin/broadcasts')
       .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        if (!res.ok) {
+          return res.text().then(text => {
+            throw new Error(`HTTP ${res.status}: ${text}`);
+          });
+        }
         return res.json();
       })
       .then(data => {
@@ -1740,7 +1744,11 @@ function ExonaApp() {
       })
       .catch(err => {
         console.error('Failed to fetch broadcasts:', err);
-        showNotification(`Broadcast history error: ${err.message}`, 'error');
+        // Be more descriptive about network errors
+        const msg = err.message === 'Failed to fetch' 
+          ? 'Network error: Backend server might be restarting or unreachable.' 
+          : err.message;
+        showNotification(`Broadcast history info: ${msg}`, 'error');
       });
   }, []);
 
@@ -2037,6 +2045,8 @@ function ExonaApp() {
   const [myFollowers, setMyFollowers] = useState<UserDoc[]>([]);
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [isAddRoutineModalOpen, setIsAddRoutineModalOpen] = useState(false);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'], time: '' });
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
@@ -5710,6 +5720,37 @@ function ExonaApp() {
     }
   };
 
+  const handleAddCategory = async () => {
+    if (!selectedSchool || !newCategoryName.trim()) return;
+    
+    try {
+      const schoolRef = doc(db, 'schools', selectedSchool.id);
+      await updateDoc(schoolRef, {
+        educationalLevels: arrayUnion(newCategoryName.trim())
+      });
+      setNewCategoryName('');
+      showNotification('Category added successfully', 'success');
+    } catch (error) {
+      console.error('Failed to add category:', error);
+      showNotification('Failed to add category', 'error');
+    }
+  };
+
+  const handleRemoveCategory = async (category: string) => {
+    if (!selectedSchool) return;
+
+    try {
+      const schoolRef = doc(db, 'schools', selectedSchool.id);
+      await updateDoc(schoolRef, {
+        educationalLevels: arrayRemove(category)
+      });
+      showNotification('Category removed', 'success');
+    } catch (error) {
+      console.error('Failed to remove category:', error);
+      showNotification('Failed to remove category', 'error');
+    }
+  };
+
   const handleInitiateCall = async (receiverUid: string) => {
     if (!user) return;
     try {
@@ -8455,6 +8496,17 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
                     </button>
+                    {canManageInstitution(selectedSchool) && (
+                      <button 
+                        onClick={() => setIsCategoryManagerOpen(true)}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <List size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Categories</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -9066,6 +9118,17 @@ function ExonaApp() {
             hideIcon={true}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <div className="flex gap-1 items-center bg-white border border-gray-100 p-1 rounded-lg">
+                  <button onClick={() => setView('school-feed')} className="px-3 sm:px-4 py-1.5 bg-gray-50 text-ink rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all">Back</button>
+                  {canManageInstitution(selectedSchool) && (
+                    <button 
+                      onClick={() => setIsCategoryManagerOpen(true)} 
+                      className="px-3 sm:px-4 py-1.5 bg-white text-accent rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center gap-2"
+                    >
+                      <List size={12} /> Categories
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
                   {currentRecordTabs.map(tab => (
                     <button 
@@ -10089,6 +10152,11 @@ function ExonaApp() {
             toolbar={
               <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                 <button onClick={() => setView('school-feed')} className="px-3 sm:px-4 py-1.5 bg-white border border-gray-100 text-ink rounded-lg font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back</button>
+                {isManager && (
+                  <button onClick={() => setIsCategoryManagerOpen(true)} className="px-3 sm:px-4 py-1.5 bg-white border border-gray-100 text-accent rounded-lg font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center gap-2">
+                    <List size={12} /> Categories
+                  </button>
+                )}
                 <button onClick={() => setSelectedSchool(null)} className="px-3 sm:px-4 py-1.5 bg-gray-50 border border-gray-100 text-muted rounded-lg font-extrabold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-white transition-all flex items-center gap-2">
                   <Repeat size={12} /> Switch
                 </button>
@@ -14772,7 +14840,7 @@ function ExonaApp() {
               
               <div className="relative mb-6">
                 <textarea 
-                  value={newPostContent}
+                  value={newPostContent || ''}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   placeholder="What's happening in your school?"
                   className="w-full h-56 p-8 bg-white rounded-[2.5rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-gray-100 transition-all text-lg font-bold resize-none placeholder:text-gray-300 leading-relaxed"
@@ -14927,13 +14995,13 @@ function ExonaApp() {
                   <input
                     type="text"
                     placeholder="Group Name"
-                    value={newGroupData.name}
+                    value={newGroupData.name || ''}
                     onChange={(e) => setNewGroupData({ ...newGroupData, name: e.target.value })}
                     className="w-full bg-gray-50 border-none rounded-xl px-6 py-4 text-sm font-bold text-ink outline-none"
                   />
                   <textarea
                     placeholder="Description (optional)"
-                    value={newGroupData.description}
+                    value={newGroupData.description || ''}
                     onChange={(e) => setNewGroupData({ ...newGroupData, description: e.target.value })}
                     className="w-full h-24 bg-gray-50 border-none rounded-xl px-6 py-4 text-sm font-bold text-ink outline-none resize-none"
                   />
@@ -15057,7 +15125,7 @@ function ExonaApp() {
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.student} Name</label>
                   <input 
                     type="text" 
-                    value={newRecord.studentName}
+                    value={newRecord.studentName || ''}
                     onChange={(e) => setNewRecord({...newRecord, studentName: e.target.value})}
                     placeholder="Full Legal Name"
                     className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
@@ -15068,7 +15136,7 @@ function ExonaApp() {
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.student} Class</label>
                     <input 
                       type="text" 
-                      value={newRecord.studentClass}
+                      value={newRecord.studentClass || ''}
                       onChange={(e) => setNewRecord({...newRecord, studentClass: e.target.value})}
                       placeholder="e.g. JSS2 A, Grade 5"
                       className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
@@ -15078,7 +15146,7 @@ function ExonaApp() {
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Parent Phone Number</label>
                     <input 
                       type="tel" 
-                      value={newRecord.parentNumber}
+                      value={newRecord.parentNumber || ''}
                       onChange={(e) => setNewRecord({...newRecord, parentNumber: e.target.value})}
                       placeholder="+234..."
                       className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
@@ -15120,30 +15188,11 @@ function ExonaApp() {
                       <div className="flex gap-2">
                         <input 
                           type="text" 
-                          value={newRecord.category}
+                          value={newRecord.category || ''}
                           onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
                           placeholder="Or specify exact class (e.g. SS3 A)"
                           className="flex-1 px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                         />
-                        {newRecord.category && selectedSchool && !(selectedSchool.educationalLevels || []).includes(newRecord.category) && (
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              try {
-                                const schoolRef = doc(db, 'schools', selectedSchool.id);
-                                await updateDoc(schoolRef, {
-                                  educationalLevels: arrayUnion(newRecord.category)
-                                });
-                                showNotification('Category saved to list', 'success');
-                              } catch (error) {
-                                console.error('Failed to save category', error);
-                              }
-                            }}
-                            className="px-6 py-5 bg-gray-50 text-ink rounded-[2rem] font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                          >
-                            Save
-                          </button>
-                        )}
                       </div>
                     </div>
                   ) : (
@@ -15155,25 +15204,6 @@ function ExonaApp() {
                         placeholder="e.g. JSS1, SS3"
                         className="flex-1 px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                       />
-                      {newRecord.category && selectedSchool && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            try {
-                              const schoolRef = doc(db, 'schools', selectedSchool.id);
-                              await updateDoc(schoolRef, {
-                                educationalLevels: arrayUnion(newRecord.category)
-                              });
-                              showNotification('Category saved to list', 'success');
-                            } catch (error) {
-                              console.error('Failed to save category', error);
-                            }
-                          }}
-                          className="px-6 py-5 bg-white border border-gray-100 text-ink rounded-[2rem] font-bold text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
-                        >
-                          Save
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
@@ -15182,7 +15212,7 @@ function ExonaApp() {
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Paid ({currencySymbol})</label>
                     <input 
                       type="number" 
-                      value={newRecord.paid}
+                      value={newRecord.paid ?? 0}
                       onChange={(e) => setNewRecord({...newRecord, paid: Number(e.target.value)})}
                       className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                     />
@@ -15191,7 +15221,7 @@ function ExonaApp() {
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Balance ({currencySymbol})</label>
                     <input 
                       type="number" 
-                      value={newRecord.balance}
+                      value={newRecord.balance ?? 0}
                       onChange={(e) => setNewRecord({...newRecord, balance: Number(e.target.value)})}
                       className="w-full px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
                     />
@@ -15578,36 +15608,18 @@ function ExonaApp() {
                   <div className="flex gap-2">
                     <input 
                       type="text" 
-                      value={newAttendance.category}
+                      value={newAttendance.category || ''}
                       onChange={(e) => setNewAttendance({...newAttendance, category: e.target.value})}
                       placeholder="Or enter custom department..."
                       className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
-                    {newAttendance.category && selectedSchool && !(selectedSchool.educationalLevels || []).includes(newAttendance.category) && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const schoolRef = doc(db, 'schools', selectedSchool.id);
-                            await updateDoc(schoolRef, {
-                              educationalLevels: arrayUnion(newAttendance.category)
-                            });
-                            showNotification('Category saved to list', 'success');
-                          } catch (error) {
-                            console.error('Failed to save category', error);
-                          }
-                        }}
-                        className="px-6 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                      >
-                        Save Category
-                      </button>
-                    )}
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Record Time (Optional)</label>
                   <input 
                     type="text" 
-                    value={newAttendance.time}
+                    value={newAttendance.time || ''}
                     onChange={(e) => setNewAttendance({...newAttendance, time: e.target.value})}
                     placeholder={`e.g. ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                     className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
@@ -15695,36 +15707,18 @@ function ExonaApp() {
                   <div className="flex gap-2">
                     <input 
                       type="text" 
-                      value={newRoutine.category}
+                      value={newRoutine.category || ''}
                       onChange={(e) => setNewRoutine({...newRoutine, category: e.target.value})}
                       placeholder="Or enter custom category..."
                       className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
-                    {newRoutine.category && selectedSchool && !(selectedSchool.educationalLevels || []).includes(newRoutine.category) && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const schoolRef = doc(db, 'schools', selectedSchool.id);
-                            await updateDoc(schoolRef, {
-                              educationalLevels: arrayUnion(newRoutine.category)
-                            });
-                            showNotification('Category saved to list', 'success');
-                          } catch (error) {
-                            console.error('Failed to save category', error);
-                          }
-                        }}
-                        className="px-6 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                      >
-                        Save
-                      </button>
-                    )}
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Routine Title (e.g. Morning Assembly)</label>
                   <input 
                     type="text" 
-                    value={newRoutine.title}
+                    value={newRoutine.title || ''}
                     onChange={(e) => setNewRoutine({...newRoutine, title: e.target.value})}
                     placeholder="Enter short title"
                     className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
@@ -15734,7 +15728,7 @@ function ExonaApp() {
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Time Slot</label>
                   <input 
                     type="text" 
-                    value={newRoutine.timeSlot}
+                    value={newRoutine.timeSlot || ''}
                     onChange={(e) => setNewRoutine({...newRoutine, timeSlot: e.target.value})}
                     placeholder="e.g. 08:30 AM - 09:00 AM"
                     className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
@@ -15743,7 +15737,7 @@ function ExonaApp() {
                 <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Activity Description</label>
                   <textarea 
-                    value={newRoutine.activity}
+                    value={newRoutine.activity || ''}
                     onChange={(e) => setNewRoutine({...newRoutine, activity: e.target.value})}
                     placeholder="Describe the activity..."
                     rows={4}
@@ -15754,7 +15748,7 @@ function ExonaApp() {
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Optional Notes</label>
                   <input 
                     type="text" 
-                    value={newRoutine.notes}
+                    value={newRoutine.notes || ''}
                     onChange={(e) => setNewRoutine({...newRoutine, notes: e.target.value})}
                     placeholder="Special instructions..."
                     className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
@@ -16560,6 +16554,85 @@ function ExonaApp() {
       <LegalModal />
       <DataStorageModal />
       <InsufficientStarsAlert />
+
+      {/* Category Manager Modal */}
+      <AnimatePresence>
+        {isCategoryManagerOpen && selectedSchool && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[400] flex items-center justify-center p-6 no-print"
+            onClick={(e) => e.target === e.currentTarget && setIsCategoryManagerOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[2.5rem] p-8 relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-accent/20" />
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-ink mb-1">Manage Categories</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Configure labels for {selectedSchool.name}</p>
+                </div>
+                <button 
+                  onClick={() => setIsCategoryManagerOpen(false)} 
+                  className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategoryName || ''}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="New category name..."
+                    className="flex-1 px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-accent/20"
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddCategory()}
+                  />
+                  <button
+                    onClick={handleAddCategory}
+                    className="px-6 py-4 bg-ink text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-ink/90 transition-all flex items-center justify-center"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 no-scrollbar">
+                  {(!selectedSchool.educationalLevels || selectedSchool.educationalLevels.length === 0) ? (
+                    <div className="py-12 text-center text-muted font-bold text-[10px] uppercase tracking-widest opacity-30">
+                      No categories defined
+                    </div>
+                  ) : (
+                    selectedSchool.educationalLevels.map((cat: string) => (
+                      <div key={cat} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                        <span className="text-xs font-bold text-ink">{cat}</span>
+                        <button
+                          onClick={() => handleRemoveCategory(cat)}
+                          className="h-8 w-8 text-red-500 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-8 pt-8 border-t border-gray-50 text-center">
+                <p className="text-[10px] font-medium text-muted">
+                  These categories appear as options when adding new {selectedSchool.type === 'school' ? 'student' : 'customer'} records.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Nav */}
       <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[420px] no-print">
