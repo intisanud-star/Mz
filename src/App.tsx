@@ -1422,7 +1422,7 @@ const WordLayout = ({
           ref={contentRef}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-6 sm:p-10 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 print-content"
+          className="w-full md:max-w-[1000px] bg-white min-h-screen md:min-h-[1200px] p-6 sm:p-10 md:p-16 lg:p-20 rounded-none md:rounded-sm border-x-0 md:border-x border-gray-200 relative mb-0 md:mb-20 pb-32 sm:pb-40 print-content"
         >
           {/* Page Header Decor */}
           <div className="absolute top-0 left-0 w-full h-1 bg-ink/5" />
@@ -1729,7 +1729,31 @@ function ExonaApp() {
   const [broadcastResult, setBroadcastResult] = useState<{ success: boolean; message: string } | null>(null);
   const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
 
+  const [serverReady, setServerReady] = useState(false);
+
+  useEffect(() => {
+    let checkInterval: any;
+    const checkServer = () => {
+      fetch('/api/health')
+        .then(res => res.json())
+        .then(data => {
+          if (data.status === 'ok') {
+            console.log("Presidential Server is READY");
+            setServerReady(true);
+            clearInterval(checkInterval);
+          }
+        })
+        .catch(() => {
+          console.warn("Waiting for Presidential Server...");
+        });
+    };
+    checkInterval = setInterval(checkServer, 5000);
+    checkServer();
+    return () => clearInterval(checkInterval);
+  }, []);
+
   const fetchBroadcastHistory = useCallback(() => {
+    if (!serverReady) return;
     fetch('/api/admin/broadcasts')
       .then(res => {
         if (!res.ok) {
@@ -1744,11 +1768,10 @@ function ExonaApp() {
       })
       .catch(err => {
         console.error('Failed to fetch broadcasts:', err);
-        // Be more descriptive about network errors
-        const msg = err.message === 'Failed to fetch' 
-          ? 'Network error: Backend server might be restarting or unreachable.' 
-          : err.message;
-        showNotification(`Broadcast history info: ${msg}`, 'error');
+        if (err.message === 'Failed to fetch') {
+          // Silent retry in background
+          setTimeout(fetchBroadcastHistory, 10000);
+        }
       });
   }, []);
 
@@ -1797,21 +1820,28 @@ function ExonaApp() {
   };
 
   useEffect(() => {
-    fetch('/api/admin/stats')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        if (data.success) setCommunitySize(data.communitySize);
-      })
-      .catch(err => {
-        console.error('Failed to fetch community stats:', err);
-        showNotification(`API Error: ${err.message}`, 'error');
-      });
+    if (!serverReady) return;
+    const fetchStats = () => {
+      fetch('/api/admin/stats')
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          return res.json();
+        })
+        .then(data => {
+          if (data.success) setCommunitySize(data.communitySize);
+        })
+        .catch(err => {
+          console.error('Failed to fetch community stats:', err);
+          if (err.message === 'Failed to fetch') {
+            // Silently retry stats in 15s
+            setTimeout(fetchStats, 15000);
+          }
+        });
+    };
     
+    fetchStats();
     fetchBroadcastHistory();
-  }, [fetchBroadcastHistory]);
+  }, [fetchBroadcastHistory, serverReady]);
   const [records, setRecords] = useState<Record[]>([]);
   const [dailyRoutines, setDailyRoutines] = useState<DailyRoutine[]>([]);
   const [newRoutine, setNewRoutine] = useState({ title: '', activity: '', category: '', timeSlot: '', notes: '' });
@@ -2667,22 +2697,44 @@ function ExonaApp() {
 
   // Fetch leaderboard data
   const fetchLeaderboard = async () => {
+    if (!db) {
+       console.warn("Firestore db not initialized yet");
+       return;
+    }
     setIsLeaderboardLoading(true);
     try {
       const now = new Date();
+      if (isNaN(now.getTime())) throw new Error("Invalid current date");
+      
       const lastSunday = new Date(now);
       lastSunday.setDate(now.getDate() - now.getDay());
-      lastSunday.setHours(0, 0, 0, 0);
+      // Extra safety check for Date object
+      if (typeof lastSunday.setHours === 'function') {
+        lastSunday.setHours(0, 0, 0, 0);
+      } else {
+        console.error("lastSunday is not a Date object", lastSunday);
+      }
 
       const q = query(
         collection(db, 'brainBattleLeads'),
         where('timestamp', '>=', lastSunday),
-        orderBy('timestamp', 'asc'), // Filter requires index, or same field sort
-        limit(100) // Get more to sort manually if needed or let firestore handle
+        orderBy('timestamp', 'asc'),
+        limit(100)
       );
       
       const snapshot = await getDocs(q);
-      const leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      if (!snapshot || !snapshot.docs) {
+        setLeaderboard([]);
+        return;
+      }
+      const leads = snapshot.docs.map(doc => {
+        try {
+          return { id: doc.id, ...doc.data() as any };
+        } catch (err) {
+          console.error("Error mapping lead document:", doc.id, err);
+          return null;
+        }
+      }).filter(Boolean);
       
       // Sort by score desc, then time asc since composite index might not be ready
       const sortedLeads = leads.sort((a, b) => {
@@ -4407,6 +4459,28 @@ function ExonaApp() {
     
     fetchFollowerDocs();
   }, [user, schools, places, myFollowers, chatUsers]);
+  const staffCandidates = useMemo(() => {
+    if (!attendance) return [];
+    const recordedNames = Array.from(new Set(attendance.map(a => a.teacherName).filter(Boolean)));
+    const allKnown = [...myFollowers, ...institutionFollowerDocs, ...chatUsers, ...connectedUsers, ...auditorResults];
+    
+    return recordedNames.map(name => {
+      const matchedUser = allKnown.find(u => u.displayName === name);
+      const userAttendance = attendance.filter(a => a.teacherName === name);
+      const stats = {
+        present: userAttendance.filter(a => a.status === 'present').length,
+        absent: userAttendance.filter(a => a.status === 'absent').length,
+        late: userAttendance.filter(a => a.status === 'late').length,
+      };
+      return {
+        uid: matchedUser?.uid || `recorded-${name}`,
+        displayName: name,
+        photoURL: matchedUser?.photoURL || null,
+        stats
+      };
+    });
+  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults]);
+
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editingGroupData, setEditingGroupData] = useState({ name: '', description: '', photoURL: '' });
@@ -5665,6 +5739,23 @@ function ExonaApp() {
       showNotification('Routine deleted');
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `dailyRoutines/${routineId}`);
+    }
+  };
+
+  const handleDeleteAttendance = async (recordId: string) => {
+    if (!user || !selectedSchool) return;
+    if (selectedSchool.creatorUid !== user.uid) {
+      showNotification('Only the primary creator can delete attendance records.', 'error');
+      return;
+    }
+    
+    if (!window.confirm('Are you sure you want to delete this attendance record? This action cannot be undone.')) return;
+
+    try {
+      await deleteDoc(doc(db, 'teacherAttendance', recordId));
+      showNotification('Attendance record removed');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `teacherAttendance/${recordId}`);
     }
   };
 
@@ -7749,7 +7840,7 @@ function ExonaApp() {
                   )}
                   <div className="flex-1" />
                   <button
-                    disabled={isBroadcasting || !broadcastMessage.trim()}
+                    disabled={isBroadcasting || !broadcastMessage.trim() || !serverReady}
                     onClick={async () => {
                       if (!broadcastMessage.trim() && !broadcastImageFile && !broadcastVideoFile) return;
                       setIsBroadcasting(true);
@@ -8062,8 +8153,8 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full min-h-screen bg-gray-50/50">
-            <div className="max-w-xl mx-auto py-8 px-4">
+          <div className="w-full min-h-screen bg-gray-50/50 pb-32">
+            <div className="max-w-xl mx-auto pt-8 px-4">
             <div className="flex items-center justify-between mb-8">
               <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
@@ -8248,7 +8339,7 @@ function ExonaApp() {
         const canSeeContent = isFollowing || isManager || isAdmin;
 
         return (
-          <div className="w-full max-w-xl mx-auto py-4 px-4">
+          <div className="w-full max-w-xl mx-auto pt-4 pb-32 px-4">
             <div className="flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100">
                 <div className="flex items-center gap-3">
@@ -10325,6 +10416,78 @@ function ExonaApp() {
               <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{labels.attendance} Log • {new Date().toLocaleDateString()}</p>
             </div>
 
+            {canManageInstitution(selectedSchool) && staffCandidates.length > 0 && (
+              <div className="mb-16">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-xl font-bold text-ink">Staff Directory</h3>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Quick-mark presence for recorded staff</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {staffCandidates.map((staff) => (
+                    <motion.div 
+                      key={staff.uid}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-white border border-gray-100 rounded-3xl hover:border-accent/30 transition-all group"
+                    >
+                      <div className="flex flex-col items-center text-center">
+                        <div className="h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 mb-3 overflow-hidden shrink-0">
+                          {staff.photoURL ? (
+                            <img src={staff.photoURL} alt={staff.displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-muted">
+                              <UserIcon size={20} />
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[11px] font-bold text-ink truncate w-full mb-1">{staff.displayName}</span>
+                        <div className="flex gap-2 mb-3">
+                          <div className="flex flex-col items-center">
+                            <span className="text-[8px] font-black text-green-500 uppercase">P</span>
+                            <span className="text-[9px] font-bold text-ink">{staff.stats?.present || 0}</span>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <span className="text-[8px] font-black text-red-500 uppercase">A</span>
+                            <span className="text-[9px] font-bold text-ink">{staff.stats?.absent || 0}</span>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <span className="text-[8px] font-black text-amber-500 uppercase">L</span>
+                            <span className="text-[9px] font-bold text-ink">{staff.stats?.late || 0}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 justify-center w-full">
+                          {(['present', 'absent', 'late'] as const).map((s) => (
+                            <button
+                              key={s}
+                              onClick={() => {
+                                setNewAttendance({
+                                  teacherName: staff.displayName,
+                                  category: 'Staff',
+                                  status: s,
+                                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                });
+                                setIsAttendanceModalOpen(true);
+                              }}
+                              title={`Mark ${s}`}
+                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black uppercase transition-all ${
+                                s === 'present' ? 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white' :
+                                s === 'absent' ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white' :
+                                'bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white'
+                              }`}
+                            >
+                              {s === 'present' ? 'P' : s === 'absent' ? 'A' : 'L'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
               {[
                 { label: 'Total Records', value: filteredAttendance.length, icon: ClipboardList },
@@ -10360,12 +10523,15 @@ function ExonaApp() {
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Time</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
                     <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
+                    {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right w-10"></th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filteredAttendance.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-20 text-center">
+                      <td colSpan={selectedSchool && selectedSchool.creatorUid === user.uid ? 7 : 6} className="px-6 py-20 text-center">
                         <p className="font-bold text-lg text-muted">No {labels.attendance.toLowerCase()} records found</p>
                       </td>
                     </tr>
@@ -10388,6 +10554,16 @@ function ExonaApp() {
                         <td className="px-6 py-4 text-[12px] font-bold text-ink">{record.time || '--:--'}</td>
                         <td className="px-6 py-4 text-[12px] font-medium text-muted">{record.date}</td>
                         <td className="px-6 py-4 text-right text-[12px] font-medium text-muted">{record.addedBy}</td>
+                        {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                          <td className="px-6 py-4 text-right">
+                            <button 
+                              onClick={() => handleDeleteAttendance(record.id)}
+                              className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
@@ -10405,9 +10581,19 @@ function ExonaApp() {
                 filteredAttendance.map((record) => (
                   <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4">
                     <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-bold text-ink">{record.teacherName}</h4>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || 'General'}</p>
+                      <div className="flex gap-3">
+                        {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                          <button 
+                            onClick={() => handleDeleteAttendance(record.id)}
+                            className="p-2 h-8 w-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                        <div>
+                          <h4 className="font-bold text-ink">{record.teacherName}</h4>
+                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || 'General'}</p>
+                        </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                         record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
@@ -10428,6 +10614,78 @@ function ExonaApp() {
                   </div>
                 ))
               )}
+            </div>
+            
+            <div className="mt-20">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-ink tracking-tight uppercase">Staff Performance Analysis</h3>
+                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Aggregated attendance statistics per staff</p>
+                </div>
+              </div>
+              
+              <div className="overflow-x-auto border border-gray-200 rounded-3xl bg-white shadow-sm">
+                <table className="w-full text-left border-collapse min-w-[700px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted">Staff Name</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-green-600 text-center">Present</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-red-600 text-center">Absent</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 text-center">Late</th>
+                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-ink text-right">Reliability Index</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {staffCandidates.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-8 py-20 text-center">
+                          <p className="font-bold text-muted">No staff records found for performance analysis</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      staffCandidates.map((staff) => {
+                        const total = (staff.stats?.present || 0) + (staff.stats?.absent || 0) + (staff.stats?.late || 0);
+                        const reliability = total > 0 ? Math.round(((staff.stats?.present || 0) + (staff.stats?.late || 0) * 0.5) / total * 100) : 0;
+                        return (
+                          <tr key={staff.uid} className="hover:bg-gray-50/50 transition-colors">
+                            <td className="px-8 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                                  {staff.photoURL ? (
+                                    <img src={staff.photoURL} alt="" className="h-full w-full object-cover" />
+                                  ) : (
+                                    <div className="h-full w-full flex items-center justify-center text-muted"><UserIcon size={14} /></div>
+                                  )}
+                                </div>
+                                <span className="font-bold text-ink text-sm">{staff.displayName}</span>
+                              </div>
+                            </td>
+                            <td className="px-8 py-4 text-center font-black text-green-600">{staff.stats?.present || 0}</td>
+                            <td className="px-8 py-4 text-center font-black text-red-600">{staff.stats?.absent || 0}</td>
+                            <td className="px-8 py-4 text-center font-black text-amber-600">{staff.stats?.late || 0}</td>
+                            <td className="px-8 py-4 text-right">
+                              <div className="flex flex-col items-end gap-1">
+                                 <span className={`text-[11px] font-black ${reliability > 80 ? 'text-green-600' : reliability > 50 ? 'text-amber-600' : 'text-red-600'}`}>
+                                   {reliability}%
+                                 </span>
+                                 <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                   <div 
+                                     className={`h-full transition-all duration-1000 ${reliability > 80 ? 'bg-green-500' : reliability > 50 ? 'bg-amber-500' : 'bg-red-500'}`} 
+                                     style={{ width: `${reliability}%` }} 
+                                   />
+                                 </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
@@ -15577,6 +15835,30 @@ function ExonaApp() {
               <div className="space-y-8">
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.teacher} Name</label>
+                  {staffCandidates.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4 px-4">
+                      {staffCandidates.map((staff) => (
+                        <button
+                          key={staff.uid}
+                          onClick={() => setNewAttendance({...newAttendance, teacherName: staff.displayName})}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
+                            newAttendance.teacherName === staff.displayName
+                              ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20'
+                              : 'bg-white text-muted border-gray-100 hover:border-gray-200'
+                          }`}
+                        >
+                          <div className="h-4 w-4 rounded-full overflow-hidden bg-gray-100 shrink-0">
+                            {staff.photoURL ? (
+                              <img src={staff.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <UserIcon size={8} className="m-auto" />
+                            )}
+                          </div>
+                          <span className="text-[10px] font-bold">{staff.displayName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input 
                     type="text" 
                     value={newAttendance.teacherName}
@@ -16519,6 +16801,7 @@ function ExonaApp() {
         </AnimatePresence>
 
         <motion.div
+          className="w-full"
           style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
         >
           {renderView()}

@@ -33,13 +33,21 @@ try {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+console.log('Presidential Server: Starting initialization sequence...');
+console.log('Environment:', process.env.NODE_ENV);
+
 // Initialize Firebase Client SDK for backend (to bypass ADC project mismatch)
-let db: any;
+let db: any = null;
 if ((firebaseConfig as any).projectId) {
-  const clientApp = initializeClientApp(firebaseConfig);
-  db = getClientFirestore(clientApp, (firebaseConfig as any).firestoreDatabaseId || '(default)');
+  try {
+    const clientApp = initializeClientApp(firebaseConfig);
+    db = getClientFirestore(clientApp, (firebaseConfig as any).firestoreDatabaseId || '(default)');
+    console.log(`Firebase Backend initialized for project: ${(firebaseConfig as any).projectId}`);
+  } catch (err) {
+    console.error('CRITICAL: Failed to initialize Firebase Backend:', err);
+  }
 } else {
-  console.error('Firebase configuration is incomplete. Database operations will fail.');
+  console.error('CRITICAL: Firebase projectId is missing from configuration. API functionality will be limited.');
 }
 
 // Helper function for delays
@@ -79,6 +87,7 @@ function getBot() {
     
     // Proactively delete any existing webhook to ensure long-polling can start
     newBot.telegram.deleteWebhook().then(() => {
+      console.log('Telegram: Webhook deleted successfully');
       return newBot.launch();
     }).then(() => {
       console.log('Telegram bot launched successfully');
@@ -86,11 +95,7 @@ function getBot() {
     }).catch(err => {
       console.error('Failed to launch Telegram bot:', err);
       isBotLaunching = false;
-      bot = null; // Reset so next call to getBot() can try again if token is valid
-      
-      if (err.description && err.description.includes('Conflict')) {
-        console.warn('Telegram Bot Conflict detected: Another instance is already running. This session will be retried on next demand.');
-      }
+      bot = null; 
     });
     
     bot = newBot;
@@ -179,18 +184,30 @@ async function startServer() {
 
   // API Health Check
   app.get('/api/health', async (req, res) => {
+    console.log('Health check requested');
     let dbStatus = 'unknown';
     try {
-      await getDocs(query(collection(db, 'users'), limit(1)));
-      dbStatus = 'connected';
+      if (db) {
+        await getDocs(query(collection(db, 'users'), limit(1)));
+        dbStatus = 'connected';
+      } else {
+        dbStatus = 'not_initialized';
+      }
     } catch (e: any) {
       dbStatus = `error: ${e.message}`;
     }
     res.json({ 
       status: 'ok', 
       timestamp: new Date().toISOString(),
-      database: dbStatus
+      database: dbStatus,
+      projectId: (firebaseConfig as any).projectId || 'missing'
     });
+  });
+
+  // Global error handler for API routes
+  app.use('/api', (err: any, req: any, res: any, next: any) => {
+    console.error(`API Error on ${req.method} ${req.url}:`, err);
+    res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
   });
 
   // 3. Broadcast API Endpoint
@@ -370,6 +387,12 @@ async function startServer() {
     const { userId, amount, type, description } = req.body;
     console.log(`[STARS] Transaction for ${userId}: ${type} ${amount} - ${description}`);
     res.json({ success: true, message: 'Transaction authorized by Presidential treasury' });
+  });
+
+  // Catch-all for API 404
+  app.use('/api/*', (req, res) => {
+    console.warn(`404 at API route: ${req.method} ${req.url}`);
+    res.status(404).json({ success: false, error: 'API route not found' });
   });
 
   if (process.env.NODE_ENV !== 'production') {

@@ -78,6 +78,16 @@ service cloud.firestore {
       );
     }
 
+    function isSchoolCreator(schoolId) {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
+         get(/databases/$(database)/documents/schools/$(schoolId)).data.get('creatorUid', '') == request.auth.uid) ||
+        (exists(/databases/$(database)/documents/places/$(schoolId)) && 
+         get(/databases/$(database)/documents/places/$(schoolId)).data.get('creatorUid', '') == request.auth.uid)
+      );
+    }
+
     function isFollowAction() {
       let incoming = request.resource.data;
       let existing = resource.data;
@@ -407,7 +417,8 @@ service cloud.firestore {
     match /teacherAttendance/{attendanceId} {
       allow read: if isAuthenticated();
       allow create: if isValidTeacherAttendance(incoming()) && isSchoolManager(incoming().schoolId);
-      allow update, delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
+      allow update: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
+      allow delete: if isAuthenticated() && (isSchoolCreator(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
