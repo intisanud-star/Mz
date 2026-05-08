@@ -13,6 +13,7 @@ import {
   DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Stars, Shield,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Mic, Play, Pause, PhoneOff, StopCircle, RefreshCw,
+  SearchCheck, CalendarCheck2,
   Building2, MapPin, Lock,
   Globe, Zap, Mail, Facebook, Twitter, Instagram, Github, Chrome, Palette, HelpCircle, Info, Coffee, Rocket, Terminal, Code2, Monitor, Smartphone, Tablet, Github as GithubIcon, Laptop, Coffee as CoffeeIcon,
   Sun, Moon, Book, Award, Star, BarChart3, Briefcase, HeartHandshake, ShieldCheck, Zap as ZapIcon, Fingerprint as FingerprintIcon,
@@ -1914,6 +1915,8 @@ function ExonaApp() {
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
+  const [attendanceViewMode, setAttendanceViewMode] = useState<'landing' | 'log' | 'manage'>('landing');
+  const [editingAttendance, setEditingAttendance] = useState<TeacherAttendance | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
   const CallOverlay = () => {
@@ -4464,22 +4467,22 @@ function ExonaApp() {
     const recordedNames = Array.from(new Set(attendance.map(a => a.teacherName).filter(Boolean)));
     const allKnown = [...myFollowers, ...institutionFollowerDocs, ...chatUsers, ...connectedUsers, ...auditorResults];
     
-    return recordedNames.map(name => {
+    // Also include followers of the current school as candidates
+    const followerNames = selectedSchool 
+      ? institutionFollowerDocs.filter(u => u.followingInstitutions?.includes(selectedSchool.id)).map(u => u.displayName).filter(Boolean)
+      : [];
+    
+    const combinedNames = Array.from(new Set([...recordedNames, ...followerNames]));
+    
+    return combinedNames.map(name => {
       const matchedUser = allKnown.find(u => u.displayName === name);
-      const userAttendance = attendance.filter(a => a.teacherName === name);
-      const stats = {
-        present: userAttendance.filter(a => a.status === 'present').length,
-        absent: userAttendance.filter(a => a.status === 'absent').length,
-        late: userAttendance.filter(a => a.status === 'late').length,
-      };
       return {
         uid: matchedUser?.uid || `recorded-${name}`,
         displayName: name,
-        photoURL: matchedUser?.photoURL || null,
-        stats
+        photoURL: matchedUser?.photoURL || null
       };
     });
-  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults]);
+  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults, selectedSchool]);
 
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
@@ -5683,23 +5686,37 @@ function ExonaApp() {
     setIsUploading(true);
     const path = 'teacherAttendance';
     try {
-      console.log('Adding attendance record to:', path);
-      await addDoc(collection(db, path), {
-        schoolId: selectedSchool.id,
-        teacherName: newAttendance.teacherName.trim(),
-        category: newAttendance.category.trim() || 'General',
-        status: newAttendance.status,
-        date: new Date().toISOString().split('T')[0],
-        time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        addedBy: user.displayName || 'Anonymous',
-        timestamp: serverTimestamp()
-      });
-      console.log('Attendance record added successfully');
+      if (editingAttendance) {
+        console.log('Updating attendance record:', editingAttendance.id);
+        await updateDoc(doc(db, path, editingAttendance.id), {
+          teacherName: newAttendance.teacherName.trim(),
+          category: newAttendance.category.trim() || 'General',
+          status: newAttendance.status,
+          time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          updatedBy: user.displayName || 'Anonymous',
+          updatedAt: serverTimestamp()
+        });
+        showNotification('Record updated successfully', 'success');
+      } else {
+        console.log('Adding attendance record to:', path);
+        await addDoc(collection(db, path), {
+          schoolId: selectedSchool.id,
+          teacherName: newAttendance.teacherName.trim(),
+          category: newAttendance.category.trim() || 'General',
+          status: newAttendance.status,
+          date: new Date().toISOString().split('T')[0],
+          time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          addedBy: user.displayName || 'Anonymous',
+          timestamp: serverTimestamp()
+        });
+        showNotification('Record added successfully', 'success');
+      }
       setNewAttendance({ teacherName: '', category: '', status: 'present', time: '' });
+      setEditingAttendance(null);
       setIsAttendanceModalOpen(false);
     } catch (error) {
       console.error('Attendance operation failed', error);
-      handleFirestoreError(error, OperationType.CREATE, path);
+      handleFirestoreError(error, editingAttendance ? OperationType.UPDATE : OperationType.CREATE, path);
     } finally {
       setIsUploading(false);
     }
@@ -10333,6 +10350,7 @@ function ExonaApp() {
       case 'attendance': {
         if (!user) { setView('login'); return null; }
         const labels = selectedSchool ? getLabels(selectedSchool.type) : getLabels();
+        
         if (!selectedSchool) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center">
@@ -10352,20 +10370,164 @@ function ExonaApp() {
             </div>
           );
         }
+
         const categories = Array.from(new Set(attendance.map(a => a.category || 'General').filter(Boolean)));
         const filteredAttendance = attendance.filter(r => {
           const nameMatches = r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase());
           const categoryMatches = attendanceCategoryFilter === 'all' || (r.category || 'General') === attendanceCategoryFilter;
           return nameMatches && categoryMatches;
         });
+
         const presentToday = filteredAttendance.filter(r => r.status === 'present').length;
         const absentToday = filteredAttendance.filter(r => r.status === 'absent').length;
 
+        const renderAttendanceHub = () => {
+          const features = [
+            {
+              id: 'manage',
+              title: 'Add or Edit Records',
+              description: `Directly record or update participation for ${labels.teachers.toLowerCase()} and institutional members.`,
+              icon: UserCheck,
+              color: 'text-emerald-600',
+              bg: 'bg-emerald-50/50'
+            },
+            {
+              id: 'log',
+              title: 'Search Attendance',
+              description: 'Filter and search through historical records to find specific entries and activity patterns.',
+              icon: SearchCheck,
+              color: 'text-blue-600',
+              bg: 'bg-blue-50/50'
+            }
+          ];
+
+          return (
+            <div className="max-w-4xl mx-auto py-12 px-4">
+              <div className="flex flex-col items-center mb-16 text-center">
+                <motion.div 
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="h-24 w-24 bg-ink text-white rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl shadow-ink/20"
+                >
+                  <CalendarCheck2 size={44} strokeWidth={1.5} />
+                </motion.div>
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-ink mb-4 tracking-tight">{labels.attendance} Management</h1>
+                <p className="text-muted font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.5em]">{selectedSchool.name}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+                {features.map((item, idx) => (
+                  <motion.button
+                    key={item.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    onClick={() => setAttendanceViewMode(item.id as any)}
+                    className="group flex flex-col text-left p-12 bg-white border border-gray-100 rounded-[3.5rem] hover:border-accent/40 transition-all hover:bg-gray-50/30 relative overflow-hidden shadow-sm hover:shadow-xl hover:shadow-accent/5"
+                  >
+                    <div className={`${item.bg} ${item.color} h-20 w-20 rounded-[2rem] flex items-center justify-center mb-12 group-hover:scale-110 transition-transform duration-500`}>
+                      <item.icon size={32} strokeWidth={2} />
+                    </div>
+                    <h3 className="text-3xl font-extrabold text-ink mb-4 tracking-tight">{item.title}</h3>
+                    <p className="text-muted text-base leading-relaxed font-medium mb-10 pr-6 opacity-80">{item.description}</p>
+                    <div className="mt-auto flex items-center gap-3 text-accent font-black text-[11px] uppercase tracking-[0.2em]">
+                      <span>Open Module</span>
+                      <ArrowRight size={16} strokeWidth={3} className="group-hover:translate-x-1.5 transition-transform" />
+                    </div>
+                    
+                    {/* Decorative element */}
+                    <div className="absolute -right-12 -bottom-12 h-40 w-40 bg-gray-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                  </motion.button>
+                ))}
+              </div>
+
+              <div className="bg-ink p-10 sm:p-14 rounded-[4rem] text-white overflow-hidden relative mb-16">
+                <div className="relative z-10">
+                  <div className="flex flex-wrap items-center justify-between gap-8">
+                    <div>
+                      <h2 className="text-3xl font-extrabold mb-3 tracking-tight">Real-time Insights</h2>
+                      <p className="text-white/60 text-sm font-medium tracking-wide">Daily participation metrics and snapshot</p>
+                    </div>
+                    <div className="flex gap-12">
+                      {[
+                        { label: 'Activity', value: filteredAttendance.length },
+                        { label: 'Present', value: presentToday },
+                        { label: 'Absent', value: absentToday }
+                      ].map((stat, i) => (
+                        <div key={i} className="text-center">
+                          <p className="text-3xl sm:text-4xl font-black mb-1">{stat.value}</p>
+                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                {/* Background Glow */}
+                <div className="absolute top-0 right-0 w-1/2 h-full bg-accent/20 blur-[100px] pointer-events-none" />
+              </div>
+
+              {filteredAttendance.length > 0 && (
+                <div className="px-6">
+                  <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-bold text-ink tracking-tight">Recent Activity</h3>
+                    <button 
+                      onClick={() => setAttendanceViewMode('log')}
+                      className="text-accent font-bold text-[10px] uppercase tracking-widest hover:underline"
+                    >
+                      View All Logs
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {filteredAttendance.slice(0, 5).map((record) => (
+                      <div key={record.id} className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:bg-gray-50/50 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs ${
+                            record.status === 'present' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                          }`}>
+                            {record.status.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-ink">{record.teacherName}</p>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.time} • {record.category}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Added By</p>
+                          <p className="text-[11px] font-bold text-ink">{record.addedBy}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        if (attendanceViewMode === 'landing') {
+          return (
+            <WordLayout 
+              title="Attendance Hub"
+              subtitle={labels.attendance}
+              handlePrint={handlePrint}
+              icon={Compass}
+              branding={{ name: selectedSchool.name }}
+              showNotification={showNotification}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideIcon={true}
+              hideBranding={true}
+            >
+              {renderAttendanceHub()}
+            </WordLayout>
+          );
+        }
+
         return (
           <WordLayout 
-            title="Participation Records"
+            title={attendanceViewMode === 'manage' ? 'Mark Presence' : 'Activity Register'}
             subtitle={labels.attendance}
-            icon={Compass}
+            icon={attendanceViewMode === 'manage' ? UserCheck : ClipboardList}
             branding={{ name: selectedSchool.name }}
             showNotification={showNotification}
             handlePrint={handlePrint}
@@ -10375,319 +10537,257 @@ function ExonaApp() {
             hideIcon={true}
             toolbar={
               <div className="flex flex-wrap items-center gap-4 sm:gap-6">
+                <button 
+                  onClick={() => setAttendanceViewMode('landing')}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-ink rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  <ChevronLeft size={14} strokeWidth={2.5} />
+                  Hub
+                </button>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
                     <input 
                       type="text" 
-                      placeholder={`Search ${labels.teachers.toLowerCase()}...`} 
+                      placeholder={`Search...`} 
                       value={attendanceSearch}
                       onChange={(e) => setAttendanceSearch(e.target.value)}
                       className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-32 sm:w-48" 
                     />
                   </div>
-                  {categories.length > 0 && (
+                  {attendanceViewMode === 'log' && categories.length > 0 && (
                     <select
                       value={attendanceCategoryFilter}
                       onChange={(e) => setAttendanceCategoryFilter(e.target.value)}
                       className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg outline-none text-[11px] font-medium text-ink focus:border-accent"
                     >
-                      <option value="all">All Categories</option>
+                      <option value="all">Categories</option>
                       {categories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
                   )}
-                      {canManageInstitution(selectedSchool) && (
-                        <button 
-                          onClick={() => setIsAttendanceModalOpen(true)}
-                          className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-95 group"
-                        >
-                          <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
-                          Initialize {labels.attendance} log
-                        </button>
-                      )}
+                  {canManageInstitution(selectedSchool) && (
+                    <button 
+                      onClick={() => setIsAttendanceModalOpen(true)}
+                      className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-95 group"
+                    >
+                      <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
+                      Manual Entry
+                    </button>
+                  )}
                 </div>
               </div>
             }
           >
-            <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedSchool.name}</h1>
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{labels.attendance} Log • {new Date().toLocaleDateString()}</p>
+            <div className="mb-12">
+              <h1 className="text-4xl font-extrabold text-ink mb-2">
+                {attendanceViewMode === 'manage' ? 'Mark Presence' : 'Activity Register'}
+              </h1>
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{selectedSchool.name} • {new Date().toLocaleDateString()}</p>
             </div>
 
-            {canManageInstitution(selectedSchool) && staffCandidates.length > 0 && (
+            {attendanceViewMode === 'manage' && (
               <div className="mb-16">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="text-xl font-bold text-ink">Staff Directory</h3>
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Quick-mark presence for recorded staff</p>
+                {staffCandidates.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {staffCandidates
+                      .filter(s => s.displayName.toLowerCase().includes(attendanceSearch.toLowerCase()))
+                      .map((staff) => (
+                      <motion.div 
+                        key={staff.uid}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-5 bg-white border border-gray-100 rounded-[2.5rem] hover:border-accent/30 transition-all group relative overflow-hidden"
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <div className="h-14 w-14 rounded-2xl bg-gray-50 border border-gray-100 mb-4 overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
+                            {staff.photoURL ? (
+                              <img src={staff.photoURL} alt={staff.displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center text-muted">
+                                <UserIcon size={24} />
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[12px] font-bold text-ink truncate w-full mb-3">{staff.displayName}</span>
+                          
+                          <div className="flex items-center gap-2 justify-center w-full">
+                            {(['present', 'absent', 'late'] as const).map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => {
+                                  setNewAttendance({
+                                    teacherName: staff.displayName,
+                                    category: 'Staff',
+                                    status: s,
+                                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                  });
+                                  setIsAttendanceModalOpen(true);
+                                }}
+                                title={`Mark ${s}`}
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-black uppercase transition-all ${
+                                  s === 'present' ? 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white' :
+                                  s === 'absent' ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white' :
+                                  'bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white'
+                                }`}
+                              >
+                                {s.charAt(0).toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {staffCandidates.map((staff) => (
-                    <motion.div 
-                      key={staff.uid}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-4 bg-white border border-gray-100 rounded-3xl hover:border-accent/30 transition-all group"
-                    >
-                      <div className="flex flex-col items-center text-center">
-                        <div className="h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 mb-3 overflow-hidden shrink-0">
-                          {staff.photoURL ? (
-                            <img src={staff.photoURL} alt={staff.displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center text-muted">
-                              <UserIcon size={20} />
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[11px] font-bold text-ink truncate w-full mb-1">{staff.displayName}</span>
-                        <div className="flex gap-2 mb-3">
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] font-black text-green-500 uppercase">P</span>
-                            <span className="text-[9px] font-bold text-ink">{staff.stats?.present || 0}</span>
-                          </div>
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] font-black text-red-500 uppercase">A</span>
-                            <span className="text-[9px] font-bold text-ink">{staff.stats?.absent || 0}</span>
-                          </div>
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] font-black text-amber-500 uppercase">L</span>
-                            <span className="text-[9px] font-bold text-ink">{staff.stats?.late || 0}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 justify-center w-full">
-                          {(['present', 'absent', 'late'] as const).map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => {
-                                setNewAttendance({
-                                  teacherName: staff.displayName,
-                                  category: 'Staff',
-                                  status: s,
-                                  time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                });
-                                setIsAttendanceModalOpen(true);
-                              }}
-                              title={`Mark ${s}`}
-                              className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black uppercase transition-all ${
-                                s === 'present' ? 'bg-green-50 text-green-600 hover:bg-green-600 hover:text-white' :
-                                s === 'absent' ? 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white' :
-                                'bg-amber-50 text-amber-600 hover:bg-amber-600 hover:text-white'
-                              }`}
-                            >
-                              {s === 'present' ? 'P' : s === 'absent' ? 'A' : 'L'}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                ) : (
+                  <div className="bg-gray-50/50 rounded-[3rem] p-12 text-center border-2 border-dashed border-gray-200">
+                    <p className="text-muted font-bold text-sm">No recorded individuals found for quick-marking.</p>
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
-              {[
-                { label: 'Total Records', value: filteredAttendance.length, icon: ClipboardList },
-                { label: 'Present Today', value: presentToday, icon: CheckCircle2 },
-                { label: 'Absent Today', value: absentToday, icon: XCircle }
-              ].map((stat, i) => (
-                <div key={i} className="border-l border-gray-100 pl-6">
-                  <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">{stat.label}</p>
-                  <p className="text-2xl font-extrabold text-ink">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {canManageInstitution(selectedSchool) && (
-              <div className="md:hidden mb-12">
-                <button 
-                  onClick={() => setIsAttendanceModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-4 py-6 bg-ink text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.4em] active:scale-[0.98] transition-all"
-                >
-                  <Plus size={18} strokeWidth={2} />
-                  Authorize {labels.attendance}
-                </button>
-              </div>
-            )}
-
-            <div className="hidden md:block overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-white border-b border-gray-200">
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">{labels.teacher} Name</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Time</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
-                    <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
-                    {selectedSchool && selectedSchool.creatorUid === user.uid && (
-                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right w-10"></th>
-                    )}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredAttendance.length === 0 ? (
-                    <tr>
-                      <td colSpan={selectedSchool && selectedSchool.creatorUid === user.uid ? 7 : 6} className="px-6 py-20 text-center">
-                        <p className="font-bold text-lg text-muted">No {labels.attendance.toLowerCase()} records found</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredAttendance.map((record) => (
-                      <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
-                        <td className="px-6 py-4">
-                          <span className="font-bold text-ink text-sm">{record.teacherName}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-[10px] font-bold text-muted uppercase tracking-widest bg-gray-50 px-2 py-1 rounded border border-gray-100">{record.category || 'General'}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                            record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
-                          }`}>
-                            {record.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-[12px] font-bold text-ink">{record.time || '--:--'}</td>
-                        <td className="px-6 py-4 text-[12px] font-medium text-muted">{record.date}</td>
-                        <td className="px-6 py-4 text-right text-[12px] font-medium text-muted">{record.addedBy}</td>
-                        {selectedSchool && selectedSchool.creatorUid === user.uid && (
-                          <td className="px-6 py-4 text-right">
-                            <button 
-                              onClick={() => handleDeleteAttendance(record.id)}
-                              className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-4">
-              {filteredAttendance.length === 0 ? (
-                <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                  <p className="font-bold text-muted">No {labels.attendance.toLowerCase()} records found</p>
-                </div>
-              ) : (
-                filteredAttendance.map((record) => (
-                  <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex gap-3">
-                        {selectedSchool && selectedSchool.creatorUid === user.uid && (
-                          <button 
-                            onClick={() => handleDeleteAttendance(record.id)}
-                            className="p-2 h-8 w-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                        <div>
-                          <h4 className="font-bold text-ink">{record.teacherName}</h4>
-                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || 'General'}</p>
-                        </div>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                        record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
-                      }`}>
-                        {record.status}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center pt-3 border-t border-gray-50">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Recorded By</span>
-                        <span className="text-[10px] font-medium text-ink">{record.addedBy}</span>
-                      </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-bold text-ink">{record.time || '--:--'}</span>
-                        <span className="text-[10px] font-medium text-muted">{record.date}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <div className="mt-20">
-              <div className="flex items-center gap-3 mb-8">
-                <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <Users size={20} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-extrabold text-ink tracking-tight uppercase">Staff Performance Analysis</h3>
-                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Aggregated attendance statistics per staff</p>
-                </div>
-              </div>
-              
-              <div className="overflow-x-auto border border-gray-200 rounded-3xl bg-white shadow-sm">
+            {attendanceViewMode === 'log' && (
+              <div className="hidden md:block overflow-x-auto custom-scrollbar border border-gray-200 rounded-sm mb-12">
                 <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted">Staff Name</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-green-600 text-center">Present</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-red-600 text-center">Absent</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-amber-600 text-center">Late</th>
-                      <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-ink text-right">Reliability Index</th>
+                    <tr className="bg-white border-b border-gray-200">
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Individual Name</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Category</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Status</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Time</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
+                      <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
+                      {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                        <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right w-10"></th>
+                      )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {staffCandidates.length === 0 ? (
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredAttendance.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-8 py-20 text-center">
-                          <p className="font-bold text-muted">No staff records found for performance analysis</p>
+                        <td colSpan={selectedSchool && selectedSchool.creatorUid === user.uid ? 7 : 6} className="px-6 py-20 text-center">
+                          <p className="font-bold text-lg text-muted">No {labels.attendance.toLowerCase()} records found</p>
                         </td>
                       </tr>
                     ) : (
-                      staffCandidates.map((staff) => {
-                        const total = (staff.stats?.present || 0) + (staff.stats?.absent || 0) + (staff.stats?.late || 0);
-                        const reliability = total > 0 ? Math.round(((staff.stats?.present || 0) + (staff.stats?.late || 0) * 0.5) / total * 100) : 0;
-                        return (
-                          <tr key={staff.uid} className="hover:bg-gray-50/50 transition-colors">
-                            <td className="px-8 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
-                                  {staff.photoURL ? (
-                                    <img src={staff.photoURL} alt="" className="h-full w-full object-cover" />
-                                  ) : (
-                                    <div className="h-full w-full flex items-center justify-center text-muted"><UserIcon size={14} /></div>
-                                  )}
-                                </div>
-                                <span className="font-bold text-ink text-sm">{staff.displayName}</span>
+                      filteredAttendance.map((record) => (
+                        <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
+                          <td className="px-6 py-4">
+                            <span className="font-bold text-ink text-sm">{record.teacherName}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-[10px] font-bold text-muted uppercase tracking-widest bg-gray-50 px-2 py-1 rounded border border-gray-100">{record.category || 'General'}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                              record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
+                            }`}>
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-[12px] font-bold text-ink">{record.time || '--:--'}</td>
+                          <td className="px-6 py-4 text-[12px] font-medium text-muted">{record.date}</td>
+                          <td className="px-6 py-4 text-right text-[12px] font-medium text-muted">{record.addedBy}</td>
+                          {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button 
+                                  onClick={() => {
+                                    setEditingAttendance(record);
+                                    setNewAttendance({
+                                      teacherName: record.teacherName,
+                                      category: record.category || '',
+                                      status: record.status,
+                                      time: record.time || ''
+                                    });
+                                    setIsAttendanceModalOpen(true);
+                                  }}
+                                  className="p-2 text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all"
+                                >
+                                  <Edit2 size={14} />
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteAttendance(record.id)}
+                                  className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
                               </div>
                             </td>
-                            <td className="px-8 py-4 text-center font-black text-green-600">{staff.stats?.present || 0}</td>
-                            <td className="px-8 py-4 text-center font-black text-red-600">{staff.stats?.absent || 0}</td>
-                            <td className="px-8 py-4 text-center font-black text-amber-600">{staff.stats?.late || 0}</td>
-                            <td className="px-8 py-4 text-right">
-                              <div className="flex flex-col items-end gap-1">
-                                 <span className={`text-[11px] font-black ${reliability > 80 ? 'text-green-600' : reliability > 50 ? 'text-amber-600' : 'text-red-600'}`}>
-                                   {reliability}%
-                                 </span>
-                                 <div className="w-20 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                   <div 
-                                     className={`h-full transition-all duration-1000 ${reliability > 80 ? 'bg-green-500' : reliability > 50 ? 'bg-amber-500' : 'bg-red-500'}`} 
-                                     style={{ width: `${reliability}%` }} 
-                                   />
-                                 </div>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
+                          )}
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>
               </div>
-            </div>
+            )}
 
+            {attendanceViewMode === 'log' && (
+              <div className="md:hidden space-y-4">
+                {filteredAttendance.length === 0 ? (
+                  <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                    <p className="font-bold text-muted">No {labels.attendance.toLowerCase()} records found</p>
+                  </div>
+                ) : (
+                  filteredAttendance.map((record) => (
+                    <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex gap-3">
+                          {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => {
+                                  setEditingAttendance(record);
+                                  setNewAttendance({
+                                    teacherName: record.teacherName,
+                                    category: record.category || '',
+                                    status: record.status,
+                                    time: record.time || ''
+                                  });
+                                  setIsAttendanceModalOpen(true);
+                                }}
+                                className="p-2 h-8 w-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteAttendance(record.id)}
+                                className="p-2 h-8 w-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                          <div>
+                            <h4 className="font-bold text-ink">{record.teacherName}</h4>
+                            <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || 'General'}</p>
+                          </div>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                          record.status === 'present' ? 'bg-white text-green-600 border border-gray-100' : 'bg-white text-red-600 border border-gray-100'
+                        }`}>
+                          {record.status}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Recorded By</span>
+                          <span className="text-[10px] font-medium text-ink">{record.addedBy}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-bold text-ink">{record.time || '--:--'}</span>
+                          <span className="text-[10px] font-medium text-muted">{record.date}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            
             <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
               <div>
                 <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Generated by Exona</p>
@@ -15825,36 +15925,49 @@ function ExonaApp() {
             >
               <div className="flex items-center justify-between mb-8 sm:mb-10">
                 <div>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">Record {labels.attendance}</h3>
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Presence Log</p>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">
+                    {editingAttendance ? 'Edit Record' : 'Confirm Identity'}
+                  </h3>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">
+                    {editingAttendance ? 'Update participation details' : 'Log individual presence'}
+                  </p>
                 </div>
-                <button onClick={() => setIsAttendanceModalOpen(false)} className="h-10 w-10 sm:h-12 sm:w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                <button 
+                  onClick={() => {
+                    setIsAttendanceModalOpen(false);
+                    setEditingAttendance(null);
+                    setNewAttendance({ teacherName: '', category: '', status: 'present', time: '' });
+                  }} 
+                  className="h-10 w-10 sm:h-12 sm:w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"
+                >
                   <X size={18} />
                 </button>
               </div>
               <div className="space-y-8">
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.teacher} Name</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Individual's Name</label>
                   {staffCandidates.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4 px-4">
-                      {staffCandidates.map((staff) => (
+                    <div className="flex flex-wrap gap-2 mb-4 px-4 max-h-[120px] overflow-y-auto no-scrollbar py-1">
+                      {staffCandidates
+                        .filter(s => s.displayName.toLowerCase().includes(newAttendance.teacherName.toLowerCase()))
+                        .map((staff) => (
                         <button
                           key={staff.uid}
                           onClick={() => setNewAttendance({...newAttendance, teacherName: staff.displayName})}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
+                          className={`flex items-center gap-2 px-4 py-2 rounded-2xl border transition-all ${
                             newAttendance.teacherName === staff.displayName
-                              ? 'bg-accent text-white border-accent shadow-lg shadow-accent/20'
-                              : 'bg-white text-muted border-gray-100 hover:border-gray-200'
+                              ? 'bg-ink text-white border-ink shadow-xl shadow-ink/10'
+                              : 'bg-white text-ink border-gray-100 hover:border-gray-200'
                           }`}
                         >
-                          <div className="h-4 w-4 rounded-full overflow-hidden bg-gray-100 shrink-0">
+                          <div className="h-5 w-5 rounded-full overflow-hidden bg-gray-100 shrink-0">
                             {staff.photoURL ? (
                               <img src={staff.photoURL} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
-                              <UserIcon size={8} className="m-auto" />
+                              <UserIcon size={10} className="m-auto" />
                             )}
                           </div>
-                          <span className="text-[10px] font-bold">{staff.displayName}</span>
+                          <span className="text-[11px] font-bold">{staff.displayName}</span>
                         </button>
                       ))}
                     </div>
@@ -15868,16 +15981,16 @@ function ExonaApp() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">{labels.educationalLevel} / Category</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Classification</label>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {Array.from(new Set([
                       ...(selectedSchool?.educationalLevels || []),
-                      'General', 'Science', 'Arts', 'Commercial', 'Staff', 'Management'
+                      'General', 'Staff', 'Management', 'Student'
                     ])).map((cat) => (
                       <button
                         key={cat}
                         onClick={() => setNewAttendance({...newAttendance, category: cat})}
-                        className={`px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                        className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
                           newAttendance.category === cat 
                             ? 'bg-ink text-white border-ink' 
                             : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
@@ -15887,42 +16000,35 @@ function ExonaApp() {
                       </button>
                     ))}
                   </div>
-                  <div className="flex gap-2">
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Time of Entry</label>
                     <input 
                       type="text" 
-                      value={newAttendance.category || ''}
-                      onChange={(e) => setNewAttendance({...newAttendance, category: e.target.value})}
-                      placeholder="Or enter custom department..."
-                      className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                      value={newAttendance.time || ''}
+                      onChange={(e) => setNewAttendance({...newAttendance, time: e.target.value})}
+                      placeholder={`e.g. ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Record Time (Optional)</label>
-                  <input 
-                    type="text" 
-                    value={newAttendance.time || ''}
-                    onChange={(e) => setNewAttendance({...newAttendance, time: e.target.value})}
-                    placeholder={`e.g. ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                    className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Presence Status</label>
-                  <div className="grid grid-cols-3 gap-4">
-                    {(['present', 'absent', 'late'] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setNewAttendance({ ...newAttendance, status: s })}
-                        className={`py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
-                          newAttendance.status === s 
-                            ? 'bg-ink text-white border-ink' 
-                            : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Presence Status</label>
+                    <div className="flex gap-2">
+                      {(['present', 'absent', 'late'] as const).map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setNewAttendance({ ...newAttendance, status: s })}
+                          className={`flex-1 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                            newAttendance.status === s 
+                              ? (s === 'present' ? 'bg-green-600 text-white border-green-600' : s === 'absent' ? 'bg-red-600 text-white border-red-600' : 'bg-amber-500 text-white border-amber-500')
+                              : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -15930,15 +16036,15 @@ function ExonaApp() {
                 <button 
                   onClick={handleCreateAttendance}
                   disabled={!newAttendance.teacherName.trim() || isUploading}
-                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                  className="w-full py-6 bg-ink text-white rounded-[2.5rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
                   {isUploading ? (
                     <>
                       <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                      Recording...
+                      Processing...
                     </>
                   ) : (
-                    'Authorize Presence'
+                    editingAttendance ? 'Update Record' : 'Confirm Record'
                   )}
                 </button>
               </div>
