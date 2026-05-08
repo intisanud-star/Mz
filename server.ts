@@ -86,14 +86,37 @@ function getBot() {
     setupBot(newBot);
     
     // Proactively delete any existing webhook to ensure long-polling can start
-    newBot.telegram.deleteWebhook().then(() => {
+    newBot.telegram.deleteWebhook().then(async () => {
       console.log('Telegram: Webhook deleted successfully');
-      return newBot.launch();
-    }).then(() => {
-      console.log('Telegram bot launched successfully');
-      isBotLaunching = false;
+      
+      // Add a small delay to avoid race conditions with previous instances
+      await delay(2000);
+      
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      const attemptLaunch = async () => {
+        try {
+          await newBot.launch();
+          console.log('Telegram bot launched successfully');
+          isBotLaunching = false;
+        } catch (err: any) {
+          const errorCode = err.response?.error_code || err.code || err.error_code;
+          if (errorCode === 409 && retryCount < maxRetries) {
+            retryCount++;
+            console.warn(`Telegram conflict (409). Retrying in 3s... (Attempt ${retryCount}/${maxRetries})`);
+            await delay(3000);
+            return attemptLaunch();
+          }
+          console.error('Failed to launch Telegram bot after retries:', err);
+          isBotLaunching = false;
+          bot = null;
+        }
+      };
+
+      return attemptLaunch();
     }).catch(err => {
-      console.error('Failed to launch Telegram bot:', err);
+      console.error('Critical failure in Telegram bot initialization sequence:', err);
       isBotLaunching = false;
       bot = null; 
     });
