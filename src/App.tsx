@@ -1697,7 +1697,7 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
     <div className={`transition-all duration-300 ${active ? 'text-accent scale-110' : 'text-muted group-hover:text-ink'}`}>
       <Icon size={22} strokeWidth={active ? 2.5 : 2} />
     </div>
-    <span className={`text-[10px] font-bold tracking-tight transition-colors duration-300 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}>{label}</span>
+    <span className={`text-[11px] font-bold tracking-tight transition-colors duration-300 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}>{label}</span>
     {active && (
       <motion.div 
         layoutId="nav-active"
@@ -9018,14 +9018,14 @@ function ExonaApp() {
             </div>
 
             {/* Stories Row */}
-            <div className="px-5 mb-8">
+            <div className="px-5 mb-10">
               <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
                 {/* My Story Add Button */}
                 <div className="flex-shrink-0 text-center">
                   <div className="relative group">
                     <button 
                       onClick={() => setIsStoryModalOpen(true)}
-                      className="h-[72px] w-[72px] rounded-[2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center group-hover:border-accent transition-all duration-500 overflow-hidden"
+                      className="h-20 w-20 rounded-[2.2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center group-hover:border-accent transition-all duration-500 overflow-hidden"
                     >
                       {user?.photoURL ? (
                         <img src={user.photoURL} className="h-full w-full object-cover opacity-50 group-hover:opacity-70 grayscale transition-all" />
@@ -9033,12 +9033,12 @@ function ExonaApp() {
                         <UserIcon size={24} className="text-gray-300" />
                       )}
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="h-8 w-8 bg-accent text-white rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <div className="h-9 w-9 bg-accent text-white rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-accent/20">
                           <Plus size={20} />
                         </div>
                       </div>
                     </button>
-                    <p className="text-[10px] font-black text-ink tracking-tight mt-2 opacity-70">My Status</p>
+                    <p className="text-[11px] font-black text-ink tracking-tight mt-2.5 opacity-80 uppercase tracking-[0.05em]">My Status</p>
                   </div>
                 </div>
 
@@ -9052,12 +9052,12 @@ function ExonaApp() {
                       onClick={() => { setSelectedStoryGroup(group); setActiveStoryIndex(0); setIsStoryViewerOpen(true); }}
                       className="flex-shrink-0 text-center group"
                     >
-                      <div className={`h-[72px] w-[72px] p-1 rounded-[2rem] border-2 transition-all duration-500 ${hasUnseen ? 'border-accent animate-pulse' : 'border-gray-100 grayscale-[0.5]'}`}>
-                        <div className="h-full w-full rounded-[1.8rem] overflow-hidden bg-gray-100 border border-white">
+                      <div className={`h-20 w-20 p-1 rounded-[2.2rem] border-2 transition-all duration-500 ${hasUnseen ? 'border-accent ring-2 ring-accent/10 sm:ring-4 sm:ring-accent/5' : 'border-gray-100 grayscale-[0.5]'}`}>
+                        <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gray-100 border border-white">
                           <img src={firstStory.authorPhoto || firstStory.mediaUrl} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
                         </div>
                       </div>
-                      <p className="text-[10px] font-black text-ink tracking-tight mt-2 truncate w-[72px]">{firstStory.authorName.split(' ')[0]}</p>
+                      <p className="text-[11px] font-black text-ink tracking-tight mt-2.5 truncate w-20 uppercase tracking-[0.05em]">{firstStory.authorName.split(' ')[0]}</p>
                     </button>
                   );
                 })}
@@ -9069,18 +9069,18 @@ function ExonaApp() {
                     <button 
                       key={school.id}
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                      className="flex-shrink-0 text-center opacity-40 hover:opacity-100 grayscale hover:grayscale-0 transition-all group"
+                      className="flex-shrink-0 text-center opacity-50 hover:opacity-100 grayscale hover:grayscale-0 transition-all group"
                     >
-                      <div className="h-[72px] w-[72px] p-1 rounded-[2.2rem] border-2 border-gray-50 bg-white">
+                      <div className="h-20 w-20 p-1 rounded-[2.2rem] border-2 border-gray-50 bg-white">
                         <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gray-50 flex items-center justify-center">
                           {school.logo ? (
                             <img src={school.logo} className="h-full w-full object-cover" />
                           ) : (
-                            <span className="text-xs font-bold text-gray-400">{school.name.charAt(0)}</span>
+                            <span className="text-sm font-black text-gray-400">{school.name.charAt(0)}</span>
                           )}
                         </div>
                       </div>
-                      <p className="text-[10px] font-bold text-muted tracking-tight mt-2 truncate w-[72px]">{school.name.split(' ')[0]}</p>
+                      <p className="text-[11px] font-bold text-muted tracking-tight mt-2.5 truncate w-20 uppercase tracking-[0.05em]">{school.name.split(' ')[0]}</p>
                     </button>
                   ))}
               </div>
@@ -9090,10 +9090,10 @@ function ExonaApp() {
             <div className="space-y-1">
               {myInstitutions.length > 0 && (
                 <div className="px-5 mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[11px] font-black text-accent uppercase tracking-[0.3em]">Institutional Control</h2>
-                    <span className="text-[10px] font-bold text-muted bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">{myInstitutions.length} Active</span>
-                  </div>
+                  <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-[12px] font-black text-accent uppercase tracking-[0.3em]">Institutional Control</h2>
+                  <span className="text-[11px] font-bold text-muted bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">{myInstitutions.length} Active</span>
+                </div>
                   <div className="grid grid-cols-1 gap-3">
                     {myInstitutions.map(school => (
                       <button 
@@ -9111,10 +9111,10 @@ function ExonaApp() {
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-black text-ink text-[16px] tracking-tight mb-0.5 group-hover:text-accent transition-colors">{school.name}</h3>
+                          <h3 className="font-extrabold text-ink text-[17px] tracking-tight mb-2 group-hover:text-accent transition-colors">{school.name}</h3>
                           <div className="flex gap-2">
-                            <span className="text-[9px] font-black text-muted uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">Portal ID: {school.id}</span>
-                            <span className="text-[9px] font-black text-accent uppercase tracking-wider bg-accent/5 px-1.5 py-0.5 rounded border border-accent/10">Administrator</span>
+                            <span className="text-[10px] font-black text-muted uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-100">Portal ID: {school.id}</span>
+                            <span className="text-[10px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-0.5 rounded border border-accent/10">Administrator</span>
                           </div>
                         </div>
                         <ChevronRight size={18} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
@@ -9137,18 +9137,18 @@ function ExonaApp() {
                     <button 
                       key={school.id}
                       onClick={() => { setSelectedSchool(school); setView('school-feed'); setSchoolFeedTab('feed'); }}
-                      className="flex-shrink-0 w-16 text-center group"
+                      className="flex-shrink-0 w-20 text-center group"
                     >
-                      <div className="h-14 w-14 p-0.5 rounded-2xl border-2 border-accent flex items-center justify-center mx-auto mb-1 group-hover:scale-105 transition-all overflow-hidden bg-white">
+                      <div className="h-16 w-16 p-0.5 rounded-2xl border-2 border-accent flex items-center justify-center mx-auto mb-2 group-hover:scale-105 transition-all overflow-hidden bg-white shadow-sm">
                         <div className="h-full w-full rounded-[0.85rem] overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
                           {school.logo ? (
                             <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
-                            <span className="text-lg font-bold text-gray-300">{school.name.charAt(0)}</span>
+                            <span className="text-xl font-bold text-gray-300">{school.name.charAt(0)}</span>
                           )}
                         </div>
                       </div>
-                      <p className="text-[10px] font-medium text-ink truncate w-full">{school.name}</p>
+                      <p className="text-[11px] font-bold text-ink truncate w-full">{school.name}</p>
                     </button>
                   ))}
                   {[...schools, ...places].filter(s => s.followers?.includes(user?.uid || '')).length === 0 && (
@@ -17297,7 +17297,7 @@ function ExonaApp() {
 
               <div className="flex-1 overflow-y-auto p-4 space-y-1">
                 <div className="px-4 py-2">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Navigation</p>
+                  <p className="text-[11px] font-black text-muted uppercase tracking-[0.3em]">Navigation</p>
                 </div>
                 <SidebarItem 
                   icon={Home} 
@@ -17329,7 +17329,7 @@ function ExonaApp() {
                   userDoc?.role === 'admin') && (
                   <>
                     <div className="px-4 py-4">
-                      <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
+                      <p className="text-[11px] font-black text-muted uppercase tracking-[0.3em]">Management</p>
                     </div>
                     {/* 
                     <SidebarItem 
@@ -17361,7 +17361,7 @@ function ExonaApp() {
                 )}
 
                 <div className="px-4 py-4">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">System</p>
+                  <p className="text-[11px] font-black text-muted uppercase tracking-[0.3em]">System</p>
                 </div>
                 <SidebarItem 
                   icon={UserIcon} 
@@ -17775,7 +17775,7 @@ function ExonaApp() {
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-ink mb-1">New Status</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">{isCreatingStory ? 'Transmitting to network...' : 'Share a moment with others'}</p>
+                  <p className="text-[11px] font-bold text-muted uppercase tracking-[0.3em]">{isCreatingStory ? 'Transmitting to network...' : 'Share a moment with others'}</p>
                 </div>
                 <button onClick={() => setIsStoryModalOpen(false)} className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center">
                   <X size={20} />
@@ -17816,7 +17816,7 @@ function ExonaApp() {
                             <UserIcon size={24} className="text-gray-300" />
                           )}
                         </div>
-                        <span className="text-[9px] font-black text-ink uppercase tracking-widest">Personal</span>
+                        <span className="text-[11px] font-black text-ink uppercase tracking-widest">Personal</span>
                       </button>
 
                       {/* Post as Institution */}
@@ -17845,7 +17845,7 @@ function ExonaApp() {
                               <LayoutGrid size={24} className="text-gray-300" />
                             )}
                           </div>
-                          <span className="text-[9px] font-black text-ink uppercase tracking-widest truncate w-full text-center">{s.name}</span>
+                          <span className="text-[11px] font-black text-ink uppercase tracking-widest truncate w-full text-center">{s.name}</span>
                         </button>
                       ))}
                     </div>
@@ -17872,7 +17872,7 @@ function ExonaApp() {
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h3 className="text-2xl font-black text-ink mb-1">Select Wallet</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Choose institution to access terminal</p>
+                  <p className="text-[11px] font-bold text-muted uppercase tracking-[0.3em]">Choose institution to access terminal</p>
                 </div>
                 <button onClick={() => setIsExonWalletOpen(false)} className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center">
                   <X size={20} />
@@ -17905,7 +17905,7 @@ function ExonaApp() {
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <p className="text-sm font-black text-ink truncate uppercase tracking-tight">{s.name}</p>
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{s.type === 'school' ? 'School' : 'Business'}</p>
+                        <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{s.type === 'school' ? 'School' : 'Business'}</p>
                       </div>
                       <ChevronRight size={18} className="text-gray-300 group-hover:text-accent transition-colors" />
                     </button>
