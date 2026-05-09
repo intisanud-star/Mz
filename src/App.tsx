@@ -950,6 +950,7 @@ interface TeacherAttendance {
   status: 'present' | 'absent' | 'late';
   date: string;
   time?: string;
+  phoneNumber?: string;
   timestamp: any;
   addedBy: string;
 }
@@ -1048,7 +1049,7 @@ interface StudentRecord {
   category: string;
   paid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary' | string;
+  type: 'all' | 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary' | string;
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   schoolId?: string;
@@ -1065,7 +1066,7 @@ interface Record {
   category: string;
   paid: number;
   balance: number;
-  type: 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary' | string;
+  type: 'all' | 'general' | 'books' | 'uniforms' | 'services' | 'products' | 'Pre Nursery' | 'Nursery' | 'Primary' | 'Junior Secondary' | 'Senior Secondary' | string;
   visibility: 'public' | 'private' | 'shared';
   sharedWith?: string[];
   placeId?: string;
@@ -1216,7 +1217,7 @@ const getLabels = (type?: 'school' | 'place') => {
       teachers: 'Staff',
       books: 'Services',
       uniforms: 'Products',
-      general: 'General',
+      all: 'Student Records',
       school: 'Place',
       attendance: 'Participation',
       system: 'Management System',
@@ -1231,7 +1232,7 @@ const getLabels = (type?: 'school' | 'place') => {
     teachers: 'Teachers',
     books: 'Books',
     uniforms: 'Uniforms',
-    general: 'General',
+    all: 'Student Records',
     'Pre Nursery': 'Pre Nursery',
     'Nursery': 'Nursery',
     'Primary': 'Primary',
@@ -1899,14 +1900,14 @@ function ExonaApp() {
     }
   };
 
-  const [recordTab, setRecordTab] = useState<string>('general');
+  const [recordTab, setRecordTab] = useState<string>('all');
   const [recordViewMode, setRecordViewMode] = useState<'classic' | 'microsoft' | 'bento'>('classic');
   const [hasChosenView, setHasChosenView] = useState(false);
   const [calcTuition, setCalcTuition] = useState<string>('');
   const [calcPaid, setCalcPaid] = useState<string>('');
   const [exportStartDate, setExportStartDate] = useState<string>('');
   const [exportEndDate, setExportEndDate] = useState<string>('');
-  const [exportCategory, setExportCategory] = useState<'all' | 'general' | 'books' | 'uniforms' | 'services' | 'products'>('all');
+  const [exportCategory, setExportCategory] = useState<'all' | 'institutional' | 'books' | 'uniforms' | 'services' | 'products'>('all');
   const [auditorSearch, setAuditorSearch] = useState('');
   const [auditorResults, setAuditorResults] = useState<UserDoc[]>([]);
   const [isAuditorSearching, setIsAuditorSearching] = useState(false);
@@ -1915,7 +1916,7 @@ function ExonaApp() {
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
-  const [attendanceViewMode, setAttendanceViewMode] = useState<'landing' | 'log' | 'manage'>('landing');
+  const [attendanceViewMode, setAttendanceViewMode] = useState<'landing' | 'log' | 'manage' | 'summary'>('landing');
   const [editingAttendance, setEditingAttendance] = useState<TeacherAttendance | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
@@ -2080,7 +2081,7 @@ function ExonaApp() {
   const [isAddRoutineModalOpen, setIsAddRoutineModalOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'], time: '' });
+  const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'], time: '', phoneNumber: '' });
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
@@ -4845,7 +4846,16 @@ function ExonaApp() {
 
   // Reset work-in-progress when switching institutions
   useEffect(() => {
-    setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private', sharedWith: '' });
+    setNewRecord({ 
+      studentName: '', 
+      studentClass: '',
+      parentNumber: '',
+      category: '', 
+      paid: 0, 
+      balance: 0, 
+      visibility: 'private' as Record['visibility'], 
+      sharedWith: '' 
+    });
     setActiveTool(null);
     setCalcTuition('');
     setCalcPaid('');
@@ -5539,7 +5549,7 @@ function ExonaApp() {
           institutionBalance: 0,
           bankName: 'Exona trust wallet',
           accountNumber: '00' + Math.floor(Math.random() * 90000000 + 10000000),
-          accountName: `${newSchool.name} General`
+          accountName: `${newSchool.name} Institutional Wallet`
         });
         
         // Update user document
@@ -5613,7 +5623,7 @@ function ExonaApp() {
       showNotification('Unauthorized action', 'error');
       return;
     }
-    if (!newRecord.studentName.trim() || !selectedSchool) {
+    if (!(newRecord.studentName || '').trim() || !selectedSchool) {
       console.warn('handleCreateRecord: missing required fields', { studentName: newRecord.studentName, selectedSchool: !!selectedSchool });
       return;
     }
@@ -5623,30 +5633,30 @@ function ExonaApp() {
       if (editingRecord) {
         console.log('Updating record', editingRecord.id);
         await setDoc(doc(db, path, editingRecord.id), {
-          studentName: newRecord.studentName.trim(),
-          studentClass: newRecord.studentClass.trim(),
-          parentNumber: newRecord.parentNumber.trim(),
-          category: newRecord.category.trim() || 'General',
+          studentName: (newRecord.studentName || '').trim(),
+          studentClass: (newRecord.studentClass || '').trim(),
+          parentNumber: (newRecord.parentNumber || '').trim(),
+          category: (newRecord.category || '').trim() || '',
           paid: Number(newRecord.paid),
           balance: Number(newRecord.balance),
           visibility: newRecord.visibility,
-          sharedWith: newRecord.sharedWith.split(',').map(e => e.trim()).filter(e => e),
+          sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
         }, { merge: true });
       } else {
         console.log('Adding new record');
         await addDoc(collection(db, path), {
           schoolId: selectedSchool.id,
-          studentName: newRecord.studentName.trim(),
-          studentClass: newRecord.studentClass.trim(),
-          parentNumber: newRecord.parentNumber.trim(),
-          category: newRecord.category.trim() || 'General',
+          studentName: (newRecord.studentName || '').trim(),
+          studentClass: (newRecord.studentClass || '').trim(),
+          parentNumber: (newRecord.parentNumber || '').trim(),
+          category: (newRecord.category || '').trim() || '',
           creatorUid: user.uid,
           addedBy: user.displayName || 'Anonymous',
           paid: Number(newRecord.paid),
           balance: Number(newRecord.balance),
           type: recordTab,
           visibility: newRecord.visibility,
-          sharedWith: newRecord.sharedWith.split(',').map(e => e.trim()).filter(e => e),
+          sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
           timestamp: serverTimestamp()
         });
       }
@@ -5690,7 +5700,8 @@ function ExonaApp() {
         console.log('Updating attendance record:', editingAttendance.id);
         await updateDoc(doc(db, path, editingAttendance.id), {
           teacherName: newAttendance.teacherName.trim(),
-          category: newAttendance.category.trim() || 'General',
+          category: newAttendance.category.trim() || '',
+          phoneNumber: newAttendance.phoneNumber.trim() || '',
           status: newAttendance.status,
           time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           updatedBy: user.displayName || 'Anonymous',
@@ -5702,7 +5713,8 @@ function ExonaApp() {
         await addDoc(collection(db, path), {
           schoolId: selectedSchool.id,
           teacherName: newAttendance.teacherName.trim(),
-          category: newAttendance.category.trim() || 'General',
+          category: newAttendance.category.trim() || '',
+          phoneNumber: newAttendance.phoneNumber.trim() || '',
           status: newAttendance.status,
           date: new Date().toISOString().split('T')[0],
           time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -5711,7 +5723,7 @@ function ExonaApp() {
         });
         showNotification('Record added successfully', 'success');
       }
-      setNewAttendance({ teacherName: '', category: '', status: 'present', time: '' });
+      setNewAttendance({ teacherName: '', category: '', status: 'present', time: '', phoneNumber: '' });
       setEditingAttendance(null);
       setIsAttendanceModalOpen(false);
     } catch (error) {
@@ -5736,7 +5748,7 @@ function ExonaApp() {
     try {
       await addDoc(collection(db, 'dailyRoutines'), {
         ...newRoutine,
-        category: newRoutine.category.trim() || 'General',
+        category: newRoutine.category.trim() || '',
         institutionId: selectedSchool.id,
         creatorUid: user.uid,
         timestamp: serverTimestamp()
@@ -5761,8 +5773,8 @@ function ExonaApp() {
 
   const handleDeleteAttendance = async (recordId: string) => {
     if (!user || !selectedSchool) return;
-    if (selectedSchool.creatorUid !== user.uid) {
-      showNotification('Only the primary creator can delete attendance records.', 'error');
+    if (!canManageInstitution(selectedSchool)) {
+      showNotification('Unauthorized to delete attendance records.', 'error');
       return;
     }
     
@@ -7125,7 +7137,16 @@ function ExonaApp() {
     if (!selectedSchool) return;
 
     // Reset record entry states when switching institutions
-    setNewRecord({ studentName: '', category: '', paid: 0, balance: 0, visibility: 'private' as Record['visibility'], sharedWith: '' });
+    setNewRecord({ 
+      studentName: '', 
+      studentClass: '',
+      parentNumber: '',
+      category: '', 
+      paid: 0, 
+      balance: 0, 
+      visibility: 'private' as Record['visibility'], 
+      sharedWith: '' 
+    });
     setEditingRecord(null);
     setCalcTuition('');
     setCalcPaid('');
@@ -9127,7 +9148,7 @@ function ExonaApp() {
         }
         const labels = getLabels(selectedSchool?.type);
         const filteredRecords = records
-          .filter(r => recordTab === 'general' ? true : r.type === recordTab)
+          .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
           .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()))
           .sort((a, b) => {
             if (recordSort === 'alphabet') {
@@ -9199,9 +9220,9 @@ function ExonaApp() {
 
         const isSchool = selectedSchool?.type === 'school';
         const currentRecordTabs = [
-          'general',
+          'all',
           ...(isSchool ? [] : ['books', 'uniforms']),
-          ...((selectedSchool as any).educationalLevels || []).filter((l: string) => l !== 'general' && (isSchool ? true : !['books', 'uniforms'].includes(l)))
+          ...((selectedSchool as any).educationalLevels || []).filter((l: string) => l !== 'all' && (isSchool ? true : !['books', 'uniforms'].includes(l)))
         ];
         // Ensure Pre Nursery etc are there for schools if not already in educationalLevels
         if (isSchool) {
@@ -10240,9 +10261,9 @@ function ExonaApp() {
         }
 
         const isManager = canManageInstitution(selectedSchool);
-        const routineCategories = Array.from(new Set(dailyRoutines.map(r => r.category || 'General').filter(Boolean)));
+        const routineCategories = Array.from(new Set(dailyRoutines.map(r => r.category || '').filter(Boolean)));
         const filteredRoutines = dailyRoutines.filter(r => {
-          return routineCategoryFilter === 'all' || (r.category || 'General') === routineCategoryFilter;
+          return routineCategoryFilter === 'all' || (r.category || '') === routineCategoryFilter;
         });
 
         return (
@@ -10320,7 +10341,7 @@ function ExonaApp() {
                           <div>
                             <div className="flex items-center gap-3 mb-1">
                               <h4 className="font-bold text-ink text-base">{routine.title}</h4>
-                              <span className="text-[9px] font-bold text-muted uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-gray-100">{routine.category || 'General'}</span>
+                              <span className="text-[9px] font-bold text-muted uppercase tracking-widest bg-white px-2 py-0.5 rounded border border-gray-100">{routine.category || ''}</span>
                             </div>
                             <p className="text-sm text-neutral-600 mb-2 leading-relaxed">{routine.activity}</p>
                             {routine.notes && (
@@ -10371,10 +10392,10 @@ function ExonaApp() {
           );
         }
 
-        const categories = Array.from(new Set(attendance.map(a => a.category || 'General').filter(Boolean)));
+        const categories = Array.from(new Set(attendance.map(a => a.category || '').filter(Boolean)));
         const filteredAttendance = attendance.filter(r => {
           const nameMatches = r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase());
-          const categoryMatches = attendanceCategoryFilter === 'all' || (r.category || 'General') === attendanceCategoryFilter;
+          const categoryMatches = attendanceCategoryFilter === 'all' || (r.category || '') === attendanceCategoryFilter;
           return nameMatches && categoryMatches;
         });
 
@@ -10382,19 +10403,46 @@ function ExonaApp() {
         const absentToday = filteredAttendance.filter(r => r.status === 'absent').length;
 
         const renderAttendanceHub = () => {
-          const features = [
+          const isPlace = selectedSchool?.type === 'place';
+          
+          const features = isPlace ? [
+            {
+              id: 'log',
+              title: 'Activity Register',
+              description: `View and print the complete listing of all ${labels.attendance.toLowerCase()} activity and names.`,
+              icon: ClipboardList,
+              color: 'text-indigo-600',
+              bg: 'bg-indigo-50/50'
+            },
             {
               id: 'manage',
-              title: 'Add or Edit Records',
-              description: `Directly record or update participation for ${labels.teachers.toLowerCase()} and institutional members.`,
+              title: 'Log Entries',
+              description: `Add or update participation records for ${labels.teachers.toLowerCase()} and members.`,
+              icon: UserCheck,
+              color: 'text-emerald-600',
+              bg: 'bg-emerald-50/50'
+            }
+          ] : [
+            {
+              id: 'manage',
+              title: 'Mark Presence',
+              description: `Directly record or update attendance for ${labels.teachers.toLowerCase()} and students.`,
               icon: UserCheck,
               color: 'text-emerald-600',
               bg: 'bg-emerald-50/50'
             },
             {
+              id: 'summary',
+              title: 'Individual Stats',
+              description: 'View total attendance counts and performance metrics for each individual.',
+              icon: BarChart3,
+              color: 'text-orange-600',
+              bg: 'bg-orange-50/50'
+            },
+            {
               id: 'log',
-              title: 'Search Attendance',
-              description: 'Filter and search through historical records to find specific entries and activity patterns.',
+              title: 'History Log',
+              description: 'Filter and search through historical register entries and activity patterns.',
               icon: SearchCheck,
               color: 'text-blue-600',
               bg: 'bg-blue-50/50'
@@ -10411,11 +10459,13 @@ function ExonaApp() {
                 >
                   <CalendarCheck2 size={44} strokeWidth={1.5} />
                 </motion.div>
-                <h1 className="text-4xl sm:text-5xl font-extrabold text-ink mb-4 tracking-tight">{labels.attendance} Management</h1>
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-ink mb-4 tracking-tight">
+                  {isPlace ? 'Participation Hub' : 'Attendance Center'}
+                </h1>
                 <p className="text-muted font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.5em]">{selectedSchool.name}</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-16">
+              <div className={`grid grid-cols-1 ${features.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 sm:gap-8 mb-16`}>
                 {features.map((item, idx) => (
                   <motion.button
                     key={item.id}
@@ -10504,6 +10554,83 @@ function ExonaApp() {
           );
         };
 
+        if (attendanceViewMode === 'summary') {
+          const summaryData: { [key: string]: { present: number; absent: number; late: number; total: number } } = {};
+          
+          attendance.forEach(curr => {
+            const name = curr.teacherName;
+            if (!summaryData[name]) summaryData[name] = { present: 0, absent: 0, late: 0, total: 0 };
+            if (curr.status === 'present') summaryData[name].present++;
+            else if (curr.status === 'absent') summaryData[name].absent++;
+            else if (curr.status === 'late') summaryData[name].late++;
+            summaryData[name].total++;
+          });
+
+          const summaryList = Object.entries(summaryData)
+            .map(([name, stats]) => ({ 
+              name, 
+              present: stats.present,
+              absent: stats.absent,
+              late: stats.late,
+              total: stats.total
+            }))
+            .sort((a, b) => b.total - a.total);
+
+          return (
+            <WordLayout 
+              title="Individual Overview"
+              subtitle={labels.attendance}
+              icon={BarChart3}
+              branding={{ name: selectedSchool.name }}
+              showNotification={showNotification}
+              handlePrint={handlePrint}
+              hideOfficialBadge={true}
+              hideSaveImage={true}
+              hideBranding={true}
+              hideIcon={true}
+              toolbar={
+                <button 
+                  onClick={() => setAttendanceViewMode('landing')}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-ink rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  <ChevronLeft size={14} strokeWidth={2.5} />
+                  Hub
+                </button>
+              }
+            >
+              <div className="mb-12">
+                <h1 className="text-4xl font-extrabold text-ink mb-2">Attendance Summary</h1>
+                <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Aggregate counts for each individual</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {summaryList.map((ind) => (
+                  <div key={ind.name} className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-md transition-shadow">
+                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-muted mb-4">
+                      <UserIcon size={24} strokeWidth={1.5} />
+                    </div>
+                    <h4 className="text-lg font-black text-ink mb-6 truncate">{ind.name}</h4>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-green-600">{ind.present}</p>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Present</p>
+                      </div>
+                      <div className="text-center border-x border-gray-50 px-2">
+                        <p className="text-2xl font-black text-red-600">{ind.absent}</p>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Absent</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-ink">{ind.total}</p>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Total</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </WordLayout>
+          );
+        }
+
         if (attendanceViewMode === 'landing') {
           return (
             <WordLayout 
@@ -10525,7 +10652,7 @@ function ExonaApp() {
 
         return (
           <WordLayout 
-            title={attendanceViewMode === 'manage' ? 'Mark Presence' : 'Activity Register'}
+            title={attendanceViewMode === 'manage' ? 'Mark Presence' : (selectedSchool?.type === 'place' ? 'Participation Register' : 'Activity Register')}
             subtitle={labels.attendance}
             icon={attendanceViewMode === 'manage' ? UserCheck : ClipboardList}
             branding={{ name: selectedSchool.name }}
@@ -10582,7 +10709,7 @@ function ExonaApp() {
           >
             <div className="mb-12">
               <h1 className="text-4xl font-extrabold text-ink mb-2">
-                {attendanceViewMode === 'manage' ? 'Mark Presence' : 'Activity Register'}
+                {attendanceViewMode === 'manage' ? 'Mark Presence' : (selectedSchool?.type === 'place' ? 'Participation Register' : 'Activity Register')}
               </h1>
               <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{selectedSchool.name} • {new Date().toLocaleDateString()}</p>
             </div>
@@ -10621,7 +10748,8 @@ function ExonaApp() {
                                     teacherName: staff.displayName,
                                     category: 'Staff',
                                     status: s,
-                                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                    phoneNumber: ''
                                   });
                                   setIsAttendanceModalOpen(true);
                                 }}
@@ -10659,7 +10787,7 @@ function ExonaApp() {
                       <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Time</th>
                       <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted">Date</th>
                       <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right">Recorded By</th>
-                      {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                      {selectedSchool && canManageInstitution(selectedSchool) && (
                         <th className="px-6 py-4 text-[9px] font-bold uppercase tracking-widest text-muted text-right w-10"></th>
                       )}
                     </tr>
@@ -10667,7 +10795,7 @@ function ExonaApp() {
                   <tbody className="divide-y divide-gray-100">
                     {filteredAttendance.length === 0 ? (
                       <tr>
-                        <td colSpan={selectedSchool && selectedSchool.creatorUid === user.uid ? 7 : 6} className="px-6 py-20 text-center">
+                        <td colSpan={selectedSchool && canManageInstitution(selectedSchool) ? 7 : 6} className="px-6 py-20 text-center">
                           <p className="font-bold text-lg text-muted">No {labels.attendance.toLowerCase()} records found</p>
                         </td>
                       </tr>
@@ -10678,7 +10806,7 @@ function ExonaApp() {
                             <span className="font-bold text-ink text-sm">{record.teacherName}</span>
                           </td>
                           <td className="px-6 py-4">
-                            <span className="text-[10px] font-bold text-muted uppercase tracking-widest bg-gray-50 px-2 py-1 rounded border border-gray-100">{record.category || 'General'}</span>
+                            <span className="text-[10px] font-bold text-muted uppercase tracking-widest bg-gray-50 px-2 py-1 rounded border border-gray-100">{record.category || ''}</span>
                           </td>
                           <td className="px-6 py-4">
                             <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
@@ -10690,7 +10818,7 @@ function ExonaApp() {
                           <td className="px-6 py-4 text-[12px] font-bold text-ink">{record.time || '--:--'}</td>
                           <td className="px-6 py-4 text-[12px] font-medium text-muted">{record.date}</td>
                           <td className="px-6 py-4 text-right text-[12px] font-medium text-muted">{record.addedBy}</td>
-                          {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                          {selectedSchool && canManageInstitution(selectedSchool) && (
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button 
@@ -10700,7 +10828,8 @@ function ExonaApp() {
                                       teacherName: record.teacherName,
                                       category: record.category || '',
                                       status: record.status,
-                                      time: record.time || ''
+                                      time: record.time || '',
+                                      phoneNumber: record.phoneNumber || ''
                                     });
                                     setIsAttendanceModalOpen(true);
                                   }}
@@ -10736,7 +10865,7 @@ function ExonaApp() {
                     <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex gap-3">
-                          {selectedSchool && selectedSchool.creatorUid === user.uid && (
+                          {selectedSchool && canManageInstitution(selectedSchool) && (
                             <div className="flex flex-col gap-2">
                               <button 
                                 onClick={() => {
@@ -10745,7 +10874,8 @@ function ExonaApp() {
                                     teacherName: record.teacherName,
                                     category: record.category || '',
                                     status: record.status,
-                                    time: record.time || ''
+                                    time: record.time || '',
+                                    phoneNumber: record.phoneNumber || ''
                                   });
                                   setIsAttendanceModalOpen(true);
                                 }}
@@ -10763,7 +10893,7 @@ function ExonaApp() {
                           )}
                           <div>
                             <h4 className="font-bold text-ink">{record.teacherName}</h4>
-                            <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || 'General'}</p>
+                            <p className="text-[9px] font-bold text-muted uppercase tracking-widest mt-1">{record.category || ''}</p>
                           </div>
                         </div>
                         <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${
@@ -13794,7 +13924,7 @@ function ExonaApp() {
 
           const categories: { id: typeof exportCategory, label: string }[] = [
             { id: 'all', label: 'All Records' },
-            { id: 'general', label: 'General' },
+            { id: 'institutional', label: 'Institutional' },
             { id: 'books', label: 'Books' },
             { id: 'uniforms', label: 'Uniforms' },
             { id: 'services', label: 'Services' },
@@ -15501,12 +15631,12 @@ function ExonaApp() {
                     />
                   </div>
                   <div className="group">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Parent Phone Number</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Parent Phone Number (Optional)</label>
                     <input 
                       type="tel" 
                       value={newRecord.parentNumber || ''}
                       onChange={(e) => setNewRecord({...newRecord, parentNumber: e.target.value})}
-                      placeholder="+234..."
+                      placeholder="+234... (optional)"
                       className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
                   </div>
@@ -15517,7 +15647,7 @@ function ExonaApp() {
                     <div className="space-y-3">
                       <div className="flex flex-wrap gap-2 px-2">
                         {selectedSchool.educationalLevels.map(level => {
-                          const currentCategories = newRecord.category.split(',').map(c => c.trim()).filter(c => c);
+                          const currentCategories = (newRecord.category || '').split(',').map(c => c.trim()).filter(c => c);
                           const isSelected = currentCategories.includes(level);
                           return (
                             <button
@@ -15557,7 +15687,7 @@ function ExonaApp() {
                     <div className="flex gap-2">
                       <input 
                         type="text" 
-                        value={newRecord.category}
+                        value={newRecord.category || ''}
                         onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
                         placeholder="e.g. JSS1, SS3"
                         className="flex-1 px-8 py-5 bg-gray-50 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white border border-transparent focus:border-gray-100 transition-all text-sm font-medium"
@@ -15589,7 +15719,7 @@ function ExonaApp() {
               <div className="flex justify-end mt-12">
                 <button 
                   onClick={handleCreateRecord}
-                  disabled={!newRecord.studentName.trim() || isUploading}
+                  disabled={!(newRecord.studentName || '').trim() || isUploading}
                   className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
                 >
                   {isUploading ? (
@@ -15936,7 +16066,7 @@ function ExonaApp() {
                   onClick={() => {
                     setIsAttendanceModalOpen(false);
                     setEditingAttendance(null);
-                    setNewAttendance({ teacherName: '', category: '', status: 'present', time: '' });
+                    setNewAttendance({ teacherName: '', category: '', status: 'present', time: '', phoneNumber: '' });
                   }} 
                   className="h-10 w-10 sm:h-12 sm:w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"
                 >
@@ -15985,7 +16115,7 @@ function ExonaApp() {
                   <div className="flex flex-wrap gap-2 mb-4">
                     {Array.from(new Set([
                       ...(selectedSchool?.educationalLevels || []),
-                      'General', 'Staff', 'Management', 'Student'
+                      'Institutional', 'Staff', 'Management', 'Student'
                     ])).map((cat) => (
                       <button
                         key={cat}
@@ -16009,6 +16139,16 @@ function ExonaApp() {
                       value={newAttendance.time || ''}
                       onChange={(e) => setNewAttendance({...newAttendance, time: e.target.value})}
                       placeholder={`e.g. ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Phone Number (Optional)</label>
+                    <input 
+                      type="tel" 
+                      value={newAttendance.phoneNumber || ''}
+                      onChange={(e) => setNewAttendance({...newAttendance, phoneNumber: e.target.value})}
+                      placeholder="080 0000 0000"
                       className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
                   </div>
@@ -16077,7 +16217,7 @@ function ExonaApp() {
                   <div className="flex flex-wrap gap-2 mb-4">
                     {Array.from(new Set([
                       ...(selectedSchool?.educationalLevels || []),
-                      'General', 'Science', 'Arts', 'Commercial', 'Staff', 'Management'
+                      'Institutional', 'Science', 'Arts', 'Commercial', 'Staff', 'Management'
                     ])).map((cat) => (
                       <button
                         key={cat}
@@ -16511,7 +16651,7 @@ function ExonaApp() {
                       </div>
                       <div>
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Payment For</p>
-                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{(recordForReceipt as any).type || 'General'}</p>
+                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{(recordForReceipt as any).type || 'Main'}</p>
                       </div>
                     </div>
                   </div>
