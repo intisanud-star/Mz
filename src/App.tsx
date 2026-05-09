@@ -1917,6 +1917,7 @@ function ExonaApp() {
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
   const [attendanceViewMode, setAttendanceViewMode] = useState<'landing' | 'log' | 'manage' | 'summary'>('landing');
+  const [selectedAttendanceMember, setSelectedAttendanceMember] = useState<string | null>(null);
   const [editingAttendance, setEditingAttendance] = useState<TeacherAttendance | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
@@ -2084,7 +2085,11 @@ function ExonaApp() {
   const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'], time: '', phoneNumber: '' });
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
+  const [isDeleteAttendanceModalOpen, setIsDeleteAttendanceModalOpen] = useState(false);
   const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
+  const [attendanceToDelete, setAttendanceToDelete] = useState<string | null>(null);
+  const [staffToDelete, setStaffToDelete] = useState<{uid: string, name: string} | null>(null);
+  const [isDeleteStaffModalOpen, setIsDeleteStaffModalOpen] = useState(false);
   const [isDeleteSchoolModalOpen, setIsDeleteSchoolModalOpen] = useState(false);
   const [schoolToDelete, setSchoolToDelete] = useState<string | null>(null);
   const [newPostContent, setNewPostContent] = useState('');
@@ -5771,20 +5776,63 @@ function ExonaApp() {
     }
   };
 
-  const handleDeleteAttendance = async (recordId: string) => {
-    if (!user || !selectedSchool) return;
+  const handleDeleteAttendance = async () => {
+    if (!user || !selectedSchool || !attendanceToDelete) return;
     if (!canManageInstitution(selectedSchool)) {
       showNotification('Unauthorized to delete attendance records.', 'error');
       return;
     }
     
-    if (!window.confirm('Are you sure you want to delete this attendance record? This action cannot be undone.')) return;
-
+    setIsUploading(true);
     try {
-      await deleteDoc(doc(db, 'teacherAttendance', recordId));
+      await deleteDoc(doc(db, 'teacherAttendance', attendanceToDelete));
       showNotification('Attendance record removed');
+      setIsDeleteAttendanceModalOpen(false);
+      setAttendanceToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `teacherAttendance/${recordId}`);
+      handleFirestoreError(error, OperationType.DELETE, `teacherAttendance/${attendanceToDelete}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteStaff = async () => {
+    if (!user || !selectedSchool || !staffToDelete) return;
+    if (!canManageInstitution(selectedSchool)) {
+      showNotification('Unauthorized to remove staff members.', 'error');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // 1. Remove from followers if they are a follower
+      if (selectedSchool.followers?.includes(staffToDelete.uid)) {
+        const path = selectedSchool.type === 'school' ? 'schools' : 'places';
+        await updateDoc(doc(db, path, selectedSchool.id), {
+          followers: arrayRemove(staffToDelete.uid)
+        });
+      }
+
+      // 2. Delete all attendance records for this name in this school
+      const q = query(
+        collection(db, 'teacherAttendance'),
+        where('schoolId', '==', selectedSchool.id),
+        where('teacherName', '==', staffToDelete.name)
+      );
+      const snapshot = await getDocs(q);
+      const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, 'teacherAttendance', d.id)));
+      await Promise.all(deletePromises);
+
+      showNotification(`${staffToDelete.name} removed from list`);
+      if (selectedAttendanceMember === staffToDelete.name) {
+        setSelectedAttendanceMember(null);
+      }
+      setIsDeleteStaffModalOpen(false);
+      setStaffToDelete(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `teacherAttendance/bulk-delete-staff`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -10555,6 +10603,119 @@ function ExonaApp() {
         };
 
         if (attendanceViewMode === 'summary') {
+          if (selectedAttendanceMember) {
+            const memberRecords = attendance.filter(r => r.teacherName === selectedAttendanceMember)
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            return (
+              <WordLayout 
+                title={`${selectedAttendanceMember}'s History`}
+                subtitle={labels.attendance}
+                icon={UserIcon}
+                branding={{ name: selectedSchool.name }}
+                showNotification={showNotification}
+                handlePrint={handlePrint}
+                hideOfficialBadge={true}
+                hideSaveImage={true}
+                hideBranding={true}
+                hideIcon={true}
+                toolbar={
+                  <button 
+                    onClick={() => setSelectedAttendanceMember(null)}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-ink rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-gray-200 transition-all"
+                  >
+                    <ChevronLeft size={14} strokeWidth={2.5} />
+                    Summary
+                  </button>
+                }
+              >
+                <div className="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+                  <div>
+                    <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedAttendanceMember}</h1>
+                    <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Detailed participation log</p>
+                  </div>
+                  {canManageInstitution(selectedSchool) && (
+                    <button 
+                      onClick={() => {
+                        const matched = staffCandidates.find(s => s.displayName === selectedAttendanceMember);
+                        setStaffToDelete({ 
+                          uid: matched?.uid || `recorded-${selectedAttendanceMember}`, 
+                          name: selectedAttendanceMember || '' 
+                        });
+                        setIsDeleteStaffModalOpen(true);
+                      }}
+                      className="px-6 py-3 bg-red-50 text-red-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2 border border-red-100"
+                    >
+                      <UserMinus size={14} />
+                      Remove Member Entirely
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  {memberRecords.length === 0 ? (
+                    <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                      <p className="font-bold text-muted">No historical records found for this member</p>
+                    </div>
+                  ) : (
+                    memberRecords.map((record) => (
+                      <div key={record.id} className="p-6 bg-white border border-gray-100 rounded-[2rem] flex items-center justify-between group">
+                        <div className="flex items-center gap-6">
+                          <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-white ${
+                            record.status === 'present' ? 'bg-green-500' :
+                            record.status === 'absent' ? 'bg-red-500' : 'bg-amber-500'
+                          }`}>
+                            {record.status === 'present' ? <Check size={18} /> : 
+                             record.status === 'absent' ? <X size={18} /> : <Clock size={18} />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-ink">{record.date}</p>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.time || '--:--'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right mr-4">
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Marked By</p>
+                            <p className="text-[11px] font-bold text-ink">{record.addedBy}</p>
+                          </div>
+                          {canManageInstitution(selectedSchool) && (
+                            <div className="flex items-center gap-2">
+                               <button
+                                 onClick={() => {
+                                   setEditingAttendance(record);
+                                   setNewAttendance({
+                                     teacherName: record.teacherName,
+                                     category: record.category || '',
+                                     status: record.status,
+                                     time: record.time || '',
+                                     phoneNumber: record.phoneNumber || ''
+                                   });
+                                   setIsAttendanceModalOpen(true);
+                                 }}
+                                 className="p-2 text-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-all"
+                               >
+                                  <Edit2 size={14} />
+                               </button>
+                               <button 
+                                 onClick={() => {
+                                   setAttendanceToDelete(record.id);
+                                   setIsDeleteAttendanceModalOpen(true);
+                                 }}
+                                 className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                               >
+                                 <Trash2 size={14} />
+                               </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </WordLayout>
+            );
+          }
+
           const summaryData: { [key: string]: { present: number; absent: number; late: number; total: number } } = {};
           
           attendance.forEach(curr => {
@@ -10605,9 +10766,18 @@ function ExonaApp() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {summaryList.map((ind) => (
-                  <div key={ind.name} className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-md transition-shadow">
-                    <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-muted mb-4">
-                      <UserIcon size={24} strokeWidth={1.5} />
+                  <button 
+                    key={ind.name} 
+                    onClick={() => setSelectedAttendanceMember(ind.name)}
+                    className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98]"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-muted group-hover:bg-accent/5 group-hover:text-accent transition-colors">
+                        <UserIcon size={24} strokeWidth={1.5} />
+                      </div>
+                      <div className="p-2 bg-gray-50 rounded-lg text-muted group-hover:bg-accent/10 group-hover:text-accent transition-colors">
+                         <ChevronRight size={14} strokeWidth={2.5} />
+                      </div>
                     </div>
                     <h4 className="text-lg font-black text-ink mb-6 truncate">{ind.name}</h4>
                     <div className="grid grid-cols-3 gap-4">
@@ -10624,7 +10794,7 @@ function ExonaApp() {
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Total</p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </WordLayout>
@@ -10728,7 +10898,7 @@ function ExonaApp() {
                         className="p-5 bg-white border border-gray-100 rounded-[2.5rem] hover:border-accent/30 transition-all group relative overflow-hidden"
                       >
                         <div className="flex flex-col items-center text-center">
-                          <div className="h-14 w-14 rounded-2xl bg-gray-50 border border-gray-100 mb-4 overflow-hidden shrink-0 group-hover:scale-105 transition-transform">
+                          <div className="h-14 w-14 rounded-2xl bg-gray-50 border border-gray-100 mb-4 overflow-hidden shrink-0 group-hover:scale-105 transition-transform relative">
                             {staff.photoURL ? (
                               <img src={staff.photoURL} alt={staff.displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
@@ -10736,8 +10906,51 @@ function ExonaApp() {
                                 <UserIcon size={24} />
                               </div>
                             )}
+                            {filteredAttendance.find(r => r.teacherName === staff.displayName) && (
+                              <div className="absolute inset-0 bg-accent/10 backdrop-blur-[2px] flex items-center justify-center">
+                                <div className={`h-6 w-6 rounded-lg flex items-center justify-center text-white shadow-sm ${
+                                  filteredAttendance.find(r => r.teacherName === staff.displayName)?.status === 'present' ? 'bg-green-500' :
+                                  filteredAttendance.find(r => r.teacherName === staff.displayName)?.status === 'absent' ? 'bg-red-500' : 'bg-amber-500'
+                                }`}>
+                                  <Check size={14} strokeWidth={3} />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <span className="text-[12px] font-bold text-ink truncate w-full mb-3">{staff.displayName}</span>
+                          <div className="flex items-center justify-center gap-2 mb-3 w-full">
+                            <span className="text-[12px] font-bold text-ink truncate max-w-[80%]">{staff.displayName}</span>
+                            {canManageInstitution(selectedSchool) && (
+                              <div className="flex items-center gap-1">
+                                {filteredAttendance.find(r => r.teacherName === staff.displayName) && (
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      const record = filteredAttendance.find(r => r.teacherName === staff.displayName);
+                                      if (record) {
+                                        setAttendanceToDelete(record.id);
+                                        setIsDeleteAttendanceModalOpen(true);
+                                      }
+                                    }}
+                                    className="text-amber-400 hover:text-amber-600 transition-colors p-1"
+                                    title="Delete today's record"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setStaffToDelete({ uid: staff.uid, name: staff.displayName });
+                                    setIsDeleteStaffModalOpen(true);
+                                  }}
+                                  className="text-red-400 hover:text-red-600 transition-colors p-1"
+                                  title="Remove from staff list"
+                                >
+                                  <UserMinus size={12} />
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           
                           <div className="flex items-center gap-2 justify-center w-full">
                             {(['present', 'absent', 'late'] as const).map((s) => (
@@ -10838,7 +11051,10 @@ function ExonaApp() {
                                   <Edit2 size={14} />
                                 </button>
                                 <button 
-                                  onClick={() => handleDeleteAttendance(record.id)}
+                                  onClick={() => {
+                                    setAttendanceToDelete(record.id);
+                                    setIsDeleteAttendanceModalOpen(true);
+                                  }}
                                   className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
                                 >
                                   <Trash2 size={14} />
@@ -10884,7 +11100,10 @@ function ExonaApp() {
                                 <Edit2 size={12} />
                               </button>
                               <button 
-                                onClick={() => handleDeleteAttendance(record.id)}
+                                onClick={() => {
+                                  setAttendanceToDelete(record.id);
+                                  setIsDeleteAttendanceModalOpen(true);
+                                }}
                                 className="p-2 h-8 w-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center shrink-0"
                               >
                                 <Trash2 size={12} />
@@ -15775,6 +15994,99 @@ function ExonaApp() {
                   className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
                 >
                   Abort
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isDeleteAttendanceModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100 text-center"
+            >
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Delete Register?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">This action will permanently purge this specific entry from the history log. Are you sure?</p>
+              
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={handleDeleteAttendance}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-red-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Purging...
+                    </>
+                  ) : (
+                    'Confirm Deletion'
+                  )}
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDeleteAttendanceModalOpen(false);
+                    setAttendanceToDelete(null);
+                  }}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isDeleteStaffModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-white rounded-[3rem] p-12 border border-gray-100 text-center"
+            >
+              <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
+                <UserMinus size={32} />
+              </div>
+              <h3 className="text-3xl font-extrabold text-ink mb-3 tracking-tight">Remove member?</h3>
+              <p className="text-muted font-medium mb-10 leading-relaxed">
+                You are about to remove <span className="text-ink underline">{staffToDelete?.name}</span> from the institution's staff list. 
+                This will also <strong>permanently delete all their historical attendance records</strong>.
+              </p>
+              
+              <div className="flex flex-col gap-4">
+                <button 
+                  onClick={handleDeleteStaff}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-red-600 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-red-700 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Removing...
+                    </>
+                  ) : (
+                    'Confirm Removal'
+                  )}
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDeleteStaffModalOpen(false);
+                    setStaffToDelete(null);
+                  }}
+                  disabled={isUploading}
+                  className="w-full py-5 bg-gray-50 text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-100 transition-all border border-gray-100 disabled:opacity-50"
+                >
+                  Cancel
                 </button>
               </div>
             </motion.div>
