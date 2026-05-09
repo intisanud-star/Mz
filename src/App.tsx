@@ -266,11 +266,16 @@ const BrainBattleModal = ({
         if (userDoc?.telegramId) identifiers.telegramId = userDoc.telegramId;
         
         if (Object.keys(identifiers).length > 0) {
-          setIsChecking(true);
-          const record = await onCheckParticipation(identifiers);
-          setIsChecking(false);
-          if (record) {
-            setExistingResult(record);
+          try {
+            setIsChecking(true);
+            const record = await onCheckParticipation(identifiers);
+            setIsChecking(false);
+            if (record) {
+              setExistingResult(record);
+            }
+          } catch (err) {
+            console.error('Participation check failed:', err);
+            setIsChecking(false);
           }
         }
       };
@@ -443,15 +448,21 @@ const BrainBattleModal = ({
                         return;
                       }
                       
-                      setIsChecking(true);
-                      const record: any = await onCheckParticipation({ email: guestInfo.email });
-                      setIsChecking(false);
+                      try {
+                        setIsChecking(true);
+                        const record: any = await onCheckParticipation({ email: guestInfo.email });
+                        setIsChecking(false);
 
-                      if (record) {
-                        setExistingResult(record);
-                        setStep('existing');
-                      } else {
-                        onNotify('No record found for this email this week.', 'error');
+                        if (record) {
+                          setExistingResult(record);
+                          setStep('existing');
+                        } else {
+                          onNotify('No record found for this email this week.', 'error');
+                        }
+                      } catch (err) {
+                        console.error('Find result error:', err);
+                        setIsChecking(false);
+                        onNotify('Search failed. Please try again.', 'error');
                       }
                     }}
                     className={`w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all ${isChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -646,23 +657,29 @@ const BrainBattleModal = ({
                         return;
                       }
                       
-                      setIsChecking(true);
-                      const record: any = await onCheckParticipation({ 
-                        email: guestInfo.email, 
-                        phone: guestInfo.phone,
-                        telegramId: userDoc?.telegramId
-                      });
-                      setIsChecking(false);
+                      try {
+                        setIsChecking(true);
+                        const record: any = await onCheckParticipation({ 
+                          email: guestInfo.email, 
+                          phone: guestInfo.phone,
+                          telegramId: userDoc?.telegramId
+                        });
+                        setIsChecking(false);
 
-                      if (record) {
-                        setExistingResult(record);
-                        setStep('existing');
-                        return;
+                        if (record) {
+                          setExistingResult(record);
+                          setStep('existing');
+                          return;
+                        }
+
+                        setStep('playing');
+                        setScore(0);
+                        setCurrentIndex(0);
+                      } catch (err) {
+                        console.error('Participation check error:', err);
+                        setIsChecking(false);
+                        onNotify('Communication failed. Please try again.', 'error');
                       }
-
-                      setStep('playing');
-                      setScore(0);
-                      setCurrentIndex(0);
                       setAnswered([]);
                       setTimeLeft(300); // 5 minutes Reset
                       setTimerActive(true);
@@ -2082,7 +2099,14 @@ function ExonaApp() {
   const [isAddRoutineModalOpen, setIsAddRoutineModalOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
-  const [newAttendance, setNewAttendance] = useState({ teacherName: '', category: '', status: 'present' as TeacherAttendance['status'], time: '', phoneNumber: '' });
+  const [newAttendance, setNewAttendance] = useState({ 
+    teacherName: '', 
+    category: '', 
+    status: 'present' as TeacherAttendance['status'], 
+    time: '', 
+    phoneNumber: '',
+    date: new Date().toISOString().split('T')[0]
+  });
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [isDeleteRecordModalOpen, setIsDeleteRecordModalOpen] = useState(false);
   const [isDeleteAttendanceModalOpen, setIsDeleteAttendanceModalOpen] = useState(false);
@@ -5708,6 +5732,7 @@ function ExonaApp() {
           category: newAttendance.category.trim() || '',
           phoneNumber: newAttendance.phoneNumber.trim() || '',
           status: newAttendance.status,
+          date: newAttendance.date || new Date().toISOString().split('T')[0],
           time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           updatedBy: user.displayName || 'Anonymous',
           updatedAt: serverTimestamp()
@@ -5721,14 +5746,21 @@ function ExonaApp() {
           category: newAttendance.category.trim() || '',
           phoneNumber: newAttendance.phoneNumber.trim() || '',
           status: newAttendance.status,
-          date: new Date().toISOString().split('T')[0],
+          date: newAttendance.date || new Date().toISOString().split('T')[0],
           time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           addedBy: user.displayName || 'Anonymous',
           timestamp: serverTimestamp()
         });
         showNotification('Record added successfully', 'success');
       }
-      setNewAttendance({ teacherName: '', category: '', status: 'present', time: '', phoneNumber: '' });
+      setNewAttendance({ 
+        teacherName: '', 
+        category: '', 
+        status: 'present', 
+        time: '', 
+        phoneNumber: '',
+        date: new Date().toISOString().split('T')[0]
+      });
       setEditingAttendance(null);
       setIsAttendanceModalOpen(false);
     } catch (error) {
@@ -6863,29 +6895,35 @@ function ExonaApp() {
           
           // Listen real-time to user document
           userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
-            if (docSnap.exists()) {
-              const data = docSnap.data();
-              setUserDoc(data);
-              
-              if (!data.country && view !== 'splash') {
-                setView('onboarding');
+            try {
+              if (docSnap.exists()) {
+                const data = docSnap.data();
+                setUserDoc(data);
+                
+                if (!data.country && view !== 'splash') {
+                  setView('onboarding');
+                }
+                
+                // Bootstrap admin role for owner email if not set
+                if (currentUser.email === 'musstaphamusa@gmail.com' && data.role !== 'admin') {
+                  await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
+                }
+              } else {
+                // Create user doc if it doesn't exist
+                const initialData = {
+                  uid: currentUser.uid,
+                  email: currentUser.email,
+                  displayName: currentUser.displayName || 'User',
+                  role: currentUser.email === 'musstaphamusa@gmail.com' ? 'admin' : 'user'
+                };
+                await setDoc(doc(db, 'users', currentUser.uid), initialData);
+                setUserDoc(initialData);
               }
-              
-              // Bootstrap admin role for owner email if not set
-              if (currentUser.email === 'musstaphamusa@gmail.com' && data.role !== 'admin') {
-                await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
-              }
-            } else {
-              // Create user doc if it doesn't exist
-              const initialData = {
-                uid: currentUser.uid,
-                email: currentUser.email,
-                displayName: currentUser.displayName || 'User',
-                role: currentUser.email === 'musstaphamusa@gmail.com' ? 'admin' : 'user'
-              };
-              await setDoc(doc(db, 'users', currentUser.uid), initialData);
-              setUserDoc(initialData);
+            } catch (err) {
+              console.error('User doc real-time error:', err);
             }
+          }, (error) => {
+            handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
           });
 
           setUser(currentUser);
@@ -10449,6 +10487,7 @@ function ExonaApp() {
 
         const presentToday = filteredAttendance.filter(r => r.status === 'present').length;
         const absentToday = filteredAttendance.filter(r => r.status === 'absent').length;
+        const lateToday = filteredAttendance.filter(r => r.status === 'late').length;
 
         const renderAttendanceHub = () => {
           const isPlace = selectedSchool?.type === 'place';
@@ -10548,9 +10587,10 @@ function ExonaApp() {
                     </div>
                     <div className="flex gap-12">
                       {[
-                        { label: 'Activity', value: filteredAttendance.length },
+                        { label: 'Register', value: filteredAttendance.length },
                         { label: 'Present', value: presentToday },
-                        { label: 'Absent', value: absentToday }
+                        { label: 'Absent', value: absentToday },
+                        { label: 'Late', value: lateToday }
                       ].map((stat, i) => (
                         <div key={i} className="text-center">
                           <p className="text-3xl sm:text-4xl font-black mb-1">{stat.value}</p>
@@ -10580,7 +10620,8 @@ function ExonaApp() {
                       <div key={record.id} className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:bg-gray-50/50 transition-colors">
                         <div className="flex items-center gap-4">
                           <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs ${
-                            record.status === 'present' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                            record.status === 'present' ? 'bg-green-50 text-green-600' : 
+                            record.status === 'absent' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
                           }`}>
                             {record.status.charAt(0).toUpperCase()}
                           </div>
@@ -10606,6 +10647,13 @@ function ExonaApp() {
           if (selectedAttendanceMember) {
             const memberRecords = attendance.filter(r => r.teacherName === selectedAttendanceMember)
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+            const memberStats = {
+              present: memberRecords.filter(r => r.status === 'present').length,
+              absent: memberRecords.filter(r => r.status === 'absent').length,
+              late: memberRecords.filter(r => r.status === 'late').length,
+              total: memberRecords.length
+            };
 
             return (
               <WordLayout 
@@ -10652,6 +10700,20 @@ function ExonaApp() {
                   )}
                 </div>
 
+                <div className="grid grid-cols-4 gap-4 mb-16 p-8 bg-gray-50 rounded-[2.5rem] border border-gray-100">
+                   {[
+                     { label: 'Present', value: memberStats.present, color: 'text-green-600' },
+                     { label: 'Absent', value: memberStats.absent, color: 'text-red-600' },
+                     { label: 'Late', value: memberStats.late, color: 'text-amber-500' },
+                     { label: 'Total', value: memberStats.total, color: 'text-ink' }
+                   ].map((s, i) => (
+                     <div key={i} className="text-center">
+                       <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                       <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{s.label}</p>
+                     </div>
+                   ))}
+                </div>
+
                 <div className="space-y-4">
                   {memberRecords.length === 0 ? (
                     <div className="py-20 text-center bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -10688,7 +10750,8 @@ function ExonaApp() {
                                      category: record.category || '',
                                      status: record.status,
                                      time: record.time || '',
-                                     phoneNumber: record.phoneNumber || ''
+                                     phoneNumber: record.phoneNumber || '',
+                                     date: record.date
                                    });
                                    setIsAttendanceModalOpen(true);
                                  }}
@@ -10780,14 +10843,18 @@ function ExonaApp() {
                       </div>
                     </div>
                     <h4 className="text-lg font-black text-ink mb-6 truncate">{ind.name}</h4>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-4 gap-2">
                       <div className="text-center">
                         <p className="text-2xl font-black text-green-600">{ind.present}</p>
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Present</p>
                       </div>
-                      <div className="text-center border-x border-gray-50 px-2">
+                      <div className="text-center">
                         <p className="text-2xl font-black text-red-600">{ind.absent}</p>
                         <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Absent</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-black text-amber-500">{ind.late}</p>
+                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Late</p>
                       </div>
                       <div className="text-center">
                         <p className="text-2xl font-black text-ink">{ind.total}</p>
@@ -10866,7 +10933,17 @@ function ExonaApp() {
                   )}
                   {canManageInstitution(selectedSchool) && (
                     <button 
-                      onClick={() => setIsAttendanceModalOpen(true)}
+                      onClick={() => {
+                        setNewAttendance({ 
+                          teacherName: '', 
+                          category: '', 
+                          status: 'present', 
+                          time: '', 
+                          phoneNumber: '',
+                          date: new Date().toISOString().split('T')[0]
+                        });
+                        setIsAttendanceModalOpen(true);
+                      }}
                       className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-95 group"
                     >
                       <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
@@ -10962,7 +11039,8 @@ function ExonaApp() {
                                     category: 'Staff',
                                     status: s,
                                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                    phoneNumber: ''
+                                    phoneNumber: '',
+                                    date: new Date().toISOString().split('T')[0]
                                   });
                                   setIsAttendanceModalOpen(true);
                                 }}
@@ -11042,7 +11120,8 @@ function ExonaApp() {
                                       category: record.category || '',
                                       status: record.status,
                                       time: record.time || '',
-                                      phoneNumber: record.phoneNumber || ''
+                                      phoneNumber: record.phoneNumber || '',
+                                      date: record.date
                                     });
                                     setIsAttendanceModalOpen(true);
                                   }}
@@ -11091,7 +11170,8 @@ function ExonaApp() {
                                     category: record.category || '',
                                     status: record.status,
                                     time: record.time || '',
-                                    phoneNumber: record.phoneNumber || ''
+                                    phoneNumber: record.phoneNumber || '',
+                                    date: record.date
                                   });
                                   setIsAttendanceModalOpen(true);
                                 }}
@@ -15228,14 +15308,19 @@ function ExonaApp() {
                 <button 
                   onClick={async () => {
                     if (auth.currentUser) {
-                      await auth.currentUser.reload();
-                      if (auth.currentUser.emailVerified) {
-                        const docData = await ensureUserDocument(auth.currentUser);
-                        setUserDoc(docData);
-                        setUser(auth.currentUser);
-                        setView('feed');
-                      } else {
-                        setAuthError('Email not verified yet. Please check your inbox.');
+                      try {
+                        await auth.currentUser.reload();
+                        if (auth.currentUser.emailVerified) {
+                          const docData = await ensureUserDocument(auth.currentUser);
+                          setUserDoc(docData);
+                          setUser(auth.currentUser);
+                          setView('feed');
+                        } else {
+                          setAuthError('Email not verified yet. Please check your inbox.');
+                        }
+                      } catch (err: any) {
+                        console.error('Verification check error:', err);
+                        setAuthError('Failed to check verification status. Please try again.');
                       }
                     }
                   }} 
@@ -16378,7 +16463,14 @@ function ExonaApp() {
                   onClick={() => {
                     setIsAttendanceModalOpen(false);
                     setEditingAttendance(null);
-                    setNewAttendance({ teacherName: '', category: '', status: 'present', time: '', phoneNumber: '' });
+                    setNewAttendance({ 
+                      teacherName: '', 
+                      category: '', 
+                      status: 'present', 
+                      time: '', 
+                      phoneNumber: '',
+                      date: new Date().toISOString().split('T')[0]
+                    });
                   }} 
                   className="h-10 w-10 sm:h-12 sm:w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"
                 >
@@ -16445,7 +16537,16 @@ function ExonaApp() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Time of Entry</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Date of Entry</label>
+                    <input 
+                      type="date" 
+                      value={newAttendance.date || ''}
+                      onChange={(e) => setNewAttendance({...newAttendance, date: e.target.value})}
+                      className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Time of Entry (Optional)</label>
                     <input 
                       type="text" 
                       value={newAttendance.time || ''}
@@ -16454,6 +16555,8 @@ function ExonaApp() {
                       className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4">Phone Number (Optional)</label>
                     <input 
