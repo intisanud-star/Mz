@@ -7133,6 +7133,8 @@ function ExonaApp() {
       if (userDoc.role === 'admin') {
         unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
           setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+        }, (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'studentRecords');
         });
         unsubAllFinance = onSnapshot(collection(db, 'finance'), (snap) => {
           setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -7151,11 +7153,15 @@ function ExonaApp() {
           const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', authorizedIds));
           unsubAllRecords = onSnapshot(qRecords, (snap) => {
             setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+          }, (error) => {
+            handleFirestoreError(error, OperationType.LIST, 'studentRecords');
           });
 
           const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', authorizedIds));
           unsubAllAttendance = onSnapshot(qAttendance, (snap) => {
             setAllAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
+          }, (error) => {
+            handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
           });
         }
       }
@@ -8368,25 +8374,7 @@ function ExonaApp() {
                             </div>
                           </div>
                           
-                          {/* Institution Action Buttons */}
-                          {canManageInstitution(school) && (
-                            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                              <button 
-                                onClick={() => { setSelectedSchool(school); handleNavigateToData('records', school); }}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                              >
-                                <ClipboardList size={12} className="group-hover/btn:scale-110 transition-transform" />
-                                <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).student} Records</span>
-                              </button>
-                              <button 
-                                onClick={() => { setSelectedSchool(school); handleNavigateToData('attendance', school); }}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-100 text-muted hover:bg-ink hover:text-white rounded-lg transition-all duration-300 group/btn whitespace-nowrap flex-shrink-0"
-                              >
-                                <Calendar size={12} className="group-hover/btn:scale-110 transition-transform" />
-                                <span className="text-[9px] font-bold uppercase tracking-widest">{getLabels(school.type).attendance}</span>
-                              </button>
-                            </div>
-                          )}
+                          {/* Institution Action Buttons hidden from homepage as requested */}
                         </div>
                       );
                     })}
@@ -8394,6 +8382,53 @@ function ExonaApp() {
               </>
             ) : (
               <div className="flex flex-col gap-2">
+                {user && (
+                  <div className="bg-white rounded-[2rem] p-6 mb-6 border border-gray-100 shadow-sm">
+                    <div className="flex gap-4 items-center">
+                      <div className="h-12 w-12 rounded-2xl overflow-hidden bg-accent/5 flex items-center justify-center text-accent font-black text-lg shrink-0 border border-gray-100">
+                        {user.photoURL ? (
+                          <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span>{user.displayName?.charAt(0)}</span>
+                        )}
+                      </div>
+                      <button 
+                        onClick={() => openNewPostModal()}
+                        className="flex-1 text-left px-6 py-4 bg-gray-50 rounded-[1.5rem] text-muted font-medium hover:bg-gray-100 transition-all text-[14px]"
+                      >
+                        Share something with Horizon...
+                      </button>
+                      <button 
+                        onClick={() => {
+                          openNewPostModal();
+                          // Small hack to trigger click on hidden file input in next tick
+                          setTimeout(() => {
+                            const fileInput = document.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement;
+                            if (fileInput) fileInput.click();
+                          }, 100);
+                        }}
+                        className="h-12 w-12 bg-white text-muted hover:text-accent hover:bg-accent/5 rounded-2xl flex items-center justify-center transition-all border border-gray-100 active:scale-95 group shadow-sm"
+                        title="Upload Photo"
+                      >
+                        <ImageIcon size={20} className="group-hover:scale-110 transition-transform" />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          openNewPostModal();
+                          setTimeout(() => {
+                            const fileInput = document.querySelector('input[type="file"][capture="environment"]') as HTMLInputElement;
+                            if (fileInput) fileInput.click();
+                          }, 100);
+                        }}
+                        className="h-12 w-12 bg-white text-muted hover:text-accent hover:bg-accent/5 rounded-2xl flex items-center justify-center transition-all border border-gray-100 active:scale-95 group shadow-sm hidden sm:flex"
+                        title="Take Photo"
+                      >
+                        <Camera size={20} className="group-hover:scale-110 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {posts.length === 0 ? (
                   <div className="py-20 text-center">
                     <div className="h-20 w-20 bg-white rounded-[2.5rem] border border-gray-100 flex items-center justify-center mx-auto mb-6">
@@ -9139,6 +9174,7 @@ function ExonaApp() {
                  </div>
                </button>
 
+               {/* 
                {(myInstitutions.length > 0 || userDoc?.role === 'admin' || [...schools, ...places].some(s => canAccessInstitutionData(s))) && (
                  <button 
                    onClick={() => handleNavigateToData('records')}
@@ -9156,6 +9192,7 @@ function ExonaApp() {
                    </div>
                  </button>
                )}
+               */}
 
               {/* Followed & Managed Institutions as Home Feed */}
               {[...schools, ...places].filter(s => 
@@ -15698,14 +15735,21 @@ function ExonaApp() {
 
               <div className="flex items-center justify-between">
                 <div className="flex gap-3">
-                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90">
+                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90" title="Upload Images">
                     <ImageIcon size={22} />
                     <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => {
                       const files = Array.from(e.target.files || []);
                       setSelectedPostFiles(prev => [...prev, ...files]);
                     }} />
                   </label>
-                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90">
+                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90" title="Take a Photo">
+                    <Camera size={22} />
+                    <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setSelectedPostFiles(prev => [...prev, ...files]);
+                    }} />
+                  </label>
+                  <label className="h-14 w-14 bg-gray-50 text-muted rounded-2xl hover:bg-gray-100 cursor-pointer transition-all flex items-center justify-center border border-gray-100 active:scale-90" title="Upload Video">
                     <VideoIcon size={22} />
                     <input type="file" accept="video/*" className="hidden" onChange={(e) => setSelectedPostFiles(prev => [...prev, ...Array.from(e.target.files || [])])} />
                   </label>
@@ -17287,6 +17331,7 @@ function ExonaApp() {
                     <div className="px-4 py-4">
                       <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Management</p>
                     </div>
+                    {/* 
                     <SidebarItem 
                       icon={ClipboardList} 
                       label={`${labels.student} Records`} 
@@ -17299,6 +17344,7 @@ function ExonaApp() {
                       active={view === 'attendance'} 
                       onClick={() => handleNavigateToData('attendance')} 
                     />
+                    */}
                     <SidebarItem 
                       icon={Activity} 
                       label={labels.routine} 
