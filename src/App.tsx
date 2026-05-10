@@ -69,134 +69,125 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
 
 // --- CONSTANTS ---
 const BRAIN_BATTLE_QUESTIONS = [
-  // General Knowledge
   {
-    question: "Which planet is known as the Red Planet?",
-    options: ["Venus", "Mars", "Jupiter", "Saturn"],
-    answer: "Mars",
+    question: "Which planet has the largest number of moons currently discovered?",
+    options: ["Jupiter", "Saturn", "Uranus", "Neptune"],
+    answer: "Saturn",
+    category: "Space & Science"
+  },
+  {
+    question: "What is the value of π (pi) correct to 3 decimal places?",
+    options: ["3.124", "3.142", "3.141", "3.412"],
+    answer: "3.141",
+    category: "Mathematics"
+  },
+  {
+    question: "Who developed the Theory of Relativity?",
+    options: ["Isaac Newton", "Nikola Tesla", "Albert Einstein", "Galileo Galilei"],
+    answer: "Albert Einstein",
+    category: "Science"
+  },
+  {
+    question: "Which Surah in the Qur’an is known as the “Heart of the Qur’an”?",
+    options: ["Al-Fatiha", "Yaseen", "Al-Mulk", "Ar-Rahman"],
+    answer: "Yaseen",
+    category: "Islamic Knowledge"
+  },
+  {
+    question: "In computer science, what does “CPU” stand for?",
+    options: ["Central Power Unit", "Computer Processing Utility", "Central Processing Unit", "Central Program Unit"],
+    answer: "Central Processing Unit",
+    category: "Technology"
+  },
+  {
+    question: "Which African country was never colonized?",
+    options: ["Ghana", "Kenya", "Ethiopia", "Algeria"],
+    answer: "Ethiopia",
+    category: "History"
+  },
+  {
+    question: "What is the square root of 144?",
+    options: ["11", "12", "14", "16"],
+    answer: "12",
+    category: "Mathematics"
+  },
+  {
+    question: "Which blood group is known as the universal donor?",
+    options: ["AB+", "O+", "O−", "A−"],
+    answer: "O−",
+    category: "Science"
+  },
+  {
+    question: "What is the chemical symbol for Gold?",
+    options: ["Ag", "Gd", "Go", "Au"],
+    answer: "Au",
+    category: "Science"
+  },
+  {
+    question: "Which country currently has the largest population in the world?",
+    options: ["India", "China", "USA", "Indonesia"],
+    answer: "India",
     category: "General Knowledge"
   },
   {
-    question: "Which continent is the Sahara Desert located in?",
-    options: ["Asia", "Africa", "Australia", "Europe"],
-    answer: "Africa",
-    category: "General Knowledge"
+    question: "Who wrote “Romeo and Juliet”?",
+    options: ["Charles Dickens", "William Shakespeare", "Mark Twain", "Chinua Achebe"],
+    answer: "William Shakespeare",
+    category: "Literature"
   },
   {
-    question: "What is the fastest land animal?",
-    options: ["Lion", "Tiger", "Cheetah", "Leopard"],
-    answer: "Cheetah",
-    category: "General Knowledge"
+    question: "What does HTTP stand for?",
+    options: ["HyperText Transfer Protocol", "Hyper Transfer Text Program", "HighText Transfer Protocol", "HyperText Transmission Program"],
+    answer: "HyperText Transfer Protocol",
+    category: "Technology"
   },
   {
-    question: "How many days are there in a leap year?",
-    options: ["365", "366", "364", "367"],
-    answer: "366",
-    category: "General Knowledge"
-  },
-
-  // School Questions
-  {
-    question: "What is 15 × 6?",
-    options: ["80", "85", "90", "95"],
-    answer: "90",
-    category: "School Questions"
+    question: "Which organ purifies blood in the human body?",
+    options: ["Heart", "Liver", "Kidney", "Lung"],
+    answer: "Kidney",
+    category: "Science"
   },
   {
-    question: "What is the chemical symbol for Sodium?",
-    options: ["So", "Sd", "Na", "Sn"],
-    answer: "Na",
-    category: "School Questions"
-  },
-  {
-    question: "Which part of speech is the word 'quickly'?",
-    options: ["Noun", "Verb", "Adjective", "Adverb"],
-    answer: "Adverb",
-    category: "School Questions"
-  },
-  {
-    question: "What is 100 ÷ 4?",
-    options: ["20", "25", "30", "40"],
-    answer: "25",
-    category: "School Questions"
-  },
-
-  // Nigeria Trivia
-  {
-    question: "Which city is known as the 'Centre of Commerce' in Nigeria?",
-    options: ["Lagos", "Kano", "Abuja", "Port Harcourt"],
+    question: "Which Nigerian state is known as the “Centre of Commerce”?",
+    options: ["Lagos", "Kano", "Abuja", "Kaduna"],
     answer: "Kano",
     category: "Nigeria Trivia"
   },
   {
-    question: "What is the Nigerian currency called?",
-    options: ["Dollar", "Naira", "Pound", "Cedi"],
-    answer: "Naira",
-    category: "Nigeria Trivia"
+    question: "In cybersecurity, what is phishing?",
+    options: ["A fishing game", "A hacking attempt to steal information", "A firewall system", "A coding language"],
+    answer: "A hacking attempt to steal information",
+    category: "Technology"
   },
   {
-    question: "Which geopolitical zone is Kano State in?",
-    options: ["South West", "North East", "North West", "South South"],
-    answer: "North West",
-    category: "Nigeria Trivia"
+    question: "Which prophet built the ark according to Islamic history?",
+    options: ["Prophet Musa (AS)", "Prophet Ibrahim (AS)", "Prophet Nuh (AS)", "Prophet Isa (AS)"],
+    answer: "Prophet Nuh (AS)",
+    category: "Islamic Knowledge"
   },
   {
-    question: "Who designed the Nigerian flag?",
-    options: ["Nnamdi Azikiwe", "Taiwo Akinkunmi", "Obafemi Awolowo", "Ahmadu Bello"],
-    answer: "Taiwo Akinkunmi",
-    category: "Nigeria Trivia"
-  },
-
-  // Islamic Questions
-  {
-    question: "How many Surahs are in the Qur’an?",
-    options: ["100", "110", "114", "120"],
-    answer: "114",
-    category: "Islamic Questions"
+    question: "What is the binary value of decimal number 10?",
+    options: ["1001", "1010", "1110", "1100"],
+    answer: "1010",
+    category: "Technology"
   },
   {
-    question: "What is the night of decree called?",
-    options: ["Laylatul Qadr", "Laylatul Bara’ah", "Laylatul Isra", "Laylatul Mi’raj"],
-    answer: "Laylatul Qadr",
-    category: "Islamic Questions"
+    question: "Which company created Android?",
+    options: ["Apple", "Microsoft", "Google", "Samsung"],
+    answer: "Google",
+    category: "Technology"
   },
   {
-    question: "Which angel delivered revelation to Prophet Muhammad (SAW)?",
-    options: ["Mikail", "Israfil", "Jibril", "Malik"],
-    answer: "Jibril",
-    category: "Islamic Questions"
+    question: "What is the fastest land animal?",
+    options: ["Lion", "Horse", "Tiger", "Cheetah"],
+    answer: "Cheetah",
+    category: "Nature"
   },
   {
-    question: "How many Rak’ahs are in Fajr prayer?",
-    options: ["2", "3", "4", "5"],
-    answer: "2",
-    category: "Islamic Questions"
-  },
-
-  // Logic & Riddles
-  {
-    question: "What has hands but cannot clap?",
-    options: ["Robot", "Clock", "Tree", "Baby"],
-    answer: "Clock",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "If you have 10 mangoes and give out 4, how many are left?",
-    options: ["4", "5", "6", "7"],
-    answer: "6",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "Which number comes next: 2, 4, 8, 16, ?",
-    options: ["18", "20", "24", "32"],
-    answer: "32",
-    category: "Logic & Riddles"
-  },
-  {
-    question: "I have a neck but no head, two arms but no hands. What am I?",
-    options: ["Bottle", "Shirt", "Chair", "Sho shoe"],
-    answer: "Shirt",
-    category: "Logic & Riddles"
+    question: "What matters most for a global fintech platform?",
+    options: ["Fancy logo only", "Real user trust", "Expensive ads only", "Random features"],
+    answer: "Real user trust",
+    category: "Fintech"
   }
 ];
 
