@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { Telegraf } from 'telegraf';
 import { initializeApp as initializeClientApp } from 'firebase/app';
-import { getFirestore as getClientFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { getFirestore as getClientFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, limit, getCountFromServer } from 'firebase/firestore';
 import fs from 'fs';
 import multer from 'multer';
 
@@ -219,7 +219,9 @@ async function startServer() {
     let dbStatus = 'unknown';
     try {
       if (db) {
-        await getDocs(query(collection(db, 'users'), limit(1)));
+        // Use count for minimal impact
+        const coll = collection(db, 'users');
+        const snapshot = await getCountFromServer(query(coll, limit(1)));
         dbStatus = 'connected';
       } else {
         dbStatus = 'not_initialized';
@@ -233,12 +235,6 @@ async function startServer() {
       database: dbStatus,
       projectId: (firebaseConfig as any).projectId || 'missing'
     });
-  });
-
-  // Global error handler for API routes
-  app.use('/api', (err: any, req: any, res: any, next: any) => {
-    console.error(`API Error on ${req.method} ${req.url}:`, err);
-    res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
   });
 
   // 3. Broadcast API Endpoint
@@ -369,8 +365,11 @@ async function startServer() {
       if (!db) {
         return res.status(500).json({ success: false, error: 'Database not initialized' });
       }
-      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
-      const totalCount = snapshot.size;
+      
+      const coll = collection(db, 'users');
+      const q = query(coll, where('source', '==', 'telegram'));
+      const snapshot = await getCountFromServer(q);
+      const totalCount = snapshot.data().count;
       
       res.json({
         success: true,
@@ -418,6 +417,12 @@ async function startServer() {
     const { userId, amount, type, description } = req.body;
     console.log(`[STARS] Transaction for ${userId}: ${type} ${amount} - ${description}`);
     res.json({ success: true, message: 'Transaction authorized by Presidential treasury' });
+  });
+
+  // Global error handler for API routes (Must be after all routes)
+  app.use('/api', (err: any, req: any, res: any, next: any) => {
+    console.error(`API Error on ${req.method} ${req.url}:`, err);
+    res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
   });
 
   // Catch-all for API 404

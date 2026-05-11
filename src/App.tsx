@@ -21,7 +21,7 @@ import {
   Edit, Grid, List, Download, Share, Maximize2, Minimize2, ExternalLink, Link, Move, Copy,
   ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ExternalLink as ExternalLinkIcon, ListFilter, SlidersHorizontal, Hash, Tag, Bookmark, ShieldAlert as ShieldAlertIcon,
   RefreshCcw, Layers, Layout, Library, Pencil, Save, BookOpen as BookOpenIcon, Clock as ClockIcon, Calendar as CalendarIcon, Check as CheckIcon, X as XIcon, Menu as MenuIcon, Search as SearchIcon, Filter as FilterIcon, MoreVertical as MoreVerticalIcon, Bell as BellIcon, Settings as SettingsIcon, LogOut as LogOutIcon, Camera as CameraIcon, Plus as PlusIcon, Send as SendIcon, Image as ImageIcon2, Smile as SmileIcon, Heart as HeartIcon, MessageCircle as MessageCircleIcon, Share2 as Share2Icon, MoreHorizontal as MoreHorizontalIcon, Trash2 as Trash2Icon, Edit2 as Edit2Icon, Bookmark as BookmarkIcon, Heart as HeartFilled, LogOut,
-  Gamepad2, Trophy, Flame, Ghost, Music, Video, Map, Volume2, VolumeX, MicOff,
+  Gamepad2, Trophy, Flame, Ghost, Music, Video, Map as MapIcon, Volume2, VolumeX, MicOff,
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
@@ -198,8 +198,34 @@ const isBattleWindowOpen = () => {
   const hour = now.getHours();
   const minute = now.getMinutes();
 
-  // Sunday (0), 7 PM (19:00) to 7:55 PM (19:55)
-  return day === 0 && hour === 19 && minute <= 55;
+  // Allowed on Sunday (0) and Monday (1) for this requested event
+  // 6 PM (18:00) to 7:55 PM (19:55) to account for timezones
+  return (day === 0 || day === 1) && ((hour === 18 && minute >= 0) || (hour === 19 && minute <= 55));
+};
+
+const getBattleCountdown = () => {
+  try {
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    const min = now.getMinutes();
+    const sec = now.getSeconds();
+
+    // 17 is 5 PM. If it's between 5:50 PM and 5:59 PM (approaching 6 PM)
+    if ((day === 0 || day === 1) && hour === 17 && min >= 50) {
+      const totalSecsLeft = (60 - min - 1) * 60 + (60 - sec);
+      if (totalSecsLeft < 0) return null;
+      
+      const m = Math.floor(totalSecsLeft / 60);
+      const s = totalSecsLeft % 60;
+      const mm = m.toString();
+      const ss = s < 10 ? `0${s}` : s.toString();
+      return `${mm}:${ss}`;
+    }
+  } catch (e) {
+    console.error("Countdown calculation failed", e);
+  }
+  return null;
 };
 
 const BrainBattleModal = ({ 
@@ -238,6 +264,14 @@ const BrainBattleModal = ({
   const resultRef = useRef<HTMLDivElement>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [existingResult, setExistingResult] = useState<any>(null);
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    if (isActive && step === 'welcome') {
+      const interval = setInterval(() => setTick(t => t + 1), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isActive, step]);
 
   useEffect(() => {
     if (user || userDoc) {
@@ -377,13 +411,24 @@ const BrainBattleModal = ({
                           onClick={() => setStep('entry')}
                           className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
                         >
-                          <Zap size={18} /> Start Sunday Battle
+                          <Zap size={18} /> Start Brain Battle
                         </button>
                       ) : (
                         <div className="p-8 bg-gray-50 border border-gray-100 rounded-[2rem] text-center mb-6">
                           <Clock size={32} className="mx-auto text-muted mb-4 opacity-50" />
                           <p className="text-sm font-black text-ink mb-1">Battle Starts Soon</p>
-                          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">The Brain Battle will be available at 7:00 PM tonight.</p>
+                          {(() => {
+                            const countdown = getBattleCountdown();
+                            if (countdown) {
+                              return (
+                                <div className="mt-2">
+                                  <p className="text-3xl font-black text-accent animate-pulse">{countdown}</p>
+                                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">Starting in a few minutes...</p>
+                                </div>
+                              );
+                            }
+                            return <p className="text-[10px] font-bold text-muted uppercase tracking-widest">The Brain Battle will be available at 6:00 PM tonight.</p>;
+                          })()}
                         </div>
                       )}
                       <div className="grid grid-cols-2 gap-4">
@@ -495,7 +540,7 @@ const BrainBattleModal = ({
                       <div className="relative z-10">
                         <div className="flex items-center gap-3 mb-4">
                           <Stars className="text-yellow-400" size={24} />
-                          <h5 className="text-sm font-black uppercase tracking-widest">Sunday Champions</h5>
+                          <h5 className="text-sm font-black uppercase tracking-widest">Weekly Champions</h5>
                         </div>
                         <p className="text-white/80 text-sm font-medium leading-relaxed mb-6">
                           Congratulations to our top battle-tested legends for this week!
@@ -672,7 +717,7 @@ const BrainBattleModal = ({
                         onNotify('Communication failed. Please try again.', 'error');
                       }
                       setAnswered([]);
-                      setTimeLeft(300); // 5 minutes Reset
+                      setTimeLeft(180); // 3 minutes Reset
                       setTimerActive(true);
                     }}
                     className={`w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all active:scale-[0.98] mt-4 ${isChecking ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -1744,7 +1789,7 @@ function ExonaApp() {
   useEffect(() => {
     let checkInterval: any;
     const checkServer = () => {
-      fetch('/api/health')
+      fetch(`/api/health?cb=${Date.now()}`)
         .then(res => res.json())
         .then(data => {
           if (data.status === 'ok') {
@@ -1764,7 +1809,7 @@ function ExonaApp() {
 
   const fetchBroadcastHistory = useCallback(() => {
     if (!serverReady) return;
-    fetch('/api/admin/broadcasts')
+    fetch(`/api/admin/broadcasts?cb=${Date.now()}`)
       .then(res => {
         if (!res.ok) {
           return res.text().then(text => {
@@ -1777,13 +1822,13 @@ function ExonaApp() {
         if (data.success) setBroadcastHistory(data.broadcasts);
       })
       .catch(err => {
-        console.error('Failed to fetch broadcasts:', err);
-        if (err.message === 'Failed to fetch') {
+        console.error('[Presidential Broadcasts] Error:', err);
+        if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
           // Silent retry in background
-          setTimeout(fetchBroadcastHistory, 10000);
+          setTimeout(fetchBroadcastHistory, 15000);
         }
       });
-  }, []);
+  }, [serverReady]);
 
   const startY = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -1832,25 +1877,36 @@ function ExonaApp() {
   useEffect(() => {
     if (!serverReady) return;
     const fetchStats = () => {
-      fetch('/api/admin/stats')
+      // Use absolute path and cache buster to bypass potential proxy issues
+      fetch(`/api/admin/stats?cb=${Date.now()}`)
         .then(res => {
-          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          if (!res.ok) {
+            return res.text().then(text => {
+              throw new Error(`HTTP ${res.status}: ${text}`);
+            });
+          }
           return res.json();
         })
         .then(data => {
-          if (data.success) setCommunitySize(data.communitySize);
+          if (data.success) {
+            setCommunitySize(data.communitySize);
+          }
         })
         .catch(err => {
-          console.error('Failed to fetch community stats:', err);
-          if (err.message === 'Failed to fetch') {
-            // Silently retry stats in 15s
+          // Detailed logging for debugging "Failed to fetch"
+          console.error('[Presidential Stats] Error:', err);
+          
+          if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+            // Silently retry stats in 15s if it's a network/proxy issue
             setTimeout(fetchStats, 15000);
           }
         });
     };
     
-    fetchStats();
+    // Add a small delay for the initial fetch to ensure server is fully settled
+    const timeout = setTimeout(fetchStats, 1000);
     fetchBroadcastHistory();
+    return () => clearTimeout(timeout);
   }, [fetchBroadcastHistory, serverReady]);
   const [records, setRecords] = useState<Record[]>([]);
   const [dailyRoutines, setDailyRoutines] = useState<DailyRoutine[]>([]);
@@ -2426,7 +2482,7 @@ function ExonaApp() {
   };
 
   const [starsNeeded, setStarsNeeded] = useState(0);
-  const [battleTimeLeft, setBattleTimeLeft] = useState(300); // 5 minutes
+  const [battleTimeLeft, setBattleTimeLeft] = useState(180); // 3 minutes
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
@@ -2652,13 +2708,16 @@ function ExonaApp() {
   };
 
   const handleExamNext = () => {
+    if (!activeExamQuestions || !examCurrentSubject) return;
     const subjectQs = activeExamQuestions[examCurrentSubject];
+    if (!subjectQs) return;
+
     if (examCurrentQuestionIndex < subjectQs.length - 1) {
       setExamCurrentQuestionIndex(prev => prev + 1);
     } else {
       // Switch to next subject if available
       const currentSubIdx = examSelectedSubjects.indexOf(examCurrentSubject);
-      if (currentSubIdx < examSelectedSubjects.length - 1) {
+      if (currentSubIdx !== -1 && currentSubIdx < examSelectedSubjects.length - 1) {
         setExamCurrentSubject(examSelectedSubjects[currentSubIdx + 1]);
         setExamCurrentQuestionIndex(0);
       }
@@ -2666,6 +2725,8 @@ function ExonaApp() {
   };
 
   const handleExamPrev = () => {
+    if (!activeExamQuestions || !examCurrentSubject) return;
+    
     if (examCurrentQuestionIndex > 0) {
       setExamCurrentQuestionIndex(prev => prev - 1);
     } else {
@@ -2673,8 +2734,11 @@ function ExonaApp() {
       const currentSubIdx = examSelectedSubjects.indexOf(examCurrentSubject);
       if (currentSubIdx > 0) {
         const prevSubject = examSelectedSubjects[currentSubIdx - 1];
-        setExamCurrentSubject(prevSubject);
-        setExamCurrentQuestionIndex(activeExamQuestions[prevSubject].length - 1);
+        const prevSubjectQs = activeExamQuestions[prevSubject];
+        if (prevSubjectQs) {
+          setExamCurrentSubject(prevSubject);
+          setExamCurrentQuestionIndex(prevSubjectQs.length - 1);
+        }
       }
     }
   };
@@ -2714,7 +2778,7 @@ function ExonaApp() {
     setExamShowSubmitConfirm(false);
   };
 
-  // Check if current time is within Sunday 7:00 PM - 7:55 PM
+  // Check if current time is within battle window (Sunday or Monday 7:00 PM - 7:55 PM)
   const isEntryAllowed = () => {
     return isBattleWindowOpen() && BRAIN_BATTLE_QUESTIONS.length > 0;
   };
@@ -2816,7 +2880,7 @@ function ExonaApp() {
         userName: userDoc?.fullName || user.displayName || 'Champion',
         userPhoto: userDoc?.photoURL || user.photoURL || '',
         type: 'achievement',
-        content: `Just scored ${score} points in the Exona Brain Battle! 🏆 Can you beat me next Sunday?`,
+        content: `Just scored ${score} points in the Exona Brain Battle! 🏆 Can you beat me?`,
         timestamp: serverTimestamp(),
         likes: [],
         comments: [],
@@ -5459,17 +5523,33 @@ function ExonaApp() {
 
   const handleSearchAuditors = async (term: string) => {
     setAuditorSearch(term);
-    if (term.length < 3) { setAuditorResults([]); return; }
+    if (term.length < 2) { setAuditorResults([]); return; }
     setIsAuditorSearching(true);
     try {
-      const q = query(
+      const qName = query(
         collection(db, 'users'), 
         where('displayName', '>=', term), 
         where('displayName', '<=', term + '\uf8ff'),
-        limit(5)
+        limit(10)
       );
-      const snap = await getDocs(q);
-      setAuditorResults(snap.docs.map(d => d.data() as UserDoc).filter(u => u.uid !== user?.uid));
+      
+      const qEmail = query(
+        collection(db, 'users'), 
+        where('email', '>=', term.toLowerCase()), 
+        where('email', '<=', term.toLowerCase() + '\uf8ff'),
+        limit(10)
+      );
+
+      const [snapName, snapEmail] = await Promise.all([
+        getDocs(qName),
+        getDocs(qEmail)
+      ]);
+
+      const resultsMap = new Map<string, UserDoc>();
+      snapName.forEach(d => resultsMap.set(d.id, d.data() as UserDoc));
+      snapEmail.forEach(d => resultsMap.set(d.id, d.data() as UserDoc));
+      
+      setAuditorResults(Array.from(resultsMap.values()).filter(u => u.uid !== user?.uid));
     } catch (error) {
       console.error(error);
     } finally {
@@ -7480,26 +7560,37 @@ function ExonaApp() {
 
   const handleSearchUsers = async (queryText: string) => {
     setGlobalSearch(queryText);
-    if (!queryText.trim()) {
+    if (!queryText.trim() || queryText.length < 2) {
       setGlobalSearchResults([]);
       return;
     }
 
     setIsSearchingUsers(true);
     try {
-      const q = query(
+      const qName = query(
         collection(db, 'users'),
         where('displayName', '>=', queryText),
         where('displayName', '<=', queryText + '\uf8ff'),
         limit(20)
       );
-      const snap = await getDocs(q);
-      const results: UserDoc[] = [];
-      snap.forEach(doc => {
-        if (doc.id !== user?.uid) {
-          results.push(doc.data() as UserDoc);
-        }
-      });
+
+      const qEmail = query(
+        collection(db, 'users'),
+        where('email', '>=', queryText.toLowerCase()),
+        where('email', '<=', queryText.toLowerCase() + '\uf8ff'),
+        limit(20)
+      );
+
+      const [snapName, snapEmail] = await Promise.all([
+        getDocs(qName),
+        getDocs(qEmail)
+      ]);
+
+      const resultsMap = new Map<string, UserDoc>();
+      snapName.forEach(doc => resultsMap.set(doc.id, doc.data() as UserDoc));
+      snapEmail.forEach(doc => resultsMap.set(doc.id, doc.data() as UserDoc));
+
+      const results = Array.from(resultsMap.values()).filter(u => u.uid !== user?.uid);
       setGlobalSearchResults(results);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -8774,17 +8865,26 @@ function ExonaApp() {
                   </div>
 
                   <div className="mb-8">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Grant Data Access (Specific Owner)</p>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Grant Data Access (Search by name or email)</p>
                     <div className="relative mb-4">
                       <input 
                         type="text" 
-                        placeholder="Search account name..."
+                        placeholder="Type name or email address..."
                         value={auditorSearch}
                         onChange={(e) => handleSearchAuditors(e.target.value)}
                         className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-accent/20"
                       />
                       {isAuditorSearching && <div className="absolute right-6 top-1/2 -translate-y-1/2"><Search className="animate-pulse text-muted" size={14} /></div>}
                     </div>
+
+                    {auditorSearch.length >= 2 && auditorResults.length === 0 && !isAuditorSearching && (
+                      <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl mb-6">
+                        <p className="text-[10px] text-orange-600 font-bold leading-relaxed">
+                          No users found matching "{auditorSearch}". <br/>
+                          <span className="opacity-80">Tip: Try searching by their exact email address or ensure you start with a capital letter if it's a name.</span>
+                        </p>
+                      </div>
+                    )}
 
                     {auditorResults.length > 0 && (
                       <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden mb-6">
@@ -8795,9 +8895,9 @@ function ExonaApp() {
                             className="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-100 transition-colors border-b border-gray-50 last:border-0"
                           >
                             <img src={u.photoURL} alt="" className="h-8 w-8 rounded-full border border-white" referrerPolicy="no-referrer" />
-                            <div className="text-left">
-                              <p className="text-[10px] font-bold text-ink">{u.displayName}</p>
-                              <p className="text-[9px] text-muted uppercase tracking-wider">{u.email.split('@')[0]}</p>
+                            <div className="text-left flex-1 min-w-0">
+                              <p className="text-[10px] font-bold text-ink mb-0.5">{u.displayName}</p>
+                              <p className="text-[9px] text-muted font-bold truncate">{u.email}</p>
                             </div>
                             <Plus size={14} className="ml-auto text-accent" />
                           </button>
