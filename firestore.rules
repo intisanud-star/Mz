@@ -20,10 +20,10 @@ service cloud.firestore {
     // Fields: authorUid, content, mediaUrl, mediaType, likes, likedBy, schoolId
     //
     // Collection: studentRecords
-    // Fields: schoolId, studentName, category, creatorUid, paid, balance, visibility, sharedWith
+    // Fields: schoolId, fullName, category, creatorUid, paid, balance, visibility, sharedWith
     //
     // Collection: teacherAttendance
-    // Fields: teacherName, schoolId, status, date, addedBy
+    // Fields: staffName, schoolId, status, date, addedBy
     //
     // Collection: finance
     // Fields: institutionBalance, bankName, accountNumber, accountName
@@ -53,7 +53,7 @@ service cloud.firestore {
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', 'user') == 'admin'));
     }
 
-    function isSchoolManager(schoolId) {
+    function isInstitutionManager(schoolId) {
       return isAuthenticated() && (
         isAdmin() ||
         (resource != null && (
@@ -78,7 +78,7 @@ service cloud.firestore {
       );
     }
 
-    function isSchoolCreator(schoolId) {
+    function isInstitutionCreator(schoolId) {
       return isAuthenticated() && (
         isAdmin() ||
         (exists(/databases/$(database)/documents/schools/$(schoolId)) && 
@@ -149,8 +149,8 @@ service cloud.firestore {
     function canReply(schoolId) {
       return (schoolId == null || schoolId == "") || 
              getPostPermission(schoolId) == 'everyone' ||
-             (getPostPermission(schoolId) == 'followers' && (isApprovedFollower(schoolId) || isSchoolManager(schoolId))) ||
-             (getPostPermission(schoolId) == 'none' && isSchoolManager(schoolId));
+             (getPostPermission(schoolId) == 'followers' && (isApprovedFollower(schoolId) || isInstitutionManager(schoolId))) ||
+             (getPostPermission(schoolId) == 'none' && isInstitutionManager(schoolId));
     }
 
     function getPostPermission(schoolId) {
@@ -219,11 +219,11 @@ service cloud.firestore {
              data.get('likedBy', []) is list && data.get('likedBy', []).size() == 0 &&
              data.get('commentsCount', 0) == 0 &&
              data.get('reshares', 0) == 0 &&
-             (data.get('isOfficial', false) == false || isSchoolManager(data.get('schoolId', '')));
+             (data.get('isOfficial', false) == false || isInstitutionManager(data.get('schoolId', '')));
     }
 
     function isValidRecord(data) {
-      return isVerified() && (isSchoolManager(data.get('schoolId', '')) || isAdmin());
+      return isVerified() && (isInstitutionManager(data.get('schoolId', '')) || isAdmin());
     }
 
     function isValidMessage(data) {
@@ -267,14 +267,14 @@ service cloud.firestore {
              data.get('authorName', '') is string && data.get('authorName', '').size() > 0 &&
              data.get('mediaUrl', '') is string && data.get('mediaUrl', '').size() > 0 &&
              data.get('mediaType', '') in ['image', 'video'] &&
-             ('schoolId' in data ? (isSchoolManager(data.get('schoolId', '')) || isAdmin()) : true);
+             ('schoolId' in data ? (isInstitutionManager(data.get('schoolId', '')) || isAdmin()) : true);
     }
 
     function isValidSettlement(data) {
       return isVerified() &&
              data.get('authorUid', '') == request.auth.uid &&
              data.get('schoolId', '') is string &&
-             isSchoolManager(data.get('schoolId', '')) &&
+             isInstitutionManager(data.get('schoolId', '')) &&
              data.get('amount', 0) is number && data.get('amount', 0) > 0 &&
              data.get('bankName', '') is string &&
              data.get('type', '') in ['exona-bank', 'other-bank'] &&
@@ -301,7 +301,7 @@ service cloud.firestore {
              data.get('timestamp', null) == request.time;
     }
 
-    function isValidTeacherAttendance(data) {
+    function isValidStaffParticipation(data) {
         return isVerified() &&
                data.get('teacherName', '') is string && data.get('teacherName', '').size() > 0 &&
                data.get('schoolId', '') is string &&
@@ -374,14 +374,14 @@ service cloud.firestore {
     match /schools/{schoolId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || isAuditorAction() || (isSchoolManager(schoolId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
+      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || isAuditorAction() || (isInstitutionManager(schoolId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
       allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 
     match /places/{placeId} {
       allow read: if true;
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || isAuditorAction() || (isSchoolManager(placeId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
+      allow update: if isAuthenticated() && (isAdmin() || isFollowAction() || isAuditorAction() || (isInstitutionManager(placeId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['portalSecretKey', 'portalKeyStatus'])));
       allow delete: if isAuthenticated() && (resource.data.get('creatorUid', '') == request.auth.uid || isAdmin());
     }
 
@@ -409,26 +409,26 @@ service cloud.firestore {
     match /studentRecords/{recordId} {
       // Relaxed read for complete access in demo; queries are still filtered by schoolId in the frontend
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isSchoolManager(request.resource.data.schoolId);
-      allow update: if isAuthenticated() && isSchoolManager(resource.data.schoolId);
-      allow delete: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
+      allow create: if isAuthenticated() && isInstitutionManager(request.resource.data.schoolId);
+      allow update: if isAuthenticated() && isInstitutionManager(resource.data.schoolId);
+      allow delete: if isAuthenticated() && (isInstitutionManager(resource.data.schoolId) || isAdmin());
     }
 
     match /teacherAttendance/{attendanceId} {
       allow read: if isAuthenticated();
-      allow create: if isValidTeacherAttendance(incoming()) && isSchoolManager(incoming().schoolId);
-      allow update: if isAuthenticated() && (isSchoolManager(resource.data.schoolId) || isAdmin());
-      allow delete: if isAuthenticated() && (isSchoolCreator(resource.data.schoolId) || isAdmin());
+      allow create: if isValidStaffParticipation(incoming()) && isInstitutionManager(incoming().schoolId);
+      allow update: if isAuthenticated() && (isInstitutionManager(resource.data.schoolId) || isAdmin());
+      allow delete: if isAuthenticated() && (isInstitutionCreator(resource.data.schoolId) || isAdmin());
     }
 
     match /finance/{schoolId} {
-      allow read: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
+      allow read: if isAuthenticated() && (isAdmin() || isInstitutionManager(schoolId));
       allow create: if isAuthenticated() && (
-        isSchoolManager(schoolId) || 
+        isInstitutionManager(schoolId) || 
         (existsAfter(/databases/$(database)/documents/schools/$(schoolId)) && getAfter(/databases/$(database)/documents/schools/$(schoolId)).data.get('creatorUid', '') == request.auth.uid) ||
         (existsAfter(/databases/$(database)/documents/places/$(schoolId)) && getAfter(/databases/$(database)/documents/places/$(schoolId)).data.get('creatorUid', '') == request.auth.uid)
       );
-      allow update, delete: if isAuthenticated() && (isAdmin() || isSchoolManager(schoolId));
+      allow update, delete: if isAuthenticated() && (isAdmin() || isInstitutionManager(schoolId));
     }
 
     match /stories/{storyId} {
@@ -459,7 +459,7 @@ service cloud.firestore {
       ));
       allow get: if isAdmin() || (isAuthenticated() && (
         resource.data.get('requesterUid', '') == request.auth.uid ||
-        isSchoolManager(resource.data.get('institutionId', ''))
+        isInstitutionManager(resource.data.get('institutionId', ''))
       ));
       allow create: if isAuthenticated() && 
                     request.resource.data.get('requesterUid', '') == request.auth.uid &&
@@ -483,12 +483,12 @@ service cloud.firestore {
 
     match /dailyRoutines/{routineId} {
       allow read: if isAuthenticated();
-      allow create: if isValidDailyRoutine(incoming()) && isSchoolManager(incoming().institutionId);
+      allow create: if isValidDailyRoutine(incoming()) && isInstitutionManager(incoming().institutionId);
       allow update: if (isValidDailyRoutine(incoming()) && 
-                        (isSchoolManager(incoming().institutionId) || isAdmin()) &&
+                        (isInstitutionManager(incoming().institutionId) || isAdmin()) &&
                         incoming().institutionId == existing().institutionId &&
                         incoming().creatorUid == existing().creatorUid);
-      allow delete: if isAuthenticated() && (isSchoolManager(resource.data.institutionId) || isAdmin());
+      allow delete: if isAuthenticated() && (isInstitutionManager(resource.data.institutionId) || isAdmin());
     }
 
     match /wallets/{userId} {

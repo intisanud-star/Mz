@@ -1262,40 +1262,40 @@ const formatTime = (timestamp: any) => {
 
 // --- HELPERS ---
 const getLabels = (type?: 'school' | 'place') => {
-  if (type === 'place') {
+  if (type === 'place' || true) { // Defaulting to generic labels as requested
     return {
       student: 'Member',
       students: 'Members',
       teacher: 'Staff',
       teachers: 'Staff',
-      books: 'Services',
-      uniforms: 'Products',
-      all: 'Student Records',
-      school: 'Place',
+      books: 'Resources',
+      uniforms: 'Equipment',
+      all: 'Member Records',
+      school: 'Institution',
       attendance: 'Participation',
       system: 'Management System',
-      educationalLevel: 'Category',
+      educationalLevel: 'Department',
       routine: 'Schedule'
     };
   }
   return {
-    student: 'Student',
-    students: 'Students',
-    teacher: 'Teacher',
-    teachers: 'Teachers',
-    books: 'Books',
-    uniforms: 'Uniforms',
-    all: 'Student Records',
-    'Pre Nursery': 'Pre Nursery',
-    'Nursery': 'Nursery',
-    'Primary': 'Primary',
-    'Junior Secondary': 'Junior Secondary',
-    'Senior Secondary': 'Senior Secondary',
-    school: 'School',
-    attendance: 'Attendance',
-    system: 'School Management System',
-    educationalLevel: 'Class/Level',
-    routine: 'Daily Routine'
+    student: 'Member',
+    students: 'Members',
+    teacher: 'Staff',
+    teachers: 'Staff',
+    books: 'Resources',
+    uniforms: 'Equipment',
+    all: 'Member Records',
+    'Pre Nursery': 'Level 1',
+    'Nursery': 'Level 2',
+    'Primary': 'Level 3',
+    'Junior Secondary': 'Level 4',
+    'Senior Secondary': 'Level 5',
+    school: 'Institution',
+    attendance: 'Participation',
+    system: 'Management System',
+    educationalLevel: 'Department',
+    routine: 'Schedule'
   };
 };
 
@@ -3541,7 +3541,7 @@ function ExonaApp() {
                        <span className="h-[1px] w-8 bg-accent" /> Privacy & Encryption
                     </h4>
                     <p className="text-[14px] text-muted font-medium leading-relaxed">
-                       Your data is encrypted using Layer-5 decentralized protocols. Private metadata is never sold or shared with external advertising engines. Data access is strictly compartmentalized based on verified institutional roles (Admin, Faculty, Student).
+                       Your data is encrypted using Layer-5 decentralized protocols. Private metadata is never sold or shared with external advertising engines. Data access is strictly compartmentalized based on verified institutional roles (Admin, Management, Member).
                     </p>
                  </section>
 
@@ -4470,7 +4470,7 @@ function ExonaApp() {
   const [attendanceCategoryFilter, setAttendanceCategoryFilter] = useState('all');
   const [routineCategoryFilter, setRoutineCategoryFilter] = useState('all');
   const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
-  const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date' | 'class'>('alphabet');
+  const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date' | 'department'>('alphabet');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -9373,11 +9373,11 @@ function ExonaApp() {
               const dateA = a.timestamp?.seconds || 0;
               const dateB = b.timestamp?.seconds || 0;
               return dateB - dateA;
-            } else if (recordSort === 'class') {
-              const classA = (a as any).studentClass || '';
-              const classB = (b as any).studentClass || '';
-              if (classA !== classB) {
-                return classA.localeCompare(classB);
+            } else if (recordSort === 'department') {
+              const deptA = (a as any).studentClass || '';
+              const deptB = (b as any).studentClass || '';
+              if (deptA !== deptB) {
+                return deptA.localeCompare(deptB);
               }
               return a.studentName.localeCompare(b.studentName);
             }
@@ -9489,13 +9489,13 @@ function ExonaApp() {
                     <div className="px-2 text-muted mr-1 border-r border-gray-50">
                       <ArrowUpDown size={10} />
                     </div>
-                    {(['alphabet', 'class', 'amount', 'date'] as const).map(s => (
+                    {(['alphabet', 'department', 'amount', 'date'] as const).map(s => (
                       <button 
                         key={s}
                         onClick={() => setRecordSort(s)}
                         className={`px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all ${recordSort === s ? 'bg-gray-50 text-ink' : 'text-muted hover:text-ink'}`}
                       >
-                        {s === 'alphabet' ? 'A-Z' : s === 'class' ? 'Class' : s === 'amount' ? 'Paid' : 'Date'}
+                        {s === 'alphabet' ? 'A-Z' : s === 'department' ? 'Dept' : s === 'amount' ? 'Paid' : 'Date'}
                       </button>
                     ))}
                   </div>
@@ -9531,7 +9531,7 @@ function ExonaApp() {
                       className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-95 group"
                     >
                       <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
-                      Initialize Record
+                      Add Record
                     </button>
                   )}
                 </div>
@@ -9562,7 +9562,7 @@ function ExonaApp() {
                   className="w-full flex items-center justify-center gap-4 py-6 bg-ink text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.4em] active:scale-[0.98] transition-all"
                 >
                   <Plus size={18} strokeWidth={2} />
-                  Initialize Record
+                  Add Record
                 </button>
               </div>
             )}
@@ -13965,18 +13965,18 @@ function ExonaApp() {
         const userInstitution = canAccessAny ? selectedSchool : (schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid));
         
         const tools = [
-          { id: 'calculator', name: 'Fee Calculator', description: 'Quickly calculate student fees and balances', icon: Calculator, color: 'accent' },
+          { id: 'calculator', name: 'Balance Calculator', description: 'Quickly calculate member fees and balances', icon: Calculator, color: 'accent' },
           { id: 'export', name: 'Download Center', description: 'Download complete institutional records and full history', icon: Download, color: 'blue-600' },
           { id: 'export-attendance', name: 'Participation Hub', description: 'Export attendance and participation records', icon: Users, color: 'orange-600' },
           { id: 'export-wallet', name: 'Wallet Center', description: 'Download wallet statements and financial history', icon: Wallet, color: 'green-600' },
           { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
-          { id: 'id-gen', name: 'ID Generator', description: 'Generate student and staff ID cards', icon: IdCard, color: 'blue-600' },
-          { id: 'reports', name: 'Report Center', description: 'Generate financial and academic reports', icon: FileBarChart, color: 'purple-600' },
-          { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for the E-Test portal', icon: Lock, color: 'indigo-600' },
+          { id: 'id-gen', name: 'ID Generator', description: 'Generate member and staff identification cards', icon: IdCard, color: 'blue-600' },
+          { id: 'reports', name: 'Report Center', description: 'Generate financial and operational reports', icon: FileBarChart, color: 'purple-600' },
+          { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for the institution portal', icon: Lock, color: 'indigo-600' },
           { id: 'daily-routine', name: labels.routine, description: 'Manage institutional activity schedule', icon: Activity, color: 'cyan-600' },
           { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
-          { id: 'exona-premium', name: 'Exona Premium Quiz', description: 'The ultimate challenge for elite scholars with exclusive rewards.', icon: Stars, color: 'yellow-600' },
+          { id: 'exona-premium', name: 'Exona Premium Challenge', description: 'The ultimate challenge for elite members with exclusive rewards.', icon: Stars, color: 'yellow-600' },
         ];
 
         if (activeTool === 'export-attendance') {
@@ -16038,8 +16038,8 @@ function ExonaApp() {
                 <div>
                   <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">
                     {editingRecord 
-                      ? `Edit ${(labels as any)[recordTab] || recordTab} Record` 
-                      : `Add ${(labels as any)[recordTab] || recordTab} Record`}
+                      ? `Edit ${(labels as any)[recordTab] || recordTab} Entry` 
+                      : `Add ${(labels as any)[recordTab] || recordTab} Entry`}
                   </h3>
                   <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Data Entry</p>
                 </div>
@@ -16049,7 +16049,7 @@ function ExonaApp() {
               </div>
               <div className="space-y-6">
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.student} Name</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Full Name</label>
                   <input 
                     type="text" 
                     value={newRecord.studentName || ''}
@@ -16060,17 +16060,17 @@ function ExonaApp() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="group">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.student} Class</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">{labels.educationalLevel}</label>
                     <input 
                       type="text" 
                       value={newRecord.studentClass || ''}
                       onChange={(e) => setNewRecord({...newRecord, studentClass: e.target.value})}
-                      placeholder="e.g. JSS2 A, Grade 5"
+                      placeholder="e.g. Admin, Field Ops"
                       className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                     />
                   </div>
                   <div className="group">
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Parent Phone Number (Optional)</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Alternative Phone Number (Optional)</label>
                     <input 
                       type="tel" 
                       value={newRecord.parentNumber || ''}
@@ -16117,7 +16117,7 @@ function ExonaApp() {
                           type="text" 
                           value={newRecord.category || ''}
                           onChange={(e) => setNewRecord({...newRecord, category: e.target.value})}
-                          placeholder="Or specify exact class (e.g. SS3 A)"
+                      placeholder="Or specify exact department (e.g. Finance)"
                           className="flex-1 px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                         />
                       </div>
@@ -16395,9 +16395,9 @@ function ExonaApp() {
 
                 {newSchool.type === 'school' && (
                   <div>
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Educational Levels</label>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Operational Units</label>
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary', 'Books', 'Uniforms'].map((level) => (
+                      {['Admin', 'Operations', 'Finance', 'Logistics', 'Resources', 'Equipment'].map((level) => (
                         <button
                           key={level}
                           type="button"
@@ -16447,7 +16447,7 @@ function ExonaApp() {
                 <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Custom Categories</label>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {(newSchool.educationalLevels || []).filter(l => !['Pre Nursery', 'Nursery', 'Primary', 'Junior Secondary', 'Senior Secondary', 'School', 'Business', 'Community', 'Personal', 'Other'].includes(l)).map((level) => (
+                    {(newSchool.educationalLevels || []).filter(l => !['Admin', 'Operations', 'Finance', 'Logistics', 'Resources', 'Equipment', 'School', 'Business', 'Community', 'Personal', 'Other'].includes(l)).map((level) => (
                       <button
                         key={level}
                         type="button"

@@ -38,8 +38,8 @@
       "required": ["uid", "email", "displayName"]
     },
     "School": {
-      "title": "School",
-      "description": "Educational institution",
+      "title": "Institution",
+      "description": "Organizational institution",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
@@ -102,14 +102,14 @@
       "required": ["authorUid", "content", "timestamp"]
     },
     "StudentRecord": {
-      "title": "StudentRecord",
-      "description": "Student financial or academic record",
+      "title": "MemberRecord",
+      "description": "Member financial or operational record",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "studentName": { "type": "string" },
-        "studentClass": { "type": "string" },
-        "parentNumber": { "type": "string" },
+        "studentName": { "type": "string", "description": "Full name of the individual/member" },
+        "studentClass": { "type": "string", "description": "Department or operational unit" },
+        "parentNumber": { "type": "string", "description": "Alternative contact or reference number" },
         "category": { "type": "string" },
         "paid": { "type": "number" },
         "balance": { "type": "number" },
@@ -124,12 +124,12 @@
       "required": ["studentName", "schoolId", "creatorUid"]
     },
     "TeacherAttendance": {
-      "title": "TeacherAttendance",
-      "description": "Teacher attendance log",
+      "title": "MemberParticipation",
+      "description": "Staff or member participation log",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
-        "teacherName": { "type": "string" },
+        "teacherName": { "type": "string", "description": "Name of the participant or staff" },
         "schoolId": { "type": "string" },
         "category": { "type": "string" },
         "status": { "type": "string", "enum": ["present", "absent", "late"] },
@@ -141,7 +141,7 @@
       "required": ["teacherName", "schoolId", "status", "date"]
     },
     "SchoolFinance": {
-      "title": "SchoolFinance",
+      "title": "InstitutionalFinance",
       "description": "Financial details of an institution",
       "type": "object",
       "properties": {
@@ -356,8 +356,8 @@
       "required": ["chatId", "messageId"]
     },
     "DailyRoutine": {
-      "title": "DailyRoutine",
-      "description": "Educational or business daily schedule activity",
+      "title": "DailySchedule",
+      "description": "Organizational daily schedule activity",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
