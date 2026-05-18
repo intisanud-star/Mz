@@ -67,100 +67,87 @@ const ai = new GoogleGenAI({
 
 // Initialize Telegram Bot
 let bot: Telegraf | null = null;
-let launchPromise: Promise<void> | null = null;
-
-// Helper to clean JSON string from AI response (removes markdown markers)
-const cleanAIJson = (text: string) => {
-  if (!text) return '';
-  return text.replace(/```json/g, '').replace(/```/g, '').trim();
-};
+let isBotLaunching = false;
 
 async function stopBot() {
   if (bot) {
     console.log('Stopping Telegram bot...');
     try {
-      // Clear launch promise first to prevent new launches
-      launchPromise = null;
-      
-      const stopPromise = bot.stop();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Bot stop timeout')), 5000)
-      );
-      await Promise.race([stopPromise, timeoutPromise]);
+      await bot.stop();
       bot = null;
-      console.log('Telegram bot stopped successfully.');
     } catch (err) {
       console.error('Error stopping bot:', err);
-      bot = null;
     }
   }
 }
 
 function getBot() {
-  if (bot && !launchPromise) return bot;
-  if (launchPromise) return bot;
+  if (isBotLaunching) return bot;
   
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) {
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('TELEGRAM_BOT_TOKEN is not set. Telegram bot will not be active.');
+  if (!bot) {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn('TELEGRAM_BOT_TOKEN is not set. Telegram bot will not be active.');
+      }
+      return null;
     }
-    return null;
-  }
-  
-  const newBot = new Telegraf(token);
-  setupBot(newBot);
-  bot = newBot;
-  
-  launchPromise = (async () => {
-    try {
-      console.log('Telegram: Deleting webhook...');
-      await newBot.telegram.deleteWebhook({ drop_pending_updates: true });
+    
+    isBotLaunching = true;
+    const newBot = new Telegraf(token);
+    setupBot(newBot);
+    
+    // Proactively delete any existing webhook to ensure long-polling can start
+    newBot.telegram.deleteWebhook({ drop_pending_updates: true }).then(async () => {
+      console.log('Telegram: Webhook deleted and updates dropped');
       
-      // Wait for previous process to release connection
-      await delay(10000);
+      // Add a delay to avoid race conditions with previous instances
+      await delay(5000);
       
       let retryCount = 0;
-      const maxRetries = 15;
+      const maxRetries = 5;
       
-      const attemptLaunch = async (): Promise<void> => {
+      const attemptLaunch = async () => {
         try {
           await newBot.launch();
           console.log('Telegram bot launched successfully');
-          launchPromise = null;
+          isBotLaunching = false;
         } catch (err: any) {
           const errorCode = err.response?.error_code || err.code || err.error_code;
           const errorDesc = err.description || err.message || '';
           
           if ((errorCode === 409 || errorDesc.includes('Conflict')) && retryCount < maxRetries) {
             retryCount++;
-            const backoff = Math.min(retryCount * 5000, 30000);
-            console.warn(`Telegram conflict (409). Next attempt in ${backoff/1000}s... (${retryCount}/${maxRetries})`);
+            const backoff = retryCount * 5000;
+            console.warn(`Telegram conflict (409). Retrying in ${backoff/1000}s... (Attempt ${retryCount}/${maxRetries})`);
             await delay(backoff);
             return attemptLaunch();
           }
-          throw err;
+          console.error('Failed to launch Telegram bot after retries:', err);
+          isBotLaunching = false;
+          bot = null;
         }
       };
 
-      await attemptLaunch();
-    } catch (err) {
-      console.error('Final failure in Telegram bot launch sequence:', err);
-      launchPromise = null;
-      bot = null;
-    }
-  })();
+      return attemptLaunch();
+    }).catch(err => {
+      console.error('Critical failure in Telegram bot initialization sequence:', err);
+      isBotLaunching = false;
+      bot = null; 
+    });
+    
+    // Add global error handler to prevent crashing on runtime issues
+    newBot.catch((err, ctx) => {
+      console.error(`Telegraf error for ${ctx.updateType}:`, err);
+    });
 
-  // Global error handler
-  newBot.catch((err, ctx) => {
-    console.error(`Telegraf error for ${ctx.updateType}:`, err);
-  });
-
+    bot = newBot;
+  }
   return bot;
 }
 
 // Simple in-memory state store for Telegram users
-const userStates = new Map<string, { mode?: 'scan_records' | 'scan_participation', extractedData?: any[], institutionId?: string }>();
+const userStates = new Map<string, { mode?: 'scan_records' | 'scan_participation' }>();
 
 function setupBot(botInstance: Telegraf) {
   // 1. Function that triggers on /start
@@ -209,39 +196,26 @@ function setupBot(botInstance: Telegraf) {
     await ctx.reply('Participation Scanning Mode Active 📝\n\nPlease send a clear photo of the attendance or participation list. I will sync the entries for today.');
   });
 
-  botInstance.command('stop_scan', async (ctx) => {
-    try {
-      const chatId = ctx.chat.id.toString();
-      userStates.delete(chatId);
-      await ctx.reply('Scanning mode deactivated. 🛑');
-    } catch (e) {
-      console.error('Stop scan error:', e);
-    }
-  });
-
   // Handle media received
   botInstance.on('photo', async (ctx) => {
+    const chatId = ctx.chat.id.toString();
+    const state = userStates.get(chatId);
+    
+    if (!state?.mode) {
+      return ctx.reply('Please select a scan mode first:\n/scan_records - Scan financial records\n/scan_participation - Scan attendance lists');
+    }
+
+    const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
+    await ctx.reply(`Presidential AI Engine is analyzing your document... ⏳`);
+
     try {
-      const chatId = ctx.chat.id.toString();
-      const state = userStates.get(chatId);
-      
-      if (!state?.mode) {
-        return ctx.reply('Please select a scan mode first:\n/scan_records - Scan financial records\n/scan_participation - Scan attendance lists');
-      }
-
-      const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
-      await ctx.reply(`Presidential AI Engine is analyzing your document... ⏳`);
-
       // Get photo file link
       const photo = ctx.message.photo[ctx.message.photo.length - 1];
       const fileLink = await ctx.telegram.getFileLink(photo.file_id);
       
-      const axiosResponse = await axios.get(fileLink.toString(), { 
-        responseType: 'arraybuffer',
-        timeout: 15000 
-      });
-      const imageBase64 = Buffer.from(axiosResponse.data).toString('base64');
-      const mimeType = 'image/jpeg';
+      const response = await axios.get(fileLink.toString(), { responseType: 'arraybuffer' });
+      const imageBase64 = Buffer.from(response.data).toString('base64');
+      const mimeType = 'image/jpeg'; // Telegram photos are usually JPEGs
 
       // Find user institution
       const userUid = `tg_${chatId}`;
@@ -304,106 +278,43 @@ function setupBot(botInstance: Telegraf) {
       }
 
       const aiResponse = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType, data: imageBase64 } }] }],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema
-        }
+        config: { responseMimeType: "application/json", responseSchema }
       });
 
-      const aiText = aiResponse.text;
-
-      const cleanedJson = cleanAIJson(aiText || '{}');
-      const extracted = JSON.parse(cleanedJson || '{"extractedData": []}');
+      const extracted = JSON.parse(aiResponse.text || '{"extractedData": []}');
       const dataItems = extracted.extractedData || [];
 
       if (dataItems.length === 0) {
         return ctx.reply('❌ No valid records could be extracted from this image. Please ensure the text is clear and readable.');
       }
 
-      // Instead of immediate sync, store data and ask for category
-      userStates.set(chatId, { ...state, extractedData: dataItems, institutionId: institution.id });
-
-      const categories = (institution.educationalLevels || []).slice(0, 8); // Max 8 buttons
-      const buttons = categories.map((cat: string) => [{ text: cat, callback_data: `sync_cat:${cat}` }]);
-      buttons.push([{ text: 'Use Default Classes/Units', callback_data: 'sync_cat:default' }]);
-
-      await ctx.reply(`🔍 Analysis Complete!\n\nI detected ${dataItems.length} entries.\n\nWhich department/category should I assign these to?`, {
-        reply_markup: {
-          inline_keyboard: buttons
-        }
-      });
-
-    } catch (error: any) {
-      console.error('Telegram AI Sync Error:', error);
-      await ctx.reply(`❌ System failure during AI processing: ${error.message || 'Unknown error'}`);
-    }
-  });
-
-  botInstance.on('video', async (ctx) => {
-    const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
-    await ctx.reply(`Presidential alert: Video received from ${username}. Processing for broadcasting...`);
-  });
-
-  // Optional: Bot command for admin stats
-  botInstance.command('stats', async (ctx) => {
-    try {
-      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
-      const count = snapshot.size;
-      await ctx.reply(`Total community size: ${count} users.`);
-    } catch (error) {
-      console.error('Error fetching stats via bot:', error);
-    }
-  });
-
-  // Handle category selection and sync
-  botInstance.on('callback_query', async (ctx: any) => {
-    const chatId = ctx.chat?.id?.toString() || ctx.callbackQuery?.message?.chat?.id?.toString();
-    if (!chatId) return ctx.answerCbQuery('Internal error: Could not identify chat.');
-    
-    try {
-      const queryData = ctx.callbackQuery.data;
-      if (!queryData?.startsWith('sync_cat:')) return;
-
-      const state = userStates.get(chatId);
-      if (!state?.extractedData || !state.institutionId) {
-        return ctx.answerCbQuery('Session expired or invalid. Please scan again.');
-      }
-
-      const requestedCategory = queryData.split(':')[1];
-      const finalCategory = requestedCategory === 'default' ? null : requestedCategory;
-      const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
-      const userUid = `tg_${chatId}`;
-
-      await ctx.answerCbQuery('Executing Institutional Sync...');
-      await ctx.editMessageText('🔄 Syncing to Ledger... Please wait.');
-
       let addedCount = 0;
       let updatedCount = 0;
 
-      // Fetch existing if records
+      // Fetch existing records for duplication check if scanning records
       let existingRecords: any[] = [];
       if (state.mode === 'scan_records') {
-        const recsSnap = await getDocs(query(collection(db, 'studentRecords'), where('schoolId', '==', state.institutionId)));
+        const recsSnap = await getDocs(query(collection(db, 'studentRecords'), where('schoolId', '==', institution.id)));
         existingRecords = recsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       }
 
-      for (const item of state.extractedData) {
+      for (const item of dataItems) {
         if (state.mode === 'scan_records') {
-          const itemFullName = item.fullName || 'Unknown';
           const existing = existingRecords.find((r: any) => 
-            (r.studentName || '').toLowerCase() === itemFullName.toLowerCase()
+            r.studentName?.toLowerCase() === item.fullName?.toLowerCase() && 
+            (r.studentClass || '').toLowerCase() === (item.unit || '').toLowerCase()
           );
 
           const recordData = {
-            studentName: itemFullName,
-            studentClass: finalCategory || item.unit || 'General',
+            studentName: item.fullName,
+            studentClass: item.unit || 'General',
             category: item.category || 'General',
             paid: item.paid || 0,
             balance: item.balance || 0,
             parentNumber: item.parentNumber || '',
-            schoolId: state.institutionId,
+            schoolId: institution.id,
             timestamp: serverTimestamp(),
             addedBy: username,
             addedByUid: userUid,
@@ -427,12 +338,12 @@ function setupBot(botInstance: Telegraf) {
           const id = `tg_att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
           await setDoc(doc(db, 'teacherAttendance', id), {
             id,
-            teacherName: item.staffName || 'Unknown Staff',
+            teacherName: item.staffName,
             status: item.status || 'present',
             date: new Date().toISOString().split('T')[0],
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            category: finalCategory || item.unit || 'General',
-            schoolId: state.institutionId,
+            category: item.unit || 'General',
+            schoolId: institution.id,
             addedBy: username,
             addedByUid: userUid,
             timestamp: serverTimestamp()
@@ -441,22 +352,30 @@ function setupBot(botInstance: Telegraf) {
         }
       }
 
-      await ctx.editMessageText(`✅ Institutional Lead Sync Completed!\n\nCategory set to: ${finalCategory || 'System Default'}\nEntries Added: ${addedCount}\nEntries Updated: ${updatedCount}\n\nMode remains ACTIVE. You can send another photo or use /stop_scan.`);
-      
-      // Clear data but KEEP mode for quick subsequent scans
-      userStates.set(chatId, { mode: state.mode, institutionId: state.institutionId });
+      await ctx.reply(`✅ Sync Success!\n\n${addedCount} new entries added\n${updatedCount} existing entries updated\n\nInstitution: ${institution.name}`);
+      userStates.delete(chatId); // Clear state after success
 
     } catch (error: any) {
-      console.error('CB Sync Error:', error);
-      await ctx.editMessageText(`❌ Sync failed: ${error.message}`);
-      // Clear data on failure too
-      const errorState = userStates.get(chatId);
-      if (errorState) {
-        userStates.set(chatId, { mode: errorState.mode, institutionId: errorState.institutionId });
-      }
+      console.error('Telegram AI Sync Error:', error);
+      await ctx.reply(`❌ System failure during AI processing: ${error.message || 'Unknown error'}`);
     }
   });
 
+  botInstance.on('video', async (ctx) => {
+    const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
+    await ctx.reply(`Presidential alert: Video received from ${username}. Processing for broadcasting...`);
+  });
+
+  // Optional: Bot command for admin stats
+  botInstance.command('stats', async (ctx) => {
+    try {
+      const snapshot = await getDocs(query(collection(db, 'users'), where('source', '==', 'telegram')));
+      const count = snapshot.size;
+      await ctx.reply(`Total community size: ${count} users.`);
+    } catch (error) {
+      console.error('Error fetching stats via bot:', error);
+    }
+  });
 }
 
 async function startServer() {
@@ -565,7 +484,7 @@ async function startServer() {
       }
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: [
           {
             parts: [
@@ -588,10 +507,7 @@ async function startServer() {
       // Cleanup
       try { fs.unlinkSync(filePath); } catch(e) {}
 
-      const responseText = response.text;
-
-      const cleanedJson = cleanAIJson(responseText || '{}');
-      const extracted = JSON.parse(cleanedJson || '{"extractedData": []}');
+      const extracted = JSON.parse(response.text || '{"extractedData": []}');
       res.json({ success: true, ...extracted });
 
     } catch (error: any) {
