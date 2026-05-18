@@ -228,6 +228,1299 @@ const getBattleCountdown = () => {
   return null;
 };
 
+  const DataStorageModal = ({ isOpen, onClose, notifications, exonHistory, posts }: any) => {
+    // Combine all real records into a single unified stream
+    const combinedActivity = [
+      ...notifications.map((n: any) => ({ 
+        id: n.id, 
+        type: 'SIGNAL', 
+        label: n.title, 
+        time: n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000) : new Date(),
+        status: n.read ? 'ARCHIVED' : 'ACQUIRED',
+        raw: n 
+      })),
+      ...exonHistory.map((t: any) => ({ 
+        id: t.id, 
+        type: 'TRANS', 
+        label: `Transaction: ${t.type.toUpperCase()}`, 
+        time: t.timestamp?.seconds ? new Date(t.timestamp.seconds * 1000) : new Date(),
+        status: 'SECURED',
+        raw: t 
+      })),
+      ...(posts || []).map((p: any) => ({ 
+        id: p.id, 
+        type: 'POST', 
+        label: p.text?.substring(0, 30) || 'Media Record', 
+        time: p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : new Date(),
+        status: 'PUBLIC',
+        raw: p 
+      }))
+    ].sort((a, b) => b.time.getTime() - a.time.getTime());
+
+    const totalRecords = combinedActivity.length;
+    // Calculate a pseudo-usage based on records (scaling to 100% at 5000 records)
+    const usage = Math.min(99.9, Math.max(8.5, (totalRecords / 50) * 100));
+
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-xl bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh] border border-white/20"
+            >
+              <div className="p-12 bg-gradient-to-b from-gray-50/50 to-white border-b border-gray-100/80 relative overflow-hidden">
+                <div className="relative z-10">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="h-2 w-2 rounded-full bg-accent relative">
+                      <div className="absolute inset-0 rounded-full bg-accent animate-ping" />
+                    </div>
+                    <span className="text-[10px] font-black text-ink uppercase tracking-[0.4em] opacity-60">Archive Integrity: Verified</span>
+                  </div>
+                  <h3 className="text-4xl font-black text-ink tracking-tight mb-3">Institutional Vault</h3>
+                  <p className="text-[12px] text-muted font-medium max-w-[320px] leading-relaxed">Continuous audit of decentralized records Persisted within your secure workspace.</p>
+                </div>
+                <div className="absolute top-0 right-0 p-10">
+                  <button 
+                    onClick={onClose}
+                    className="h-14 w-14 bg-white border border-gray-100 rounded-3xl flex items-center justify-center text-muted hover:text-ink transition-all active:scale-90"
+                  >
+                    <X size={20} strokeWidth={1.5} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar">
+                <section>
+                  <div className="flex items-center justify-between mb-6 px-2">
+                    <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em]">Grid Analysis</h4>
+                    <span className="text-[11px] font-black text-ink tabular-nums">{totalRecords} Persisted Objects</span>
+                  </div>
+                  <div className="h-32 w-full bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100/60 flex items-center gap-8 group">
+                    <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 text-accent flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
+                      <Database size={24} strokeWidth={1.2} />
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div className="h-4 w-full bg-gray-200/50 rounded-full overflow-hidden p-0.5">
+                        <motion.div 
+                          className="h-full bg-accent rounded-full"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${usage}%` }}
+                          transition={{ type: 'spring', damping: 25, stiffness: 40, delay: 0.3 }}
+                        />
+                      </div>
+                      <div className="flex justify-between items-center font-mono text-[9px] font-bold text-muted uppercase tracking-widest">
+                        <span>Cluster Latency: 0.00ms</span>
+                        <span>Capacity: {usage.toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
+                <section>
+                  <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-6 px-2 text-center underline decoration-accent/20 underline-offset-8">Registry Activity Log</h4>
+                  <div className="space-y-4">
+                    <AnimatePresence mode="popLayout">
+                      {combinedActivity.length > 0 ? combinedActivity.slice(0, 15).map((item, idx) => (
+                        <motion.div 
+                          key={item.id}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0, transition: { delay: idx * 0.03 } }}
+                          className="group p-6 rounded-[2.5rem] bg-white border border-gray-100 hover:border-accent/20 transition-all cursor-default"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-6">
+                              <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-[8px] font-black text-muted/60 tracking-tighter group-hover:bg-accent/5 group-hover:text-accent transition-colors duration-500">
+                                {item.type}
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-black text-ink tracking-tight uppercase leading-none mb-1">{item.label}</p>
+                                <p className="text-[9px] font-mono font-bold text-muted uppercase tracking-widest">{item.time.toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50/50 rounded-full border border-emerald-100/50">
+                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{item.status}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )) : (
+                        <div className="p-16 text-center border-2 border-dashed border-gray-100 rounded-[3.5rem] bg-gray-50/30">
+                           <p className="text-[10px] font-black text-muted uppercase tracking-[0.5em]">System Idle: No Persistent Data</p>
+                        </div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </section>
+              </div>
+
+              <div className="p-12 bg-ink text-white">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/50">Status</p>
+                    <p className="text-[14px] font-black uppercase tracking-widest">Master Ledger: Stable</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                     <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    );
+  };
+
+  const HelpCentreModal = ({ isOpen, onClose }: any) => {
+    const [searchQuery, setSearchQuery] = useState('');
+    
+    return (
+      <AnimatePresence>
+        {isOpen && (
+          <div className="fixed inset-0 z-[750] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-2xl bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh] border border-white/20"
+            >
+              <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+                 <div>
+                   <div className="flex items-center gap-3 mb-1">
+                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active Support Node</span>
+                   </div>
+                   <h3 className="text-3xl font-black text-ink uppercase tracking-tight italic">Exona Help Core</h3>
+                   <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">System Support & Institutional Guidelines</p>
+                 </div>
+                 <button 
+                   onClick={onClose}
+                   className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+                 >
+                   <X size={24} />
+                 </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
+                 {/* Search Bar */}
+                 <div className="relative mb-10">
+                   <div className="absolute inset-y-0 left-6 flex items-center text-muted/40 pointer-events-none">
+                     <Search size={20} />
+                   </div>
+                   <input 
+                     type="text"
+                     placeholder="QUERY THE KNOWLEDGE ARCHIVE..."
+                     value={searchQuery}
+                     onChange={(e) => setSearchQuery(e.target.value)}
+                     className="w-full h-18 bg-white border border-gray-100 rounded-[2rem] pl-16 pr-8 text-sm font-black uppercase tracking-tight focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all outline-none"
+                   />
+                 </div>
+
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+                   {[
+                     { icon: Book, title: 'Knowledge Base', desc: 'Detailed manuals for every institutional module.', count: '142 Articles' },
+                     { icon: ShieldCheck, title: 'Security Brief', desc: 'Overview of Layer-5 decentralized encryption.', count: 'Verified' },
+                     { icon: Zap, title: 'System Pulse', desc: 'Real-time status of all Exona institutional nodes.', count: 'Stable' },
+                     { icon: MessageSquare, title: 'Auditor Chat', desc: 'Direct secure line to system administrators.', count: 'Instant' }
+                   ].map((item, idx) => (
+                     <button key={idx} className="p-6 rounded-[2.5rem] bg-white border border-gray-100 text-left hover:border-accent transition-all group overflow-hidden relative">
+                       <div className="absolute top-0 right-0 p-4 opacity-[0.03] -rotate-12 transform group-hover:scale-125 transition-transform duration-700">
+                         <item.icon size={80} />
+                       </div>
+                       <div className="flex items-start justify-between mb-4 relative z-10">
+                         <div className="h-12 w-12 rounded-2xl bg-accent/5 text-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+                           <item.icon size={24} />
+                         </div>
+                         <span className="text-[8px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-1 rounded-full">{item.count}</span>
+                       </div>
+                       <h4 className="text-sm font-black text-ink uppercase tracking-tight mb-1 relative z-10">{item.title}</h4>
+                       <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed relative z-10">{item.desc}</p>
+                     </button>
+                   ))}
+                 </div>
+
+                 {/* Help Categories */}
+                 <div className="space-y-8">
+                   <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Institutional IQ</h4>
+                   <div className="grid grid-cols-3 gap-3">
+                     {['Admissions', 'Financials', 'Governance', 'Technical', 'Security', 'Academic'].map((cat) => (
+                       <button key={cat} className="py-4 rounded-2xl bg-white border border-gray-100 text-[10px] font-black uppercase tracking-widest text-ink hover:bg-gray-50 transition-all">
+                         {cat}
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+
+                 <div className="mt-12 space-y-8">
+                   <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Core Documentation</h4>
+                   <div className="space-y-4">
+                     {[
+                       { q: "How are my records secured?", a: "Every record is hashed and distributed across decentralized nodes, making them immutable and impossible to forge." },
+                       { q: "What is an Institutional Auditor?", a: "Auditors are certified administrators who oversee the integrity of institutional data and handle disputes." },
+                       { q: "Can I use Exona offline?", a: "Limited core features are available offline via PWA caching; sync resumes when connectivity is restored." },
+                       { q: "Institutional Data Recovery", a: "Lost credentials can only be recovered through biometric verification at a certified Exona node." }
+                     ].map((faq, i) => (
+                       <div key={i} className="p-6 rounded-3xl bg-white border border-gray-100 group hover:border-accent transition-colors">
+                         <div className="flex items-center gap-3 mb-2">
+                           <HelpCircle size={14} className="text-accent" />
+                           <p className="text-[13px] font-black text-ink uppercase tracking-tight">{faq.q}</p>
+                         </div>
+                         <p className="text-[11px] text-muted font-medium leading-relaxed pl-7">{faq.a}</p>
+                       </div>
+                     ))}
+                   </div>
+                 </div>
+              </div>
+
+              <div className="p-8 bg-ink text-white flex items-center justify-between shrink-0">
+                 <div className="flex items-center gap-4">
+                   <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
+                      <Mail size={18} className="text-accent" />
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Need more help?</p>
+                      <p className="text-[12px] font-black uppercase tracking-tight">support@exona.io</p>
+                   </div>
+                 </div>
+                 <button className="px-6 py-3 bg-white/10 hover:bg-white text-white hover:text-ink rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                    Open Support Ticket
+                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    );
+  };
+
+  const NotificationsModal = ({ 
+    isOpen, 
+    onClose, 
+    notificationFilter, 
+    setNotificationFilter, 
+    notifications, 
+    notificationPermission, 
+    requestNotificationPermission, 
+    markAllNotificationsAsRead, 
+    clearAllNotifications, 
+    deferredPrompt, 
+    installApp 
+  }: any) => (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="w-full max-w-lg bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh]"
+          >
+            <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                   <h3 className="text-2xl font-black text-ink tracking-tight">Broadcast Feed</h3>
+                   <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
+                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
+                      <span className="text-[8px] font-black uppercase tracking-widest">Live</span>
+                   </div>
+                </div>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">National Communication Protocol</p>
+              </div>
+              <button 
+                onClick={onClose}
+                className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 flex flex-col overflow-hidden">
+               {/* Categories */}
+               <div className="px-8 py-4 flex gap-2 border-b border-gray-50 overflow-x-auto no-scrollbar">
+                  {['all', 'system', 'social', 'treasury'].map((cat) => (
+                    <button 
+                      key={cat}
+                      onClick={() => setNotificationFilter(cat as any)}
+                      className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                        notificationFilter === cat 
+                          ? 'bg-ink text-white' 
+                          : 'bg-gray-50 text-muted hover:bg-gray-100'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+               </div>
+
+               {/* Action Bar */}
+               <div className="px-8 py-3 flex items-center justify-between bg-white border-b border-gray-50">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Active Archives</span>
+                    {notificationPermission !== 'granted' && (
+                      <button 
+                        onClick={requestNotificationPermission}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-[8px] font-black uppercase text-accent animate-pulse"
+                      >
+                         <ShieldCheck size={10} />
+                         Activate Phone Alerts
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                     <button 
+                       onClick={markAllNotificationsAsRead}
+                       className="text-[9px] font-black text-accent uppercase tracking-widest hover:underline"
+                     >
+                        Mark Read
+                     </button>
+                     <button 
+                       onClick={clearAllNotifications}
+                       className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline"
+                     >
+                        Clear Feed
+                     </button>
+                  </div>
+               </div>
+
+               {/* Device Integration Status */}
+               <div className="px-8 mt-6 overflow-y-auto custom-scrollbar flex-1 pb-8">
+                  <div className="flex items-center justify-between mb-3 px-2">
+                     <h5 className="text-[9px] font-black text-ink uppercase tracking-widest">Protocol Sync Status</h5>
+                     {deferredPrompt && (
+                        <button 
+                          onClick={installApp}
+                          className="flex items-center gap-1.5 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest animate-bounce"
+                        >
+                           <Download size={10} />
+                           Install APK/App
+                        </button>
+                     )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-6">
+                     {/* Telegram Status */}
+                     <div className={`p-4 rounded-[2rem] border transition-all ${
+                       (window as any).Telegram?.WebApp 
+                         ? 'bg-blue-50/50 border-blue-100' 
+                         : 'bg-gray-50 border-gray-100 grayscale opacity-60'
+                     }`}>
+                        <div className="flex items-center gap-2 mb-3">
+                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${(window as any).Telegram?.WebApp ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                              <Send size={14} />
+                           </div>
+                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Telegram</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           <div className={`w-1 h-1 rounded-full ${(window as any).Telegram?.WebApp ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                           <span className={`text-[8px] font-bold uppercase tracking-widest ${(window as any).Telegram?.WebApp ? 'text-emerald-600' : 'text-muted'}`}>
+                              {(window as any).Telegram?.WebApp ? 'Connected' : 'Offline'}
+                           </span>
+                        </div>
+                     </div>
+
+                     {/* Web Push Status */}
+                     <div className={`p-4 rounded-[2rem] border transition-all ${
+                       notificationPermission === 'granted'
+                         ? 'bg-purple-50/50 border-purple-100' 
+                         : 'bg-gray-50 border-gray-100'
+                     }`}>
+                        <div className="flex items-center gap-2 mb-3">
+                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${notificationPermission === 'granted' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                              <Zap size={14} />
+                           </div>
+                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Web Push</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                           <div className={`w-1 h-1 rounded-full ${notificationPermission === 'granted' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
+                           <span className={`text-[8px] font-bold uppercase tracking-widest ${notificationPermission === 'granted' ? 'text-emerald-600' : 'text-muted'}`}>
+                              {notificationPermission === 'granted' ? 'Enabled' : 'Disabled'}
+                           </span>
+                        </div>
+                     </div>
+                  </div>
+
+                  {/* Notification List */}
+                  <div className="space-y-4">
+                     {notifications.length > 0 ? (
+                       notifications
+                        .filter((n: any) => notificationFilter === 'all' || n.category === notificationFilter)
+                        .map((n: any) => (
+                         <div key={n.id} className={`p-5 rounded-3xl border transition-all ${n.isRead ? 'bg-white border-gray-50' : 'bg-accent/5 border-accent/10 shadow-sm'}`}>
+                            <div className="flex justify-between items-start mb-2">
+                               <div className="flex items-center gap-2">
+                                  <div className={`h-2 w-2 rounded-full ${n.isRead ? 'bg-gray-300' : 'bg-accent'}`} />
+                                  <span className="text-[8px] font-black uppercase text-muted tracking-widest">{n.category || 'system'}</span>
+                               </div>
+                               <span className="text-[8px] font-bold text-muted tabular-nums">
+                                  {n.timestamp ? new Date(n.timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                               </span>
+                            </div>
+                            <h4 className="text-sm font-black text-ink tracking-tight mb-1">{n.title}</h4>
+                            <p className="text-[11px] text-muted font-medium mb-3 leading-relaxed">{n.body}</p>
+                            {!n.isRead && (
+                               <button className="text-[9px] font-black text-accent uppercase tracking-widest">Acknowledge</button>
+                            )}
+                         </div>
+                       ))
+                     ) : (
+                       <div className="py-20 text-center">
+                          <p className="text-[10px] font-black text-muted uppercase tracking-widest">No broadcasts intercepted</p>
+                       </div>
+                     )}
+                  </div>
+               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const ExonWealthModal = ({ 
+    isOpen, 
+    onClose, 
+    exonWallet, 
+    excoinBalance, 
+    handleConvertStarsToExcoin, 
+    handleCreditExonStars, 
+    exonHistory, 
+    formatTime, 
+    currencySymbol,
+    setIsExonWalletOpen 
+  }: any) => (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
+          <motion.div 
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="bg-white w-full max-w-lg h-full md:h-[95vh] md:rounded-[3rem] overflow-hidden flex flex-col"
+          >
+            {/* Header */}
+            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12 pointer-events-none">
+                 <Stars size={120} className="text-accent" />
+               </div>
+               <div className="relative z-10">
+                 <h3 className="text-2xl font-black text-ink tracking-tight">Presidential Wealth Terminal</h3>
+                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">National Treasury Management Protocol</p>
+               </div>
+               <button 
+                 onClick={onClose}
+                 className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink hover:scale-105 transition-all relative z-10"
+               >
+                 <X size={24} />
+               </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
+              {/* Dual Balance Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                {/* Exon Stars Card (Gold) */}
+                <div className="bg-ink rounded-[2rem] p-6 text-center relative overflow-hidden border border-white/10 group">
+                  <div className="relative z-10">
+                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">Exon Stars</p>
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                      <Stars size={28} className="text-accent animate-pulse" />
+                      <span className="text-4xl font-black text-white tracking-tighter">
+                        {exonWallet?.balance || 0}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold text-accent uppercase tracking-widest bg-accent/10 px-3 py-1 rounded-full border border-accent/20">Gold Status</span>
+                  </div>
+                  <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-accent/5 rounded-full blur-2xl" />
+                </div>
+
+                {/* Excoin Card (Silver) */}
+                <div className="bg-slate-800 rounded-[2rem] p-6 text-center relative overflow-hidden border border-white/5 group">
+                  <div className="relative z-10">
+                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">Excoins</p>
+                    <div className="flex items-center justify-center gap-3 mb-2">
+                      <IdCard size={28} className="text-slate-300" />
+                      <span className="text-4xl font-black text-white tracking-tighter">
+                        {excoinBalance}
+                      </span>
+                    </div>
+                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest bg-slate-300/10 px-3 py-1 rounded-full border border-white/10">Silver Metallic</span>
+                  </div>
+                  <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-slate-300/5 rounded-full blur-2xl" />
+                </div>
+              </div>
+
+              {/* Conversion Gate */}
+              <div className="mb-8 p-6 bg-accent/[0.03] rounded-[2rem] border border-accent/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h4 className="text-xs font-black text-ink uppercase tracking-wider">Treasury Conversion Gate</h4>
+                    <p className="text-[10px] text-muted font-medium mt-1">Rate: 100 Exon Stars = 1 Excoin</p>
+                  </div>
+                  <RefreshCw size={18} className="text-accent/40" />
+                </div>
+                
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
+                         <span className="text-[10px] font-black text-muted uppercase tracking-widest">Available {exonWallet?.balance || 0} Stars</span>
+                         <button 
+                            disabled={(exonWallet?.balance || 0) < 100}
+                            onClick={() => handleConvertStarsToExcoin(100)}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                              (exonWallet?.balance || 0) >= 100 
+                                ? 'bg-ink text-white hover:scale-105 hover:bg-black active:scale-95' 
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                         >
+                           Convert 100
+                         </button>
+                      </div>
+                    </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="grid grid-cols-2 gap-4 mb-12">
+                <button 
+                   onClick={() => handleCreditExonStars(10, 'Daily Treasury Allowance')}
+                   className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-accent/30 hover:bg-white transition-all group"
+                >
+                  <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                    <Stars size={24} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink">Daily 10 Stars</span>
+                </button>
+                <button 
+                  onClick={() => setIsExonWalletOpen(false)}
+                   className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-accent/30 hover:bg-white transition-all group"
+                >
+                  <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-ink group-hover:scale-110 transition-transform">
+                    <ArrowUpDown size={24} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-ink">Exchange Gate</span>
+                </button>
+              </div>
+
+              {/* History */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                  <h4 className="text-sm font-black text-ink uppercase tracking-wider">Transaction Ledger</h4>
+                  <div className="flex items-center gap-2">
+                     <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Live Audit</span>
+                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {exonHistory.length === 0 ? (
+                    <div className="py-20 text-center opacity-30">
+                      <Database size={48} className="mx-auto mb-4" />
+                      <p className="text-xs font-bold uppercase tracking-widest">No transaction records found</p>
+                    </div>
+                  ) : (
+                    exonHistory.map((tx: any) => (
+                      <div key={tx.id} className="p-5 bg-gray-50/50 rounded-3xl border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-accent/20 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${
+                            tx.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+                          }`}>
+                            {tx.type === 'credit' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-ink leading-tight">{tx.description}</p>
+                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">
+                               {tx.timestamp ? formatTime(tx.timestamp) : 'Processing...'}
+                               <span className="mx-2 opacity-20">|</span>
+                               <span className={tx.currency === 'stars' ? 'text-accent' : 'text-slate-400'}>{tx.currency === 'stars' ? 'Stars' : 'Excoins'}</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`text-right ${
+                          tx.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          <p className="text-lg font-black tracking-tight">
+                            {tx.type === 'credit' ? '+' : '-'}{tx.amount}
+                          </p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest ${tx.currency === 'stars' ? 'text-accent' : 'text-slate-400'}`}>
+                            {tx.currency === 'stars' ? 'Exon Stars' : 'Excoins'}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer Branded */}
+            <div className="p-8 bg-gray-50/50 border-t border-gray-100 text-center">
+               <div className="inline-flex items-center gap-2 mb-2">
+                 <ShieldCheck size={14} className="text-accent" />
+                 <span className="text-[10px] font-bold text-ink uppercase tracking-[0.2em]">Exona Financial Security Core</span>
+               </div>
+               <p className="text-[8px] text-muted font-bold leading-relaxed uppercase tracking-widest">All dual-currency transactions are secured via Level-5 Blockchain Encryption</p>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const InsufficientStarsAlert = ({ 
+    isOpen, 
+    onClose, 
+    starsNeeded, 
+    setIsExonWalletOpen 
+  }: any) => (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-ink/95 backdrop-blur-xl">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="w-full max-w-2xl bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-[3rem] overflow-hidden relative border border-white/50"
+          >
+            {/* Presidential Banner */}
+            <div className="h-2 bg-gradient-to-r from-blue-600 via-red-600 to-blue-600" />
+            
+            <div className="p-12 text-center">
+              <div className="h-24 w-24 bg-ink text-accent rounded-[2rem] flex items-center justify-center mx-auto mb-10 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <ShieldAlert size={48} strokeWidth={1.5} className="relative z-10" />
+              </div>
+              
+              <h2 className="text-4xl font-black text-ink mb-6 tracking-tighter leading-tight italic">
+                A National Resource Interruption
+              </h2>
+              
+              <div className="bg-ink p-8 rounded-3xl mb-8 relative">
+                <div className="absolute -top-3 -left-3 h-8 w-8 bg-accent rounded-full flex items-center justify-center text-white border-4 border-white">
+                   <Lock size={14} />
+                </div>
+                <p className="text-white/60 text-[10px] uppercase font-bold tracking-[0.3em] mb-3">Protocol: INS-FUNDS-01</p>
+                <div className="flex flex-col gap-2">
+                  <p className="text-white text-lg font-medium leading-relaxed">
+                    Your current star level is insufficient to authorize this transaction. 
+                  </p>
+                  <p className="text-accent text-3xl font-black tracking-wider text-center">
+                    {starsNeeded} STARS REQUIRED
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-muted text-sm font-medium mb-12 max-w-md mx-auto leading-relaxed">
+                As a citizen of Exona, you may replenish your treasury via the Grand Exchange or await a presidential grant.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button 
+                  onClick={onClose}
+                  className="py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 hover:border-gray-200 transition-all active:scale-[0.98]"
+                >
+                  Dimiss Protocol
+                </button>
+                <button 
+                  onClick={() => {
+                    onClose();
+                    setIsExonWalletOpen(true);
+                  }}
+                  className="py-5 bg-ink text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-ink/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <Rocket size={16} className="text-accent" />
+                  Visit Grand Exchange
+                </button>
+              </div>
+            </div>
+            
+            {/* Presidential Seal Watermark */}
+            <div className="absolute -bottom-20 -right-20 opacity-[0.03] pointer-events-none transform rotate-12">
+               <ShieldAlert size={300} />
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const CallOverlay = ({
+    incomingCall,
+    outgoingCall,
+    user,
+    chatUsers,
+    handleAcceptCall,
+    handleEndCall
+  }: any) => {
+    const call = incomingCall || outgoingCall;
+    if (!call) return null;
+
+    const otherUid = call.callerUid === user?.uid ? call.receiverUid : call.callerUid;
+    const otherUser = chatUsers.find((u: any) => u.uid === otherUid) || { displayName: 'User', photoURL: null };
+
+    return (
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-ink/90 backdrop-blur-xl p-4"
+      >
+        <div className="w-full max-w-sm flex flex-col items-center text-center">
+          <div className="h-24 w-24 rounded-full border-4 border-accent/20 p-1 mb-6 relative">
+            <motion.div 
+              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute inset-0 bg-accent rounded-full -z-10"
+            />
+            <div className="h-full w-full rounded-full overflow-hidden bg-white flex items-center justify-center">
+              {otherUser.photoURL ? (
+                <img src={otherUser.photoURL} className="h-full w-full object-cover" />
+              ) : (
+                <UserIcon size={40} className="text-muted" />
+              )}
+            </div>
+          </div>
+
+          <h2 className="text-white text-2xl font-black mb-2">{otherUser.displayName}</h2>
+          <p className="text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-12">
+            {call.status === 'ringing' ? (outgoingCall ? 'Calling...' : 'Incoming Audio Call') : 'Call Active'}
+          </p>
+
+          <div className="flex gap-8">
+            {incomingCall && call.status === 'ringing' && (
+              <button 
+                onClick={() => handleAcceptCall(call.id)}
+                className="h-16 w-16 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-all"
+              >
+                <Phone size={24} />
+              </button>
+            )}
+            <button 
+              onClick={() => handleEndCall(call.id)}
+              className="h-16 w-16 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all"
+            >
+              <PhoneOff size={24} />
+            </button>
+          </div>
+
+          {call.status === 'active' && (
+             <div className="mt-12 text-white/40 font-mono text-xs flex items-center gap-2">
+               <motion.div animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="h-2 w-2 bg-green-500 rounded-full" />
+               Live Audio
+             </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const LegalModal = ({ isOpen, onClose }: any) => (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[800] flex items-center justify-center bg-black/60 backdrop-blur-3xl p-4 sm:p-8">
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            className="w-full max-w-2xl bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh] border border-white/20"
+          >
+            <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+               <div>
+                 <h3 className="text-3xl font-black text-ink uppercase tracking-tight">Legal Protocols</h3>
+                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Exona Governance & Privacy Framework</p>
+               </div>
+               <button 
+                 onClick={onClose}
+                 className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
+               >
+                 <X size={24} />
+               </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
+               <div className="prose prose-sm max-w-none space-y-12">
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Agreement of Use
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       By accessing the Exona Network, users agree to abide by institutional guidelines. All records created are subject to verification by designated auditors. Misuse of platform capabilities for falsifying records result in immediate account termination and institutional reporting.
+                    </p>
+                 </section>
+ 
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Privacy & Encryption
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       Your data is encrypted using Layer-5 decentralized protocols. Private metadata is never sold or shared with external advertising engines. Data access is strictly compartmentalized based on verified institutional roles (Admin, Management, Member).
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Intellectual Property
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       All algorithms, interface designs, and modular architectures within the Exona Protocol are the exclusive intellectual property of the Network Foundation. Unauthorized redistribution or modification of core binaries is strictly prohibited.
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> User Responsibilities
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       Users are responsible for maintaining the confidentiality of their decentralized keys. Compromised keys must be reported immediately to the closest Regional Auditor Node for account quarantine.
+                    </p>
+                 </section>
+
+                 <section>
+                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
+                       <span className="h-[1px] w-8 bg-accent" /> Record Persistence
+                    </h4>
+                    <p className="text-[14px] text-muted font-medium leading-relaxed">
+                       Verified records are stored within the Exona secure ledger. Once a record has been authorized, it becomes a permanent part of the institutional history, ensuring data integrity across future audits.
+                    </p>
+                 </section>
+
+                 <div className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center gap-6">
+                    <div className="h-16 w-16 bg-accent/5 rounded-2xl flex items-center justify-center text-accent shrink-0">
+                       <ShieldCheck size={32} />
+                    </div>
+                    <div>
+                       <h5 className="font-black text-ink uppercase tracking-tight text-sm mb-1">Standard Security Compliance</h5>
+                       <p className="text-[11px] text-muted font-bold tracking-widest uppercase">Verified April 2026</p>
+                    </div>
+                 </div>
+               </div>
+            </div>
+
+            <div className="p-8 bg-white border-t border-gray-100 shrink-0">
+               <button 
+                 onClick={onClose}
+                 className="w-full py-5 bg-ink text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] hover:bg-black transition-all"
+               >
+                 I Acknowledge Governance
+               </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const SecurityModal = ({
+    isOpen,
+    onClose,
+    showWealthFloatingChip,
+    setShowWealthFloatingChip,
+    isBiometricGuardEnabled,
+    setIsBiometricGuardEnabled,
+    isGhostIdentityEnabled,
+    setIsGhostIdentityEnabled,
+    notificationPermission,
+    triggerSystemNotification,
+    requestNotificationPermission
+  }: any) => (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6 transition-all duration-500">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="w-full max-w-md bg-white rounded-[3rem] overflow-hidden flex flex-col pointer-events-auto"
+          >
+            <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-black text-ink tracking-tight">Security & Privacy</h3>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">National Defense Protocols</p>
+              </div>
+              <button 
+                onClick={onClose}
+                className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+              <section className="space-y-4">
+                <div className="flex items-center gap-3 px-2">
+                  <Shield size={14} className="text-accent" />
+                  <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Access Controls</h4>
+                </div>
+                
+                <div className="space-y-2">
+                  {/* Floating Chip Toggle */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-accent/20 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Zap size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Wealth Display (HUD)</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Toggle dynamic island</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setShowWealthFloatingChip(!showWealthFloatingChip)}
+                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${showWealthFloatingChip ? 'bg-accent' : 'bg-gray-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: showWealthFloatingChip ? 24 : 0 }}
+                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300" 
+                      />
+                    </button>
+                  </div>
+
+                  {/* Biometric Guard */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-emerald-200 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Fingerprint size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Biometric Audit</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Secure Transaction Check</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsBiometricGuardEnabled(!isBiometricGuardEnabled)}
+                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isBiometricGuardEnabled ? 'bg-emerald-600' : 'bg-gray-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isBiometricGuardEnabled ? 24 : 0 }}
+                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                      />
+                    </button>
+                  </div>
+
+                  {/* Ghost Mode */}
+                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-purple-200 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <UserCheck size={18} />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Ghost Mode</p>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Vanish from search</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setIsGhostIdentityEnabled(!isGhostIdentityEnabled)}
+                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isGhostIdentityEnabled ? 'bg-purple-600' : 'bg-gray-200'}`}
+                    >
+                      <motion.div 
+                        animate={{ x: isGhostIdentityEnabled ? 24 : 0 }}
+                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                      />
+                    </button>
+                  </div>
+
+                  {/* System Alerts */}
+                  <div className={`p-5 rounded-3xl border transition-all ${
+                    notificationPermission === 'denied' 
+                      ? 'bg-red-50/30 border-red-100' 
+                      : 'bg-gray-50/50 border-gray-100 hover:bg-white hover:border-blue-200'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                       <div className="flex items-center gap-4">
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-transform ${
+                          notificationPermission === 'granted' ? 'bg-blue-50 text-blue-600' :
+                          notificationPermission === 'denied' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-muted'
+                        }`}>
+                          <Bell size={18} />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-black text-ink uppercase tracking-tight">System Alerts</p>
+                          <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${
+                            notificationPermission === 'denied' ? 'text-red-500' : 'text-muted'
+                          }`}>
+                            {notificationPermission === 'denied' ? 'Communication Blocked' : 'Desktop & Phone Push'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {notificationPermission === 'granted' && (
+                          <button 
+                            onClick={() => triggerSystemNotification('Test Broadcast', 'Verification signal received. Communication active.', 'system')}
+                            className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center text-muted hover:bg-accent hover:text-white transition-all"
+                            title="Test Signal"
+                          >
+                            <Zap size={14} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={requestNotificationPermission}
+                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
+                            notificationPermission === 'granted' ? 'bg-blue-600' : 
+                            notificationPermission === 'denied' ? 'bg-red-400 opacity-50 cursor-not-allowed' : 'bg-gray-200'
+                          }`}
+                        >
+                          <motion.div 
+                            animate={{ x: notificationPermission === 'granted' ? 24 : 0 }}
+                            className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const SecretKeyModal = ({
+    isOpen,
+    onClose,
+    secretKeyInput,
+    setSecretKeyInput,
+    handleVerifySecretKey,
+    setView
+  }: any) => (
+    <AnimatePresence>
+      {isOpen && (
+        <div className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[400] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+            className="w-full max-w-sm bg-white p-8 sm:p-10 rounded-[3rem] relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+              <Lock size={120} />
+            </div>
+            
+            <div className="relative z-10">
+              <div className="h-16 w-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mb-8">
+                <ShieldCheck size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-ink mb-2">Authentication Required</h3>
+              <p className="text-muted font-bold text-sm mb-10 leading-relaxed">
+                Please enter your institution's secret access key to continue to the portal. If your institution doesn't have a key, the owner must add one first.
+              </p>
+
+              <div className="space-y-6 mb-10">
+                <div>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-4 block">Security Key</label>
+                  <input 
+                    type="password"
+                    value={secretKeyInput}
+                    onChange={(e) => setSecretKeyInput(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full px-8 py-5 bg-gray-50 border border-gray-100 rounded-[2rem] outline-none focus:ring-4 focus:ring-indigo-500/5 focus:bg-white text-center font-mono text-xl tracking-[0.5em] transition-all"
+                    autoFocus
+                    onKeyDown={(e) => e.key === 'Enter' && handleVerifySecretKey()}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={handleVerifySecretKey}
+                  className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-[0.98]"
+                >
+                  Verify & Unlock
+                </button>
+                <button 
+                  onClick={onClose}
+                  className="w-full py-5 text-muted font-bold text-[10px] uppercase tracking-widest hover:text-ink transition-all"
+                >
+                  Cancel Access
+                </button>
+              </div>
+
+              <div className="mt-10 pt-8 border-t border-gray-50 text-center">
+                <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed">
+                  Don't have a key? <br />
+                  <button 
+                    onClick={() => {
+                      onClose();
+                      setView('tools');
+                    }}
+                    className="text-indigo-600 hover:underline"
+                  >
+                    Apply in Institutional Hub
+                  </button>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
+  const ReceiptModal = ({
+    isOpen,
+    onClose,
+    record,
+    schools,
+    places,
+    selectedSchool,
+    currencySymbol,
+    handlePrint,
+    isExporting,
+    receiptRef
+  }: any) => (
+    <AnimatePresence>
+      {isOpen && record && (
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[300] flex items-center justify-center p-4 overflow-y-auto"
+        >
+          <motion.div 
+            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+            className="w-full max-w-sm flex flex-col gap-6"
+          >
+            <div className="flex justify-between items-center px-4">
+              <h3 className="text-white font-bold text-sm uppercase tracking-[0.2em]">Preview Receipt</h3>
+              <button 
+                onClick={onClose}
+                className="h-10 w-10 bg-white/10 text-white rounded-full flex items-center justify-center hover:bg-white/20 transition-all font-display"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* The Receipt Captured Area */}
+            <div ref={receiptRef} className="bg-white p-8 rounded-3xl relative overflow-hidden print-content">
+              {/* Background Decor */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-ink/5 rounded-full -ml-24 -mb-24" />
+              
+              <div className="relative z-10">
+                <div className="flex flex-col items-center mb-10 text-center">
+                  {(() => {
+                    const recordInstitution = schools.find((s: any) => s.id === record?.schoolId) || 
+                                            places.find((p: any) => p.id === record?.schoolId);
+                    const displayTitle = recordInstitution?.name || selectedSchool?.name || 'Institutional Record';
+                    return (
+                      <>
+                        {(recordInstitution?.logo || selectedSchool?.logo) ? (
+                          <img 
+                            src={recordInstitution?.logo || selectedSchool?.logo} 
+                            className="h-14 w-14 rounded-2xl object-cover mb-4" 
+                            referrerPolicy="no-referrer" 
+                            crossOrigin="anonymous" 
+                          />
+                        ) : (
+                          <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4">
+                            {displayTitle.charAt(0)}
+                          </div>
+                        )}
+                        <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{displayTitle}</h2>
+                        <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                <div className="flex justify-between items-end mb-8 pb-8 border-b border-gray-100">
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Receipt Number</p>
+                    <p className="text-sm font-mono font-bold text-ink">#REC-{Math.random().toString(36).substring(2, 9).toUpperCase()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Date Issued</p>
+                    <p className="text-[11px] font-bold text-ink">{new Date().toLocaleDateString()}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6 mb-12">
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Institution</p>
+                    <p className="text-sm font-bold text-ink">
+                    {(schools.find((s: any) => s.id === record?.schoolId) || 
+                      places.find((p: any) => p.id === record?.schoolId))?.name || 
+                      selectedSchool?.name || 
+                      'Institutional Record'}
+                  </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
+                    <p className="text-sm font-bold text-ink underline decoration-ink/10 underline-offset-4">{record.studentName}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Student Class</p>
+                      <p className="text-xs font-bold text-accent uppercase tracking-wider">{record.studentClass || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Parent Contact</p>
+                      <p className="text-xs font-bold text-ink uppercase tracking-wider">{record.parentNumber || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Class/Level' : 'Category'}</p>
+                      <p className="text-xs font-bold text-ink uppercase tracking-wider">{record.category}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Payment For</p>
+                      <p className="text-xs font-bold text-ink uppercase tracking-wider">{record.type || 'Main'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-2xl p-6 space-y-4 mb-10 border border-gray-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Amount Paid</span>
+                    <span className="text-lg font-mono font-bold text-green-600">{currencySymbol}{record.paid.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                    <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Balance</span>
+                    <span className="text-sm font-mono font-bold text-red-600">{currencySymbol}{record.balance.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-4 pt-6 border-t border-dashed border-gray-200">
+                  <div className="flex items-center gap-2">
+                     <CheckCircle2 size={16} className="text-green-500" />
+                     <span className="text-[10px] font-bold text-ink uppercase tracking-widest">Verified Payment</span>
+                  </div>
+                  <div className="h-10 w-full flex items-center justify-center opacity-30">
+                     <ShieldCheck size={24} />
+                  </div>
+                  <p className="text-[7px] text-center text-muted uppercase tracking-[0.2em] leading-relaxed">
+                    This receipt is electronically generated and verified. <br />
+                    Valid for institutional records authentication.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={handlePrint}
+                  disabled={isExporting}
+                  className="py-5 bg-white text-ink border border-gray-200 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                  <Printer size={18} />
+                  Print
+                </button>
+                <button 
+                  onClick={onClose}
+                  disabled={isExporting}
+                  className="py-5 bg-white/10 text-white border border-white/20 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                  <X size={18} />
+                  Close
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
 const BrainBattleModal = ({ 
   isActive, 
   setIsActive, 
@@ -1210,11 +2503,7 @@ class ErrorBoundary extends Component<any, any> {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 text-center">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-md bg-white p-12 rounded-[3rem] border border-gray-100"
-          >
+          <div className="max-w-md bg-white p-12 rounded-[3rem] border border-gray-100 shadow-xl scale-100 opacity-100 transition-all duration-500">
             <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
               <AlertTriangle size={32} />
             </div>
@@ -1227,7 +2516,7 @@ class ErrorBoundary extends Component<any, any> {
             >
               Restart Core
             </button>
-          </motion.div>
+          </div>
         </div>
       );
     }
@@ -1787,6 +3076,14 @@ function ExonaApp() {
   const [serverReady, setServerReady] = useState(false);
 
   useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled Promise Rejection:', event.reason);
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
+  }, []);
+
+  useEffect(() => {
     let checkInterval: any;
     const checkServer = () => {
       fetch(`/api/health?cb=${Date.now()}`)
@@ -1955,7 +3252,10 @@ function ExonaApp() {
       setScannedFile(file);
       setScanType(type);
       setScanPreviewUrl(URL.createObjectURL(file));
-      handleScanList(file, type);
+      handleScanList(file, type).catch(err => {
+        console.error('Initial scan call failed:', err);
+        showNotification('Failed to initiate scan', 'error');
+      });
     }
   };
 
@@ -1973,11 +3273,26 @@ function ExonaApp() {
         body: formData
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Scan Error Response:', errorText);
+        let errorMsg = `Server error (${response.status})`;
+        try {
+          const errData = JSON.parse(errorText);
+          errorMsg = errData.error || errorMsg;
+        } catch (e) {
+          // If it's HTML, we'll see it in console
+        }
+        showNotification(errorMsg, 'error');
+        setIsAiScanning(false);
+        return;
+      }
+
       const data = await response.json();
       if (data.success) {
-        setScannedData(data.extractedData);
+        setScannedData(data.extractedData || []);
         setIsScanReviewOpen(true);
-        showNotification(`${data.extractedData.length} entries extracted from image`, 'success');
+        showNotification(`${(data.extractedData || []).length} entries extracted from image`, 'success');
       } else {
         showNotification(data.error || 'Failed to analyze list', 'error');
       }
@@ -1999,13 +3314,14 @@ function ExonaApp() {
       for (const item of scannedData) {
         if (scanType === 'records') {
           // Check if person exists by name and unit/class
+          const itemFullName = item.fullName || 'Unknown';
           const existing = records.find(r => 
-            r.studentName.toLowerCase() === item.fullName.toLowerCase() && 
+            (r.studentName || '').toLowerCase() === itemFullName.toLowerCase() && 
             (r.studentClass || '').toLowerCase() === (item.unit || '').toLowerCase()
           );
 
           const recordData = {
-            studentName: item.fullName,
+            studentName: itemFullName,
             studentClass: selectedScanCategory || item.unit || 'General',
             category: item.category || recordTab,
             paid: item.paid || 0,
@@ -2032,7 +3348,7 @@ function ExonaApp() {
           }
         } else {
           // Participation Sync
-          const staffName = item.staffName;
+          const staffName = item.staffName || 'Unknown Staff';
           const status = item.status || 'present';
           
           // Add new attendance record
@@ -2111,71 +3427,15 @@ function ExonaApp() {
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [selectedScanCategory, setSelectedScanCategory] = useState<string>('');
 
-  const CallOverlay = () => {
-    const call = incomingCall || outgoingCall;
-    if (!call) return null;
-
-    const otherUid = call.callerUid === user?.uid ? call.receiverUid : call.callerUid;
-    const otherUser = chatUsers.find(u => u.uid === otherUid) || { displayName: 'User', photoURL: null };
-
-    return (
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-ink/90 backdrop-blur-xl p-4"
-      >
-        <div className="w-full max-w-sm flex flex-col items-center text-center">
-          <div className="h-24 w-24 rounded-full border-4 border-accent/20 p-1 mb-6 relative">
-            <motion.div 
-              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="absolute inset-0 bg-accent rounded-full -z-10"
-            />
-            <div className="h-full w-full rounded-full overflow-hidden bg-white flex items-center justify-center">
-              {otherUser.photoURL ? (
-                <img src={otherUser.photoURL} className="h-full w-full object-cover" />
-              ) : (
-                <UserIcon size={40} className="text-muted" />
-              )}
-            </div>
-          </div>
-
-          <h2 className="text-white text-2xl font-black mb-2">{otherUser.displayName}</h2>
-          <p className="text-accent text-[10px] font-black uppercase tracking-[0.3em] mb-12">
-            {call.status === 'ringing' ? (outgoingCall ? 'Calling...' : 'Incoming Audio Call') : 'Call Active'}
-          </p>
-
-          <div className="flex gap-8">
-            {incomingCall && call.status === 'ringing' && (
-              <button 
-                onClick={() => handleAcceptCall(call.id)}
-                className="h-16 w-16 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-all"
-              >
-                <Phone size={24} />
-              </button>
-            )}
-            <button 
-              onClick={() => handleEndCall(call.id)}
-              className="h-16 w-16 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-all"
-            >
-              <PhoneOff size={24} />
-            </button>
-          </div>
-
-          {call.status === 'active' && (
-             <div className="mt-12 text-white/40 font-mono text-xs flex items-center gap-2">
-               <motion.div animate={{ opacity: [1, 0] }} transition={{ repeat: Infinity, duration: 1 }} className="h-2 w-2 bg-green-500 rounded-full" />
-               Live Audio
-             </div>
-          )}
-        </div>
-      </motion.div>
-    );
-  };
 
   const handleWorkspaceToolClick = (toolId: string) => {
     if (toolId === 'editor') {
       showNotification('Creative Editor is a Premium feature. Please upgrade to unlock.', 'error');
+      return;
+    }
+
+    if (toolId === 'daily-challenge') {
+      setIsBrainBattleActive(true);
       return;
     }
 
@@ -2185,45 +3445,7 @@ function ExonaApp() {
       return;
     }
 
-    if (toolId === 'e-test') {
-      // Find the relevant institution: selected one or one owned by user
-      const inst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
-      
-      if (!inst) {
-        showNotification('Select a school or place to access this portal', 'success');
-        return;
-      }
-
-      if (verifiedPortalAccess.includes(inst.id)) {
-        setActiveWorkspaceTool(toolId);
-      } else {
-        setPendingToolAccess(toolId);
-        setPendingInstitutionAccess(inst.id);
-        
-        // Check if institution even has a key
-        const instData = inst as any;
-        if (!instData.portalSecretKey) {
-          showNotification('This institution has no Secret Key. Please add one in Secret Keys tool to continue.', 'error');
-          if (inst.creatorUid === user?.uid) {
-            setPendingInstitutionAccess(inst.id);
-            setIsSecretKeyModalOpen(true);
-          } else {
-             return;
-          }
-        } else {
-          setIsSecretKeyModalOpen(true);
-        }
-      }
-    } else if (toolId === 'e-exam') {
-      const inst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
-      if (!inst) {
-        showNotification('Select a school or place to access this portal', 'success');
-        return;
-      }
-      setActiveWorkspaceTool(toolId);
-    } else {
-      setActiveWorkspaceTool(toolId);
-    }
+    setActiveWorkspaceTool(toolId);
   };
 
   const handleVerifySecretKey = () => {
@@ -2612,297 +3834,7 @@ function ExonaApp() {
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
 
-  // --- E-EXAMINATION JAMB REPLICA STATES ---
-  const EXAM_AVAILABLE_SUBJECTS = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Government', 'Literature in English'];
-  const [isExamStarted, setIsExamStarted] = useState(false);
-  const [isConfiguringExam, setIsConfiguringExam] = useState(false);
-  const [examSelectedSubjects, setExamSelectedSubjects] = useState<string[]>(['Use of English']);
-  const [activeExamQuestions, setActiveExamQuestions] = useState<{[subject: string]: any[]}>({});
-  const [examCurrentSubject, setExamCurrentSubject] = useState('Use of English');
-  const [examCurrentQuestionIndex, setExamCurrentQuestionIndex] = useState(0);
-  const [examAnswers, setExamAnswers] = useState<{[subject: string]: {[index: number]: string}}>({});
-  const [examTimeRemaining, setExamTimeRemaining] = useState(7200); // 2 hours
-  const [examShowSubmitConfirm, setExamShowSubmitConfirm] = useState(false);
-  const [examResult, setExamResult] = useState<any>(null);
-  const [isExamSidebarVisible, setIsExamSidebarVisible] = useState(true);
 
-  const mockRegNumber = useMemo(() => {
-    return '2026' + Math.floor(10000000 + Math.random() * 90000000).toString() + 'JB';
-  }, []);
-
-    const examQuestionsStore = useMemo(() => {
-    const subjectsDict: {[key: string]: any[]} = {};
-    const ALL_AVAILABLE = ['Use of English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'Government', 'Literature in English'];
-    
-    // High-Granularity Subject Structure (2000-5000 range per major subject)
-    const subjectStructures: {[key: string]: {topic: string, count: number}[]} = {
-      'Biology': [
-        { topic: 'Cell Biology', count: 300 },
-        { topic: 'Ecology', count: 400 },
-        { topic: 'Genetics', count: 300 },
-        { topic: 'Reproduction', count: 300 },
-        { topic: 'Evolution', count: 200 },
-        { topic: 'Human Systems', count: 500 },
-        { topic: 'Plant Biology', count: 500 }
-      ],
-      'Use of English': [
-        { topic: 'Lexis and Structure', count: 1500 },
-        { topic: 'Synonyms and Antonyms', count: 1200 },
-        { topic: 'Oral English', count: 800 },
-        { topic: 'Registers', count: 500 },
-        { topic: 'Idioms and Phrases', count: 1000 }
-      ],
-      'Chemistry': [
-        { topic: 'Atomic Structure', count: 800 },
-        { topic: 'Chemical Equilibrium', count: 700 },
-        { topic: 'Organic Chemistry', count: 1000 },
-        { topic: 'Acids, Bases and Salts', count: 800 },
-        { topic: 'Redox Systems', count: 800 },
-        { topic: 'Experimental Chemistry', count: 900 }
-      ],
-      'Mathematics': [
-        { topic: 'Algebra', count: 300 },
-        { topic: 'Trigonometry', count: 200 },
-        { topic: 'Calculus', count: 200 },
-        { topic: 'Statistics', count: 200 },
-        { topic: 'Geometry', count: 100 }
-      ],
-      'Physics': [
-        { topic: 'Mechanics', count: 300 },
-        { topic: 'Thermodynamics', count: 200 },
-        { topic: 'Waves and Optics', count: 300 },
-        { topic: 'Electricity', count: 200 }
-      ]
-    };
-
-    // Deep Resources for Procedural Generation
-    const englishVocab = [
-      { w: 'diligent', s: 'hardworking', a: 'lazy' }, { w: 'candid', s: 'honest', a: 'deceptive' },
-      { w: 'tenacious', s: 'persistent', a: 'weak' }, { w: 'prudent', s: 'wise', a: 'rash' },
-      { w: 'audacious', s: 'bold', a: 'timid' }, { w: 'gregarious', s: 'sociable', a: 'introverted' },
-      { w: 'frugal', s: 'thrifty', a: 'extravagant' }, { w: 'eloquent', s: 'fluent', a: 'inarticulate' },
-      { w: 'meticulous', s: 'careful', a: 'negligent' }, { w: 'nefarious', s: 'wicked', a: 'noble' },
-      { w: 'ephemeral', s: 'short-lived', a: 'eternal' }, { w: 'resilient', s: 'tough', a: 'fragile' },
-      { w: 'ubiquitous', s: 'pervasive', a: 'rare' }, { w: 'pragmatic', s: 'practical', a: 'idealistic' }
-    ];
-
-    const grammarStems = [
-      { q: "The boy, along with his parents, _______ coming to the party.", c: "is", w: ["are", "were", "being"] },
-      { q: "Neither of the two candidates _______ qualified for the office.", c: "is", w: ["are", "was", "were"] },
-      { q: "One of the most interesting books _______ been lost.", c: "has", w: ["have", "is", "had"] },
-      { q: "The news of the accident _______ very shocking.", c: "was", w: ["were", "are", "been"] },
-      { q: "If I _______ you, I would take the offer.", c: "were", w: ["was", "am", "be"] },
-      { q: "She had barely finished her work _______ the bell rang.", c: "when", w: ["than", "then", "while"] },
-      { q: "The teacher as well as the students _______ present.", c: "was", w: ["were", "are", "have"] }
-    ];
-
-    const bioPool = {
-      'Genetics': [
-        { q: "The phenotypic ratio of a Mendelian monohybrid cross in F2 is _______", c: "3:1", w: ["1:2:1", "9:3:3:1", "1:1"] },
-        { q: "Which of the following is an example of continuous variation?", c: "Height", w: ["Blood group", "Tongue rolling", "Sex"] },
-        { q: "A cross between a red flower and a white flower resulting in pink flowers is an example of _______", c: "Incomplete dominance", w: ["Co-dominance", "Recessive epistasis", "Complete dominance"] },
-        { q: "The sex of a human offspring is determined by the _______", c: "Male gamete", w: ["Female gamete", "Environmental temperature", "Age of the parents"] },
-        { q: "Which of the following is a sex-linked character?", c: "Haemophilia", w: ["Albinism", "Sickle cell anaemia", "Night blindness"] },
-        { q: "The condition where an individual has three copies of chromosome 21 is known as _______", c: "Down syndrome", w: ["Turner syndrome", "Klinefelter syndrome", "Edward syndrome"] }
-      ],
-      'Cell Biology': [
-        { q: "Which organelle is primarily responsible for ATP production?", c: "Mitochondrion", w: ["Nucleus", "Ribosome", "Golgi body"] },
-        { q: "The basic unit of life in all organisms is the _______", c: "Cell", w: ["Tissue", "Organ", "System"] }
-      ]
-    };
-
-    ALL_AVAILABLE.forEach(subject => {
-      const structure = subjectStructures[subject] || [{ topic: 'General Concepts', count: 1000 }];
-      const subjectPool: any[] = [];
-      const isEnglish = subject === 'Use of English';
-
-      structure.forEach(({ topic, count }) => {
-        for (let i = 0; i < count; i++) {
-          const varietyKey = (i + subject.length + topic.length);
-          let qData: any = null;
-
-          if (isEnglish) {
-            if (topic === 'Synonyms and Antonyms') {
-              const entry = englishVocab[i % englishVocab.length];
-              const isSyn = varietyKey % 2 === 0;
-              const templates = [
-                `Choose the option NEAREST in meaning to the underlined word: Her {w} nature won her many friends.`,
-                `Choose the option NEAREST in meaning to the underlined word: The speaker was {w} throughout the event.`,
-                `Choose the option OPPOSITE in meaning to the underlined word: His {w} attitude was quite surprising.`,
-                `Choose the option OPPOSITE in meaning to the underlined word: It was a {w} moment for the team.`
-              ];
-              const tpl = templates[i % templates.length];
-              const activeIsSyn = tpl.includes('NEAREST');
-
-              qData = {
-                q: tpl.replace('{w}', entry.w),
-                c: activeIsSyn ? entry.s : entry.a,
-                w: [activeIsSyn ? entry.a : entry.s, 'Vague', 'Irrelevant'],
-                exp: activeIsSyn ? `${entry.s} is a synonym.` : `${entry.a} is an antonym.`
-              };
-            } else {
-              const stem = grammarStems[i % grammarStems.length];
-              qData = {
-                q: stem.q.replace('_______', `(${i+1})`),
-                c: stem.c,
-                w: stem.w,
-                exp: "This evaluates subject-verb agreement (Concord) and grammatical structure rules."
-              };
-            }
-          } else if (subject === 'Biology') {
-            const list = (bioPool as any)[topic];
-            if (list) {
-              const raw = list[i % list.length];
-              qData = { q: raw.q, c: raw.c, w: raw.w, exp: `Relates to ${topic} curriculum.` };
-            } else {
-              qData = {
-                q: `[${topic}] Question ${i+1}: Identify the role of ${topic.toLowerCase()} components in biological systems.`,
-                c: `Valid Biological Response ${i}`,
-                w: ["Metabolic Error", "Genetic Drift Distortion", "Inorganic Replacement"],
-                exp: "Detailed textbook explanation."
-              };
-            }
-          } else if (subject === 'Chemistry') {
-            if (topic === 'Atomic Structure') {
-              const protons = (i % 20) + 1;
-              qData = {
-                q: `Chemistry: An element with atomic number ${protons} and mass number ${protons*2 + (i%3)} has how many neutrons?`,
-                c: `${protons + (i%3)}`,
-                w: [`${protons}`, `${protons*2}`, '0'],
-                exp: 'Neutrons = Mass Number - Atomic Number.'
-              };
-            } else {
-              qData = {
-                q: `[${topic}] Assessment ${i+1}: Predict the resultant pH when a strong acid reacts with a weak base in ${topic.toLowerCase()} scenarios.`,
-                c: `Acidic Result ${i}`,
-                w: ["Basic Reaction", "Neutral Drift", "Volatile Escape"],
-                exp: "Acid-base neutralization principles."
-              };
-            }
-          } else {
-            qData = {
-              q: `${subject} Question [${topic}] ${i+1}: Based on professional SS3 curriculum standards.`,
-              c: `Standard Correct Output ${i}`,
-              w: ["Invalid Theory", "Common Pitfall", "Syllabus Boundary Error"],
-              exp: "Core subject concept mastery."
-            };
-          }
-
-          // Randomize option placement A-D
-          const placement = (i * 3 + varietyKey) % 4;
-          const opts = ["", "", "", ""];
-          opts[placement] = qData.c;
-          let wIdx = 0;
-          for (let s = 0; s < 4; s++) {
-            if (s !== placement) {
-              opts[s] = qData.w[wIdx] || "None of the above";
-              wIdx++;
-            }
-          }
-
-          subjectPool.push({
-            id: `${subject}-${topic.replace(/\s+/g, '-')}-${i}`,
-            topic: topic,
-            question: qData.q,
-            options: { A: opts[0], B: opts[1], C: opts[2], D: opts[3] },
-            correctAnswer: ['A', 'B', 'C', 'D'][placement],
-            explanation: qData.exp,
-            difficulty: (i % 5 === 0) ? 'Hard' : ((i % 3 === 0) ? 'Medium' : 'Easy')
-          });
-        }
-      });
-      
-      // Shuffle the pool to ensure "Random Order"
-      subjectsDict[subject] = subjectPool.sort((a, b) => {
-        const hashA = a.id.split('').reduce((acc: number, val: string) => acc + val.charCodeAt(0), 0);
-        const hashB = b.id.split('').reduce((acc: number, val: string) => acc + val.charCodeAt(0), 0);
-        return Math.sin(hashA) - Math.sin(hashB);
-      });
-    });
-
-    return subjectsDict;
-  }, []);
-
-  const handleExamAnswer = (choice: string) => {
-    setExamAnswers(prev => ({
-      ...prev,
-      [examCurrentSubject]: {
-        ...(prev[examCurrentSubject] || {}),
-        [examCurrentQuestionIndex]: choice
-      }
-    }));
-  };
-
-  const handleExamNext = () => {
-    if (!activeExamQuestions || !examCurrentSubject) return;
-    const subjectQs = activeExamQuestions[examCurrentSubject];
-    if (!subjectQs) return;
-
-    if (examCurrentQuestionIndex < subjectQs.length - 1) {
-      setExamCurrentQuestionIndex(prev => prev + 1);
-    } else {
-      // Switch to next subject if available
-      const currentSubIdx = examSelectedSubjects.indexOf(examCurrentSubject);
-      if (currentSubIdx !== -1 && currentSubIdx < examSelectedSubjects.length - 1) {
-        setExamCurrentSubject(examSelectedSubjects[currentSubIdx + 1]);
-        setExamCurrentQuestionIndex(0);
-      }
-    }
-  };
-
-  const handleExamPrev = () => {
-    if (!activeExamQuestions || !examCurrentSubject) return;
-    
-    if (examCurrentQuestionIndex > 0) {
-      setExamCurrentQuestionIndex(prev => prev - 1);
-    } else {
-      // Switch to previous subject if available
-      const currentSubIdx = examSelectedSubjects.indexOf(examCurrentSubject);
-      if (currentSubIdx > 0) {
-        const prevSubject = examSelectedSubjects[currentSubIdx - 1];
-        const prevSubjectQs = activeExamQuestions[prevSubject];
-        if (prevSubjectQs) {
-          setExamCurrentSubject(prevSubject);
-          setExamCurrentQuestionIndex(prevSubjectQs.length - 1);
-        }
-      }
-    }
-  };
-
-  const calculateExamScore = () => {
-    let totalScore = 0;
-    let subjectScores: {[key: string]: any} = {};
-    
-    examSelectedSubjects.forEach(subject => {
-      let subjectCorrect = 0;
-      const questions = activeExamQuestions[subject] || [];
-      const answers = examAnswers[subject] || {};
-      
-      questions.forEach((q, idx) => {
-        if (answers[idx] === q.correctAnswer) {
-          subjectCorrect++;
-        }
-      });
-      
-      const maxPossible = questions.length || 1;
-      const score = Math.round((subjectCorrect / maxPossible) * 100);
-      subjectScores[subject] = {
-        score: score,
-        correct: subjectCorrect,
-        total: questions.length
-      };
-      totalScore += score;
-    });
-    
-    return { totalScore, subjectScores };
-  };
-
-  const handleExamSubmit = () => {
-    const results = calculateExamScore();
-    setExamResult(results);
-    setIsExamStarted(false);
-    setExamShowSubmitConfirm(false);
-  };
 
   // Check if current time is within battle window (Sunday or Monday 7:00 PM - 7:55 PM)
   const isEntryAllowed = () => {
@@ -3050,1173 +3982,7 @@ function ExonaApp() {
     return () => clearInterval(interval);
   }, [isTimerActive, battleTimeLeft, battleStep, guestInfo, battleScore, currentBattleQuestions, user]);
 
-  // E-EXAM TIMER LOGIC
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isExamStarted && examTimeRemaining > 0 && !examShowSubmitConfirm) {
-      interval = setInterval(() => {
-        setExamTimeRemaining(prev => prev - 1);
-      }, 1000);
-    } else if (examTimeRemaining === 0 && isExamStarted) {
-      handleExamSubmit();
-    }
-    return () => clearInterval(interval);
-  }, [isExamStarted, examTimeRemaining, examShowSubmitConfirm]);
 
-  // E-EXAM KEYBOARD SHORTCUTS
-  useEffect(() => {
-    if (!isExamStarted) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toUpperCase();
-      
-      // Prevent browser default for some keys
-      if (['A', 'B', 'C', 'D', 'N', 'P', 'S', 'R'].includes(key)) {
-        // e.preventDefault(); // Might interfere with inputs if any, but JAMB doesn't have other inputs
-      }
-
-      if (['A', 'B', 'C', 'D'].includes(key)) {
-        handleExamAnswer(key);
-      } else if (key === 'N') {
-        handleExamNext();
-      } else if (key === 'P') {
-        handleExamPrev();
-      } else if (key === 'S') {
-        setExamShowSubmitConfirm(true);
-      } else if (key === 'R') {
-        setExamShowSubmitConfirm(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isExamStarted, examCurrentSubject, examCurrentQuestionIndex]);
-
-  const formatExamTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const renderBrainBattle = () => (
-    <BrainBattleModal 
-      isActive={isBrainBattleActive}
-      setIsActive={setIsBrainBattleActive}
-      step={battleStep}
-      setStep={setBattleStep}
-      guestInfo={guestInfo}
-      setGuestInfo={setGuestInfo}
-      score={battleScore}
-      setScore={setBattleScore}
-      currentIndex={currentQuestionIndex}
-      setCurrentIndex={setCurrentQuestionIndex}
-      answered={answeredQuestions}
-      setAnswered={setAnsweredQuestions}
-      questions={currentBattleQuestions}
-      user={user}
-      userDoc={userDoc}
-      onNotify={showNotification}
-      onJoin={() => setAuthMode('signup')}
-      timeLeft={battleTimeLeft}
-      setTimeLeft={setBattleTimeLeft}
-      timerActive={isTimerActive}
-      setTimerActive={setIsTimerActive}
-      leaderboard={leaderboard}
-      onFetchLeaderboard={fetchLeaderboard}
-      onShareResult={handleShareBattleResult}
-      onCheckParticipation={checkParticipation}
-    />
-  );
-
-  const NotificationsModal = () => (
-    <AnimatePresence>
-      {isNotificationsModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="w-full max-w-lg bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh]"
-          >
-            <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                   <h3 className="text-2xl font-black text-ink tracking-tight">Broadcast Feed</h3>
-                   <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100">
-                      <div className="w-1 h-1 bg-emerald-500 rounded-full animate-pulse" />
-                      <span className="text-[8px] font-black uppercase tracking-widest">Live</span>
-                   </div>
-                </div>
-                <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1">National Communication Protocol</p>
-              </div>
-              <button 
-                onClick={() => setIsNotificationsModalOpen(false)}
-                className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="flex-1 flex flex-col overflow-hidden">
-               {/* Categories */}
-               <div className="px-8 py-4 flex gap-2 border-b border-gray-50 overflow-x-auto no-scrollbar">
-                  {['all', 'system', 'social', 'treasury'].map((cat) => (
-                    <button 
-                      key={cat}
-                      onClick={() => setNotificationFilter(cat as any)}
-                      className={`px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                        notificationFilter === cat 
-                          ? 'bg-ink text-white' 
-                          : 'bg-gray-50 text-muted hover:bg-gray-100'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-               </div>
-
-               {/* Action Bar */}
-               <div className="px-8 py-3 flex items-center justify-between bg-white border-b border-gray-50">
-                  <div className="flex items-center gap-3">
-                    <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Active Archives</span>
-                    {notificationPermission !== 'granted' && (
-                      <button 
-                        onClick={requestNotificationPermission}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-accent/10 border border-accent/20 rounded-full text-[8px] font-black uppercase text-accent animate-pulse"
-                      >
-                         <ShieldCheck size={10} />
-                         Activate Phone Alerts
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-4">
-                     <button 
-                       onClick={markAllNotificationsAsRead}
-                       className="text-[9px] font-black text-accent uppercase tracking-widest hover:underline"
-                     >
-                        Mark Read
-                     </button>
-                     <button 
-                       onClick={clearAllNotifications}
-                       className="text-[9px] font-black text-red-500 uppercase tracking-widest hover:underline"
-                     >
-                        Clear Feed
-                     </button>
-                  </div>
-               </div>
-
-               {/* Device Integration Status */}
-               <div className="px-8 mt-6">
-                  <div className="flex items-center justify-between mb-3 px-2">
-                     <h5 className="text-[9px] font-black text-ink uppercase tracking-widest">Protocol Sync Status</h5>
-                     {deferredPrompt && (
-                        <button 
-                          onClick={installApp}
-                          className="flex items-center gap-1.5 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest animate-bounce"
-                        >
-                           <Download size={10} />
-                           Install APK/App
-                        </button>
-                     )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                     {/* Telegram Status */}
-                     <div className={`p-4 rounded-[2rem] border transition-all ${
-                       window.Telegram?.WebApp 
-                         ? 'bg-blue-50/50 border-blue-100' 
-                         : 'bg-gray-50 border-gray-100 grayscale opacity-60'
-                     }`}>
-                        <div className="flex items-center gap-2 mb-3">
-                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${window.Telegram?.WebApp ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                              <Send size={14} />
-                           </div>
-                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Telegram</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                           <div className={`w-1 h-1 rounded-full ${window.Telegram?.WebApp ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-                           <span className={`text-[8px] font-bold uppercase tracking-widest ${window.Telegram?.WebApp ? 'text-emerald-600' : 'text-muted'}`}>
-                              {window.Telegram?.WebApp ? 'Connected' : 'Offline'}
-                           </span>
-                        </div>
-                     </div>
-
-                     {/* Web Push Status */}
-                     <div className={`p-4 rounded-[2rem] border transition-all ${
-                       notificationPermission === 'granted'
-                         ? 'bg-purple-50/50 border-purple-100' 
-                         : 'bg-gray-50 border-gray-100'
-                     }`}>
-                        <div className="flex items-center gap-2 mb-3">
-                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${notificationPermission === 'granted' ? 'bg-purple-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                              <Zap size={14} />
-                           </div>
-                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Push Engine</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                           <div className={`w-1 h-1 rounded-full ${notificationPermission === 'granted' ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-                           <span className={`text-[8px] font-bold uppercase tracking-widest ${notificationPermission === 'granted' ? 'text-emerald-600' : 'text-muted'}`}>
-                              {notificationPermission === 'granted' ? 'Active' : 'Standby'}
-                           </span>
-                        </div>
-                     </div>
-
-                     {/* APK/Standalone Status */}
-                     <div className={`p-4 rounded-[2rem] border transition-all ${
-                       isStandalone
-                         ? 'bg-emerald-50/50 border-emerald-100' 
-                         : 'bg-gray-50 border-gray-100'
-                     }`}>
-                        <div className="flex items-center gap-2 mb-3">
-                           <div className={`h-7 w-7 rounded-lg flex items-center justify-center ${isStandalone ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-400'}`}>
-                              <Smartphone size={14} />
-                           </div>
-                           <span className="text-[9px] font-black text-ink uppercase tracking-wider">Native Shell</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                           <div className={`w-1 h-1 rounded-full ${isStandalone ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'}`} />
-                           <span className={`text-[8px] font-bold uppercase tracking-widest ${isStandalone ? 'text-emerald-600' : 'text-muted'}`}>
-                              {isStandalone ? 'Institutional' : 'Standard Web'}
-                           </span>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-
-               <div className="flex-1 overflow-y-auto p-8 space-y-4 custom-scrollbar">
-                  {notifications.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-12">
-                       <div className="h-20 w-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-200 mb-4">
-                          <Bell size={40} />
-                       </div>
-                       <p className="text-sm font-black text-ink uppercase tracking-wider">Feed Zero</p>
-                       <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Institutional quiet mode active</p>
-                    </div>
-                  ) : (
-                    notifications
-                      .filter(n => notificationFilter === 'all' || n.category === notificationFilter)
-                      .map((n) => (
-                        <motion.div 
-                          layout
-                          key={n.id}
-                          className={`p-6 rounded-[2rem] border transition-all relative group ${
-                            n.isRead 
-                              ? 'bg-gray-50/50 border-gray-100' 
-                              : 'bg-white border-accent/20 ring-1 ring-accent/5'
-                          }`}
-                        >
-                           {!n.isRead && <div className="absolute top-6 right-6 w-2 h-2 bg-accent rounded-full animate-pulse" />}
-                           <div className="flex gap-5">
-                              <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                                n.type === 'alert' ? 'bg-red-50 text-red-600' :
-                                n.type === 'reward' ? 'bg-emerald-50 text-emerald-600' :
-                                'bg-blue-50 text-blue-600'
-                              }`}>
-                                 {n.type === 'alert' ? <AlertTriangle size={24} /> :
-                                  n.type === 'reward' ? <Sparkles size={24} /> :
-                                  <Bell size={24} />}
-                              </div>
-                              <div className="flex-1">
-                                 <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-muted">{n.category || 'Archive'}</span>
-                                    <span className="text-gray-200">•</span>
-                                    <span className="text-[10px] font-bold text-muted">{formatTime(n.timestamp)}</span>
-                                 </div>
-                                 <h4 className="text-sm font-black text-ink tracking-tight mb-1">{n.title}</h4>
-                                 <p className="text-xs text-muted font-medium leading-relaxed">{n.text}</p>
-                                 
-                                 <div className="flex items-center gap-3 mt-4">
-                                    {!n.isRead && (
-                                       <button 
-                                         onClick={() => markNotificationAsRead(n.id)}
-                                         className="px-4 py-1.5 rounded-xl bg-ink text-white text-[9px] font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all"
-                                       >
-                                          Acknowledge
-                                       </button>
-                                    )}
-                                    <button 
-                                      onClick={() => deleteNotification(n.id)}
-                                      className="p-1.5 text-muted hover:text-red-500 transition-colors"
-                                    >
-                                       <Trash2 size={16} />
-                                    </button>
-                                 </div>
-                              </div>
-                           </div>
-                        </motion.div>
-                      ))
-                  )}
-               </div>
-            </div>
-
-            <div className="p-8 bg-gray-50 flex items-center justify-center gap-3 border-t border-gray-100">
-               <ShieldCheck size={14} className="text-emerald-600" />
-               <p className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Communication Core: Synced & Encryption Verified</p>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
-
-  const DataStorageModal = () => {
-    // Combine all real records into a single unified stream
-    const combinedActivity = [
-      ...notifications.map(n => ({ 
-        id: n.id, 
-        type: 'SIGNAL', 
-        label: n.title, 
-        time: n.timestamp?.seconds ? new Date(n.timestamp.seconds * 1000) : new Date(),
-        status: n.read ? 'ARCHIVED' : 'ACQUIRED',
-        raw: n 
-      })),
-      ...exonHistory.map(t => ({ 
-        id: t.id, 
-        type: 'TRANS', 
-        label: `Transaction: ${t.type.toUpperCase()}`, 
-        time: t.timestamp?.seconds ? new Date(t.timestamp.seconds * 1000) : new Date(),
-        status: 'SECURED',
-        raw: t 
-      })),
-      ...(posts || []).map((p: any) => ({ 
-        id: p.id, 
-        type: 'POST', 
-        label: p.text?.substring(0, 30) || 'Media Record', 
-        time: p.createdAt?.seconds ? new Date(p.createdAt.seconds * 1000) : new Date(),
-        status: 'PUBLIC',
-        raw: p 
-      }))
-    ].sort((a, b) => b.time.getTime() - a.time.getTime());
-
-    const totalRecords = combinedActivity.length;
-    // Calculate a pseudo-usage based on records (scaling to 100% at 5000 records)
-    const usage = Math.min(99.9, Math.max(8.5, (totalRecords / 50) * 100));
-
-    return (
-      <AnimatePresence>
-        {isDataStorageModalOpen && (
-          <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="w-full max-w-xl bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh] border border-white/20"
-            >
-              <div className="p-12 bg-gradient-to-b from-gray-50/50 to-white border-b border-gray-100/80 relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="flex items-center gap-4 mb-3">
-                    <div className="h-2 w-2 rounded-full bg-accent relative">
-                      <div className="absolute inset-0 rounded-full bg-accent animate-ping" />
-                    </div>
-                    <span className="text-[10px] font-black text-ink uppercase tracking-[0.4em] opacity-60">Archive Integrity: Verified</span>
-                  </div>
-                  <h3 className="text-4xl font-black text-ink tracking-tight mb-3">Institutional Vault</h3>
-                  <p className="text-[12px] text-muted font-medium max-w-[320px] leading-relaxed">Continuous audit of decentralized records Persisted within your secure workspace.</p>
-                </div>
-                <div className="absolute top-0 right-0 p-10">
-                  <button 
-                    onClick={() => setIsDataStorageModalOpen(false)}
-                    className="h-14 w-14 bg-white border border-gray-100 rounded-3xl flex items-center justify-center text-muted hover:text-ink transition-all active:scale-90"
-                  >
-                    <X size={20} strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar">
-                <section>
-                  <div className="flex items-center justify-between mb-6 px-2">
-                    <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em]">Grid Analysis</h4>
-                    <span className="text-[11px] font-black text-ink tabular-nums">{totalRecords} Persisted Objects</span>
-                  </div>
-                  <div className="h-32 w-full bg-gray-50/50 rounded-[2.5rem] p-8 border border-gray-100/60 flex items-center gap-8 group">
-                    <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 text-accent flex items-center justify-center group-hover:scale-105 transition-transform duration-500">
-                      <Database size={24} strokeWidth={1.2} />
-                    </div>
-                    <div className="flex-1 space-y-4">
-                      <div className="h-4 w-full bg-gray-200/50 rounded-full overflow-hidden p-0.5">
-                        <motion.div 
-                          className="h-full bg-accent rounded-full"
-                          initial={{ width: 0 }}
-                          animate={{ width: `${usage}%` }}
-                          transition={{ type: 'spring', damping: 25, stiffness: 40, delay: 0.3 }}
-                        />
-                      </div>
-                      <div className="flex justify-between items-center font-mono text-[9px] font-bold text-muted uppercase tracking-widest">
-                        <span>Cluster Latency: 0.00ms</span>
-                        <span>Capacity: {usage.toFixed(2)}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-6 px-2 text-center underline decoration-accent/20 underline-offset-8">Registry Activity Log</h4>
-                  <div className="space-y-4">
-                    <AnimatePresence mode="popLayout">
-                      {combinedActivity.length > 0 ? combinedActivity.slice(0, 15).map((item, idx) => (
-                        <motion.div 
-                          key={item.id}
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0, transition: { delay: idx * 0.03 } }}
-                          className="group p-6 rounded-[2.5rem] bg-white border border-gray-100 hover:border-accent/20 transition-all cursor-default"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-6">
-                              <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-[8px] font-black text-muted/60 tracking-tighter group-hover:bg-accent/5 group-hover:text-accent transition-colors duration-500">
-                                {item.type}
-                              </div>
-                              <div>
-                                <p className="text-[13px] font-black text-ink tracking-tight uppercase leading-none mb-1">{item.label}</p>
-                                <p className="text-[9px] font-mono font-bold text-muted uppercase tracking-widest">{item.time.toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 px-4 py-2 bg-emerald-50/50 rounded-full border border-emerald-100/50">
-                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                               <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{item.status}</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )) : (
-                        <div className="p-16 text-center border-2 border-dashed border-gray-100 rounded-[3.5rem] bg-gray-50/30">
-                           <p className="text-[10px] font-black text-muted uppercase tracking-[0.5em]">System Idle: No Persistent Data</p>
-                        </div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </section>
-              </div>
-
-              <div className="p-12 bg-ink text-white">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/50">Status</p>
-                    <p className="text-[14px] font-black uppercase tracking-widest">Master Ledger: Stable</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
-                     <div className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    );
-  };
-
-  const HelpCentreModal = () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    
-    return (
-      <AnimatePresence>
-        {isHelpCentreModalOpen && (
-          <div className="fixed inset-0 z-[750] flex items-center justify-center bg-ink/70 backdrop-blur-3xl p-4 sm:p-8">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="w-full max-w-2xl bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh] border border-white/20"
-            >
-              <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
-                 <div>
-                   <div className="flex items-center gap-3 mb-1">
-                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                     <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active Support Node</span>
-                   </div>
-                   <h3 className="text-3xl font-black text-ink uppercase tracking-tight italic">Exona Help Core</h3>
-                   <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">System Support & Institutional Guidelines</p>
-                 </div>
-                 <button 
-                   onClick={() => setIsHelpCentreModalOpen(false)}
-                   className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
-                 >
-                   <X size={24} />
-                 </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
-                 {/* Search Bar */}
-                 <div className="relative mb-10">
-                   <div className="absolute inset-y-0 left-6 flex items-center text-muted/40 pointer-events-none">
-                     <Search size={20} />
-                   </div>
-                   <input 
-                     type="text"
-                     placeholder="QUERY THE KNOWLEDGE ARCHIVE..."
-                     value={searchQuery}
-                     onChange={(e) => setSearchQuery(e.target.value)}
-                     className="w-full h-18 bg-white border border-gray-100 rounded-[2rem] pl-16 pr-8 text-sm font-black uppercase tracking-tight focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all outline-none"
-                   />
-                 </div>
-
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-                   {[
-                     { icon: Book, title: 'Knowledge Base', desc: 'Detailed manuals for every institutional module.', count: '142 Articles' },
-                     { icon: ShieldCheck, title: 'Security Brief', desc: 'Overview of Layer-5 decentralized encryption.', count: 'Verified' },
-                     { icon: Zap, title: 'System Pulse', desc: 'Real-time status of all Exona institutional nodes.', count: 'Stable' },
-                     { icon: MessageSquare, title: 'Auditor Chat', desc: 'Direct secure line to system administrators.', count: 'Instant' }
-                   ].map((item, idx) => (
-                     <button key={idx} className="p-6 rounded-[2.5rem] bg-white border border-gray-100 text-left hover:border-accent transition-all group overflow-hidden relative">
-                       <div className="absolute top-0 right-0 p-4 opacity-[0.03] -rotate-12 transform group-hover:scale-125 transition-transform duration-700">
-                         <item.icon size={80} />
-                       </div>
-                       <div className="flex items-start justify-between mb-4 relative z-10">
-                         <div className="h-12 w-12 rounded-2xl bg-accent/5 text-accent flex items-center justify-center group-hover:scale-110 transition-transform">
-                           <item.icon size={24} />
-                         </div>
-                         <span className="text-[8px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-1 rounded-full">{item.count}</span>
-                       </div>
-                       <h4 className="text-sm font-black text-ink uppercase tracking-tight mb-1 relative z-10">{item.title}</h4>
-                       <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-relaxed relative z-10">{item.desc}</p>
-                     </button>
-                   ))}
-                 </div>
-
-                 {/* Help Categories */}
-                 <div className="space-y-8">
-                   <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Institutional IQ</h4>
-                   <div className="grid grid-cols-3 gap-3">
-                     {['Admissions', 'Financials', 'Governance', 'Technical', 'Security', 'Academic'].map((cat) => (
-                       <button key={cat} className="py-4 rounded-2xl bg-white border border-gray-100 text-[10px] font-black uppercase tracking-widest text-ink hover:bg-gray-50 transition-all">
-                         {cat}
-                       </button>
-                     ))}
-                   </div>
-                 </div>
-
-                 <div className="mt-12 space-y-8">
-                   <h4 className="text-[11px] font-black text-accent uppercase tracking-[0.4em] mb-4">Core Documentation</h4>
-                   <div className="space-y-4">
-                     {[
-                       { q: "How are my records secured?", a: "Every record is hashed and distributed across decentralized nodes, making them immutable and impossible to forge." },
-                       { q: "What is an Institutional Auditor?", a: "Auditors are certified administrators who oversee the integrity of institutional data and handle disputes." },
-                       { q: "Can I use Exona offline?", a: "Limited core features are available offline via PWA caching; sync resumes when connectivity is restored." },
-                       { q: "Institutional Data Recovery", a: "Lost credentials can only be recovered through biometric verification at a certified Exona node." }
-                     ].map((faq, i) => (
-                       <div key={i} className="p-6 rounded-3xl bg-white border border-gray-100 group hover:border-accent transition-colors">
-                         <div className="flex items-center gap-3 mb-2">
-                           <HelpCircle size={14} className="text-accent" />
-                           <p className="text-[13px] font-black text-ink uppercase tracking-tight">{faq.q}</p>
-                         </div>
-                         <p className="text-[11px] text-muted font-medium leading-relaxed pl-7">{faq.a}</p>
-                       </div>
-                     ))}
-                   </div>
-                 </div>
-              </div>
-
-              <div className="p-8 bg-ink text-white flex items-center justify-between shrink-0">
-                 <div className="flex items-center gap-4">
-                   <div className="h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center">
-                      <Mail size={18} className="text-accent" />
-                   </div>
-                   <div>
-                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Need more help?</p>
-                      <p className="text-[12px] font-black uppercase tracking-tight">support@exona.io</p>
-                   </div>
-                 </div>
-                 <button className="px-6 py-3 bg-white/10 hover:bg-white text-white hover:text-ink rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                    Open Support Ticket
-                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    );
-  };
-
-  const LegalModal = () => (
-    <AnimatePresence>
-      {isLegalModalOpen && (
-        <div className="fixed inset-0 z-[800] flex items-center justify-center bg-black/60 backdrop-blur-3xl p-4 sm:p-8">
-          <motion.div 
-            initial={{ scale: 0.95, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            className="w-full max-w-2xl bg-white rounded-[3rem] overflow-hidden flex flex-col h-[85vh] border border-white/20"
-          >
-            <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
-               <div>
-                 <h3 className="text-3xl font-black text-ink uppercase tracking-tight">Legal Protocols</h3>
-                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.3em] mt-1">Exona Governance & Privacy Framework</p>
-               </div>
-               <button 
-                 onClick={() => setIsLegalModalOpen(false)}
-                 className="h-14 w-14 bg-gray-50 text-muted rounded-3xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100"
-               >
-                 <X size={24} />
-               </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gray-50/20">
-               <div className="prose prose-sm max-w-none space-y-12">
-                 <section>
-                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
-                       <span className="h-[1px] w-8 bg-accent" /> Agreement of Use
-                    </h4>
-                    <p className="text-[14px] text-muted font-medium leading-relaxed">
-                       By accessing the Exona Network, users agree to abide by institutional guidelines. All records created are subject to verification by designated auditors. Misuse of platform capabilities for falsifying records result in immediate account termination and institutional reporting.
-                    </p>
-                 </section>
-
-                 <section>
-                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
-                       <span className="h-[1px] w-8 bg-accent" /> Privacy & Encryption
-                    </h4>
-                    <p className="text-[14px] text-muted font-medium leading-relaxed">
-                       Your data is encrypted using Layer-5 decentralized protocols. Private metadata is never sold or shared with external advertising engines. Data access is strictly compartmentalized based on verified institutional roles (Admin, Management, Member).
-                    </p>
-                 </section>
-
-                 <section>
-                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
-                       <span className="h-[1px] w-8 bg-accent" /> Intellectual Property
-                    </h4>
-                    <p className="text-[14px] text-muted font-medium leading-relaxed">
-                       All algorithms, interface designs, and modular architectures within the Exona Protocol are the exclusive intellectual property of the Network Foundation. Unauthorized redistribution or modification of core binaries is strictly prohibited.
-                    </p>
-                 </section>
-
-                 <section>
-                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
-                       <span className="h-[1px] w-8 bg-accent" /> User Responsibilities
-                    </h4>
-                    <p className="text-[14px] text-muted font-medium leading-relaxed">
-                       Users are responsible for maintaining the confidentiality of their decentralized keys. Compromised keys must be reported immediately to the closest Regional Auditor Node for account quarantine.
-                    </p>
-                 </section>
-
-                 <section>
-                    <h4 className="text-[12px] font-black text-ink uppercase tracking-[0.5em] mb-6 flex items-center gap-3">
-                       <span className="h-[1px] w-8 bg-accent" /> Record Persistence
-                    </h4>
-                    <p className="text-[14px] text-muted font-medium leading-relaxed">
-                       Verified records are stored within the Exona secure ledger. Once a record has been authorized, it becomes a permanent part of the institutional history, ensuring data integrity across future audits.
-                    </p>
-                 </section>
-
-                 <div className="p-8 bg-white border border-gray-100 rounded-[2.5rem] flex items-center gap-6">
-                    <div className="h-16 w-16 bg-accent/5 rounded-2xl flex items-center justify-center text-accent shrink-0">
-                       <ShieldCheck size={32} />
-                    </div>
-                    <div>
-                       <h5 className="font-black text-ink uppercase tracking-tight text-sm mb-1">Standard Security Compliance</h5>
-                       <p className="text-[11px] text-muted font-bold tracking-widest uppercase">Verified April 2026</p>
-                    </div>
-                 </div>
-               </div>
-            </div>
-
-            <div className="p-8 bg-white border-t border-gray-100 shrink-0">
-               <button 
-                 onClick={() => setIsLegalModalOpen(false)}
-                 className="w-full py-5 bg-ink text-white rounded-[2rem] font-black text-[11px] uppercase tracking-[0.4em] hover:bg-black transition-all"
-               >
-                 I Acknowledge Governance
-               </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
-
-  const SecurityModal = () => (
-    <AnimatePresence>
-      {isSecurityModalOpen && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6 transition-all duration-500">
-          <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="w-full max-w-md bg-white rounded-[3rem] overflow-hidden flex flex-col pointer-events-auto"
-          >
-            <div className="p-8 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-black text-ink tracking-tight">Security & Privacy</h3>
-                <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">National Defense Protocols</p>
-              </div>
-              <button 
-                onClick={() => setIsSecurityModalOpen(false)}
-                className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-              <section className="space-y-4">
-                <div className="flex items-center gap-3 px-2">
-                  <Shield size={14} className="text-accent" />
-                  <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Access Controls</h4>
-                </div>
-                
-                <div className="space-y-2">
-                  {/* Floating Chip Toggle */}
-                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-accent/20 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Zap size={18} />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Wealth Display (HUD)</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Toggle dynamic island</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => setShowWealthFloatingChip(!showWealthFloatingChip)}
-                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${showWealthFloatingChip ? 'bg-accent' : 'bg-gray-200'}`}
-                    >
-                      <motion.div 
-                        animate={{ x: showWealthFloatingChip ? 24 : 0 }}
-                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300" 
-                      />
-                    </button>
-                  </div>
-
-                  {/* Biometric Guard */}
-                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-emerald-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Fingerprint size={18} />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Biometric Audit</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Secure Transaction Check</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => setIsBiometricGuardEnabled(!isBiometricGuardEnabled)}
-                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isBiometricGuardEnabled ? 'bg-emerald-600' : 'bg-gray-200'}`}
-                    >
-                      <motion.div 
-                        animate={{ x: isBiometricGuardEnabled ? 24 : 0 }}
-                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
-                      />
-                    </button>
-                  </div>
-
-                  {/* Ghost Mode */}
-                  <div className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-purple-200 transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <UserCheck size={18} />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Ghost Mode</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Vanish from search</p>
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => setIsGhostIdentityEnabled(!isGhostIdentityEnabled)}
-                      className={`w-12 h-6 rounded-full relative transition-all duration-300 ${isGhostIdentityEnabled ? 'bg-purple-600' : 'bg-gray-200'}`}
-                    >
-                      <motion.div 
-                        animate={{ x: isGhostIdentityEnabled ? 24 : 0 }}
-                        className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
-                      />
-                    </button>
-                  </div>
-
-                  {/* System Alerts */}
-                  <div className={`p-5 rounded-3xl border transition-all ${
-                    notificationPermission === 'denied' 
-                      ? 'bg-red-50/30 border-red-100' 
-                      : 'bg-gray-50/50 border-gray-100 hover:bg-white hover:border-blue-200'
-                  }`}>
-                    <div className="flex items-center justify-between mb-2">
-                       <div className="flex items-center gap-4">
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center transition-transform ${
-                          notificationPermission === 'granted' ? 'bg-blue-50 text-blue-600' :
-                          notificationPermission === 'denied' ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-muted'
-                        }`}>
-                          <Bell size={18} />
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-black text-ink uppercase tracking-tight">System Alerts</p>
-                          <p className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${
-                            notificationPermission === 'denied' ? 'text-red-500' : 'text-muted'
-                          }`}>
-                            {notificationPermission === 'denied' ? 'Communication Blocked' : 'Desktop & Phone Push'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {notificationPermission === 'granted' && (
-                          <button 
-                            onClick={() => triggerSystemNotification('Test Broadcast', 'Verification signal received. Communication active.', 'system')}
-                            className="h-8 w-8 rounded-lg bg-gray-100 flex items-center justify-center text-muted hover:bg-accent hover:text-white transition-all"
-                            title="Test Signal"
-                          >
-                            <Zap size={14} />
-                          </button>
-                        )}
-                        <button 
-                          onClick={requestNotificationPermission}
-                          className={`w-12 h-6 rounded-full relative transition-all duration-300 ${
-                            notificationPermission === 'granted' ? 'bg-blue-600' : 
-                            notificationPermission === 'denied' ? 'bg-red-400 opacity-50 cursor-not-allowed' : 'bg-gray-200'
-                          }`}
-                        >
-                          <motion.div 
-                            animate={{ x: notificationPermission === 'granted' ? 24 : 0 }}
-                            className="absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-all duration-300"
-                          />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {notificationPermission === 'denied' && (
-                      <div className="mt-3 p-3 bg-white rounded-2xl border border-red-50 flex items-center justify-between">
-                         <span className="text-[8px] font-bold text-red-600 uppercase tracking-widest">Iframe restrictions detected</span>
-                         <button 
-                           onClick={() => window.open(window.location.href, '_blank')}
-                           className="flex items-center gap-2 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:scale-105 transition-all"
-                         >
-                            <ArrowUpRight size={10} />
-                            Open in New Tab
-                         </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Help Centre */}
-                  <button 
-                    onClick={() => {
-                      setIsSecurityModalOpen(false);
-                      setTimeout(() => setIsHelpCentreModalOpen(true), 100);
-                    }}
-                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-blue-200 transition-all w-full mt-4 cursor-pointer relative z-20"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <HelpCircle size={18} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Help Centre</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Support & Documentation</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
-                  </button>
-
-                  {/* Terms & Privacy */}
-                  <button 
-                    onClick={() => {
-                      setIsSecurityModalOpen(false);
-                      setTimeout(() => setIsLegalModalOpen(true), 100);
-                    }}
-                    className="p-5 rounded-3xl bg-gray-50/50 border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-gray-300 transition-all w-full mt-4 cursor-pointer relative z-20"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-xl bg-gray-50 text-gray-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <FileText size={18} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[13px] font-black text-ink uppercase tracking-tight">Legal Protocols</p>
-                        <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5">Terms & Privacy Agreement</p>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
-                  </button>
-                </div>
-              </section>
-
-              <section className="p-6 bg-ink rounded-[2.5rem] text-white relative overflow-hidden">
-                <div className="relative z-10">
-                   <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                        <span className="text-[8px] font-black uppercase tracking-[0.4em]">Blockchain Integrity</span>
-                      </div>
-                      <span className="text-[8px] font-bold opacity-30 uppercase tracking-[0.2em]">Layer-5</span>
-                   </div>
-                   <div className="space-y-3">
-                      <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-white/40">
-                         <span>Syncing Encryption</span>
-                         <span>99.9% Secure</span>
-                      </div>
-                      <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                         <motion.div 
-                           className="h-full bg-accent"
-                           initial={{ width: 0 }}
-                           animate={{ width: '100%' }}
-                           transition={{ duration: 3, repeat: Infinity }}
-                         />
-                      </div>
-                   </div>
-                   <p className="text-[7px] font-bold text-white/20 uppercase tracking-[0.3em] mt-4 leading-relaxed">
-                     End-to-End Presidential Level Encryption active across all institutional nodes.
-                   </p>
-                </div>
-                {/* Decorative BG */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full opacity-10">
-                   <Shield size={200} className="text-white/20 -rotate-12" />
-                </div>
-              </section>
-            </div>
-
-            <div className="p-8 bg-gray-50 text-center">
-               <p className="text-[9px] font-bold text-muted uppercase tracking-[0.3em]">Institutional ID: {user.uid.slice(0, 12).toUpperCase()}</p>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
-
-  const ExonWealthModal = () => (
-    <AnimatePresence>
-      {isExonWealthOpen && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
-          <motion.div 
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="bg-white w-full max-w-lg h-full md:h-[95vh] md:rounded-[3rem] overflow-hidden flex flex-col"
-          >
-            {/* Header */}
-            <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12 pointer-events-none">
-                 <Stars size={120} className="text-accent" />
-               </div>
-               <div className="relative z-10">
-                 <h3 className="text-2xl font-black text-ink tracking-tight">Presidential Wealth Terminal</h3>
-                 <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">National Treasury Management Protocol</p>
-               </div>
-               <button 
-                 onClick={() => setIsExonWealthOpen(false)}
-                 className="h-12 w-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-muted hover:text-ink hover:scale-105 transition-all relative z-10"
-               >
-                 <X size={24} />
-               </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
-              {/* Dual Balance Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-                {/* Exon Stars Card (Gold) */}
-                <div className="bg-ink rounded-[2rem] p-6 text-center relative overflow-hidden border border-white/10 group">
-                  <div className="relative z-10">
-                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">Exon Stars</p>
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                      <Stars size={28} className="text-accent animate-pulse" />
-                      <span className="text-4xl font-black text-white tracking-tighter">
-                        {exonWallet?.balance || 0}
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-bold text-accent uppercase tracking-widest bg-accent/10 px-3 py-1 rounded-full border border-accent/20">Gold Status</span>
-                  </div>
-                  <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-accent/5 rounded-full blur-2xl" />
-                </div>
-
-                {/* Excoin Card (Silver) */}
-                <div className="bg-slate-800 rounded-[2rem] p-6 text-center relative overflow-hidden border border-white/5 group">
-                  <div className="relative z-10">
-                    <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mb-2">Excoins</p>
-                    <div className="flex items-center justify-center gap-3 mb-2">
-                      <IdCard size={28} className="text-slate-300" />
-                      <span className="text-4xl font-black text-white tracking-tighter">
-                        {excoinBalance}
-                      </span>
-                    </div>
-                    <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest bg-slate-300/10 px-3 py-1 rounded-full border border-white/10">Silver Metallic</span>
-                  </div>
-                  <div className="absolute -bottom-10 -right-10 w-24 h-24 bg-slate-300/5 rounded-full blur-2xl" />
-                </div>
-              </div>
-
-              {/* Conversion Gate */}
-              <div className="mb-8 p-6 bg-accent/[0.03] rounded-[2rem] border border-accent/10">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h4 className="text-xs font-black text-ink uppercase tracking-wider">Treasury Conversion Gate</h4>
-                    <p className="text-[10px] text-muted font-medium mt-1">Rate: 100 Exon Stars = 1 Excoin</p>
-                  </div>
-                  <RefreshCw size={18} className="text-accent/40" />
-                </div>
-                
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
-                         <span className="text-[10px] font-black text-muted uppercase tracking-widest">Available {exonWallet?.balance || 0} Stars</span>
-                         <button 
-                            disabled={(exonWallet?.balance || 0) < 100}
-                            onClick={() => handleConvertStarsToExcoin(100)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                              (exonWallet?.balance || 0) >= 100 
-                                ? 'bg-ink text-white hover:scale-105 hover:bg-black active:scale-95' 
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                         >
-                           Convert 100
-                         </button>
-                      </div>
-                    </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="grid grid-cols-2 gap-4 mb-12">
-                <button 
-                   onClick={() => handleCreditExonStars(10, 'Daily Treasury Allowance')}
-                   className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-accent/30 hover:bg-white transition-all group"
-                >
-                  <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                    <Stars size={24} />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-ink">Daily 10 Stars</span>
-                </button>
-                <button 
-                  onClick={() => setIsExonWalletOpen(false)}
-                   className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-accent/30 hover:bg-white transition-all group"
-                >
-                  <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-ink group-hover:scale-110 transition-transform">
-                    <ArrowUpDown size={24} />
-                  </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-ink">Exchange Gate</span>
-                </button>
-              </div>
-
-              {/* History */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between px-2">
-                  <h4 className="text-sm font-black text-ink uppercase tracking-wider">Transaction Ledger</h4>
-                  <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Live Audit</span>
-                     <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {exonHistory.length === 0 ? (
-                    <div className="py-20 text-center opacity-30">
-                      <Database size={48} className="mx-auto mb-4" />
-                      <p className="text-xs font-bold uppercase tracking-widest">No transaction records found</p>
-                    </div>
-                  ) : (
-                    exonHistory.map((tx) => (
-                      <div key={tx.id} className="p-5 bg-gray-50/50 rounded-3xl border border-gray-100 flex items-center justify-between group hover:bg-white hover:border-accent/20 transition-all">
-                        <div className="flex items-center gap-4">
-                          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center ${
-                            tx.type === 'credit' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-                          }`}>
-                            {tx.type === 'credit' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-                          </div>
-                          <div>
-                            <p className="text-sm font-black text-ink leading-tight">{tx.description}</p>
-                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">
-                               {tx.timestamp ? formatTime(tx.timestamp) : 'Processing...'}
-                               <span className="mx-2 opacity-20">|</span>
-                               <span className={tx.currency === 'stars' ? 'text-accent' : 'text-slate-400'}>{tx.currency === 'stars' ? 'Stars' : 'Excoins'}</span>
-                            </p>
-                          </div>
-                        </div>
-                        <div className={`text-right ${
-                          tx.type === 'credit' ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          <p className="text-lg font-black tracking-tight">
-                            {tx.type === 'credit' ? '+' : '-'}{tx.amount}
-                          </p>
-                          <p className={`text-[9px] font-bold uppercase tracking-widest ${tx.currency === 'stars' ? 'text-accent' : 'text-slate-400'}`}>
-                            {tx.currency === 'stars' ? 'Exon Stars' : 'Excoins'}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Footer Branded */}
-            <div className="p-8 bg-gray-50/50 border-t border-gray-100 text-center">
-               <div className="inline-flex items-center gap-2 mb-2">
-                 <ShieldCheck size={14} className="text-accent" />
-                 <span className="text-[10px] font-bold text-ink uppercase tracking-[0.2em]">Exona Financial Security Core</span>
-               </div>
-               <p className="text-[8px] text-muted font-bold leading-relaxed uppercase tracking-widest">All dual-currency transactions are secured via Level-5 Blockchain Encryption</p>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
-
-  const InsufficientStarsAlert = () => (
-    <AnimatePresence>
-      {showInsufficientStarsAlert && (
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-ink/95 backdrop-blur-xl">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="w-full max-w-2xl bg-gradient-to-br from-white via-gray-50 to-gray-100 rounded-[3rem] overflow-hidden relative border border-white/50"
-          >
-            {/* Presidential Banner */}
-            <div className="h-2 bg-gradient-to-r from-blue-600 via-red-600 to-blue-600" />
-            
-            <div className="p-12 text-center">
-              <div className="h-24 w-24 bg-ink text-accent rounded-[2rem] flex items-center justify-center mx-auto mb-10 relative overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-br from-accent/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                <ShieldAlert size={48} strokeWidth={1.5} className="relative z-10" />
-              </div>
-              
-              <h2 className="text-4xl font-black text-ink mb-6 tracking-tighter leading-tight italic">
-                A National Resource Interruption
-              </h2>
-              
-              <div className="bg-ink p-8 rounded-3xl mb-8 relative">
-                <div className="absolute -top-3 -left-3 h-8 w-8 bg-accent rounded-full flex items-center justify-center text-white border-4 border-white">
-                   <Lock size={14} />
-                </div>
-                <p className="text-white/60 text-[10px] uppercase font-bold tracking-[0.3em] mb-3">Protocol: INS-FUNDS-01</p>
-                <div className="flex flex-col gap-2">
-                  <p className="text-white text-lg font-medium leading-relaxed">
-                    Your current star level is insufficient to authorize this transaction. 
-                  </p>
-                  <p className="text-accent text-3xl font-black tracking-wider text-center">
-                    {starsNeeded} STARS REQUIRED
-                  </p>
-                </div>
-              </div>
-
-              <p className="text-muted text-sm font-medium mb-12 max-w-md mx-auto leading-relaxed">
-                As a citizen of Exona, you may replenish your treasury via the Grand Exchange or await a presidential grant.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button 
-                  onClick={() => setShowInsufficientStarsAlert(false)}
-                  className="py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-gray-50 hover:border-gray-200 transition-all active:scale-[0.98]"
-                >
-                  Dimiss Protocol
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowInsufficientStarsAlert(false);
-                    // Open wallet view
-                    setIsExonWalletOpen(true);
-                  }}
-                  className="py-5 bg-ink text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-ink/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <Rocket size={16} className="text-accent" />
-                  Visit Grand Exchange
-                </button>
-              </div>
-            </div>
-            
-            {/* Presidential Seal Watermark */}
-            <div className="absolute -bottom-20 -right-20 opacity-[0.03] pointer-events-none transform rotate-12">
-               <ShieldAlert size={300} />
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
-  );
 
   const handleWalletClick = () => {
     if (user) {
@@ -7044,34 +6810,31 @@ function ExonaApp() {
   useEffect(() => {
     let userUnsubscribe: (() => void) | null = null;
     const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        // Check for email verification
-        if (!currentUser.emailVerified && currentUser.providerData.some(p => p.providerId === 'password')) {
-          setUser(currentUser);
-          setLoading(false);
-          
-          // Auto-trigger verification email for returning unverified users
-          if (!verificationSent) {
-            try {
-              await sendEmailVerification(currentUser);
-              setVerificationSent(true);
-            } catch (ve) {
-              console.warn('Auto-verification email check:', ve);
-              // We still set verificationSent true to avoid loops in this session
-              setVerificationSent(true);
+      try {
+        if (currentUser) {
+          // Check for email verification
+          if (!currentUser.emailVerified && currentUser.providerData.some(p => p.providerId === 'password')) {
+            setUser(currentUser);
+            setLoading(false);
+            
+            // Auto-trigger verification email for returning unverified users
+            if (!verificationSent) {
+              try {
+                await sendEmailVerification(currentUser);
+                setVerificationSent(true);
+              } catch (ve) {
+                console.warn('Auto-verification email check:', ve);
+                setVerificationSent(true);
+              }
             }
+            return;
           }
-          return;
-        }
 
-        try {
-          // Ensure doc exists and role is correct
-          const storedRef = localStorage.getItem('exona_ref');
-          const docData = await ensureUserDocument(currentUser, storedRef);
-          
-          // Telegram Mini App Sync
-          if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-            try {
+          try {
+            const storedRef = localStorage.getItem('exona_ref');
+            const docData = await ensureUserDocument(currentUser, storedRef);
+            
+            if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
               const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
               await updateDoc(doc(db, 'users', currentUser.uid), {
                 telegramId: tgUser.id,
@@ -7080,19 +6843,14 @@ function ExonaApp() {
                 telegramLastName: tgUser.last_name || null,
                 isTelegramMiniApp: true,
                 lastTelegramSync: serverTimestamp()
-              });
-            } catch (e) {
-              console.warn('Silent Telegram sync failed');
+              }).catch(e => console.warn('Silent TG sync fail', e));
             }
-          }
-          
-          if (!docData?.country) {
-            setView('onboarding');
-          }
-          
-          // Listen real-time to user document
-          userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), async (docSnap) => {
-            try {
+            
+            if (!docData?.country) {
+              setView('onboarding');
+            }
+            
+            userUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
               if (docSnap.exists()) {
                 const data = docSnap.data();
                 setUserDoc(data);
@@ -7101,44 +6859,33 @@ function ExonaApp() {
                   setView('onboarding');
                 }
                 
-                // Bootstrap admin role for owner email if not set
                 if (currentUser.email === 'musstaphamusa@gmail.com' && data.role !== 'admin') {
-                  await setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true });
+                  setDoc(doc(db, 'users', currentUser.uid), { role: 'admin' }, { merge: true }).catch(err => console.error("Admin setup fail", err));
                 }
-              } else {
-                // Create user doc if it doesn't exist
-                const initialData = {
-                  uid: currentUser.uid,
-                  email: currentUser.email,
-                  displayName: currentUser.displayName || 'User',
-                  role: currentUser.email === 'musstaphamusa@gmail.com' ? 'admin' : 'user'
-                };
-                await setDoc(doc(db, 'users', currentUser.uid), initialData);
-                setUserDoc(initialData);
               }
-            } catch (err) {
-              console.error('User doc real-time error:', err);
-            }
-          }, (error) => {
-            handleFirestoreError(error, OperationType.GET, `users/${currentUser.uid}`);
-          });
-
-          setUser(currentUser);
-          // Only transition if we are already at the login screen. 
-          // If we are at 'splash', let the splash timer handle the transition.
-          setView(prev => (prev === 'login') ? 'feed' : prev);
-        } catch (error) {
-          console.error('Auth initialization error:', error);
+            }, (snapErr) => {
+              console.error("User Snapshot subscription error", snapErr);
+            });
+            
+            setUser(currentUser);
+          } catch (err) {
+            console.error("Auth doc handling failed", err);
+            // Even if doc handling fails, we have the user
+            setUser(currentUser);
+          }
+        } else {
+          setUser(null);
+          setUserDoc(null);
+          if (userUnsubscribe) {
+            userUnsubscribe();
+            userUnsubscribe = null;
+          }
         }
-      } else {
-        if (userUnsubscribe) userUnsubscribe();
-        setUser(null);
-        setUserDoc(null);
-        setVerificationSent(false);
-        // Allow guest to see feed by default
-        setView(prev => prev !== 'splash' ? 'feed' : prev);
+      } catch (fatalAuthErr) {
+        console.error("Fatal Auth Exception:", fatalAuthErr);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return () => {
       authUnsubscribe();
@@ -12068,7 +11815,6 @@ function ExonaApp() {
                   </button>
                 )}
               </div>
-              <CallOverlay />
 
               {isAddingMember && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
@@ -12619,8 +12365,6 @@ function ExonaApp() {
           { id: 'daily-challenge', name: 'Daily Treasury Challenge', description: 'Showcase your intelligence to earn Exon Stars. Entry fee: 50 Stars.', icon: Stars, color: 'amber-600' },
           { id: 'editor', name: 'Creative Editor (Premium)', description: 'Powerful editor for technical writing. Upgrade to premium to unlock.', icon: PenTool, color: 'purple-600' },
           { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
-          { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
-          { id: 'e-exam', name: 'E-Examination', description: 'Comprehensive examination system for school-wide assessments and professional certifications.', icon: FileBarChart, color: 'rose-600' },
         ];
 
         if (activeWorkspaceTool === 'e-test') {
@@ -12767,589 +12511,7 @@ function ExonaApp() {
           );
         }
 
-        if (activeWorkspaceTool === 'e-exam') {
-          const activeInst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
-          
-          if (isExamStarted) {
-            const currentQuestions = activeExamQuestions[examCurrentSubject] || [];
-            const currentQ = currentQuestions[examCurrentQuestionIndex];
-            
-            return (
-              <div className="fixed inset-0 z-[150] bg-[#f0f2f5] flex flex-col font-sans select-none overflow-hidden">
-                {/* JAMB HEADER */}
-                <div className="bg-white border-b border-gray-200 px-6 py-2 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="h-14 w-11 bg-gray-100 border border-gray-300 rounded overflow-hidden flex items-center justify-center">
-                      {user?.photoURL ? (
-                        <img src={user.photoURL} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <UserIcon size={24} className="text-gray-400" />
-                      )}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Candidate Name</span>
-                      <span className="text-sm font-black text-ink uppercase">{user?.displayName || 'Guest Candidate'}</span>
-                      <div className="flex gap-4 mt-0.5">
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Reg Number</span>
-                          <span className="text-[10px] font-bold text-ink font-mono">{mockRegNumber}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider">Center</span>
-                          <span className="text-[10px] font-bold text-ink uppercase tracking-tight">{activeInst?.name || 'Main Hall A'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div className="flex flex-col items-end">
-                    <div className="bg-rose-600 text-white px-4 py-1.5 rounded-lg flex items-center gap-3">
-                      <Clock size={18} className="animate-pulse" />
-                      <div className="flex flex-col leading-none">
-                         <span className="text-[8px] font-bold uppercase tracking-widest opacity-80">Time Remaining</span>
-                         <span className="text-xl font-black font-mono tracking-tighter">{formatExamTime(examTimeRemaining)}</span>
-                      </div>
-                    </div>
-                    <div className="mt-1 flex items-center gap-2">
-                      <div className="h-1.5 w-32 bg-gray-100 rounded-full overflow-hidden">
-                         <motion.div 
-                          className="h-full bg-rose-500" 
-                          animate={{ width: `${(examTimeRemaining / 7200) * 100}%` }}
-                         />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* MAIN EXAM AREA */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-white">
-                  {/* TOP NAVIGATION: SUBJECTS (Minimal) */}
-                  <div className="bg-[#f0f2f5] border-b border-gray-200 px-6 flex items-center justify-between shrink-0">
-                    <div className="flex items-end gap-1 pt-2">
-                      {examSelectedSubjects.map((sub) => {
-                        const isActive = examCurrentSubject === sub;
-                        const answers = Object.keys(examAnswers[sub] || {}).length;
-                        const total = activeExamQuestions[sub]?.length || 0;
-                        return (
-                          <button
-                            key={sub}
-                            onClick={() => {
-                              setExamCurrentSubject(sub);
-                              setExamCurrentQuestionIndex(0);
-                            }}
-                            className={`px-6 py-2.5 rounded-t-lg text-[9px] font-black uppercase tracking-widest transition-all ${
-                              isActive 
-                                ? 'bg-white text-ink border-t-2 border-rose-600' 
-                                : 'text-muted hover:bg-gray-200/50'
-                            }`}
-                          >
-                            {sub} <span className="ml-1 opacity-50">[{answers}/{total}]</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* SPLIT QUESTION & OPTIONS CONTENT */}
-                  <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-                    {/* Left: Question Box */}
-                    <div className="flex-1 overflow-y-auto p-6 md:p-10 border-b md:border-b-0 md:border-r border-gray-100 bg-white">
-                      <div className="max-w-2xl ml-auto">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="px-3 py-1.5 bg-ink text-white rounded-md font-black text-[9px] uppercase tracking-wider">
-                            Q. {examCurrentQuestionIndex + 1}
-                          </div>
-                          <div className="h-px flex-1 bg-gray-50" />
-                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest">{examCurrentSubject}</span>
-                        </div>
-
-                        <div className="text-xl md:text-2xl font-bold text-ink leading-relaxed">
-                          {currentQ?.question}
-                        </div>
-                        
-                        {currentQ?.topic && (
-                          <div className="mt-6 flex items-center gap-2">
-                             <span className="px-2 py-1 bg-gray-100 text-[#717171] text-[8px] font-black uppercase rounded tracking-widest">
-                               Topic: {currentQ.topic}
-                             </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right: Options Box */}
-                    <div className="flex-1 overflow-y-auto p-6 md:p-10 bg-gray-50/40">
-                      <div className="max-w-2xl mr-auto">
-                        <div className="text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-6">Select appropriate option</div>
-                        <div className="grid grid-cols-1 gap-3">
-                          {['A', 'B', 'C', 'D'].map((option) => {
-                            const isSelected = examAnswers[examCurrentSubject]?.[examCurrentQuestionIndex] === option;
-                            return (
-                              <button
-                                key={option}
-                                onClick={() => handleExamAnswer(option)}
-                                className={`w-full p-4 rounded-2xl border-1.5 text-left flex items-center justify-between transition-all group ${
-                                  isSelected 
-                                    ? 'bg-white border-rose-600 ring-2 ring-rose-600/5' 
-                                    : 'bg-white border-gray-100 hover:border-gray-300'
-                                }`}
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div className={`h-8 w-8 rounded-xl flex items-center justify-center font-black text-sm transition-all ${
-                                    isSelected ? 'bg-rose-600 text-white' : 'bg-gray-100 text-ink'
-                                  }`}>
-                                    {option}
-                                  </div>
-                                  <span className={`text-[15px] font-bold leading-tight ${isSelected ? 'text-rose-900' : 'text-ink'}`}>
-                                    {currentQ?.options[option]}
-                                  </span>
-                                </div>
-                                {isSelected && <CheckCircle2 size={18} className="text-rose-600" />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* BOTTOM NAVIGATION FOOTER */}
-                  <div className="bg-white border-t border-gray-200 p-4 md:p-6 flex items-center justify-center shrink-0">
-                    <div className="max-w-6xl w-full flex items-center justify-between">
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={handleExamPrev}
-                          className="px-6 py-3.5 bg-white border border-gray-200 rounded-xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
-                        >
-                          <ChevronLeft size={16} /> Previous
-                        </button>
-                        <button 
-                          onClick={handleExamNext}
-                          className="px-6 py-3.5 bg-white border border-gray-200 rounded-xl font-black text-[10px] uppercase tracking-widest text-ink hover:bg-gray-50 active:scale-95 transition-all flex items-center gap-2"
-                        >
-                          Next <ChevronRight size={16} />
-                        </button>
-                      </div>
-
-                      <div className="hidden md:flex items-center gap-6">
-                         <div className="flex flex-col items-center">
-                            <span className="text-[8px] font-black text-muted uppercase tracking-widest">Progress</span>
-                            <div className="h-1 w-32 bg-gray-100 rounded-full mt-1 overflow-hidden">
-                               <div 
-                                 className="h-full bg-rose-500 transition-all duration-300"
-                                 style={{ width: `${(Object.keys(examAnswers[examCurrentSubject] || {}).length / (activeExamQuestions[examCurrentSubject]?.length || 1)) * 100}%` }}
-                               />
-                            </div>
-                         </div>
-                      </div>
-
-                      <button 
-                        onClick={() => setExamShowSubmitConfirm(true)}
-                        className="px-8 py-3.5 bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.1em] hover:bg-rose-700 active:scale-95 transition-all flex items-center gap-3"
-                      >
-                        <Send size={16} /> Submit Exam
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* OVERLAY: SUBMIT CONFIRMATION */}
-                <AnimatePresence>
-                  {examShowSubmitConfirm && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 z-[200] bg-ink/90 backdrop-blur-md flex items-center justify-center p-6"
-                    >
-                      <motion.div 
-                        initial={{ scale: 0.9, y: 20 }}
-                        animate={{ scale: 1, y: 0 }}
-                        className="bg-white rounded-[3rem] w-full max-w-lg p-12 text-center relative overflow-hidden"
-                      >
-                         <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                            <Shield size={200} />
-                         </div>
-
-                         <div className="h-20 w-20 bg-rose-50 text-rose-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
-                            <AlertTriangle size={40} />
-                         </div>
-
-                         <h2 className="text-3xl font-black text-ink mb-4 leading-tight">Ready to Submit?</h2>
-                         <p className="text-muted font-bold mb-10 leading-relaxed">
-                            You are about to end your session. You cannot return to your questions once you submit.
-                            Please review all subjects before final transmission.
-                         </p>
-
-                         <div className="grid grid-cols-2 gap-4">
-                            <button 
-                              onClick={() => setExamShowSubmitConfirm(false)}
-                              className="py-5 bg-gray-50 text-muted rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2"
-                            >
-                               <ArrowLeft size={14} /> (R) eturn
-                            </button>
-                            <button 
-                              onClick={handleExamSubmit}
-                              className="py-5 bg-rose-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-rose-700 transition-all flex items-center justify-center gap-2"
-                            >
-                               Confirm (S) <ArrowRight size={14} />
-                            </button>
-                         </div>
-                      </motion.div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          }
-
-          if (examResult) {
-             return (
-              <WordLayout
-                title="Examination Results"
-                subtitle="Official Assessment Transcript"
-                icon={BadgeCheck}
-                branding={{ name: activeInst?.name || 'Institution' }}
-                showNotification={showNotification}
-                handlePrint={handlePrint}
-                hideSaveImage={true}
-                toolbar={
-                  <button 
-                    onClick={() => { setExamResult(null); setActiveWorkspaceTool(null); }}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
-                  >
-                    <ArrowLeft size={14} />
-                    Exit Results
-                  </button>
-                }
-              >
-                <div className="max-w-4xl mx-auto">
-                   <div className="bg-white border border-gray-100 rounded-[3rem] p-12 mb-12 relative overflow-hidden">
-                      <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
-                         <div className="h-48 w-48 bg-rose-50 border-8 border-white rounded-full flex flex-col items-center justify-center">
-                            <span className="text-5xl font-black text-rose-600 tracking-tighter">{examResult.totalScore}</span>
-                            <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Aggregate</span>
-                         </div>
-                         <div className="flex-1 text-center md:text-left">
-                           <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
-                              <div className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-widest">Verified Transcript</div>
-                              <div className="px-3 py-1 bg-ink text-white rounded-full text-[9px] font-black uppercase tracking-widest">JAMB Standard</div>
-                           </div>
-                           <h2 className="text-4xl font-black text-ink mb-2">Detailed Performance</h2>
-                           <p className="text-muted font-bold leading-relaxed">Generated result for {user?.displayName || 'Candidate'}. Registration Number: {mockRegNumber}. Verified on {new Date().toLocaleDateString()}.</p>
-                         </div>
-                      </div>
-                   </div>
-
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {Object.entries(examResult.subjectScores).map(([sub, data]: any) => (
-                        <div key={sub} className="bg-gray-50 p-8 rounded-[2rem] border border-gray-100 flex items-center justify-between group hover:bg-white transition-all hover:-translate-y-1">
-                           <div>
-                              <h4 className="text-sm font-black text-muted uppercase tracking-[0.2em] mb-1">{sub}</h4>
-                              <div className="flex items-center gap-2 mb-1">
-                                 <span className="text-[10px] font-bold text-muted">{data.correct} / {data.total} Correct</span>
-                              </div>
-                              <div className="h-2 w-32 bg-gray-200 rounded-full mt-1 overflow-hidden">
-                                 <motion.div 
-                                    className={`h-full ${data.score >= 50 ? 'bg-green-500' : 'bg-rose-500'}`}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${data.score}%` }}
-                                 />
-                              </div>
-                           </div>
-                           <div className="text-3xl font-black text-ink group-hover:text-rose-600 transition-colors">{data.score}</div>
-                        </div>
-                      ))}
-                   </div>
-
-                   <div className="mt-16 bg-white border border-gray-100 rounded-[3rem] p-10">
-                      <div className="flex items-center justify-between mb-10 flex-wrap gap-4">
-                         <div>
-                            <h3 className="text-2xl font-black text-ink uppercase tracking-tight">Question Corrections</h3>
-                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">Review your performance per subject</p>
-                         </div>
-                         <div className="flex flex-wrap gap-2">
-                            {examSelectedSubjects.map(sub => (
-                               <button 
-                                 key={sub}
-                                 onClick={() => setExamCurrentSubject(sub)}
-                                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                   examCurrentSubject === sub ? 'bg-ink text-white' : 'bg-gray-100 text-muted hover:bg-gray-200'
-                                 }`}
-                               >
-                                  {sub}
-                               </button>
-                            ))}
-                         </div>
-                      </div>
-                      
-                      <div className="space-y-6">
-                         {(activeExamQuestions[examCurrentSubject] || []).map((q: any, idx: number) => {
-                            const userAns = examAnswers[examCurrentSubject]?.[idx];
-                            const isCorrect = userAns === q.correctAnswer;
-                            return (
-                               <div key={idx} className="p-6 border border-gray-100 rounded-2xl bg-gray-50/20">
-                                  <div className="flex flex-col md:flex-row items-start gap-6">
-                                     <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center font-black text-sm ${isCorrect ? 'bg-green-500 text-white' : 'bg-rose-500 text-white'}`}>
-                                        {idx + 1}
-                                     </div>
-                                     <div className="flex-1">
-                                        <p className="font-bold text-ink text-lg mb-6">{q.question}</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                           {Object.entries(q.options).map(([key, val]: any) => {
-                                              const isUserChoice = userAns === key;
-                                              const isCorrectChoice = q.correctAnswer === key;
-                                              
-                                              let bgColor = "bg-white";
-                                              let borderColor = "border-gray-200 text-muted";
-                                              let statusIcon = null;
-                                              
-                                              if (isUserChoice) {
-                                                 if (isCorrect) {
-                                                    bgColor = "bg-green-50";
-                                                    borderColor = "border-green-500 text-green-900 font-bold ring-2 ring-green-500/10";
-                                                    statusIcon = <CheckCircle2 size={16} className="text-green-600" />;
-                                                 } else {
-                                                    bgColor = "bg-rose-50";
-                                                    borderColor = "border-rose-500 text-rose-900 font-bold ring-2 ring-rose-500/10";
-                                                    statusIcon = <XCircle size={16} className="text-rose-600" />;
-                                                 }
-                                              } else if (isCorrectChoice) {
-                                                 bgColor = "bg-green-50/50";
-                                                 borderColor = "border-green-300 text-green-800 font-bold border-dashed";
-                                                 statusIcon = <BadgeCheck size={16} className="text-green-500" />;
-                                              }
-
-                                              return (
-                                                 <div key={key} className={`p-4 rounded-xl border transition-all ${bgColor} ${borderColor} text-xs flex items-center gap-3`}>
-                                                    <div className={`h-6 w-6 rounded-lg flex items-center justify-center font-black text-[10px] ${isUserChoice ? (isCorrect ? 'bg-green-600 text-white' : 'bg-rose-600 text-white') : (isCorrectChoice ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-ink')}`}>
-                                                       {key}
-                                                    </div>
-                                                    <span className="flex-1">{val}</span>
-                                                    {statusIcon}
-                                                 </div>
-                                              );
-                                           })}
-                                        </div>
-                                        {!isCorrect && (
-                                          <div className="mt-4 flex items-center gap-2 px-3 py-2 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold border border-rose-100 w-fit">
-                                             <Info size={14} /> Correct Option was <strong>{q.correctAnswer}</strong>
-                                          </div>
-                                        )}
-                                     </div>
-                                  </div>
-                               </div>
-                            );
-                         })}
-                      </div>
-                   </div>
-                   
-                   <div className="flex justify-center mt-12 gap-4">
-                      <button 
-                        onClick={() => handlePrint()}
-                        className="px-10 py-5 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform flex items-center gap-3"
-                      >
-                         <Printer size={16} /> Print Result Slip
-                      </button>
-                      <button 
-                        onClick={() => { setExamResult(null); setActiveWorkspaceTool(null); }}
-                        className="px-10 py-5 bg-white border border-gray-200 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
-                      >
-                         Discard Result
-                      </button>
-                   </div>
-                </div>
-              </WordLayout>
-             );
-          }
-
-          return (
-            <WordLayout
-              title="Official E-Examination"
-              subtitle={`${activeInst?.name || 'Institutional'} High-Stakes Assessment Suite`}
-              icon={FileBarChart}
-              branding={{ name: activeInst?.name || 'Institution' }}
-              showNotification={showNotification}
-              handlePrint={handlePrint}
-              hideSaveImage={true}
-              toolbar={
-                <button 
-                  onClick={() => setActiveWorkspaceTool(null)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
-                >
-                  <ArrowLeft size={14} />
-                  Workspace
-                </button>
-              }
-            >
-              <div className="max-w-5xl mx-auto">
-                <div className="p-12 bg-white border border-gray-100 rounded-[4rem] mb-12 relative overflow-hidden">
-                   <div className="absolute top-0 right-0 p-12 opacity-5 pointer-events-none">
-                      <FileBarChart size={240} />
-                   </div>
-                   
-                   {!isConfiguringExam ? (
-                     <div className="relative z-10 max-w-xl">
-                       <div className="h-16 w-16 bg-rose-50 text-rose-600 rounded-3xl flex items-center justify-center mb-8">
-                         <Calculator size={32} />
-                       </div>
-                       <h3 className="text-4xl font-black text-ink mb-4 leading-tight">E-Examination Portal</h3>
-                       <p className="text-muted font-bold text-lg mb-10 leading-relaxed">
-                         Welcome to the JAMB Replica Mock Exam system. Practice with over 20,000 past questions in a timed environment.
-                       </p>
-                       <div className="flex flex-wrap gap-4">
-                          <button 
-                            onClick={() => setIsConfiguringExam(true)}
-                            className="px-12 py-5 bg-ink text-white rounded-2xl font-black text-[12px] uppercase tracking-[0.2em] hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
-                          >
-                            <Gamepad2 size={20} /> Start New Exam
-                          </button>
-                          <button className="px-10 py-5 bg-white border-2 border-gray-100 text-ink rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
-                            View Guide
-                          </button>
-                       </div>
-                     </div>
-                   ) : (
-                     <div className="relative z-10 max-w-3xl">
-                       <div className="flex items-center gap-4 mb-8">
-                         <button 
-                           onClick={() => setIsConfiguringExam(false)}
-                           className="h-10 w-10 flex items-center justify-center bg-gray-100 rounded-xl text-ink hover:bg-gray-200 transition-all"
-                         >
-                           <ArrowLeft size={16} />
-                         </button>
-                         <div>
-                            <h3 className="text-3xl font-black text-ink leading-tight">Configure Your Exam</h3>
-                            <p className="text-[11px] font-bold text-muted uppercase tracking-[0.2em]">Subject Selection</p>
-                         </div>
-                       </div>
-
-                       <p className="text-muted font-bold text-base mb-8 leading-relaxed">
-                         Select <b>4 subjects</b> including <b>Use of English</b> (Mandatory) to proceed to the examination hall.
-                       </p>
-
-                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-                          {EXAM_AVAILABLE_SUBJECTS.map((sub) => {
-                            const isMandatory = sub === 'Use of English';
-                            const isSelected = examSelectedSubjects.includes(sub);
-                            return (
-                              <button
-                                key={sub}
-                                disabled={isMandatory}
-                                onClick={() => {
-                                  if (isSelected) {
-                                    setExamSelectedSubjects(examSelectedSubjects.filter(s => s !== sub));
-                                  } else if (examSelectedSubjects.length < 4) {
-                                    setExamSelectedSubjects([...examSelectedSubjects, sub]);
-                                  }
-                                }}
-                                className={`p-5 rounded-3xl border-2 text-left transition-all relative ${
-                                  isSelected 
-                                    ? 'bg-rose-50 border-rose-600 scale-[1.02]' 
-                                    : 'bg-gray-50 border-transparent hover:border-gray-200'
-                                } ${isMandatory ? 'opacity-80 cursor-not-allowed' : ''}`}
-                              >
-                                 <div className="flex flex-col gap-2">
-                                    {isSelected && <CheckCircle2 size={14} className="text-rose-600" />}
-                                    <span className={`text-[12px] font-black leading-tight ${isSelected ? 'text-ink' : 'text-muted'}`}>
-                                      {sub}
-                                    </span>
-                                 </div>
-                                 {isMandatory && <span className="absolute bottom-3 right-4 text-[6px] font-black uppercase text-rose-400">Fixed</span>}
-                              </button>
-                            );
-                          })}
-                       </div>
-                       
-                       <div className="flex flex-wrap items-center gap-6">
-                          <button 
-                            disabled={examSelectedSubjects.length !== 4}
-                            onClick={() => {
-                              // Select random questions for the active session
-                              const sessionPool: {[key: string]: any[]} = {};
-                              examSelectedSubjects.forEach(sub => {
-                                const masterPool = examQuestionsStore[sub];
-                                if (masterPool) {
-                                  const count = sub === 'Use of English' ? 60 : 40;
-                                  // Shuffle and slice
-                                  const shuffled = [...masterPool]
-                                    .sort(() => Math.random() - 0.5)
-                                    .slice(0, count)
-                                    .map(q => {
-                                      // Mix options A, B, C, D
-                                      const optionsList = [q.c, ...q.w].sort(() => Math.random() - 0.5);
-                                      return {
-                                        ...q,
-                                        options: {
-                                          A: optionsList[0],
-                                          B: optionsList[1],
-                                          C: optionsList[2],
-                                          D: optionsList[3]
-                                        },
-                                        correctLetter: ['A', 'B', 'C', 'D'][optionsList.indexOf(q.c)]
-                                      };
-                                    });
-                                  sessionPool[sub] = shuffled;
-                                }
-                              });
-                              
-                              setActiveExamQuestions(sessionPool);
-                              setIsConfiguringExam(false);
-                              setIsExamStarted(true);
-                              setExamTimeRemaining(7200);
-                              setExamAnswers({});
-                              setExamCurrentSubject('Use of English');
-                              setExamCurrentQuestionIndex(0);
-                            }}
-                            className={`px-12 py-5 rounded-[2rem] font-black text-[11px] uppercase tracking-[0.2em] transition-all ${
-                              examSelectedSubjects.length === 4
-                                ? 'bg-rose-600 text-white hover:scale-105 active:scale-95'
-                                : 'bg-gray-200 text-muted cursor-not-allowed'
-                            }`}
-                          >
-                            {examSelectedSubjects.length === 4 ? `Proceed to Examination` : `Select More Subjects`}
-                          </button>
-                          <div className="flex items-center gap-2">
-                             <div className="flex -space-x-2">
-                                {examSelectedSubjects.map((s, i) => (
-                                  <div key={i} className="h-8 w-8 rounded-full bg-white border-2 border-gray-100 flex items-center justify-center text-[8px] font-black text-rose-600 uppercase">
-                                    {s.substring(0, 1)}
-                                  </div>
-                                ))}
-                             </div>
-                             <span className="text-[10px] font-black text-muted uppercase tracking-widest ml-2">[{examSelectedSubjects.length}/4]</span>
-                          </div>
-                       </div>
-                     </div>
-                   )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   <div className="p-10 bg-gray-50 rounded-[3rem] border border-gray-100">
-                      <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-rose-600 mb-6">
-                        <Users size={20} />
-                      </div>
-                      <h4 className="text-xl font-black text-ink mb-2">Student Verification</h4>
-                      <p className="text-xs text-muted font-bold leading-relaxed mb-8">Manage biometric and ID verification for current examinees.</p>
-                      <button className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
-                         View Portal <ArrowRight size={14} />
-                      </button>
-                   </div>
-                   <div className="p-10 bg-gray-50 rounded-[3rem] border border-gray-100">
-                      <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-rose-600 mb-6">
-                        <Database size={20} />
-                      </div>
-                      <h4 className="text-xl font-black text-ink mb-2">Question Bank</h4>
-                      <p className="text-xs text-muted font-bold leading-relaxed mb-8">Access our encrypted repository of curriculum-standard questions.</p>
-                      <button className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all">
-                         Configure Store <ArrowRight size={14} />
-                      </button>
-                   </div>
-                </div>
-              </div>
-            </WordLayout>
-          );
-        }
 
         if (activeWorkspaceTool === 'docs') {
           const docs = cloudFiles.filter(f => f.category === 'document' || f.type.includes('pdf') || f.type.includes('text'));
@@ -14896,7 +14058,7 @@ function ExonaApp() {
                     </div>
                     <h3 className="text-3xl font-black text-ink mb-4">Add Access Keys</h3>
                     <p className="text-muted font-medium mb-12 leading-relaxed">
-                      To conduct e-tests and examinations, your institution must have a security access key. {userDoc?.role === 'admin' ? 'As an administrator, you can generate one or approve pending requests.' : 'Apply below to request an access key from our administrators.'}
+                      To conduct e-tests, your institution must have a security access key. {userDoc?.role === 'admin' ? 'As an administrator, you can generate one or approve pending requests.' : 'Apply below to request an access key from our administrators.'}
                     </p>
 
                     <div className="flex flex-col gap-4">
@@ -15650,7 +14812,33 @@ function ExonaApp() {
               </div>
             </div>
           </motion.div>
-          {renderBrainBattle()}
+          <BrainBattleModal 
+            isActive={isBrainBattleActive}
+            setIsActive={setIsBrainBattleActive}
+            step={battleStep}
+            setStep={setBattleStep}
+            guestInfo={guestInfo}
+            setGuestInfo={setGuestInfo}
+            score={battleScore}
+            setScore={setBattleScore}
+            currentIndex={currentQuestionIndex}
+            setCurrentIndex={setCurrentQuestionIndex}
+            answered={answeredQuestions}
+            setAnswered={setAnsweredQuestions}
+            questions={currentBattleQuestions}
+            user={user}
+            userDoc={userDoc}
+            onNotify={showNotification}
+            onJoin={() => setAuthMode('signup')}
+            timeLeft={battleTimeLeft}
+            setTimeLeft={setBattleTimeLeft}
+            timerActive={isTimerActive}
+            setTimerActive={setIsTimerActive}
+            leaderboard={leaderboard}
+            onFetchLeaderboard={fetchLeaderboard}
+            onShareResult={handleShareBattleResult}
+            onCheckParticipation={checkParticipation}
+          />
         </div>
       );
     }
@@ -15790,7 +14978,33 @@ function ExonaApp() {
             <p className="text-xs text-muted">Exona from Antigravity</p>
           </div>
         </motion.div>
-        {renderBrainBattle()}
+        <BrainBattleModal 
+          isActive={isBrainBattleActive}
+          setIsActive={setIsBrainBattleActive}
+          step={battleStep}
+          setStep={setBattleStep}
+          guestInfo={guestInfo}
+          setGuestInfo={setGuestInfo}
+          score={battleScore}
+          setScore={setBattleScore}
+          currentIndex={currentQuestionIndex}
+          setCurrentIndex={setCurrentQuestionIndex}
+          answered={answeredQuestions}
+          setAnswered={setAnsweredQuestions}
+          questions={currentBattleQuestions}
+          user={user}
+          userDoc={userDoc}
+          onNotify={showNotification}
+          onJoin={() => setAuthMode('signup')}
+          timeLeft={battleTimeLeft}
+          setTimeLeft={setBattleTimeLeft}
+          timerActive={isTimerActive}
+          setTimerActive={setIsTimerActive}
+          leaderboard={leaderboard}
+          onFetchLeaderboard={fetchLeaderboard}
+          onShareResult={handleShareBattleResult}
+          onCheckParticipation={checkParticipation}
+        />
       </div>
     );
   }
@@ -16464,7 +15678,7 @@ function ExonaApp() {
                   </button>
                    <button 
                     onClick={handleSyncScannedData}
-                    disabled={scannedData.length === 0 || isSyncingData || (availableCategories.length > 0 && !selectedScanCategory)}
+                    disabled={scannedData.length === 0 || isSyncingData || ((selectedSchool?.educationalLevels?.length || 0) > 0 && !selectedScanCategory)}
                     className="flex-[2] sm:px-12 py-4 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform flex items-center justify-center gap-3 disabled:opacity-30 disabled:hover:scale-100"
                   >
                     {isSyncingData ? (
@@ -17938,13 +17152,54 @@ function ExonaApp() {
         </div>
       )}
 
-      <ExonWealthModal />
-      <SecurityModal />
-      <NotificationsModal />
-      <HelpCentreModal />
-      <LegalModal />
-      <DataStorageModal />
-      <InsufficientStarsAlert />
+      <CallOverlay 
+        user={user}
+        chatUsers={chatUsers}
+        incomingCall={incomingCall}
+        outgoingCall={outgoingCall}
+        handleAcceptCall={handleAcceptCall}
+        handleEndCall={handleEndCall}
+      />
+      <ExonWealthModal 
+        isOpen={isExonWealthOpen} 
+        onClose={() => setIsExonWealthOpen(false)} 
+        exonWallet={exonWallet} 
+        excoinBalance={excoinBalance} 
+        handleConvertStarsToExcoin={handleConvertStarsToExcoin} 
+        handleCreditExonStars={handleCreditExonStars} 
+        exonHistory={exonHistory} 
+        formatTime={formatTime} 
+        currencySymbol={currencySymbol} 
+        setIsExonWalletOpen={setIsExonWalletOpen} 
+      />
+      <SecurityModal 
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        user={user}
+        userDoc={userDoc}
+        isBiometricGuardEnabled={isBiometricGuardEnabled}
+        setIsBiometricGuardEnabled={setIsBiometricGuardEnabled}
+        isGhostIdentityEnabled={isGhostIdentityEnabled}
+        setIsGhostIdentityEnabled={setIsGhostIdentityEnabled}
+        showNotification={showNotification}
+      />
+      <NotificationsModal 
+        isOpen={isNotificationsModalOpen} 
+        onClose={() => setIsNotificationsModalOpen(false)} 
+        notificationFilter={notificationFilter} 
+        setNotificationFilter={setNotificationFilter} 
+        notifications={notifications} 
+        notificationPermission={notificationPermission} 
+        requestNotificationPermission={requestNotificationPermission} 
+        markAllNotificationsAsRead={markAllNotificationsAsRead} 
+        clearAllNotifications={clearAllNotifications} 
+        deferredPrompt={deferredPrompt} 
+        installApp={installApp} 
+      />
+      <HelpCentreModal isOpen={isHelpCentreModalOpen} onClose={() => setIsHelpCentreModalOpen(false)} />
+      <LegalModal isOpen={isLegalModalOpen} onClose={() => setIsLegalModalOpen(false)} />
+      <DataStorageModal isOpen={isDataStorageModalOpen} onClose={() => setIsDataStorageModalOpen(false)} notifications={notifications} exonHistory={exonHistory} posts={posts} />
+      <InsufficientStarsAlert isOpen={showInsufficientStarsAlert} onClose={() => setShowInsufficientStarsAlert(false)} starsNeeded={starsNeeded} />
 
       {/* Category Manager Modal */}
       <AnimatePresence>
@@ -18158,7 +17413,33 @@ function ExonaApp() {
         )}
       </AnimatePresence>
 
-      {renderBrainBattle()}
+      <BrainBattleModal 
+        isActive={isBrainBattleActive}
+        setIsActive={setIsBrainBattleActive}
+        step={battleStep}
+        setStep={setBattleStep}
+        guestInfo={guestInfo}
+        setGuestInfo={setGuestInfo}
+        score={battleScore}
+        setScore={setBattleScore}
+        currentIndex={currentQuestionIndex}
+        setCurrentIndex={setCurrentQuestionIndex}
+        answered={answeredQuestions}
+        setAnswered={setAnsweredQuestions}
+        questions={currentBattleQuestions}
+        user={user}
+        userDoc={userDoc}
+        onNotify={showNotification}
+        onJoin={() => setAuthMode('signup')}
+        timeLeft={battleTimeLeft}
+        setTimeLeft={setBattleTimeLeft}
+        timerActive={isTimerActive}
+        setTimerActive={setIsTimerActive}
+        leaderboard={leaderboard}
+        onFetchLeaderboard={fetchLeaderboard}
+        onShareResult={handleShareBattleResult}
+        onCheckParticipation={checkParticipation}
+      />
 
       {/* Story Upload Modal */}
       <AnimatePresence>
