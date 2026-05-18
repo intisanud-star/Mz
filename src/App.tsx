@@ -2006,7 +2006,7 @@ function ExonaApp() {
 
           const recordData = {
             studentName: item.fullName,
-            studentClass: item.unit || 'General',
+            studentClass: selectedScanCategory || item.unit || 'General',
             category: item.category || recordTab,
             paid: item.paid || 0,
             balance: item.balance || 0,
@@ -2043,7 +2043,7 @@ function ExonaApp() {
             status,
             date: new Date().toISOString().split('T')[0],
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            category: item.unit || 'General',
+            category: selectedScanCategory || item.unit || 'General',
             schoolId: selectedSchool.id,
             addedBy: userDoc?.displayName || user.email || 'Admin',
             addedByUid: user.uid,
@@ -2109,6 +2109,7 @@ function ExonaApp() {
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
   const [scannedFile, setScannedFile] = useState<File | null>(null);
   const [isSyncingData, setIsSyncingData] = useState(false);
+  const [selectedScanCategory, setSelectedScanCategory] = useState<string>('');
 
   const CallOverlay = () => {
     const call = incomingCall || outgoingCall;
@@ -10763,20 +10764,28 @@ function ExonaApp() {
           
           const features = isPlace ? [
             {
-              id: 'log',
-              title: 'Activity Register',
-              description: `View and print the complete listing of all ${labels.attendance.toLowerCase()} activity and names.`,
-              icon: ClipboardList,
-              color: 'text-indigo-600',
-              bg: 'bg-indigo-50/50'
-            },
-            {
               id: 'manage',
               title: 'Log Entries',
               description: `Add or update participation records for ${labels.teachers.toLowerCase()} and members.`,
               icon: UserCheck,
               color: 'text-emerald-600',
               bg: 'bg-emerald-50/50'
+            },
+            {
+              id: 'summary',
+              title: 'Individual Stats',
+              description: 'View total participation counts and engagement metrics for each individual.',
+              icon: BarChart3,
+              color: 'text-orange-600',
+              bg: 'bg-orange-50/50'
+            },
+            {
+              id: 'log',
+              title: 'Activity Register',
+              description: `View and print the complete listing of all ${labels.attendance.toLowerCase()} activity and names.`,
+              icon: ClipboardList,
+              color: 'text-indigo-600',
+              bg: 'bg-indigo-50/50'
             }
           ] : [
             {
@@ -10790,7 +10799,7 @@ function ExonaApp() {
             {
               id: 'summary',
               title: 'Individual Stats',
-              description: 'View total attendance counts and performance metrics for each individual.',
+              description: 'View total participation counts and engagement metrics for each individual.',
               icon: BarChart3,
               color: 'text-orange-600',
               bg: 'bg-orange-50/50'
@@ -16358,6 +16367,30 @@ function ExonaApp() {
                 </button>
               </div>
 
+              {/* Category Selection Header */}
+              {selectedSchool?.educationalLevels && selectedSchool.educationalLevels.length > 0 && (
+                <div className="mb-8 p-6 bg-gray-50 border border-gray-100 rounded-[2.5rem]">
+                  <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-4 ml-2">Assign to Category / Department</p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSchool.educationalLevels.map(lvl => (
+                      <button 
+                        key={lvl}
+                        onClick={() => setSelectedScanCategory(lvl)}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedScanCategory === lvl ? 'bg-ink text-white shadow-xl scale-105' : 'bg-white text-muted border border-gray-100 hover:border-accent/40'}`}
+                      >
+                        {lvl}
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => setSelectedScanCategory('')}
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedScanCategory === '' ? 'bg-ink text-white' : 'bg-white text-muted border border-gray-100'}`}
+                    >
+                      Default/Mixed
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 {/* Image Preview */}
                 <div className="space-y-6">
@@ -16431,8 +16464,8 @@ function ExonaApp() {
                   </button>
                    <button 
                     onClick={handleSyncScannedData}
-                    disabled={scannedData.length === 0 || isSyncingData}
-                    className="flex-[2] sm:px-12 py-4 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform flex items-center justify-center gap-3 disabled:opacity-50"
+                    disabled={scannedData.length === 0 || isSyncingData || (availableCategories.length > 0 && !selectedScanCategory)}
+                    className="flex-[2] sm:px-12 py-4 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform flex items-center justify-center gap-3 disabled:opacity-30 disabled:hover:scale-100"
                   >
                     {isSyncingData ? (
                       <>

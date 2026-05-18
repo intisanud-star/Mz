@@ -5,9 +5,10 @@ import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
 import { Telegraf } from 'telegraf';
 import { initializeApp as initializeClientApp } from 'firebase/app';
-import { getFirestore as getClientFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, limit, getCountFromServer } from 'firebase/firestore';
+import { getFirestore as getClientFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, limit, getCountFromServer, serverTimestamp } from 'firebase/firestore';
 import fs from 'fs';
 import multer from 'multer';
+import axios from 'axios';
 import { GoogleGenAI, Type } from "@google/genai";
 
 const upload = multer({ dest: 'uploads/' });
@@ -145,6 +146,9 @@ function getBot() {
   return bot;
 }
 
+// Simple in-memory state store for Telegram users
+const userStates = new Map<string, { mode?: 'scan_records' | 'scan_participation', extractedData?: any[], institutionId?: string }>();
+
 function setupBot(botInstance: Telegraf) {
   // 1. Function that triggers on /start
   botInstance.start(async (ctx) => {
@@ -169,26 +173,140 @@ function setupBot(botInstance: Telegraf) {
           join_date: new Date().toISOString(),
           source: 'telegram'
         });
-        await ctx.reply(`Welcome to Exona! Your account has been registered with chat ID: ${chatId}`);
+        await ctx.reply(`Welcome to Exona! 🏛️\n\nYou can now manage your institution directly from here.\n\nCommands:\n/scan_records - Scan an image of financial records\n/scan_participation - Scan an attendance list\n/stats - Community stats`);
         console.log(`New user registered: ${username} (${chatId})`);
       } else {
-        await ctx.reply(`Welcome back, ${username}!`);
-        console.log(`User returned: ${username} (${chatId})`);
+        await ctx.reply(`Welcome back, ${username}! 🏛️\n\nCommands:\n/scan_records - Scan an image of financial records\n/scan_participation - Scan an attendance list\n/stats - View community stats`);
       }
     } catch (error: any) {
       console.error('Error in Telegram /start command:', error);
-      const errorMsg = error.message || String(error);
-      const errorCode = error.code || 'N/A';
-      
-      // Detailed error for the user to help debug
-      await ctx.reply(`System Error: ${errorMsg}\nCode: ${errorCode}\nPlease ensure your Firebase project is properly configured.`);
+      await ctx.reply(`System Error encountered. Please ensure your project is properly configured.`);
     }
+  });
+
+  botInstance.command('scan_records', async (ctx) => {
+    const chatId = ctx.chat.id.toString();
+    userStates.set(chatId, { mode: 'scan_records' });
+    await ctx.reply('Record Scanning Mode Active 📄\n\nPlease send a clear photo of the financial list or records. I will extract the details and sync them to your institution.');
+  });
+
+  botInstance.command('scan_participation', async (ctx) => {
+    const chatId = ctx.chat.id.toString();
+    userStates.set(chatId, { mode: 'scan_participation' });
+    await ctx.reply('Participation Scanning Mode Active 📝\n\nPlease send a clear photo of the attendance or participation list. I will sync the entries for today.');
   });
 
   // Handle media received
   botInstance.on('photo', async (ctx) => {
+    const chatId = ctx.chat.id.toString();
+    const state = userStates.get(chatId);
+    
+    if (!state?.mode) {
+      return ctx.reply('Please select a scan mode first:\n/scan_records - Scan financial records\n/scan_participation - Scan attendance lists');
+    }
+
     const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
-    await ctx.reply(`I received your photo, ${username}! It has been archived in the Exona vault.`);
+    await ctx.reply(`Presidential AI Engine is analyzing your document... ⏳`);
+
+    try {
+      // Get photo file link
+      const photo = ctx.message.photo[ctx.message.photo.length - 1];
+      const fileLink = await ctx.telegram.getFileLink(photo.file_id);
+      
+      const response = await axios.get(fileLink.toString(), { responseType: 'arraybuffer' });
+      const imageBase64 = Buffer.from(response.data).toString('base64');
+      const mimeType = 'image/jpeg'; // Telegram photos are usually JPEGs
+
+      // Find user institution
+      const userUid = `tg_${chatId}`;
+      const schoolsSnap = await getDocs(query(collection(db, 'schools'), where('creatorUid', '==', userUid)));
+      const placesSnap = await getDocs(query(collection(db, 'places'), where('creatorUid', '==', userUid)));
+      
+      const institution = schoolsSnap.docs[0]?.data() || placesSnap.docs[0]?.data();
+      
+      if (!institution) {
+        return ctx.reply('⚠️ No institution found linked to your account. Please create one in the web dashboard first.');
+      }
+
+      let responseSchema: any;
+      let promptText = "";
+
+      if (state.mode === 'scan_records') {
+        promptText = "Extract institutional member records from this image. Look for names, departments/units, categories (like 'fees', 'dues'), paid amounts, and balances. If details are missing, leave them null.";
+        responseSchema = {
+          type: Type.OBJECT,
+          properties: {
+            extractedData: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  fullName: { type: Type.STRING },
+                  unit: { type: Type.STRING },
+                  category: { type: Type.STRING },
+                  paid: { type: Type.NUMBER },
+                  balance: { type: Type.NUMBER },
+                  parentNumber: { type: Type.STRING }
+                },
+                required: ["fullName"]
+              }
+            }
+          }
+        };
+      } else {
+        promptText = "Extract member participation/attendance from this image. Look for names, departments/units, and status (present, absent, or late). Default to 'present' if unclear.";
+        responseSchema = {
+          type: Type.OBJECT,
+          properties: {
+            extractedData: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  staffName: { type: Type.STRING },
+                  unit: { type: Type.STRING },
+                  status: { 
+                    type: Type.STRING, 
+                    enum: ["present", "absent", "late"]
+                  }
+                },
+                required: ["staffName", "status"]
+              }
+            }
+          }
+        };
+      }
+
+      const aiResponse = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType, data: imageBase64 } }] }],
+        config: { responseMimeType: "application/json", responseSchema }
+      });
+
+      const extracted = JSON.parse(aiResponse.text || '{"extractedData": []}');
+      const dataItems = extracted.extractedData || [];
+
+      if (dataItems.length === 0) {
+        return ctx.reply('❌ No valid records could be extracted from this image. Please ensure the text is clear and readable.');
+      }
+
+      // Instead of immediate sync, store data and ask for category
+      userStates.set(chatId, { ...state, extractedData: dataItems, institutionId: institution.id });
+
+      const categories = (institution.educationalLevels || []).slice(0, 8); // Max 8 buttons
+      const buttons = categories.map((cat: string) => [{ text: cat, callback_data: `sync_cat:${cat}` }]);
+      buttons.push([{ text: 'Use Default Categories', callback_data: 'sync_cat:default' }]);
+
+      await ctx.reply(`🔍 Analysis Complete!\n\nI detected ${dataItems.length} entries.\n\nWhich department/category should I assign these to?`, {
+        reply_markup: {
+          inline_keyboard: buttons
+        }
+      });
+
+    } catch (error: any) {
+      console.error('Telegram AI Sync Error:', error);
+      await ctx.reply(`❌ System failure during AI processing: ${error.message || 'Unknown error'}`);
+    }
   });
 
   botInstance.on('video', async (ctx) => {
@@ -204,6 +322,97 @@ function setupBot(botInstance: Telegraf) {
       await ctx.reply(`Total community size: ${count} users.`);
     } catch (error) {
       console.error('Error fetching stats via bot:', error);
+    }
+  });
+
+  // Handle category selection and sync
+  botInstance.on('callback_query', async (ctx: any) => {
+    const chatId = ctx.callbackQuery.message.chat.id.toString();
+    const queryData = ctx.callbackQuery.data;
+    if (!queryData?.startsWith('sync_cat:')) return;
+
+    const state = userStates.get(chatId);
+    if (!state?.extractedData || !state.institutionId) {
+      return ctx.answerCbQuery('Session expired or invalid.');
+    }
+
+    const requestedCategory = queryData.split(':')[1];
+    const finalCategory = requestedCategory === 'default' ? null : requestedCategory;
+    const username = ctx.from.username || ctx.from.first_name || 'Anonymous';
+    const userUid = `tg_${chatId}`;
+
+    await ctx.answerCbQuery('Executing Institutional Sync...');
+    await ctx.editMessageText('🔄 Syncing to Ledger... Please wait.');
+
+    try {
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      // Fetch existing if records
+      let existingRecords: any[] = [];
+      if (state.mode === 'scan_records') {
+        const recsSnap = await getDocs(query(collection(db, 'studentRecords'), where('schoolId', '==', state.institutionId)));
+        existingRecords = recsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      }
+
+      for (const item of state.extractedData) {
+        if (state.mode === 'scan_records') {
+          const itemFullName = item.fullName;
+          const existing = existingRecords.find((r: any) => 
+            r.studentName?.toLowerCase() === itemFullName?.toLowerCase()
+          );
+
+          const recordData = {
+            studentName: itemFullName,
+            studentClass: finalCategory || item.unit || 'General',
+            category: item.category || 'General',
+            paid: item.paid || 0,
+            balance: item.balance || 0,
+            parentNumber: item.parentNumber || '',
+            schoolId: state.institutionId,
+            timestamp: serverTimestamp(),
+            addedBy: username,
+            addedByUid: userUid,
+            type: 'general'
+          };
+
+          if (existing) {
+            await updateDoc(doc(db, 'studentRecords', existing.id), {
+              ...recordData,
+              paid: (existing.paid || 0) + (item.paid || 0),
+              balance: item.balance !== undefined ? item.balance : existing.balance
+            });
+            updatedCount++;
+          } else {
+            const newId = `tg_rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            await setDoc(doc(db, 'studentRecords', newId), { ...recordData, id: newId });
+            addedCount++;
+          }
+        } else {
+          // Participation
+          const id = `tg_att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          await setDoc(doc(db, 'teacherAttendance', id), {
+            id,
+            teacherName: item.staffName,
+            status: item.status || 'present',
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            category: finalCategory || item.unit || 'General',
+            schoolId: state.institutionId,
+            addedBy: username,
+            addedByUid: userUid,
+            timestamp: serverTimestamp()
+          });
+          addedCount++;
+        }
+      }
+
+      await ctx.editMessageText(`✅ Institutional Lead Sync Completed!\n\nCategory set to: ${finalCategory || 'System Default'}\nEntries Added: ${addedCount}\nEntries Updated: ${updatedCount}`);
+      userStates.delete(chatId);
+
+    } catch (error: any) {
+      console.error('CB Sync Error:', error);
+      await ctx.editMessageText(`❌ Sync failed: ${error.message}`);
     }
   });
 }
