@@ -18,7 +18,7 @@ import {
   Globe, Zap, Mail, Facebook, Twitter, Instagram, Github, Chrome, Palette, HelpCircle, Info, Coffee, Rocket, Terminal, Code2, Monitor, Smartphone, Tablet, Github as GithubIcon, Laptop, Coffee as CoffeeIcon,
   Sun, Moon, Book, Award, Star, BarChart3, Briefcase, HeartHandshake, ShieldCheck, Zap as ZapIcon, Fingerprint as FingerprintIcon,
   FileCode, FileImage, FileAudio, FileVideo, FileArchive, FilePieChart,
-  Edit, Grid, List, Download, Share, Maximize2, Minimize2, ExternalLink, Link, Move, Copy,
+  Edit, Grid, List, Download, Share, Maximize2, Minimize2, ExternalLink, Link, Move, Copy, Scan,
   ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ExternalLink as ExternalLinkIcon, ListFilter, SlidersHorizontal, Hash, Tag, Bookmark, ShieldAlert as ShieldAlertIcon,
   RefreshCcw, Layers, Layout, Library, Pencil, Save, BookOpen as BookOpenIcon, Clock as ClockIcon, Calendar as CalendarIcon, Check as CheckIcon, X as XIcon, Menu as MenuIcon, Search as SearchIcon, Filter as FilterIcon, MoreVertical as MoreVerticalIcon, Bell as BellIcon, Settings as SettingsIcon, LogOut as LogOutIcon, Camera as CameraIcon, Plus as PlusIcon, Send as SendIcon, Image as ImageIcon2, Smile as SmileIcon, Heart as HeartIcon, MessageCircle as MessageCircleIcon, Share2 as Share2Icon, MoreHorizontal as MoreHorizontalIcon, Trash2 as Trash2Icon, Edit2 as Edit2Icon, Bookmark as BookmarkIcon, Heart as HeartFilled, LogOut,
   Gamepad2, Trophy, Flame, Ghost, Music, Video, Map as MapIcon, Volume2, VolumeX, MicOff,
@@ -1949,6 +1949,123 @@ function ExonaApp() {
     }
   };
 
+  const handleScanFileSelection = (e: React.ChangeEvent<HTMLInputElement>, type: 'records' | 'participation') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setScannedFile(file);
+      setScanType(type);
+      setScanPreviewUrl(URL.createObjectURL(file));
+      handleScanList(file, type);
+    }
+  };
+
+  const handleScanList = async (file: File, type: 'records' | 'participation') => {
+    if (!selectedSchool) return;
+    setIsAiScanning(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('type', type);
+
+      const response = await fetch('/api/ai/scan-list', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setScannedData(data.extractedData);
+        setIsScanReviewOpen(true);
+        showNotification(`${data.extractedData.length} entries extracted from image`, 'success');
+      } else {
+        showNotification(data.error || 'Failed to analyze list', 'error');
+      }
+    } catch (error) {
+      console.error('Scan Error:', error);
+      showNotification('System error during scanning', 'error');
+    } finally {
+      setIsAiScanning(false);
+    }
+  };
+
+  const handleSyncScannedData = async () => {
+    if (!selectedSchool || !user) return;
+    setIsSyncingData(true);
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    try {
+      for (const item of scannedData) {
+        if (scanType === 'records') {
+          // Check if person exists by name and unit/class
+          const existing = records.find(r => 
+            r.studentName.toLowerCase() === item.fullName.toLowerCase() && 
+            (r.studentClass || '').toLowerCase() === (item.unit || '').toLowerCase()
+          );
+
+          const recordData = {
+            studentName: item.fullName,
+            studentClass: item.unit || 'General',
+            category: item.category || recordTab,
+            paid: item.paid || 0,
+            balance: item.balance || 0,
+            parentNumber: item.parentNumber || '',
+            schoolId: selectedSchool.id,
+            timestamp: serverTimestamp(),
+            addedBy: userDoc?.displayName || user.email || 'Admin',
+            addedByUid: user.uid,
+            type: recordTab === 'all' ? 'general' : recordTab
+          };
+
+          if (existing) {
+            await updateDoc(doc(db, 'studentRecords', existing.id), {
+              ...recordData,
+              paid: (existing.paid || 0) + (item.paid || 0),
+              balance: item.balance !== undefined ? item.balance : existing.balance
+            });
+            updatedCount++;
+          } else {
+            const newId = `rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            await setDoc(doc(db, 'studentRecords', newId), { ...recordData, id: newId });
+            addedCount++;
+          }
+        } else {
+          // Participation Sync
+          const staffName = item.staffName;
+          const status = item.status || 'present';
+          
+          // Add new attendance record
+          const id = `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          await setDoc(doc(db, 'teacherAttendance', id), {
+            id,
+            teacherName: staffName,
+            status,
+            date: new Date().toISOString().split('T')[0],
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            category: item.unit || 'General',
+            schoolId: selectedSchool.id,
+            addedBy: userDoc?.displayName || user.email || 'Admin',
+            addedByUid: user.uid,
+            timestamp: serverTimestamp()
+          });
+          addedCount++;
+        }
+      }
+
+      showNotification(`Sync Complete: ${addedCount} added, ${updatedCount} updated`, 'success');
+      setIsScanReviewOpen(false);
+      setScannedData([]);
+      setScanPreviewUrl(null);
+      setScannedFile(null);
+    } catch (error) {
+      console.error('Sync Error:', error);
+      showNotification('Partial sync failure', 'error');
+    } finally {
+      setIsSyncingData(false);
+    }
+  };
+
   const handleRemoveBankAccount = async (account: any) => {
     if (!selectedSchool) return;
     try {
@@ -1985,6 +2102,14 @@ function ExonaApp() {
   const [editingAttendance, setEditingAttendance] = useState<TeacherAttendance | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
+  const [isAiScanning, setIsAiScanning] = useState(false);
+  const [isScanReviewOpen, setIsScanReviewOpen] = useState(false);
+  const [scannedData, setScannedData] = useState<any[]>([]);
+  const [scanType, setScanType] = useState<'records' | 'participation'>('records');
+  const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
+  const [scannedFile, setScannedFile] = useState<File | null>(null);
+  const [isSyncingData, setIsSyncingData] = useState(false);
+
   const CallOverlay = () => {
     const call = incomingCall || outgoingCall;
     if (!call) return null;
@@ -9471,6 +9596,22 @@ function ExonaApp() {
                       <List size={12} /> Categories
                     </button>
                   )}
+                  {canManageInstitution(selectedSchool) && (
+                    <label className="px-3 sm:px-4 py-1.5 bg-accent text-white rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-accent/90 transition-all flex items-center gap-2 cursor-pointer">
+                      {isAiScanning ? (
+                        <RefreshCw size={12} className="animate-spin" />
+                      ) : (
+                        <Scan size={12} />
+                      )}
+                      Scan Records
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleScanFileSelection(e, 'records')} 
+                      />
+                    </label>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
                   {currentRecordTabs.map(tab => (
@@ -11077,6 +11218,22 @@ function ExonaApp() {
                       <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
                       Manual Entry
                     </button>
+                  )}
+                  {canManageInstitution(selectedSchool) && (
+                    <label className="flex items-center gap-3 px-6 py-2 bg-accent text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-accent/90 transition-all active:scale-95 group cursor-pointer">
+                      {isAiScanning ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : (
+                        <Scan size={14} />
+                      )}
+                      Scan & Import
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => handleScanFileSelection(e, 'participation')} 
+                      />
+                    </label>
                   )}
                 </div>
               </div>
@@ -16170,6 +16327,126 @@ function ExonaApp() {
                     editingRecord ? 'Update Record' : 'Synchronize Record'
                   )}
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isScanReviewOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-5xl bg-card rounded-[3.5rem] p-8 sm:p-12 border border-gray-100 my-auto max-h-[90vh] overflow-y-auto no-scrollbar shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-6">
+                  <div className="h-16 w-16 bg-accent/5 text-accent rounded-3xl flex items-center justify-center">
+                    <Scan size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-black text-ink mb-1">
+                      Review Extracted Data
+                    </h3>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">AI-Powered Precision Sync</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsScanReviewOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                {/* Image Preview */}
+                <div className="space-y-6">
+                   <h4 className="text-xs font-black text-muted uppercase tracking-widest ml-4">Source Image</h4>
+                   <div className="aspect-[4/3] bg-gray-50 rounded-[2.5rem] border border-gray-100 overflow-hidden relative group">
+                      {scanPreviewUrl && <img src={scanPreviewUrl} className="h-full w-full object-contain" />}
+                      <div className="absolute inset-0 bg-ink/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                         <p className="text-white text-[10px] font-bold uppercase tracking-widest">Original Document</p>
+                      </div>
+                   </div>
+                </div>
+
+                {/* Extracted Data List */}
+                <div className="space-y-6">
+                   <h4 className="text-xs font-black text-muted uppercase tracking-widest ml-4">Detected Entries ({scannedData.length})</h4>
+                   <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                      {scannedData.map((item, idx) => {
+                         const fullName = item.fullName || item.staffName;
+                         const exists = scanType === 'records' 
+                            ? records.some(r => r.studentName.toLowerCase() === fullName?.toLowerCase())
+                            : false; // For attendance we always add new entries
+
+                         return (
+                            <div key={idx} className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-3xl hover:border-accent/30 transition-all">
+                               <div className="flex items-center gap-4">
+                                  <div className={`h-10 w-10 ${exists ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'} rounded-xl flex items-center justify-center`}>
+                                     {exists ? <RefreshCw size={18} /> : <Plus size={18} />}
+                                  </div>
+                                  <div>
+                                     <p className="text-sm font-bold text-ink">{fullName}</p>
+                                     <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-[10px] font-bold text-muted uppercase tracking-widest">{item.unit || 'General'}</span>
+                                        {scanType === 'records' && item.paid !== undefined && (
+                                           <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Paid: {currencySymbol}{item.paid}</span>
+                                        )}
+                                        {scanType === 'participation' && (
+                                           <span className={`text-[10px] font-bold uppercase tracking-widest ${item.status === 'present' ? 'text-green-600' : 'text-red-600'}`}>{item.status}</span>
+                                        )}
+                                     </div>
+                                  </div>
+                               </div>
+                               <div className="text-right">
+                                  <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${exists ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
+                                     {exists ? 'Update' : 'New'}
+                                  </span>
+                               </div>
+                            </div>
+                         );
+                      })}
+                      {scannedData.length === 0 && (
+                        <div className="py-20 text-center bg-gray-50 rounded-[2.5rem] border border-dashed border-gray-200">
+                           <p className="text-muted font-bold text-sm">No valid data detected in the document.</p>
+                           <p className="text-[10px] text-muted uppercase tracking-widest mt-2">Check the image quality and try again.</p>
+                        </div>
+                      )}
+                   </div>
+                </div>
+              </div>
+
+              <div className="mt-12 pt-8 border-t border-gray-50 flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 bg-accent rounded-full animate-pulse" />
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Verification Complete: {scannedData.length} entities indexed</p>
+                </div>
+                <div className="flex gap-4 w-full sm:w-auto">
+                   <button 
+                    onClick={() => setIsScanReviewOpen(false)}
+                    className="flex-1 sm:px-8 py-4 bg-white border border-gray-200 text-muted rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                   <button 
+                    onClick={handleSyncScannedData}
+                    disabled={scannedData.length === 0 || isSyncingData}
+                    className="flex-[2] sm:px-12 py-4 bg-ink text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isSyncingData ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        Syncing Engine...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={16} />
+                        Execute Sync
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

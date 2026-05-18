@@ -8,6 +8,7 @@ import { initializeApp as initializeClientApp } from 'firebase/app';
 import { getFirestore as getClientFirestore, doc, getDoc, setDoc, collection, getDocs, query, where, limit, getCountFromServer } from 'firebase/firestore';
 import fs from 'fs';
 import multer from 'multer';
+import { GoogleGenAI, Type } from "@google/genai";
 
 const upload = multer({ dest: 'uploads/' });
 try {
@@ -52,6 +53,16 @@ if ((firebaseConfig as any).projectId) {
 
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Initialize Gemini
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
 
 // Initialize Telegram Bot
 let bot: Telegraf | null = null;
@@ -235,6 +246,104 @@ async function startServer() {
       database: dbStatus,
       projectId: (firebaseConfig as any).projectId || 'missing'
     });
+  });
+
+  // AI List Scanning Endpoint
+  app.post('/api/ai/scan-list', upload.single('image'), async (req: any, res) => {
+    try {
+      const file = req.file;
+      const { type } = req.body; // 'records' or 'participation'
+      
+      if (!file) {
+        return res.status(400).json({ success: false, error: 'No image provided' });
+      }
+
+      const filePath = path.join(process.cwd(), file.path);
+      const imageBase64 = fs.readFileSync(filePath, 'base64');
+
+      let responseSchema: any;
+      let promptText = "";
+
+      if (type === 'records') {
+        promptText = "Extract institutional member records from this image. Look for names, departments/units, categories (like 'fees', 'dues'), paid amounts, and balances. If details are missing, leave them null.";
+        responseSchema = {
+          type: Type.OBJECT,
+          properties: {
+            extractedData: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  fullName: { type: Type.STRING, description: "Full name of the person" },
+                  unit: { type: Type.STRING, description: "Department, class, or operational unit" },
+                  category: { type: Type.STRING, description: "Type of payment or record category" },
+                  paid: { type: Type.NUMBER, description: "Amount paid" },
+                  balance: { type: Type.NUMBER, description: "Outstanding balance" },
+                  parentNumber: { type: Type.STRING, description: "Any reference phone number if visible" }
+                },
+                required: ["fullName"]
+              }
+            }
+          },
+          required: ["extractedData"]
+        };
+      } else {
+        promptText = "Extract member participation/attendance from this image. Look for names, departments/units, and status (present, absent, or late). If status is not clear, default to 'present'.";
+        responseSchema = {
+          type: Type.OBJECT,
+          properties: {
+            extractedData: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  staffName: { type: Type.STRING, description: "Full name of the person" },
+                  unit: { type: Type.STRING, description: "Department, class, or operational unit" },
+                  status: { 
+                    type: Type.STRING, 
+                    description: "Attendance status: present, absent, or late",
+                    enum: ["present", "absent", "late"]
+                  }
+                },
+                required: ["staffName", "status"]
+              }
+            }
+          },
+          required: ["extractedData"]
+        };
+      }
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [
+          {
+            parts: [
+              { text: promptText },
+              {
+                inlineData: {
+                  mimeType: file.mimetype,
+                  data: imageBase64
+                }
+              }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
+        }
+      });
+
+      // Cleanup
+      try { fs.unlinkSync(filePath); } catch(e) {}
+
+      const extracted = JSON.parse(response.text || '{"extractedData": []}');
+      res.json({ success: true, ...extracted });
+
+    } catch (error: any) {
+      console.error('Gemini Scanning Error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to analyze list' });
+    }
   });
 
   // 3. Broadcast API Endpoint
