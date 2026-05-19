@@ -6,8 +6,8 @@
   "main": "server.ts",
   "scripts": {
     "dev": "tsx server.ts",
-    "start": "tsx server.ts",
-    "build": "vite build",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
@@ -22,6 +22,7 @@
     "axios": "^1.16.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
+    "esbuild": "^0.28.0",
     "expo": "~52.0.25",
     "expo-asset": "~11.0.3",
     "expo-constants": "~17.0.3",

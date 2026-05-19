@@ -1179,6 +1179,7 @@ interface ExonWallet {
   excoinBalance: number;
   tier: 'Standard' | 'Silver' | 'Gold' | 'Platinum' | 'Elite' | 'Presidential';
   last_transaction: any;
+  lastDailyClaim?: string;
 }
 
 interface ExonTransaction {
@@ -1976,6 +1977,7 @@ function ExonaApp() {
       const data = await response.json();
       if (data.success) {
         setScannedData(data.extractedData);
+        setScannedDate(data.extractedDate || null);
         setIsScanReviewOpen(true);
         showNotification(`${data.extractedData.length} entries extracted from image`, 'success');
       } else {
@@ -2041,8 +2043,8 @@ function ExonaApp() {
             id,
             teacherName: staffName,
             status,
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: scannedDate || new Date().toISOString().split('T')[0],
+            time: item.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             category: item.unit || 'General',
             schoolId: selectedSchool.id,
             addedBy: userDoc?.displayName || user.email || 'Admin',
@@ -2109,6 +2111,7 @@ function ExonaApp() {
   const [scanPreviewUrl, setScanPreviewUrl] = useState<string | null>(null);
   const [scannedFile, setScannedFile] = useState<File | null>(null);
   const [isSyncingData, setIsSyncingData] = useState(false);
+  const [scannedDate, setScannedDate] = useState<string | null>(null);
 
   const CallOverlay = () => {
     const call = incomingCall || outgoingCall;
@@ -4060,7 +4063,7 @@ function ExonaApp() {
               {/* Quick Actions */}
               <div className="grid grid-cols-2 gap-4 mb-12">
                 <button 
-                   onClick={() => handleCreditExonStars(10, 'Daily Treasury Allowance')}
+                   onClick={() => handleClaimDailyStars()}
                    className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-3xl border border-gray-100 hover:border-accent/30 hover:bg-white transition-all group"
                 >
                   <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
@@ -5050,7 +5053,7 @@ function ExonaApp() {
   const [pendingFollowerProfilesMap, setPendingFollowerProfilesMap] = useState<{[uid: string]: { displayName: string, photoURL?: string }}>({});
   const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
 
-  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
 
   // Reset work-in-progress when switching institutions
@@ -5168,7 +5171,7 @@ function ExonaApp() {
     }
   };
 
-  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
@@ -6447,6 +6450,59 @@ function ExonaApp() {
       showNotification(`Received ${amount} Exon Stars`, 'success');
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
+    }
+  };
+
+  const handleClaimDailyStars = async () => {
+    if (!user) return;
+    const today = new Date().toISOString().split('T')[0];
+    
+    try {
+      const walletRef = doc(db, 'wallets', user.uid);
+      
+      await runTransaction(db, async (transaction) => {
+        const walletDoc = await transaction.get(walletRef);
+        
+        if (walletDoc.exists()) {
+          const data = walletDoc.data() as ExonWallet;
+          if (data.lastDailyClaim === today) {
+            throw new Error('ALREADY_CLAIMED');
+          }
+          
+          const currentBalance = data.balance || 0;
+          transaction.update(walletRef, {
+            balance: currentBalance + 10,
+            lastDailyClaim: today,
+            last_transaction: serverTimestamp()
+          });
+        } else {
+          transaction.set(walletRef, {
+            userId: user.uid,
+            balance: 10,
+            excoin_balance: 0,
+            tier: 'Standard',
+            lastDailyClaim: today,
+            last_transaction: serverTimestamp()
+          });
+        }
+
+        const historyRef = doc(collection(db, `wallets/${user.uid}/history`));
+        transaction.set(historyRef, {
+          amount: 10,
+          type: 'credit',
+          currency: 'stars',
+          description: 'Daily Treasury Allowance',
+          timestamp: serverTimestamp()
+        });
+      });
+      
+      showNotification('Received 10 Daily Exon Stars', 'success');
+    } catch (error: any) {
+      if (error.message === 'ALREADY_CLAIMED') {
+        showNotification('You have already claimed your daily stars today!', 'info');
+      } else {
+        handleFirestoreError(error, OperationType.UPDATE, `wallets/${user.uid}`);
+      }
     }
   };
 
@@ -15798,10 +15854,12 @@ function ExonaApp() {
             className={`fixed top-6 left-1/2 -translate-x-1/2 z-[1000] px-6 py-3 rounded-full flex items-center gap-3 border ${
               notification.type === 'success' 
                 ? 'bg-ink text-white border-white/10' 
+                : notification.type === 'info'
+                ? 'bg-blue-600 text-white border-blue-500'
                 : 'bg-red-600 text-white border-red-500'
             }`}
           >
-            {notification.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            {notification.type === 'success' ? <CheckCircle2 size={18} /> : notification.type === 'info' ? <Info size={18} /> : <AlertCircle size={18} />}
             <span className="text-sm font-bold tracking-tight">{notification.message}</span>
           </motion.div>
         )}

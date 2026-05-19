@@ -1,8 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { createServer as createViteServer } from 'vite';
 import { Telegraf } from 'telegraf';
 import { initializeApp as initializeClientApp } from 'firebase/app';
 import { getFirestore as getClientFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, limit, getCountFromServer, serverTimestamp } from 'firebase/firestore';
@@ -32,9 +30,6 @@ try {
   console.error('Failed to load firebase-applet-config.json:', err);
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 console.log('Presidential Server: Starting initialization sequence...');
 console.log('Environment:', process.env.NODE_ENV);
 
@@ -54,6 +49,29 @@ if ((firebaseConfig as any).projectId) {
 
 // Helper function for delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Helper for AI retries
+async function callAiWithRetry(fn: () => Promise<any>, maxRetries = 3) {
+  let lastError: any;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastError = err;
+      const status = err.status || err.response?.status || err.error?.code;
+      const isRetryable = status === 503 || status === 429 || (err.message && err.message.includes('503'));
+      
+      if (isRetryable && i < maxRetries - 1) {
+        const backoff = Math.pow(2, i) * 2000 + Math.random() * 1000;
+        console.warn(`Gemini API error (${status}). Retrying in ${Math.round(backoff/1000)}s... (Attempt ${i + 1}/${maxRetries})`);
+        await delay(backoff);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError;
+}
 
 // Initialize Gemini
 const ai = new GoogleGenAI({
@@ -99,17 +117,18 @@ function getBot() {
     
     // Proactively delete any existing webhook to ensure long-polling can start
     newBot.telegram.deleteWebhook({ drop_pending_updates: true }).then(async () => {
-      console.log('Telegram: Webhook deleted and updates dropped');
+      console.log('Telegram: Webhook deleted and updates dropped. Waiting for stale sessions...');
       
-      // Add a delay to avoid race conditions with previous instances
-      await delay(5000);
+      // Add a longer delay to avoid race conditions with previous instances in dev environments
+      await delay(10000);
       
       let retryCount = 0;
-      const maxRetries = 5;
+      const maxRetries = 10;
       
       const attemptLaunch = async () => {
         try {
-          await newBot.launch();
+          // Use dropPendingUpdates in the launch options as well
+          await newBot.launch({ dropPendingUpdates: true });
           console.log('Telegram bot launched successfully');
           isBotLaunching = false;
         } catch (err: any) {
@@ -118,8 +137,9 @@ function getBot() {
           
           if ((errorCode === 409 || errorDesc.includes('Conflict')) && retryCount < maxRetries) {
             retryCount++;
-            const backoff = retryCount * 5000;
-            console.warn(`Telegram conflict (409). Retrying in ${backoff/1000}s... (Attempt ${retryCount}/${maxRetries})`);
+            // Exponential backoff
+            const backoff = Math.min(retryCount * 10000, 60000); 
+            console.warn(`Telegram conflict (409) detected. Another instance might be running. Retrying in ${backoff/1000}s... (Attempt ${retryCount}/${maxRetries})`);
             await delay(backoff);
             return attemptLaunch();
           }
@@ -254,10 +274,15 @@ function setupBot(botInstance: Telegraf) {
           }
         };
       } else {
-        promptText = "Extract member participation/attendance from this image. Look for names, departments/units, and status (present, absent, or late). Default to 'present' if unclear.";
+        promptText = "Extract staff attendance from this image. \n" +
+                     "1. Look for a date written on the paper. If found, use it.\n" +
+                     "2. Look for arrival/sign-in times for each staff member.\n" +
+                     "3. Determine 'status': If time is after 9:00 AM, mark as 'late'. If no time is present but they are listed, mark as 'absent' if indicated, otherwise 'present'.\n" +
+                     "Extract all staff members listed.";
         responseSchema = {
           type: Type.OBJECT,
           properties: {
+            extractedDate: { type: Type.STRING, description: "The date found on the paper (e.g. 2024-05-19)" },
             extractedData: {
               type: Type.ARRAY,
               items: {
@@ -265,6 +290,7 @@ function setupBot(botInstance: Telegraf) {
                 properties: {
                   staffName: { type: Type.STRING },
                   unit: { type: Type.STRING },
+                  time: { type: Type.STRING },
                   status: { 
                     type: Type.STRING, 
                     enum: ["present", "absent", "late"]
@@ -277,14 +303,15 @@ function setupBot(botInstance: Telegraf) {
         };
       }
 
-      const aiResponse = await ai.models.generateContent({
+      const aiResponse = await callAiWithRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType, data: imageBase64 } }] }],
         config: { responseMimeType: "application/json", responseSchema }
-      });
+      }));
 
       const extracted = JSON.parse(aiResponse.text || '{"extractedData": []}');
       const dataItems = extracted.extractedData || [];
+      const paperDate = extracted.extractedDate;
 
       if (dataItems.length === 0) {
         return ctx.reply('❌ No valid records could be extracted from this image. Please ensure the text is clear and readable.');
@@ -340,8 +367,8 @@ function setupBot(botInstance: Telegraf) {
             id,
             teacherName: item.staffName,
             status: item.status || 'present',
-            date: new Date().toISOString().split('T')[0],
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            date: paperDate || new Date().toISOString().split('T')[0],
+            time: item.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             category: item.unit || 'General',
             schoolId: institution.id,
             addedBy: username,
@@ -458,20 +485,26 @@ async function startServer() {
           required: ["extractedData"]
         };
       } else {
-        promptText = "Extract member participation/attendance from this image. Look for names, departments/units, and status (present, absent, or late). If status is not clear, default to 'present'.";
+        promptText = "Extract staff attendance from this image. \n" +
+                     "1. Look for a date written on the paper. If found, use it. If not, look for clues or leave as null.\n" +
+                     "2. Look for arrival/sign-in times for each staff member.\n" +
+                     "3. Determine 'status': If time is after 9:00 AM, mark as 'late'. If no time is present but they are listed, mark as 'absent' if indicated, otherwise 'present'.\n" +
+                     "Extract all staff members listed.";
         responseSchema = {
           type: Type.OBJECT,
           properties: {
+            extractedDate: { type: Type.STRING, description: "The date found on the paper (e.g. 2024-05-19)" },
             extractedData: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  staffName: { type: Type.STRING, description: "Full name of the person" },
-                  unit: { type: Type.STRING, description: "Department, class, or operational unit" },
+                  staffName: { type: Type.STRING, description: "Full name of the staff member" },
+                  unit: { type: Type.STRING, description: "Department or unit" },
+                  time: { type: Type.STRING, description: "The arrival time found on the paper (e.g. 08:30 AM)" },
                   status: { 
                     type: Type.STRING, 
-                    description: "Attendance status: present, absent, or late",
+                    description: "Attendance status based on time or marking: present, absent, or late",
                     enum: ["present", "absent", "late"]
                   }
                 },
@@ -483,7 +516,7 @@ async function startServer() {
         };
       }
 
-      const response = await ai.models.generateContent({
+      const response = await callAiWithRetry(() => ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
           {
@@ -502,7 +535,7 @@ async function startServer() {
           responseMimeType: "application/json",
           responseSchema: responseSchema
         }
-      });
+      }));
 
       // Cleanup
       try { fs.unlinkSync(filePath); } catch(e) {}
@@ -711,7 +744,8 @@ async function startServer() {
   });
 
   if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
+    const { createServer } = await import('vite');
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
