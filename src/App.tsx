@@ -2084,6 +2084,8 @@ function ExonaApp() {
   };
 
   const [recordTab, setRecordTab] = useState<string>('all');
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [recordViewMode, setRecordViewMode] = useState<'classic' | 'microsoft' | 'bento'>('classic');
   const [hasChosenView, setHasChosenView] = useState(false);
   const [calcTuition, setCalcTuition] = useState<string>('');
@@ -9669,16 +9671,101 @@ function ExonaApp() {
                     </label>
                   )}
                 </div>
-                <div className="flex flex-wrap gap-1 bg-white border border-gray-100 p-1 rounded-lg">
-                  {currentRecordTabs.map(tab => (
-                    <button 
-                      key={tab}
-                      onClick={() => setRecordTab(tab)}
-                      className={`px-3 sm:px-4 py-1.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-wider transition-all ${recordTab === tab ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
-                    >
-                      {(labels as any)[tab] || tab}
-                    </button>
-                  ))}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-1.5 bg-white border border-gray-100 rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:border-accent hover:text-accent transition-all active:scale-95 text-ink shadow-sm"
+                  >
+                    <Folder size={12} className="text-accent" />
+                    <span>Category:</span>
+                    <span className="text-accent bg-accent/5 px-2 py-0.5 rounded-md font-extrabold font-mono">
+                      {((labels as any)[recordTab] || recordTab).toUpperCase()}
+                    </span>
+                    <ChevronDown size={12} className={`text-muted transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {isCategoryDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-[110]" 
+                          onClick={() => {
+                            setIsCategoryDropdownOpen(false);
+                            setCategorySearchQuery('');
+                          }} 
+                        />
+                        
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute left-0 mt-2 z-[120] w-64 bg-white border border-gray-100 shadow-2xl rounded-2xl p-3 flex flex-col gap-2"
+                        >
+                          <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
+                            <span className="text-[10px] font-black uppercase text-muted tracking-widest flex items-center gap-1">
+                              📁 Categories Folder
+                            </span>
+                            <span className="text-[9px] ml-auto bg-gray-100 text-muted px-1.5 py-0.5 rounded-full font-mono font-bold">
+                              {currentRecordTabs.length} Total
+                            </span>
+                          </div>
+
+                          {currentRecordTabs.length > 5 && (
+                            <div className="relative">
+                              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+                              <input
+                                type="text"
+                                placeholder="Search category..."
+                                value={categorySearchQuery}
+                                onChange={(e) => setCategorySearchQuery(e.target.value)}
+                                className="w-full pl-8 pr-3 py-1 bg-gray-50 text-[10px] font-bold rounded-lg border border-transparent focus:border-accent/20 outline-none placeholder:text-muted/70"
+                              />
+                            </div>
+                          )}
+
+                          <div className="max-h-60 overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
+                            {(() => {
+                              const filtered = currentRecordTabs.filter(tab => {
+                                const label = ((labels as any)[tab] || tab).toLowerCase();
+                                return label.includes(categorySearchQuery.toLowerCase());
+                              });
+
+                              if (filtered.length === 0) {
+                                return (
+                                  <div className="py-6 text-center text-muted font-bold text-[10px] uppercase">
+                                    No categories found
+                                  </div>
+                                );
+                              }
+
+                              return filtered.map(tab => {
+                                const isSelected = recordTab === tab;
+                                return (
+                                  <button
+                                    key={tab}
+                                    onClick={() => {
+                                      setRecordTab(tab);
+                                      setIsCategoryDropdownOpen(false);
+                                      setCategorySearchQuery('');
+                                    }}
+                                    className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center justify-between transition-all duration-150 ${
+                                      isSelected 
+                                        ? 'bg-ink text-white shadow-md shadow-black/10' 
+                                        : 'text-muted hover:text-ink hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span className="truncate">{(labels as any)[tab] || tab}</span>
+                                    {isSelected && <Check size={12} strokeWidth={3} />}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
                 </div>
                 <div className="hidden sm:block h-6 w-[1px] bg-gray-100" />
                 <div className="flex flex-wrap items-center gap-2">
