@@ -22,7 +22,7 @@ import {
   ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ExternalLink as ExternalLinkIcon, ListFilter, SlidersHorizontal, Hash, Tag, Bookmark, ShieldAlert as ShieldAlertIcon,
   RefreshCcw, Layers, Layout, Library, Pencil, Save, BookOpen as BookOpenIcon, Clock as ClockIcon, Calendar as CalendarIcon, Check as CheckIcon, X as XIcon, Menu as MenuIcon, Search as SearchIcon, Filter as FilterIcon, MoreVertical as MoreVerticalIcon, Bell as BellIcon, Settings as SettingsIcon, LogOut as LogOutIcon, Camera as CameraIcon, Plus as PlusIcon, Send as SendIcon, Image as ImageIcon2, Smile as SmileIcon, Heart as HeartIcon, MessageCircle as MessageCircleIcon, Share2 as Share2Icon, MoreHorizontal as MoreHorizontalIcon, Trash2 as Trash2Icon, Edit2 as Edit2Icon, Bookmark as BookmarkIcon, Heart as HeartFilled, LogOut,
   Gamepad2, Trophy, Flame, Ghost, Music, Video, Map as MapIcon, Volume2, VolumeX, MicOff,
-  Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FilePlus, FileMinus,
+  Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
   Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity
@@ -1109,6 +1109,7 @@ interface StudentRecord {
   creatorUid: string;
   addedBy: string;
   timestamp: any;
+  subFolder?: string;
 }
 
 interface Record {
@@ -1126,6 +1127,7 @@ interface Record {
   creatorUid: string;
   addedBy: string;
   timestamp: any;
+  subFolder?: string;
 }
 
 interface Message {
@@ -2084,6 +2086,9 @@ function ExonaApp() {
   };
 
   const [recordTab, setRecordTab] = useState<string>('all');
+  const [selectedSubFolder, setSelectedSubFolder] = useState<string | null>(null);
+  const [isAddingSubFolder, setIsAddingSubFolder] = useState(false);
+  const [newSubFolderName, setNewSubFolderName] = useState('');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [recordViewMode, setRecordViewMode] = useState<'classic' | 'microsoft' | 'bento'>('classic');
@@ -5039,7 +5044,8 @@ function ExonaApp() {
     paid: 0, 
     balance: 0, 
     visibility: 'private' as Record['visibility'], 
-    sharedWith: '' 
+    sharedWith: '',
+    subFolder: ''
   });
 
   const labels = getLabels(selectedSchool?.type);
@@ -5068,7 +5074,8 @@ function ExonaApp() {
       paid: 0, 
       balance: 0, 
       visibility: 'private' as Record['visibility'], 
-      sharedWith: '' 
+      sharedWith: '',
+      subFolder: ''
     });
     setActiveTool(null);
     setCalcTuition('');
@@ -5871,6 +5878,7 @@ function ExonaApp() {
           balance: Number(newRecord.balance),
           visibility: newRecord.visibility,
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
+          subFolder: newRecord.subFolder || ''
         }, { merge: true });
       } else {
         console.log('Adding new record');
@@ -5887,7 +5895,8 @@ function ExonaApp() {
           type: recordTab,
           visibility: newRecord.visibility,
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
-          timestamp: serverTimestamp()
+          timestamp: serverTimestamp(),
+          subFolder: newRecord.subFolder || ''
         });
       }
       console.log('Record operation successful');
@@ -5900,7 +5909,8 @@ function ExonaApp() {
         paid: 0, 
         balance: 0, 
         visibility: 'private' as Record['visibility'], 
-        sharedWith: '' 
+        sharedWith: '',
+        subFolder: ''
       });
       setIsRecordModalOpen(false);
       setEditingRecord(null);
@@ -6149,6 +6159,50 @@ function ExonaApp() {
     } catch (error) {
       console.error('Failed to remove category:', error);
       showNotification('Failed to remove category', 'error');
+    }
+  };
+
+  const handleAddSubFolder = async (parentCategory: string, subfolderName: string) => {
+    if (!selectedSchool || !subfolderName.trim()) return;
+    const name = subfolderName.trim();
+    try {
+      const isPlace = places.some(p => p.id === selectedSchool.id);
+      const collectionName = isPlace ? 'places' : 'schools';
+      const docRef = doc(db, collectionName, selectedSchool.id);
+      
+      await setDoc(docRef, {
+        categorySubFolders: {
+          [parentCategory]: arrayUnion(name)
+        }
+      }, { merge: true });
+      
+      showNotification('Sub-folder created successfully', 'success');
+    } catch (error) {
+      console.error('Failed to add sub-folder:', error);
+      showNotification('Failed to create sub-folder', 'error');
+    }
+  };
+
+  const handleRemoveSubFolder = async (parentCategory: string, subfolderName: string) => {
+    if (!selectedSchool) return;
+    try {
+      const isPlace = places.some(p => p.id === selectedSchool.id);
+      const collectionName = isPlace ? 'places' : 'schools';
+      const docRef = doc(db, collectionName, selectedSchool.id);
+      
+      await setDoc(docRef, {
+        categorySubFolders: {
+          [parentCategory]: arrayRemove(subfolderName)
+        }
+      }, { merge: true });
+
+      if (selectedSubFolder === subfolderName) {
+        setSelectedSubFolder(null);
+      }
+      showNotification('Sub-folder removed', 'success');
+    } catch (error) {
+      console.error('Failed to remove sub-folder:', error);
+      showNotification('Failed to remove sub-folder', 'error');
     }
   };
 
@@ -6656,8 +6710,25 @@ function ExonaApp() {
       paid: record.paid,
       balance: record.balance,
       visibility: record.visibility,
-      sharedWith: record.sharedWith?.join(', ') || ''
+      sharedWith: record.sharedWith?.join(', ') || '',
+      subFolder: record.subFolder || ''
     });
+    setIsRecordModalOpen(true);
+  };
+
+  const openNewRecordModal = () => {
+    setNewRecord({ 
+      studentName: '', 
+      studentClass: '',
+      parentNumber: '',
+      category: '', 
+      paid: 0, 
+      balance: 0, 
+      visibility: 'private' as Record['visibility'], 
+      sharedWith: '',
+      subFolder: selectedSubFolder || ''
+    });
+    setEditingRecord(null);
     setIsRecordModalOpen(true);
   };
 
@@ -7491,7 +7562,8 @@ function ExonaApp() {
       paid: 0, 
       balance: 0, 
       visibility: 'private' as Record['visibility'], 
-      sharedWith: '' 
+      sharedWith: '',
+      subFolder: ''
     });
     setEditingRecord(null);
     setCalcTuition('');
@@ -9546,6 +9618,7 @@ function ExonaApp() {
         const labels = getLabels(selectedSchool?.type);
         const filteredRecords = records
           .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
+          .filter(r => !selectedSubFolder || r.subFolder === selectedSubFolder)
           .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()))
           .sort((a, b) => {
             if (recordSort === 'alphabet') {
@@ -9746,6 +9819,7 @@ function ExonaApp() {
                                     key={tab}
                                     onClick={() => {
                                       setRecordTab(tab);
+                                      setSelectedSubFolder(null);
                                       setIsCategoryDropdownOpen(false);
                                       setCategorySearchQuery('');
                                     }}
@@ -9811,7 +9885,7 @@ function ExonaApp() {
                   </div>
                   {canManageInstitution(selectedSchool) && (
                     <button 
-                      onClick={() => setIsRecordModalOpen(true)}
+                      onClick={openNewRecordModal}
                       className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-95 group"
                     >
                       <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
@@ -9839,10 +9913,157 @@ function ExonaApp() {
               ))}
             </div>
 
+            {/* Real Physical Sub-Folders inside Active Category */}
+            {recordTab !== 'all' && (() => {
+              const currentSchoolLatest = schools.find(s => s.id === selectedSchool?.id) || places.find(p => p.id === selectedSchool?.id) || selectedSchool;
+              const currentCategorySubFolders: string[] = (currentSchoolLatest as any).categorySubFolders?.[recordTab] || [];
+              const getSubFolderRecordCount = (subName: string) => {
+                return records.filter(r => 
+                  (recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab) && 
+                  r.subFolder === subName
+                ).length;
+              };
+
+              return (
+                <div className="mb-12 bg-white border border-gray-150 p-6 rounded-[2rem] shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <FolderOpen size={18} className="text-accent" />
+                      <div>
+                        <h4 className="text-[11px] font-black uppercase text-ink tracking-widest flex items-center gap-1.5">
+                          Sub-folders inside {((labels as any)[recordTab] || recordTab).toUpperCase()} 
+                        </h4>
+                        <p className="text-[9px] text-muted font-bold uppercase tracking-wider">
+                          Organize your {recordTab.toLowerCase()} documents under sub directories
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {canManageInstitution(selectedSchool) && (
+                      <button
+                        onClick={() => setIsAddingSubFolder(!isAddingSubFolder)}
+                        className="px-4 py-1.5 bg-gray-50 hover:bg-gray-100 text-ink rounded-xl font-bold text-[9px] uppercase tracking-wider transition-all flex items-center gap-1.5 border border-gray-100"
+                      >
+                        <Plus size={10} strokeWidth={3} />
+                        Create Sub-Folder
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inline New Sub-Folder input */}
+                  {isAddingSubFolder && (
+                    <div className="flex gap-2 mb-6">
+                      <input 
+                        type="text"
+                        placeholder="e.g. Terms, Grades, Departments..."
+                        value={newSubFolderName}
+                        onChange={(e) => setNewSubFolderName(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold outline-none placeholder:text-gray-400 focus:bg-white"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            if (newSubFolderName.trim()) {
+                              handleAddSubFolder(recordTab, newSubFolderName.trim());
+                              setNewSubFolderName('');
+                              setIsAddingSubFolder(false);
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (newSubFolderName.trim()) {
+                            handleAddSubFolder(recordTab, newSubFolderName.trim());
+                            setNewSubFolderName('');
+                            setIsAddingSubFolder(false);
+                          }
+                        }}
+                        className="px-5 py-2 bg-ink text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-ink/90 transition-all"
+                      >
+                        Create
+                      </button>
+                      <button
+                        onClick={() => {
+                          setNewSubFolderName('');
+                          setIsAddingSubFolder(false);
+                        }}
+                        className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-xs font-bold uppercase transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Sub-Folders List Grid */}
+                  {currentCategorySubFolders.length === 0 ? (
+                    <div className="py-8 bg-gray-50/50 rounded-2xl border border-dashed border-gray-150 text-center">
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest italic">No sub-folders created in this category directory yet.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {/* Clear Filter / All sub-folders button */}
+                      <button
+                        onClick={() => setSelectedSubFolder(null)}
+                        className={`flex flex-col items-start p-4 rounded-2xl border transition-all text-left group min-h-[96px] ${
+                          !selectedSubFolder
+                            ? 'bg-ink text-white border-ink shadow-md shadow-black/15'
+                            : 'bg-white text-ink border-gray-150 hover:bg-gray-50'
+                        }`}
+                      >
+                        <FolderOpen size={18} className={`mb-2 ${!selectedSubFolder ? 'text-white' : 'text-accent'}`} />
+                        <span className="text-[11px] font-black uppercase tracking-wider truncate w-full">All Files</span>
+                        <span className={`text-[8px] font-bold uppercase ${!selectedSubFolder ? 'text-white/75' : 'text-muted'}`}>
+                          Show All Records
+                        </span>
+                      </button>
+
+                      {currentCategorySubFolders.map(subName => {
+                        const isSelected = selectedSubFolder === subName;
+                        const count = getSubFolderRecordCount(subName);
+                        return (
+                          <div 
+                            key={subName}
+                            className={`relative group rounded-2xl border transition-all flex flex-col justify-between p-4 min-h-[96px] ${
+                              isSelected
+                                ? 'bg-ink text-white border-ink shadow-md shadow-black/15'
+                                : 'bg-white text-ink border-gray-150 hover:bg-gray-50'
+                            }`}
+                          >
+                            <button
+                              onClick={() => setSelectedSubFolder(subName)}
+                              className="flex-1 flex flex-col items-start text-left w-full outline-none"
+                            >
+                              <Folder size={18} className={`mb-2 ${isSelected ? 'text-white' : 'text-accent group-hover:scale-105 transition-transform'}`} />
+                              <span className="text-[11px] font-black uppercase tracking-wider truncate w-full pr-4">{subName}</span>
+                              <span className={`text-[8px] font-bold uppercase ${isSelected ? 'text-white/75' : 'text-muted'}`}>{count} {count === 1 ? 'record' : 'records'}</span>
+                            </button>
+
+                            {canManageInstitution(selectedSchool) && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveSubFolder(recordTab, subName);
+                                }}
+                                className={`absolute top-2 right-2 p-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity ${
+                                  isSelected ? 'text-white hover:bg-white/10' : 'text-red-500 hover:bg-red-50'
+                                }`}
+                                title="Delete Subfolder"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {canManageInstitution(selectedSchool) && (
               <div className="md:hidden mb-12">
                 <button 
-                  onClick={() => setIsRecordModalOpen(true)}
+                  onClick={openNewRecordModal}
                   className="w-full flex items-center justify-center gap-4 py-6 bg-ink text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.4em] active:scale-[0.98] transition-all"
                 >
                   <Plus size={18} strokeWidth={2} />
@@ -9878,7 +10099,14 @@ function ExonaApp() {
                         filteredRecords.map((record) => (
                           <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
                             <td className="px-6 py-4">
-                              <span className="font-bold text-ink text-sm">{record.studentName}</span>
+                              <div className="flex flex-col">
+                                <span className="font-bold text-ink text-sm">{record.studentName}</span>
+                                {record.subFolder && (
+                                  <span className="inline-flex items-center gap-1 mt-1 text-[8px] text-accent font-extrabold uppercase tracking-widest bg-accent/5 px-1.5 py-0.5 rounded w-max">
+                                    <Folder size={8} strokeWidth={3} /> {record.subFolder}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4">
                               <span className="text-[10px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-1 rounded">{record.studentClass || 'N/A'}</span>
@@ -16436,6 +16664,51 @@ function ExonaApp() {
                     </div>
                   )}
                 </div>
+
+                {/* Sub-Folder Selection inside the Modal */}
+                {recordTab !== 'all' && (() => {
+                  const currentSchoolLatest = schools.find(s => s.id === selectedSchool?.id) || places.find(p => p.id === selectedSchool?.id) || selectedSchool;
+                  const currentCategorySubFolders: string[] = (currentSchoolLatest as any).categorySubFolders?.[recordTab] || [];
+                  return (
+                    <div className="group">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Sub-Folder (Optional)</label>
+                      <div className="space-y-3">
+                        {currentCategorySubFolders.length > 0 && (
+                          <div className="flex flex-wrap gap-2 px-2">
+                            {currentCategorySubFolders.map(subName => {
+                              const isSelected = newRecord.subFolder === subName;
+                              return (
+                                <button
+                                  key={subName}
+                                  type="button"
+                                  onClick={() => setNewRecord({
+                                    ...newRecord,
+                                    subFolder: isSelected ? '' : subName
+                                  })}
+                                  className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border ${
+                                    isSelected
+                                      ? 'bg-ink text-white border-ink'
+                                      : 'bg-white text-muted border-gray-100 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  📁 {subName}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <input 
+                          type="text" 
+                          value={newRecord.subFolder || ''}
+                          onChange={(e) => setNewRecord({...newRecord, subFolder: e.target.value})}
+                          placeholder="Or type a custom sub-folder name..."
+                          className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-2 gap-6">
                   <div className="group">
                     <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Paid ({currencySymbol})</label>

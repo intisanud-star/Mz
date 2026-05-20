@@ -216,8 +216,8 @@ function setupBot(botInstance: Telegraf) {
     await ctx.reply('Participation Scanning Mode Active 📝\n\nPlease send a clear photo of the attendance or participation list. I will sync the entries for today.');
   });
 
-  // Handle media received
-  botInstance.on('photo', async (ctx) => {
+  // Helper function to process Telegram scanning files (images, PDFs) safely
+  async function processTelegramFile(ctx: any, fileId: string, customMimeType?: string) {
     const chatId = ctx.chat.id.toString();
     const state = userStates.get(chatId);
     
@@ -229,13 +229,11 @@ function setupBot(botInstance: Telegraf) {
     await ctx.reply(`Presidential AI Engine is analyzing your document... ⏳`);
 
     try {
-      // Get photo file link
-      const photo = ctx.message.photo[ctx.message.photo.length - 1];
-      const fileLink = await ctx.telegram.getFileLink(photo.file_id);
+      const fileLink = await ctx.telegram.getFileLink(fileId);
       
       const response = await axios.get(fileLink.toString(), { responseType: 'arraybuffer' });
       const imageBase64 = Buffer.from(response.data).toString('base64');
-      const mimeType = 'image/jpeg'; // Telegram photos are usually JPEGs
+      const mimeType = customMimeType || 'image/jpeg';
 
       // Find user institution
       const userUid = `tg_${chatId}`;
@@ -245,7 +243,8 @@ function setupBot(botInstance: Telegraf) {
       const institution = schoolsSnap.docs[0]?.data() || placesSnap.docs[0]?.data();
       
       if (!institution) {
-        return ctx.reply('⚠️ No institution found linked to your account. Please create one in the web dashboard first.');
+        await ctx.reply('⚠️ No institution found linked to your account. Please create one in the web dashboard first.');
+        return;
       }
 
       let responseSchema: any;
@@ -314,7 +313,8 @@ function setupBot(botInstance: Telegraf) {
       const paperDate = extracted.extractedDate;
 
       if (dataItems.length === 0) {
-        return ctx.reply('❌ No valid records could be extracted from this image. Please ensure the text is clear and readable.');
+        await ctx.reply('❌ No valid records could be extracted from this image. Please ensure the text is clear and readable.');
+        return;
       }
 
       let addedCount = 0;
@@ -380,12 +380,49 @@ function setupBot(botInstance: Telegraf) {
       }
 
       await ctx.reply(`✅ Sync Success!\n\n${addedCount} new entries added\n${updatedCount} existing entries updated\n\nInstitution: ${institution.name}`);
-      userStates.delete(chatId); // Clear state after success
 
     } catch (error: any) {
       console.error('Telegram AI Sync Error:', error);
       await ctx.reply(`❌ System failure during AI processing: ${error.message || 'Unknown error'}`);
+    } finally {
+      // Ensure the user's active mode state is ALWAYS cleared, even on failures/errors
+      userStates.delete(chatId);
     }
+  }
+
+  // Handle standard photos
+  botInstance.on('photo', async (ctx) => {
+    const chatId = ctx.chat.id.toString();
+    const state = userStates.get(chatId);
+    
+    if (!state?.mode) {
+      return ctx.reply('Please select a scan mode first:\n/scan_records - Scan financial records\n/scan_participation - Scan attendance lists');
+    }
+
+    const photo = ctx.message.photo[ctx.message.photo.length - 1];
+    await processTelegramFile(ctx, photo.file_id, 'image/jpeg');
+  });
+
+  // Handle photos sent as files (uncompressed documents) or PDFs
+  botInstance.on('document', async (ctx) => {
+    const chatId = ctx.chat.id.toString();
+    const state = userStates.get(chatId);
+    
+    if (!state?.mode) {
+      return ctx.reply('Please select a scan mode first:\n/scan_records - Scan financial records\n/scan_participation - Scan attendance lists');
+    }
+
+    const document = ctx.message.document;
+    const mimeType = document.mime_type || '';
+    
+    const isImage = mimeType.startsWith('image/');
+    const isPdf = mimeType === 'application/pdf';
+    
+    if (!isImage && !isPdf) {
+      return ctx.reply('⚠️ Unsupported file format. Please send a clear Image or PDF document of your list.');
+    }
+
+    await processTelegramFile(ctx, document.file_id, mimeType);
   });
 
   botInstance.on('video', async (ctx) => {
