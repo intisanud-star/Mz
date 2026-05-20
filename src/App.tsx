@@ -1952,6 +1952,20 @@ function ExonaApp() {
     }
   };
 
+  const closeScanReview = () => {
+    setIsScanReviewOpen(false);
+    if (scanPreviewUrl) {
+      try {
+        URL.revokeObjectURL(scanPreviewUrl);
+      } catch (e) {
+        console.error('Error revoking scan URL:', e);
+      }
+    }
+    setScanPreviewUrl(null);
+    setScannedFile(null);
+    setScannedData([]);
+  };
+
   const handleScanFileSelection = (e: React.ChangeEvent<HTMLInputElement>, type: 'records' | 'participation') => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1960,6 +1974,8 @@ function ExonaApp() {
       setScanPreviewUrl(URL.createObjectURL(file));
       handleScanList(file, type);
     }
+    // Always clear target value so the onChange handler receives events for successive uploads
+    e.target.value = '';
   };
 
   const handleScanList = async (file: File, type: 'records' | 'participation') => {
@@ -1984,10 +2000,12 @@ function ExonaApp() {
         showNotification(`${data.extractedData.length} entries extracted from image`, 'success');
       } else {
         showNotification(data.error || 'Failed to analyze list', 'error');
+        closeScanReview();
       }
     } catch (error) {
       console.error('Scan Error:', error);
       showNotification('System error during scanning', 'error');
+      closeScanReview();
     } finally {
       setIsAiScanning(false);
     }
@@ -2019,7 +2037,8 @@ function ExonaApp() {
             timestamp: serverTimestamp(),
             addedBy: userDoc?.displayName || user.email || 'Admin',
             addedByUid: user.uid,
-            type: recordTab === 'all' ? 'general' : recordTab
+            type: recordTab === 'all' ? 'general' : recordTab,
+            subFolder: selectedSubFolder || ''
           };
 
           if (existing) {
@@ -2058,10 +2077,7 @@ function ExonaApp() {
       }
 
       showNotification(`Sync Complete: ${addedCount} added, ${updatedCount} updated`, 'success');
-      setIsScanReviewOpen(false);
-      setScannedData([]);
-      setScanPreviewUrl(null);
-      setScannedFile(null);
+      closeScanReview();
     } catch (error) {
       console.error('Sync Error:', error);
       showNotification('Partial sync failure', 'error');
@@ -4364,6 +4380,15 @@ function ExonaApp() {
     return false;
   }
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+
+  useEffect(() => {
+    if (selectedSchool) {
+      const updated = schools.find(s => s.id === selectedSchool.id) || places.find(p => p.id === selectedSchool.id);
+      if (updated && updated !== selectedSchool) {
+        setSelectedSchool(updated as any);
+      }
+    }
+  }, [schools, places, selectedSchool]);
 
   useEffect(() => {
     if (!user) return;
@@ -8939,7 +8964,30 @@ function ExonaApp() {
                 </div>
                 <h3 className="text-xl font-bold text-ink mb-2">Follow to see content</h3>
                 <p className="text-sm text-muted font-bold mb-8">This institution's posts are only visible to approved followers.</p>
-                {!selectedSchool.pendingFollowers?.includes(user?.uid || '') && (
+                {selectedSchool.pendingFollowers?.includes(user?.uid || '') ? (
+                  <div className="space-y-4">
+                    <div className="p-6 bg-gray-50 border border-gray-100 rounded-3xl flex flex-col items-center justify-center gap-3">
+                      <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center animate-pulse">
+                        <Clock size={20} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-black uppercase text-amber-700 tracking-[0.2em] mb-1">Join Request Pending</p>
+                        <p className="text-[11px] text-muted font-bold">Your request to join is undergoing verification. Access will be granted once the institution's management approves your profile.</p>
+                      </div>
+                    </div>
+                    {!selectedSchool.administrativeViewers?.includes(user?.uid || '') && !(selectedSchool as any).pendingAuditors?.includes(user?.uid || '') && (
+                      <button 
+                        onClick={() => handleRequestAuditorAccess(selectedSchool)}
+                        className={`w-full px-8 py-3 rounded-2xl font-bold text-sm transition-all ${!canSeeContent ? 'bg-white border border-gray-100 text-muted hover:bg-gray-50' : 'bg-accent/10 text-accent hover:bg-accent/20 my-4'}`}
+                      >
+                        Request Management Access
+                      </button>
+                    )}
+                    {(selectedSchool as any).pendingAuditors?.includes(user?.uid || '') && (
+                      <p className="text-[10px] text-accent font-bold uppercase tracking-widest">Management Request Pending</p>
+                    )}
+                  </div>
+                ) : (
                   <div className="space-y-3">
                     <button 
                       onClick={() => handleFollowInstitution(selectedSchool)}
@@ -16771,7 +16819,7 @@ function ExonaApp() {
                     <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">AI-Powered Precision Sync</p>
                   </div>
                 </div>
-                <button onClick={() => setIsScanReviewOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
+                <button onClick={closeScanReview} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
                   <X size={20} />
                 </button>
               </div>
@@ -16821,7 +16869,7 @@ function ExonaApp() {
                                   <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${exists ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
                                      {exists ? 'Update' : 'New'}
                                   </span>
-                               </div>
+                                </div>
                             </div>
                          );
                       })}
@@ -16842,7 +16890,7 @@ function ExonaApp() {
                 </div>
                 <div className="flex gap-4 w-full sm:w-auto">
                    <button 
-                    onClick={() => setIsScanReviewOpen(false)}
+                    onClick={closeScanReview}
                     className="flex-1 sm:px-8 py-4 bg-white border border-gray-200 text-muted rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-50 transition-all"
                   >
                     Cancel

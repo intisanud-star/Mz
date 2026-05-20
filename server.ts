@@ -484,15 +484,15 @@ async function startServer() {
 
   // AI List Scanning Endpoint
   app.post('/api/ai/scan-list', upload.single('image'), async (req: any, res) => {
-    try {
-      const file = req.file;
-      const { type } = req.body; // 'records' or 'participation'
-      
-      if (!file) {
-        return res.status(400).json({ success: false, error: 'No image provided' });
-      }
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'No image provided' });
+    }
 
-      const filePath = path.join(process.cwd(), file.path);
+    const filePath = path.join(process.cwd(), file.path);
+
+    try {
+      const { type } = req.body; // 'records' or 'participation'
       const imageBase64 = fs.readFileSync(filePath, 'base64');
 
       let responseSchema: any;
@@ -574,15 +574,21 @@ async function startServer() {
         }
       }));
 
-      // Cleanup
-      try { fs.unlinkSync(filePath); } catch(e) {}
-
       const extracted = JSON.parse(response.text || '{"extractedData": []}');
       res.json({ success: true, ...extracted });
 
     } catch (error: any) {
       console.error('Gemini Scanning Error:', error);
       res.status(500).json({ success: false, error: error.message || 'Failed to analyze list' });
+    } finally {
+      // Guaranteed cleanup of uploaded image
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (e) {
+        console.error('Failed to unlink scan file in finally:', e);
+      }
     }
   });
 
