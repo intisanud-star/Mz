@@ -8887,14 +8887,15 @@ function ExonaApp() {
                       {isFollowing ? (
                         <button 
                           onClick={() => handleUnfollowInstitution(selectedSchool)}
-                          className="px-4 py-2 bg-white border border-gray-100 text-muted rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors"
+                          className="px-4 py-2 bg-green-50 border border-green-100 text-green-700 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
                         >
-                          Unfollow
+                          <span className="group-hover:hidden flex items-center gap-1">✓ Followed</span>
+                          <span className="hidden group-hover:inline">Unfollow</span>
                         </button>
                       ) : selectedSchool.pendingFollowers?.includes(user.uid) ? (
                         <button 
                           disabled
-                          className="px-4 py-2 bg-white border border-gray-100 text-muted/50 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
+                          className="px-4 py-2 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed animate-pulse"
                         >
                           Pending
                         </button>
@@ -9329,13 +9330,25 @@ function ExonaApp() {
                       handleFollowUser(selectedUserProfile.uid);
                     }
                   }}
-                  className={`flex-1 py-2 rounded-xl font-bold text-[14px] transition-all ${
+                  className={`flex-1 py-2 rounded-xl font-bold text-[14px] transition-all group ${
                     userDoc?.following?.includes(selectedUserProfile.uid)
-                    ? 'bg-white text-ink border border-gray-200 hover:bg-gray-50'
+                    ? 'bg-green-50 text-green-700 border border-green-100 hover:bg-red-50 hover:text-red-700 hover:border-red-100'
+                    : selectedUserProfileDoc?.pendingFollowers?.includes(user?.uid || '')
+                    ? 'bg-amber-50 text-amber-700 border border-amber-100 cursor-not-allowed animate-pulse'
                     : 'bg-ink text-white hover:bg-ink/90'
                   }`}
+                  disabled={!userDoc?.following?.includes(selectedUserProfile.uid) && selectedUserProfileDoc?.pendingFollowers?.includes(user?.uid || '')}
                 >
-                  {userDoc?.following?.includes(selectedUserProfile.uid) ? 'Following' : 'Follow'}
+                  {userDoc?.following?.includes(selectedUserProfile.uid) ? (
+                    <>
+                      <span className="group-hover:hidden flex items-center justify-center gap-1">✓ Followed</span>
+                      <span className="hidden group-hover:inline">Unfollow</span>
+                    </>
+                  ) : selectedUserProfileDoc?.pendingFollowers?.includes(user?.uid || '') ? (
+                    'Pending'
+                  ) : (
+                    'Follow'
+                  )}
                 </button>
               )}
               {user && user.uid !== selectedUserProfile.uid && (
@@ -11982,15 +11995,15 @@ function ExonaApp() {
                       {isFollowing ? (
                         <button 
                           onClick={() => handleUnfollowInstitution(inst)}
-                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-ink text-white hover:bg-red-600 transition-all group"
+                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-green-50 border border-green-100 text-green-700 hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
                         >
-                          <span className="group-hover:hidden">Following</span>
+                          <span className="group-hover:hidden flex items-center gap-1 justify-center">✓ Followed</span>
                           <span className="hidden group-hover:inline">Unfollow</span>
                         </button>
                       ) : inst.pendingFollowers?.includes(user.uid) ? (
                         <button 
                           disabled
-                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-gray-100 text-muted/50 cursor-not-allowed"
+                          className="px-8 py-3 rounded-2xl text-sm font-bold bg-amber-50 border border-amber-100 text-amber-700 cursor-not-allowed animate-pulse"
                         >
                           Pending
                         </button>
@@ -15617,6 +15630,32 @@ function ExonaApp() {
                   </motion.p>
                 )}
               </AnimatePresence>
+            </div>
+
+            {/* Followers, Following People, Following Institutions Stats */}
+            <div className="grid grid-cols-3 gap-3 mb-8 bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
+              <div className="text-center p-3">
+                <p className="text-2xl font-black text-ink">
+                  {(userDoc?.followers || []).length}
+                </p>
+                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Followers</p>
+              </div>
+              <div className="text-center p-3 border-x border-gray-200">
+                <p className="text-2xl font-black text-ink">
+                  {(userDoc?.following || []).filter(id => 
+                    !schools.some(s => s.id === id) && !places.some(p => p.id === id)
+                  ).length}
+                </p>
+                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">People Followed</p>
+              </div>
+              <div className="text-center p-3">
+                <p className="text-2xl font-black text-ink">
+                  {(userDoc?.following || []).filter(id => 
+                    schools.some(s => s.id === id) || places.some(p => p.id === id)
+                  ).length}
+                </p>
+                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Institutions</p>
+              </div>
             </div>
 
             <div className="flex gap-3 mb-10">
