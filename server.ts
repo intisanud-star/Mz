@@ -240,7 +240,8 @@ function setupBot(botInstance: Telegraf) {
       const schoolsSnap = await getDocs(query(collection(db, 'schools'), where('creatorUid', '==', userUid)));
       const placesSnap = await getDocs(query(collection(db, 'places'), where('creatorUid', '==', userUid)));
       
-      const institution = schoolsSnap.docs[0]?.data() || placesSnap.docs[0]?.data();
+      const instDoc = schoolsSnap.docs[0] || placesSnap.docs[0];
+      const institution = instDoc ? { id: instDoc.id, ...instDoc.data() } as any : null;
       
       if (!institution) {
         await ctx.reply('⚠️ No institution found linked to your account. Please create one in the web dashboard first.');

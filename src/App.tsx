@@ -1952,6 +1952,40 @@ function ExonaApp() {
     }
   };
 
+  const handleEditScanClick = (index: number, item: any) => {
+    setEditingScanIndex(index);
+    setEditScanName(item.fullName || item.staffName || '');
+    setEditScanUnit(item.unit || '');
+    setEditScanPaid(item.paid || 0);
+    setEditScanBalance(item.balance || 0);
+    setEditScanStatus(item.status || 'present');
+    setEditScanTime(item.time || '');
+  };
+
+  const handleSaveScanEdit = (index: number) => {
+    const updated = [...scannedData];
+    if (scanType === 'records') {
+      updated[index] = {
+        ...updated[index],
+        fullName: editScanName,
+        unit: editScanUnit,
+        paid: Number(editScanPaid),
+        balance: Number(editScanBalance)
+      };
+    } else {
+      updated[index] = {
+        ...updated[index],
+        staffName: editScanName,
+        unit: editScanUnit,
+        status: editScanStatus,
+        time: editScanTime
+      };
+    }
+    setScannedData(updated);
+    setEditingScanIndex(null);
+    showNotification('Scan entry updated', 'success');
+  };
+
   const closeScanReview = () => {
     setIsScanReviewOpen(false);
     if (scanPreviewUrl) {
@@ -1964,6 +1998,7 @@ function ExonaApp() {
     setScanPreviewUrl(null);
     setScannedFile(null);
     setScannedData([]);
+    setEditingScanIndex(null);
   };
 
   const handleScanFileSelection = (e: React.ChangeEvent<HTMLInputElement>, type: 'records' | 'participation') => {
@@ -2038,14 +2073,16 @@ function ExonaApp() {
             addedBy: userDoc?.displayName || user.email || 'Admin',
             addedByUid: user.uid,
             type: recordTab === 'all' ? 'general' : recordTab,
-            subFolder: selectedSubFolder || ''
+            subFolder: selectedSubFolder || '',
+            visibility: 'private'
           };
 
           if (existing) {
             await updateDoc(doc(db, 'studentRecords', existing.id), {
               ...recordData,
               paid: (existing.paid || 0) + (item.paid || 0),
-              balance: item.balance !== undefined ? item.balance : existing.balance
+              balance: item.balance !== undefined ? item.balance : existing.balance,
+              visibility: (existing && typeof existing.visibility === 'string' && existing.visibility) ? existing.visibility : 'private'
             });
             updatedCount++;
           } else {
@@ -2135,6 +2172,13 @@ function ExonaApp() {
   const [scannedFile, setScannedFile] = useState<File | null>(null);
   const [isSyncingData, setIsSyncingData] = useState(false);
   const [scannedDate, setScannedDate] = useState<string | null>(null);
+  const [editingScanIndex, setEditingScanIndex] = useState<number | null>(null);
+  const [editScanName, setEditScanName] = useState('');
+  const [editScanUnit, setEditScanUnit] = useState('');
+  const [editScanPaid, setEditScanPaid] = useState<number>(0);
+  const [editScanBalance, setEditScanBalance] = useState<number>(0);
+  const [editScanStatus, setEditScanStatus] = useState<'present' | 'absent' | 'late' | 'excused'>('present');
+  const [editScanTime, setEditScanTime] = useState('');
 
   const CallOverlay = () => {
     const call = incomingCall || outgoingCall;
@@ -4959,6 +5003,8 @@ function ExonaApp() {
         }
       });
       setIsOtherTyping(typingStatus);
+    }, (error) => {
+      console.warn('Typing status listener error:', error);
     });
     
     return () => unsub();
@@ -5901,7 +5947,7 @@ function ExonaApp() {
           category: (newRecord.category || '').trim() || '',
           paid: Number(newRecord.paid),
           balance: Number(newRecord.balance),
-          visibility: newRecord.visibility,
+          visibility: (typeof newRecord.visibility === 'string' && newRecord.visibility) ? newRecord.visibility : 'private',
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
           subFolder: newRecord.subFolder || ''
         }, { merge: true });
@@ -5918,7 +5964,7 @@ function ExonaApp() {
           paid: Number(newRecord.paid),
           balance: Number(newRecord.balance),
           type: recordTab,
-          visibility: newRecord.visibility,
+          visibility: (typeof newRecord.visibility === 'string' && newRecord.visibility) ? newRecord.visibility : 'private',
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
           timestamp: serverTimestamp(),
           subFolder: newRecord.subFolder || ''
@@ -6734,7 +6780,7 @@ function ExonaApp() {
       category: record.category,
       paid: record.paid,
       balance: record.balance,
-      visibility: record.visibility,
+      visibility: (record && typeof record.visibility === 'string' && record.visibility) ? record.visibility : 'private',
       sharedWith: record.sharedWith?.join(', ') || '',
       subFolder: record.subFolder || ''
     });
@@ -7190,6 +7236,8 @@ function ExonaApp() {
     const q = query(collection(db, `posts/${activePostForComments.id}/comments`), orderBy('timestamp', 'desc'));
     return onSnapshot(q, (snapshot) => {
       setPostComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      console.error('Comments fetching error:', error);
     });
   }, [activePostForComments]);
 
@@ -9311,11 +9359,29 @@ function ExonaApp() {
               {selectedUserProfileDoc?.bio || "No bio yet."}
             </p>
 
-            <div className="flex items-center gap-4 mb-8">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-5 w-5 rounded-full border-2 border-white bg-white border border-gray-100" />
-                ))}
+            {/* Followers, Following People, Following Institutions Stats */}
+            <div className="grid grid-cols-3 gap-3 mb-8 bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100 animate-fade-in">
+              <div className="text-center p-3">
+                <p className="text-2xl font-black text-ink">
+                  {(selectedUserProfileDoc?.followers || []).length}
+                </p>
+                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Followers</p>
+              </div>
+              <div className="text-center p-3 border-x border-gray-200">
+                <p className="text-2xl font-black text-ink">
+                  {(selectedUserProfileDoc?.following || []).filter((id: string) => 
+                    !schools.some(s => s.id === id) && !places.some(p => p.id === id)
+                  ).length}
+                </p>
+                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">People Followed</p>
+              </div>
+              <div className="text-center p-3">
+                <p className="text-2xl font-black text-ink">
+                  {(selectedUserProfileDoc?.following || []).filter((id: string) => 
+                    schools.some(s => s.id === id) || places.some(p => p.id === id)
+                  ).length}
+                </p>
+                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Institutions</p>
               </div>
             </div>
 
@@ -16886,7 +16952,105 @@ function ExonaApp() {
                             : false; // For attendance we always add new entries
 
                          return (
-                            <div key={idx} className="flex items-center justify-between p-5 bg-white border border-gray-100 rounded-3xl hover:border-accent/30 transition-all">
+                            <div key={idx} className={editingScanIndex === idx ? "p-5 bg-gray-50 border border-gray-200 rounded-3xl space-y-4 text-left" : "flex items-center justify-between p-5 bg-white border border-gray-100 rounded-3xl hover:border-accent/30 transition-all text-left"}>
+                                {editingScanIndex === idx ? (
+                                   <>
+                                      <div className="flex items-center justify-between">
+                                         <span className="text-[10px] font-black text-accent uppercase tracking-widest">Editing Scanned Entry #{idx + 1}</span>
+                                         <button 
+                                            onClick={(e) => { e.stopPropagation(); setEditingScanIndex(null); }}
+                                            className="px-2.5 py-1 text-[10px] font-black text-muted hover:text-ink uppercase tracking-widest transition-colors"
+                                         >
+                                            Cancel
+                                         </button>
+                                      </div>
+                                      
+                                      <div className="space-y-3">
+                                         <div>
+                                            <label className="block text-[9px] font-black text-muted uppercase tracking-wider mb-1">Full Name</label>
+                                            <input 
+                                               type="text" 
+                                               value={editScanName} 
+                                               onChange={(e) => setEditScanName(e.target.value)}
+                                               className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-ink focus:outline-none focus:border-accent"
+                                            />
+                                         </div>
+                                         
+                                         <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                               <label className="block text-[9px] font-black text-muted uppercase tracking-wider mb-1">Unit / Class</label>
+                                               <input 
+                                                  type="text" 
+                                                  value={editScanUnit} 
+                                                  onChange={(e) => setEditScanUnit(e.target.value)}
+                                                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-ink focus:outline-none focus:border-accent"
+                                               />
+                                            </div>
+                                            
+                                            {scanType === 'records' ? (
+                                               <div>
+                                                  <label className="block text-[9px] font-black text-muted uppercase tracking-wider mb-1">Paid Amount ({currencySymbol})</label>
+                                                  <input 
+                                                     type="number" 
+                                                     value={editScanPaid} 
+                                                     onChange={(e) => setEditScanPaid(Number(e.target.value))}
+                                                     className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-ink focus:outline-none focus:border-accent"
+                                                  />
+                                               </div>
+                                            ) : (
+                                               <div>
+                                                  <label className="block text-[9px] font-black text-muted uppercase tracking-wider mb-1">Status</label>
+                                                  <select 
+                                                     value={editScanStatus} 
+                                                     onChange={(e: any) => setEditScanStatus(e.target.value)}
+                                                     className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-ink focus:outline-none focus:border-accent"
+                                                  >
+                                                     <option value="present">Present</option>
+                                                     <option value="absent">Absent</option>
+                                                     <option value="late">Late</option>
+                                                     <option value="excused">Excused</option>
+                                                  </select>
+                                               </div>
+                                            )}
+                                         </div>
+
+                                         {scanType === 'records' && (
+                                            <div>
+                                               <label className="block text-[9px] font-black text-muted uppercase tracking-wider mb-1">Balance ({currencySymbol})</label>
+                                               <input 
+                                                  type="number" 
+                                                  value={editScanBalance} 
+                                                  onChange={(e) => setEditScanBalance(Number(e.target.value))}
+                                                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-ink focus:outline-none focus:border-accent"
+                                               />
+                                            </div>
+                                         )}
+
+                                         {scanType === 'participation' && (
+                                            <div>
+                                               <label className="block text-[9px] font-black text-muted uppercase tracking-wider mb-1">Time</label>
+                                               <input 
+                                                  type="text" 
+                                                  value={editScanTime} 
+                                                  onChange={(e) => setEditScanTime(e.target.value)}
+                                                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-bold text-ink focus:outline-none focus:border-accent"
+                                                  placeholder="e.g. 08:30 AM"
+                                               />
+                                            </div>
+                                         )}
+                                      </div>
+
+                                      <div className="flex gap-2 justify-end pt-2">
+                                         <button 
+                                            onClick={(e) => { e.stopPropagation(); handleSaveScanEdit(idx); }}
+                                            className="px-6 py-2.5 bg-ink text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
+                                         >
+                                            Confirm Changes
+                                         </button>
+                                      </div>
+                                   </>
+                                ) : (
+                                   <>
                                <div className="flex items-center gap-4">
                                   <div className={`h-10 w-10 ${exists ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'} rounded-xl flex items-center justify-center`}>
                                      {exists ? <RefreshCw size={18} /> : <Plus size={18} />}
@@ -16904,9 +17068,24 @@ function ExonaApp() {
                                      </div>
                                   </div>
                                </div>
-                               <div className="text-right">
+                               <div className="text-right flex items-center gap-3">
                                   <span className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${exists ? 'bg-amber-50 text-amber-700' : 'bg-green-50 text-green-700'}`}>
                                      {exists ? 'Update' : 'New'}
+                                  </span>
+                                  <button 
+                                     onClick={(e) => { e.stopPropagation(); handleEditScanClick(idx, item); }}
+                                     title="Edit Scanned Entry"
+                                     className="p-2 text-muted hover:text-accent hover:bg-gray-50 rounded-xl transition-all border border-transparent hover:border-gray-100"
+                                  >
+                                     <Pencil size={15} />
+                                  </button>
+                                  <span className="hidden">
+                                  </span>
+                                </div>
+                               </>
+                             )}
+                             <div className="hidden">
+                                <span className="hidden">
                                   </span>
                                 </div>
                             </div>
