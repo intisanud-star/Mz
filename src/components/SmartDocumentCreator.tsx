@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
+import html2canvas from 'html2canvas';
 import { 
   Sparkles, Award, IdCard, Receipt, FileText, FileSignature, 
   FileSpreadsheet, User, ChevronDown, Check, Printer, 
   CloudDownload, ArrowRightLeft, Plus, Trash2, Globe, Phone, Mail, MapPin, 
   Activity, Tag, BarChart3, TrendingUp, ShieldCheck, ShieldAlert,
   Palette, Layers, Sliders, Maximize2, Lock, Unlock, Eye, EyeOff, Grid, Square, Circle, Type, AlignLeft, AlignCenter, AlignRight, Ruler, RefreshCw, Layers2,
-  Camera, Upload
+  Camera, Upload, Airplay, BookOpen, Database
 } from 'lucide-react';
 
 interface SmartDocumentCreatorProps {
-  documentTemplate: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw';
-  onTemplateChange: (type: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw') => void;
+  documentTemplate: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw' | 'office';
+  onTemplateChange: (type: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw' | 'office') => void;
   docData: any;
   setDocData: React.Dispatch<React.SetStateAction<any>>;
   docAiPrompt: string;
@@ -25,6 +26,8 @@ interface SmartDocumentCreatorProps {
   addDoc: any;
   collection: any;
   serverTimestamp: any;
+  freeChances: number;
+  consumeFreeChance: (action: string) => boolean;
 }
 
 export default function SmartDocumentCreator({
@@ -43,7 +46,9 @@ export default function SmartDocumentCreator({
   database,
   addDoc,
   collection,
-  serverTimestamp
+  serverTimestamp,
+  freeChances,
+  consumeFreeChance
 }: SmartDocumentCreatorProps) {
 
   const [isScanning, setIsScanning] = useState(false);
@@ -106,7 +111,8 @@ export default function SmartDocumentCreator({
     { id: 'agreement', label: 'Agreement', icon: FileSignature, color: 'bg-sky-50 text-sky-600 border-sky-100 hover:bg-sky-100' },
     { id: 'invoice', label: 'Invoice', icon: FileSpreadsheet, color: 'bg-violet-50 text-violet-600 border-violet-100 hover:bg-violet-105' },
     { id: 'receipt', label: 'Receipt', icon: Receipt, color: 'bg-teal-50 text-teal-600 border-teal-100 hover:bg-teal-100' },
-    { id: 'coreldraw', label: 'CorelDRAW AI', icon: Palette, color: 'bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100' }
+    { id: 'coreldraw', label: 'Exonasoft word AI', icon: Palette, color: 'bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100' },
+    { id: 'office', label: 'Exonasoft word Studio', icon: Grid, color: 'bg-sky-100 text-sky-800 border-sky-200 hover:bg-sky-150 shadow-sm' }
   ];
 
   // Presets mapping based on categories
@@ -141,6 +147,12 @@ export default function SmartDocumentCreator({
       "Generate a modern dark luxury Business Card for Musa Mustapha with glowing amber contour outlines, star design emblem, vertical coordinate dimension labels, and a neon cyber background.",
       "Draw an elegant retro poster for London tech summit featuring layered orange circular grids, offset vectors, a large radial gradient star badge in the center, and technical size indicators.",
       "Create a sleek minimalist Instagram post layout. Pitch-black backdrop, central white rounded card element, neon blue drop shadows, dual measuring lines (W: 560px), and styled label tags."
+    ],
+    office: [
+      "Load a high-performance Exona Word Document with strategic technical plans for computer hardware acceleration integration.",
+      "Calculate financial projection spreadsheet in Exona Excel with formulas highlighting total revenues and outstanding retained earnings.",
+      "Generate details of Exona PowerPoint presentation slides describing product milestones and executive visual design boards.",
+      "Add digital Sticky Notes inside Exona OneNote outlining critical task checklists and phone calls."
     ]
   };
 
@@ -302,7 +314,7 @@ export default function SmartDocumentCreator({
       md += `**GRAND TOTAL PAID:** £${(d.totalAmount || 0).toFixed(2)}\n\n`;
       md += `**Payment Channel:** ${d.paymentMethod || 'Cash'}\n`;
     } else if (documentTemplate === 'coreldraw') {
-      md = `# CorelDRAW AI Vector Layout Draft\n\n`;
+      md = `# Exonasoft word AI Vector Layout Draft\n\n`;
       md += `**Artboard Dimensions:** ${d.canvasSize?.width || 600}x${d.canvasSize?.height || 400}${d.canvasSize?.unit || 'px'}\n`;
       md += `**Background Style:** ${d.canvasSize?.background || '#ffffff'}\n\n`;
       md += `## Vector Layers (${d.layers?.length || 0})\n\n`;
@@ -323,15 +335,76 @@ export default function SmartDocumentCreator({
           md += `- Dimension ${idx + 1}: From (${dl.x1}, ${dl.y1}) to (${dl.x2}, ${dl.y2}) - **Label:** "${dl.label}"\n`;
         });
       }
+    } else if (documentTemplate === 'office') {
+      md = `# EXONA OFFICE DIGITAL WORKSPACE\n\n`;
+      md += `Theme: Exonasoft word Productivity Ecosystem for Computers\n\n`;
+      if (d.documents) {
+        md += `## 📝 Word Processor Document: ${d.documents.word?.title || 'Untitled.docx'}\n\n`;
+        md += `${d.documents.word?.content || ''}\n\n`;
+
+        md += `## 📊 Spreadsheet: ${d.documents.excel?.sheetName || 'Untitled.xlsx'}\n\n`;
+        if (d.documents.excel?.cells) {
+          md += `| Cell | Value / Formula |\n`;
+          md += `| :--- | :--- |\n`;
+          Object.entries(d.documents.excel.cells).forEach(([key, val]: any) => {
+            md += `| **${key}** | ${val} |\n`;
+          });
+        }
+        md += `\n\n`;
+
+        md += `## 🖥️ PowerPoint Presentation: ${d.documents.powerpoint?.presentationName || 'Untitled.pptx'}\n\n`;
+        if (Array.isArray(d.documents.powerpoint?.slides)) {
+          d.documents.powerpoint.slides.forEach((slide: any, idx: number) => {
+            md += `### Slide ${idx + 1}: ${slide.title || 'Untitled Slide'}\n`;
+            if (slide.subtitle) md += `*${slide.subtitle}*\n\n`;
+            if (Array.isArray(slide.bullets)) {
+              slide.bullets.forEach((b: string) => {
+                md += `- ${b}\n`;
+              });
+            }
+            md += `\n`;
+          });
+        }
+
+        md += `## 📓 OneNote Quick Sticky Notes\n\n`;
+        if (Array.isArray(d.documents.onenote?.notes)) {
+          d.documents.onenote.notes.forEach((note: any, idx: number) => {
+            md += `### Sticky Note ${idx + 1}\n${useMarkdownStrip(note.text || '')}\n\n`;
+          });
+        }
+
+        md += `## 🗄️ Access Database: ${d.documents.access?.tableName || 'Database'}\n\n`;
+        if (Array.isArray(d.documents.access?.records)) {
+          md += `| ID | First Name | Last Name | Email | Company |\n`;
+          md += `| :--- | :--- | :--- | :--- | :--- |\n`;
+          d.documents.access.records.forEach((rec: any) => {
+            md += `| ${rec.id} | ${rec.firstName || ''} | ${rec.lastName || ''} | ${rec.email || ''} | ${rec.company || ''} |\n`;
+          });
+        }
+      }
     }
 
     return md;
   };
 
+  // Quick helper to safely display string in MD
+  function useMarkdownStrip(str: string) {
+    return str.replace(/[*#_`[\]()]/g, '');
+  }
+
   // Submit AI Prompt request Handler
   const handleAiAutoFillSubmit = async () => {
     if (!docAiPrompt.trim()) {
       showNotification('Please enter a description or click a preset first', 'info');
+      return;
+    }
+
+    if (freeChances <= 0) {
+      showNotification('No free chances left! Upgrade to Pro to use AI Auto-fill/Redraw.', 'error');
+      return;
+    }
+
+    if (!consumeFreeChance('AI Auto-fill / Design Redraw')) {
       return;
     }
 
@@ -382,15 +455,381 @@ export default function SmartDocumentCreator({
     });
   };
 
+  const [isSavingImage, setIsSavingImage] = useState(false);
+
   // Print execution helper
   const handleDirectPrintCmd = () => {
+    if (freeChances <= 0) {
+      showNotification('No free chances left! Upgrade to Pro to print/export documents as PDF.', 'error');
+      return;
+    }
+    if (!consumeFreeChance('Print PDF / Export document')) {
+      return;
+    }
     window.print();
+  };
+
+  // Capture design live as PNG and trigger instant file download
+  const handleDownloadAsImage = async () => {
+    if (freeChances <= 0) {
+      showNotification('No free chances left! Upgrade to Pro to download designs as high-res images.', 'error');
+      return;
+    }
+    if (!consumeFreeChance('Save Design as PNG image file')) {
+      return;
+    }
+
+    setIsSavingImage(true);
+    showNotification('Preparing high-quality visual capture of your design...', 'info');
+
+    // Helper to convert OKLCH color strings to standard RGB/RGBA for html2canvas compatibility
+    const convertOklchToRgb = (oklchStr: string): string => {
+      try {
+        let inner = oklchStr.trim();
+        if (inner.toLowerCase().startsWith('oklch(')) {
+          inner = inner.substring(6);
+        }
+        if (inner.endsWith(')')) {
+          inner = inner.substring(0, inner.length - 1);
+        }
+        inner = inner.trim();
+
+        let alpha = 1;
+        let partsStr = inner;
+        if (inner.includes('/')) {
+          const splitAlpha = inner.split('/');
+          partsStr = splitAlpha[0].trim();
+          const alphaPart = splitAlpha[1].trim();
+          if (alphaPart.startsWith('var(')) {
+            alpha = 1;
+          } else {
+            alpha = parseFloat(alphaPart);
+            if (alphaPart.endsWith('%')) {
+              alpha = alpha / 100;
+            }
+          }
+        }
+
+        const parts = partsStr.split(/[\s,]+/).filter(Boolean);
+        if (parts.length < 3) {
+          return 'rgb(75, 85, 99)';
+        }
+
+        let L = parseFloat(parts[0]);
+        if (parts[0].endsWith('%')) L = L / 100;
+
+        let C = parseFloat(parts[1]);
+        if (parts[1].endsWith('%')) C = C / 100;
+
+        let H = parseFloat(parts[2]);
+        if (parts[2].endsWith('deg')) H = parseFloat(parts[2]);
+
+        if (isNaN(L) || isNaN(C) || isNaN(H)) {
+          return 'rgb(75, 85, 99)';
+        }
+        if (isNaN(alpha)) {
+          alpha = 1;
+        }
+
+        // Convert OKLCH to OKLAB
+        const lab_L = L;
+        const lab_a = C * Math.cos((H * Math.PI) / 180);
+        const lab_b = C * Math.sin((H * Math.PI) / 180);
+
+        // Convert OKLAB to LMS
+        const l_ = lab_L + 0.3963377774 * lab_a + 0.2158037573 * lab_b;
+        const m_ = lab_L - 0.1055613458 * lab_a - 0.0638541728 * lab_b;
+        const s_ = lab_L - 0.0894841775 * lab_a - 1.2914855480 * lab_b;
+
+        // Cube LMS intensities
+        const l = l_ * l_ * l_;
+        const m = m_ * m_ * m_;
+        const s = s_ * s_ * s_;
+
+        const rLinear = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+        const gLinear = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+        const bLinear = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+        const toSRGB = (c: number) => {
+          if (c <= 0.0031308) {
+            return Math.max(0, Math.min(255, Math.round(12.92 * c * 255)));
+          } else {
+            return Math.max(0, Math.min(255, Math.round((1.055 * Math.pow(c, 1 / 2.4) - 0.055) * 255)));
+          }
+        };
+
+        const outR = toSRGB(rLinear);
+        const outG = toSRGB(gLinear);
+        const outB = toSRGB(bLinear);
+
+        if (alpha !== 1) {
+          return `rgba(${outR}, ${outG}, ${outB}, ${alpha})`;
+        }
+        return `rgb(${outR}, ${outG}, ${outB})`;
+      } catch (err) {
+        return 'rgb(75, 85, 99)';
+      }
+    };
+
+    // Helper to convert OKLAB color strings to standard RGB/RGBA for html2canvas compatibility
+    const convertOklabToRgb = (oklabStr: string): string => {
+      try {
+        let inner = oklabStr.trim();
+        if (inner.toLowerCase().startsWith('oklab(')) {
+          inner = inner.substring(6);
+        }
+        if (inner.endsWith(')')) {
+          inner = inner.substring(0, inner.length - 1);
+        }
+        inner = inner.trim();
+
+        let alpha = 1;
+        let partsStr = inner;
+        if (inner.includes('/')) {
+          const splitAlpha = inner.split('/');
+          partsStr = splitAlpha[0].trim();
+          const alphaPart = splitAlpha[1].trim();
+          if (alphaPart.startsWith('var(')) {
+            alpha = 1;
+          } else {
+            alpha = parseFloat(alphaPart);
+            if (alphaPart.endsWith('%')) {
+              alpha = alpha / 100;
+            }
+          }
+        }
+
+        const parts = partsStr.split(/[\s,]+/).filter(Boolean);
+        if (parts.length < 3) {
+          return 'rgb(75, 85, 99)';
+        }
+
+        let L = parseFloat(parts[0]);
+        if (parts[0].endsWith('%')) L = L / 100;
+
+        let a = parseFloat(parts[1]);
+        if (parts[1].endsWith('%')) a = a / 100;
+
+        let b = parseFloat(parts[2]);
+        if (parts[2].endsWith('%')) b = b / 100;
+
+        if (isNaN(L) || isNaN(a) || isNaN(b)) {
+          return 'rgb(75, 85, 99)';
+        }
+        if (isNaN(alpha)) {
+          alpha = 1;
+        }
+
+        // Convert OKLAB to LMS
+        const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+        const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+        const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+
+        const l = l_ * l_ * l_;
+        const m = m_ * m_ * m_;
+        const s = s_ * s_ * s_;
+
+        const rLinear = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+        const gLinear = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+        const bLinear = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+
+        const toSRGB = (c: number) => {
+          if (c <= 0.0031308) {
+            return Math.max(0, Math.min(255, Math.round(12.92 * c * 255)));
+          } else {
+            return Math.max(0, Math.min(255, Math.round((1.055 * Math.pow(c, 1 / 2.4) - 0.055) * 255)));
+          }
+        };
+
+        const outR = toSRGB(rLinear);
+        const outG = toSRGB(gLinear);
+        const outB = toSRGB(bLinear);
+
+        if (alpha !== 1) {
+          return `rgba(${outR}, ${outG}, ${outB}, ${alpha})`;
+        }
+        return `rgb(${outR}, ${outG}, ${outB})`;
+      } catch (err) {
+        return 'rgb(75, 85, 99)';
+      }
+    };
+
+    const replaceModernColorsInString = (str: string): string => {
+      if (!str || typeof str !== 'string') {
+        return str;
+      }
+      let result = str;
+      if (result.includes('oklch')) {
+        result = result.replace(/oklch\((?:[^()]+|\([^()]*\))*\)/gi, (match) => convertOklchToRgb(match));
+      }
+      if (result.includes('oklab')) {
+        result = result.replace(/oklab\((?:[^()]+|\([^()]*\))*\)/gi, (match) => convertOklabToRgb(match));
+      }
+      return result;
+    };
+
+    // Temporarily patch global style accessors in the main window to intercept all style retrievals while html2canvas runs
+    const originalGetComputedStyle = window.getComputedStyle;
+    const originalGetPropertyValue = window.CSSStyleDeclaration.prototype.getPropertyValue;
+
+    // Enable main window interceptors
+    window.getComputedStyle = function (elt, pseudoElt) {
+      const style = originalGetComputedStyle.call(this, elt, pseudoElt);
+      return new Proxy(style, {
+        get(target, prop) {
+          const value = target[prop as keyof CSSStyleDeclaration];
+          if (typeof value === 'function') {
+            if (prop === 'getPropertyValue') {
+              return function (propertyName: string) {
+                const res = target.getPropertyValue(propertyName);
+                if (typeof res === 'string' && (res.includes('oklch') || res.includes('oklab'))) {
+                  return replaceModernColorsInString(res);
+                }
+                return res;
+              };
+            }
+            return value.bind(target);
+          }
+          if (typeof value === 'string' && (value.includes('oklch') || value.includes('oklab'))) {
+            return replaceModernColorsInString(value);
+          }
+          return value;
+        }
+      });
+    };
+
+    window.CSSStyleDeclaration.prototype.getPropertyValue = function (prop) {
+      const val = originalGetPropertyValue.call(this, prop);
+      if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+        return replaceModernColorsInString(val);
+      }
+      return val;
+    };
+
+    try {
+      let targetId = '';
+      switch (documentTemplate) {
+        case 'cv': targetId = 'print-cv-container'; break;
+        case 'id-card': targetId = 'print-id-card-container'; break;
+        case 'report': targetId = 'print-report-container'; break;
+        case 'certificate': targetId = 'print-certificate-container'; break;
+        case 'agreement': targetId = 'print-agreement-container'; break;
+        case 'invoice': targetId = 'print-invoice-container'; break;
+        case 'receipt': targetId = 'print-receipt-container'; break;
+        case 'coreldraw': targetId = 'print-coreldraw-container'; break;
+        default: targetId = '';
+      }
+
+      const element = document.getElementById(targetId);
+      if (!element) {
+        throw new Error('Could not find active design preview container.');
+      }
+
+      // Configure html2canvas to render at high precision/density
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2, // 2x resolution boost for gorgeous crisp shapes/fonts
+        backgroundColor: documentTemplate === 'coreldraw' ? '#18181b' : null,
+        logging: false,
+        onclone: (clonedDoc) => {
+          // 1. Setup client-side script environment on the cloned window sandbox to intercept css styles
+          const defaultView = clonedDoc.defaultView || window;
+          const origClonedGetPropertyValue = defaultView.CSSStyleDeclaration.prototype.getPropertyValue;
+          
+          defaultView.CSSStyleDeclaration.prototype.getPropertyValue = function (prop) {
+            const val = origClonedGetPropertyValue.call(this, prop);
+            if (typeof val === 'string' && (val.includes('oklch') || val.includes('oklab'))) {
+              return replaceModernColorsInString(val);
+            }
+            return val;
+          };
+
+          // 2. Scan and replace oklch & oklab definition inside document static style blocks
+          const styles = clonedDoc.getElementsByTagName('style');
+          for (let i = 0; i < styles.length; i++) {
+            const styleEl = styles[i];
+            if (styleEl.textContent && (styleEl.textContent.includes('oklch') || styleEl.textContent.includes('oklab'))) {
+              styleEl.textContent = replaceModernColorsInString(styleEl.textContent);
+            }
+          }
+
+          // 3. Scan and replace oklch & oklab definition inside inline styles
+          const allElements = clonedDoc.getElementsByTagName('*');
+          for (let i = 0; i < allElements.length; i++) {
+            const el = allElements[i] as HTMLElement;
+            const styleAttr = el.getAttribute('style');
+            if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
+              el.setAttribute('style', replaceModernColorsInString(styleAttr));
+            }
+          }
+
+          // 4. Scan and convert same-origin link stylesheets into inline styles
+          try {
+            const links = Array.from(clonedDoc.getElementsByTagName('link'));
+            for (const link of links) {
+              if (link.rel === 'stylesheet' && link.href) {
+                const sheet = link.sheet as CSSStyleSheet;
+                if (sheet) {
+                  let cssText = '';
+                  const rules = sheet.cssRules || sheet.rules;
+                  if (rules) {
+                    for (let j = 0; j < rules.length; j++) {
+                      cssText += rules[j].cssText + '\n';
+                    }
+                  }
+                  if (cssText && (cssText.includes('oklch') || cssText.includes('oklab'))) {
+                    const newStyle = clonedDoc.createElement('style');
+                    newStyle.textContent = replaceModernColorsInString(cssText);
+                    link.parentNode?.insertBefore(newStyle, link);
+                    link.parentNode?.removeChild(link);
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // Silence cross-origin sheet access errors
+          }
+        }
+      });
+
+      const imgDataUrl = canvas.toDataURL('image/png', 1.0);
+      
+      const downloadLink = document.createElement('a');
+      downloadLink.href = imgDataUrl;
+      const fileTitle = docData.title || docData.fullName || docData.recipientName || docData.invoiceNumber || docData.receiptNumber || `Design-${documentTemplate}`;
+      // Remove any non-alphanumeric chars
+      const cleanTitle = String(fileTitle).replace(/[^a-zA-Z0-9_]/g, '').trim() || 'Smart_Document';
+      downloadLink.download = `${cleanTitle}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      showNotification('Design successfully saved & downloaded as a high-res PNG image!', 'success');
+    } catch (err: any) {
+      console.error('Image capture error:', err);
+      showNotification('Could not save image: ' + (err.message || 'unknown error'), 'error');
+    } finally {
+      setIsSavingImage(false);
+      // Restore original style methods to prevent side effects
+      window.getComputedStyle = originalGetComputedStyle;
+      window.CSSStyleDeclaration.prototype.getPropertyValue = originalGetPropertyValue;
+    }
   };
 
   // Save Document to Firebase integration
   const saveToFirebaseCloudFiles = async () => {
     if (!user) {
       showNotification('You must be logged in to save documents', 'error');
+      return;
+    }
+
+    if (freeChances <= 0) {
+      showNotification('No free chances left! Upgrade to Pro to save document files to cloud.', 'error');
+      return;
+    }
+
+    if (!consumeFreeChance('Save Document to Cloud')) {
       return;
     }
 
@@ -418,6 +857,15 @@ export default function SmartDocumentCreator({
 
   // Transfer to workspace manual markdown editor
   const transferToWorkspaceEditor = () => {
+    if (freeChances <= 0) {
+      showNotification('No free chances left! Upgrade to Pro to edit document in standard editor.', 'error');
+      return;
+    }
+
+    if (!consumeFreeChance('transfer document to Markdown Editor')) {
+      return;
+    }
+
     const markdownText = convertDataToMarkdown();
     setEditorContent(markdownText);
     setEditorMode('standard');
@@ -863,7 +1311,7 @@ export default function SmartDocumentCreator({
                 <div className="bg-zinc-950 text-white rounded-2xl p-4 font-mono text-xs border-l-4 border-pink-500">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] uppercase font-bold text-pink-500">Active Workspace Matrix</span>
-                    <span className="text-[9px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded animate-pulse">CorelDRAW AI</span>
+                    <span className="text-[9px] bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded animate-pulse">Exonasoft word AI</span>
                   </div>
                   <div className="space-y-1 text-zinc-400">
                     <div className="flex justify-between">
@@ -990,6 +1438,552 @@ export default function SmartDocumentCreator({
               </div>
             )}
 
+            {documentTemplate === 'office' && (
+              <div className="space-y-4">
+                {/* Visual Workspace Apps Toolbar */}
+                <div className="bg-zinc-900 text-white rounded-2xl p-4 border-l-4 border-sky-500 shadow-sm">
+                  <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-2">
+                    <div>
+                      <h4 className="text-xs font-black tracking-normal text-white uppercase">Exona Computech Office</h4>
+                      <p className="text-[9px] text-zinc-400">Master Productivity & Rich Typing Suite</p>
+                    </div>
+                    <span className="text-[8.5px] bg-sky-950 text-sky-400 border border-sky-900 px-2 py-0.5 rounded-full font-bold">Active Suite</span>
+                  </div>
+                  
+                  {/* Apps Selection Grid */}
+                  <div className="grid grid-cols-5 gap-1.5 text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...docData };
+                        if (!next.documents) next.documents = {};
+                        next.activeApp = 'word';
+                        setDocData(next);
+                      }}
+                      className={`p-2 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                        (docData.activeApp || 'word') === 'word' 
+                          ? 'bg-blue-650 text-white font-bold shadow-md shadow-blue-900/20' 
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      <FileText size={14} />
+                      <span className="text-[8px] tracking-tight block">Word</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...docData };
+                        if (!next.documents) next.documents = {};
+                        next.activeApp = 'excel';
+                        setDocData(next);
+                      }}
+                      className={`p-2 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                        docData.activeApp === 'excel' 
+                          ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-900/20' 
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      <Grid size={14} />
+                      <span className="text-[8px] tracking-tight block">Excel</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...docData };
+                        if (!next.documents) next.documents = {};
+                        next.activeApp = 'powerpoint';
+                        setDocData(next);
+                      }}
+                      className={`p-2 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                        docData.activeApp === 'powerpoint' 
+                          ? 'bg-orange-600 text-white font-bold shadow-md shadow-orange-900/20' 
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      <Airplay size={14} />
+                      <span className="text-[8px] tracking-tight block">PPT</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...docData };
+                        if (!next.documents) next.documents = {};
+                        next.activeApp = 'onenote';
+                        setDocData(next);
+                      }}
+                      className={`p-2 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                        docData.activeApp === 'onenote' 
+                          ? 'bg-purple-600 text-white font-bold shadow-md shadow-purple-900/20' 
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      <BookOpen size={14} />
+                      <span className="text-[8px] tracking-tight block">OneNote</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = { ...docData };
+                        if (!next.documents) next.documents = {};
+                        next.activeApp = 'access';
+                        setDocData(next);
+                      }}
+                      className={`p-2 rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center gap-1 ${
+                        docData.activeApp === 'access' 
+                          ? 'bg-rose-700 text-white font-bold shadow-md shadow-rose-900/20' 
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                      }`}
+                    >
+                      <Database size={14} />
+                      <span className="text-[8px] tracking-tight block">Access</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 1. Word Mode Inputs */}
+                {(docData.activeApp === 'word' || !docData.activeApp) && (
+                  <div className="space-y-3.5 border border-zinc-100 p-3.5 rounded-2xl bg-white">
+                    <div className="flex items-center gap-1.5 text-blue-600 font-bold text-[11px] uppercase pb-1 border-b border-zinc-100">
+                      <FileText size={13} />
+                      <span>Configure Word Processor</span>
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Document File Title</label>
+                      <input 
+                        type="text" 
+                        value={docData.documents?.word?.title || ''} 
+                        onChange={(e) => updateField(['documents', 'word', 'title'], e.target.value)} 
+                        className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-blue-350 font-medium text-xs" 
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Primary Author / Editor</label>
+                      <input 
+                        type="text" 
+                        value={docData.documents?.word?.author || ''} 
+                        onChange={(e) => updateField(['documents', 'word', 'author'], e.target.value)} 
+                        className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-blue-350 text-xs" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Font Size (px)</label>
+                        <input 
+                          type="number" 
+                          value={docData.documents?.word?.fontSize || 14} 
+                          onChange={(e) => updateField(['documents', 'word', 'fontSize'], parseInt(e.target.value) || 12)} 
+                          className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-blue-350 text-xs" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Style Template Theme</label>
+                        <select
+                          value={docData.documents?.word?.theme || 'modern'}
+                          onChange={(e) => updateField(['documents', 'word', 'theme'], e.target.value)}
+                          className="w-full p-2.5 border border-zinc-100 rounded-lg bg-white outline-none focus:border-blue-350 text-xs"
+                        >
+                          <option value="classic">Classic Editorial (Serif)</option>
+                          <option value="modern">Modern Professional (Sans)</option>
+                          <option value="tech">Tech Report (Mono)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-[9px] uppercase font-bold text-zinc-500 block">Edit Document Body (Type freely)</label>
+                        <span className="text-[8.5px] text-zinc-400 font-mono">Supports Markdown</span>
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={docData.documents?.word?.content || ''}
+                        onChange={(e) => updateField(['documents', 'word', 'content'], e.target.value)}
+                        className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-blue-350 font-sans text-xs"
+                        placeholder="Type anything here..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Excel Mode Inputs */}
+                {docData.activeApp === 'excel' && (
+                  <div className="space-y-3.5 border border-zinc-100 p-3.5 rounded-2xl bg-white">
+                    <div className="flex items-center gap-1.5 text-emerald-600 font-bold text-[11px] uppercase pb-1 border-b border-zinc-100">
+                      <Grid size={13} />
+                      <span>Configure Excel Cells Spreadsheet</span>
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Spreadsheet File Name</label>
+                      <input 
+                        type="text" 
+                        value={docData.documents?.excel?.sheetName || ''} 
+                        onChange={(e) => updateField(['documents', 'excel', 'sheetName'], e.target.value)} 
+                        className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-emerald-300 font-medium text-xs" 
+                      />
+                    </div>
+
+                    {/* Cellular Matrix Editor Grid */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-black text-zinc-500 tracking-wider">Spreadsheet Matrix Editor</span>
+                        <span className="text-[8.5px] text-zinc-400">Type values or formulas (e.g. `=SUM(...)`)</span>
+                      </div>
+                      
+                      <div className="max-h-[300px] overflow-y-auto space-y-2 border border-emerald-50/55 p-2 rounded-xl bg-zinc-50/50">
+                        {['A', 'B', 'C', 'D'].map((col) => (
+                          <div key={col} className="space-y-1 bg-white p-2 rounded-lg border border-zinc-100">
+                            <span className="text-[9px] font-bold text-zinc-500 bg-zinc-105 px-1.5 py-0.5 rounded">Column {col}</span>
+                            <div className="grid grid-cols-3 gap-2">
+                              {[1, 2, 3, 4, 5, 6].map((row) => {
+                                const cellId = `${col}${row}`;
+                                const cellVal = docData.documents?.excel?.cells?.[cellId] !== undefined 
+                                  ? docData.documents.excel.cells[cellId] 
+                                  : '';
+                                return (
+                                  <div key={cellId} className="space-y-0.5">
+                                    <span className="text-[8.5px] font-mono font-bold text-zinc-400">{cellId}</span>
+                                    <input
+                                      type="text"
+                                      value={cellVal}
+                                      onChange={(e) => {
+                                        const nextValue = e.target.value;
+                                        const numericVal = parseFloat(nextValue);
+                                        const nextCells = { ...docData.documents?.excel?.cells };
+                                        nextCells[cellId] = isNaN(numericVal) || nextValue.startsWith('=') ? nextValue : numericVal;
+                                        updateField(['documents', 'excel', 'cells'], nextCells);
+                                      }}
+                                      className="w-full p-1 border border-zinc-100 rounded outline-none focus:border-emerald-500 font-mono text-[10px] text-zinc-700 bg-white"
+                                      placeholder="-"
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. PowerPoint Mode Inputs */}
+                {docData.activeApp === 'powerpoint' && (
+                  <div className="space-y-3.5 border border-zinc-100 p-3.5 rounded-2xl bg-white">
+                    <div className="flex items-center gap-1.5 text-orange-600 font-bold text-[11px] uppercase pb-1 border-b border-zinc-100">
+                      <Airplay size={13} />
+                      <span>Configure PowerPoint Slideshow</span>
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Presentation File Name</label>
+                      <input 
+                        type="text" 
+                        value={docData.documents?.powerpoint?.presentationName || ''} 
+                        onChange={(e) => updateField(['documents', 'powerpoint', 'presentationName'], e.target.value)} 
+                        className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-orange-355 font-medium text-xs" 
+                      />
+                    </div>
+
+                    {/* Active Slide Custom content editor */}
+                    {(() => {
+                      const ppt = docData.documents?.powerpoint;
+                      const slides = ppt?.slides || [];
+                      const activeIndex = ppt?.activeSlide || 0;
+                      const activeSlide = slides[activeIndex] || { title: "", subtitle: "", bullets: [] };
+
+                      return (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] uppercase font-bold text-zinc-500 block">Slides Deck Matrix</label>
+                            <span className="text-[9px] font-bold text-orange-600">Slide {activeIndex + 1} of {slides.length}</span>
+                          </div>
+
+                          {/* Navigation */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              disabled={activeIndex === 0}
+                              onClick={() => updateField(['documents', 'powerpoint', 'activeSlide'], activeIndex - 1)}
+                              className="px-2.5 py-1.5 text-[10px] bg-zinc-100 text-zinc-700 border border-zinc-200 hover:bg-zinc-200 disabled:opacity-50 disabled:hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+                            >
+                              ◀ Prev Slide
+                            </button>
+                            <button
+                              type="button"
+                              disabled={activeIndex >= slides.length - 1}
+                              onClick={() => updateField(['documents', 'powerpoint', 'activeSlide'], activeIndex + 1)}
+                              className="px-2.5 py-1.5 text-[10px] bg-zinc-100 text-zinc-700 border border-zinc-200 hover:bg-zinc-200 disabled:opacity-50 disabled:hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer"
+                            >
+                              Next Slide ▶
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newSlides = [...slides, { title: "New Dynamic Slide", subtitle: "Double click or type to change details", bullets: ["Provide strategic milestone updates here", "Add auxiliary team details"] }];
+                                const nextppt = { ...ppt, slides: newSlides, activeSlide: newSlides.length - 1 };
+                                updateField(['documents', 'powerpoint'], nextppt);
+                                showNotification("Appended a new slide!", "success");
+                              }}
+                              className="px-2.5 py-1.5 text-[10px] text-white bg-orange-600 border border-orange-500 hover:bg-orange-700 rounded-lg transition-colors cursor-pointer font-bold ml-auto"
+                            >
+                              + New Slide
+                            </button>
+                          </div>
+
+                          {/* Active Slide Form editor fields */}
+                          <div className="space-y-2 border border-zinc-100 p-3 rounded-xl bg-orange-50/20">
+                            <div>
+                              <label className="text-[8.5px] uppercase font-bold text-zinc-450 block mb-0.5">Slide Canvas Main Title</label>
+                              <input
+                                type="text"
+                                value={activeSlide.title || ''}
+                                onChange={(e) => {
+                                  const list = [...slides];
+                                  list[activeIndex] = { ...activeSlide, title: e.target.value };
+                                  updateField(['documents', 'powerpoint', 'slides'], list);
+                                }}
+                                className="w-full p-2 border border-zinc-150 rounded bg-white outline-none focus:border-orange-500 text-xs font-bold"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8.5px] uppercase font-bold text-zinc-455 block mb-0.5">Subtitle / Outline Annotation</label>
+                              <input
+                                type="text"
+                                value={activeSlide.subtitle || ''}
+                                onChange={(e) => {
+                                  const list = [...slides];
+                                  list[activeIndex] = { ...activeSlide, subtitle: e.target.value };
+                                  updateField(['documents', 'powerpoint', 'slides'], list);
+                                }}
+                                className="w-full p-2 border border-zinc-150 rounded bg-white outline-none focus:border-orange-500 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <div className="flex justify-between items-center mb-0.5">
+                                <label className="text-[8.5px] uppercase font-bold text-zinc-450 block">Bullet Items list</label>
+                                <span className="text-[8px] text-zinc-400 font-mono">Separate by lines</span>
+                              </div>
+                              <textarea
+                                rows={3}
+                                value={Array.isArray(activeSlide.bullets) ? activeSlide.bullets.join('\n') : ''}
+                                onChange={(e) => {
+                                  const list = [...slides];
+                                  list[activeIndex] = { ...activeSlide, bullets: e.target.value.split('\n') };
+                                  updateField(['documents', 'powerpoint', 'slides'], list);
+                                }}
+                                className="w-full p-2 border border-zinc-150 rounded bg-white outline-none focus:border-orange-500 font-sans text-xs"
+                                placeholder="Slide Bullet Points..."
+                              />
+                            </div>
+
+                            {slides.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const list = slides.filter((_: any, i: number) => i !== activeIndex);
+                                  const nextIdx = Math.max(0, activeIndex - 1);
+                                  const nextppt = { ...ppt, slides: list, activeSlide: nextIdx };
+                                  updateField(['documents', 'powerpoint'], nextppt);
+                                  showNotification("Removed slide content.", "info");
+                                }}
+                                className="w-full py-1.5 text-red-600 hover:bg-red-50 text-[9px] uppercase hover:text-red-700 transition-colors rounded-lg font-bold"
+                              >
+                                Trash Slide
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* 4. OneNote Sticky Notes */}
+                {docData.activeApp === 'onenote' && (
+                  <div className="space-y-3.5 border border-zinc-100 p-3.5 rounded-2xl bg-white">
+                    <div className="flex items-center gap-1.5 text-purple-600 font-bold text-[11px] uppercase pb-1 border-b border-zinc-100">
+                      <BookOpen size={13} />
+                      <span>OneNote Quick Sticky Pad</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] uppercase font-bold text-zinc-500 block">Sticky Notes list</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const notes = docData.documents?.onenote?.notes || [];
+                          const colors = [
+                            "bg-amber-50 text-amber-905 border-amber-205", 
+                            "bg-sky-50 text-sky-905 border-sky-205", 
+                            "bg-purple-50 text-purple-905 border-purple-205",
+                            "bg-emerald-50 text-emerald-950 border-emerald-250",
+                            "bg-rose-50 text-rose-950 border-rose-250"
+                          ];
+                          const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                          const newNotes = [...notes, {
+                            id: `note-${Date.now()}`,
+                            text: "Dynamic sticky memo. Click to type anything...",
+                            color: randomColor
+                          }];
+                          updateField(['documents', 'onenote', 'notes'], newNotes);
+                        }}
+                        className="text-[10px] text-purple-700 hover:text-purple-800 font-bold hover:underline cursor-pointer"
+                      >
+                        + Add Memo
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                      {Array.isArray(docData.documents?.onenote?.notes) && docData.documents.onenote.notes.map((note: any, idx: number) => (
+                        <div key={note.id || idx} className={`p-2.5 border rounded-xl space-y-1.5 ${note.color}`}>
+                          <div className="flex justify-between items-center text-[8.5px] font-bold">
+                            <span>STICKY MEMO #{idx + 1}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const list = docData.documents.onenote.notes.filter((n: any) => n.id !== note.id);
+                                updateField(['documents', 'onenote', 'notes'], list);
+                              }}
+                              className="text-red-600 hover:text-red-800 hover:underline cursor-pointer font-bold"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          <textarea
+                            rows={2}
+                            value={note.text || ''}
+                            onChange={(e) => {
+                              const list = [...docData.documents.onenote.notes];
+                              list[idx] = { ...note, text: e.target.value };
+                              updateField(['documents', 'onenote', 'notes'], list);
+                            }}
+                            className="w-full bg-transparent border-none text-[11px] font-medium resize-none outline-none focus:ring-0 text-zinc-850 leading-snug"
+                            placeholder="Type memo content..."
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Access Mode Inputs */}
+                {docData.activeApp === 'access' && (
+                  <div className="space-y-3.5 border border-zinc-100 p-3.5 rounded-2xl bg-white">
+                    <div className="flex items-center gap-1.5 text-rose-750 font-bold text-[11px] uppercase pb-1 border-b border-zinc-100">
+                      <Database size={13} />
+                      <span>Configure Access Database</span>
+                    </div>
+                    <div>
+                      <label className="text-[9px] uppercase font-bold text-zinc-500 block mb-1">Database Table Name</label>
+                      <input 
+                        type="text" 
+                        value={docData.documents?.access?.tableName || ''} 
+                        onChange={(e) => updateField(['documents', 'access', 'tableName'], e.target.value)} 
+                        className="w-full p-2.5 border border-zinc-100 rounded-lg outline-none focus:border-rose-300 font-medium text-xs" 
+                      />
+                    </div>
+
+                    {/* Database Rows Editor */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-black text-zinc-500 tracking-wider">Table Record Manager</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const recs = docData.documents?.access?.records || [];
+                            const newRecObj = {
+                              id: String(recs.length + 1),
+                              firstName: "John",
+                              lastName: "Doe",
+                              email: "john.doe@exona.io",
+                              company: "Exona Affiliate"
+                            };
+                            updateField(['documents', 'access', 'records'], [...recs, newRecObj]);
+                            showNotification("Added database record row!", "success");
+                          }}
+                          className="text-[10px] text-rose-700 hover:text-rose-800 hover:underline font-bold cursor-pointer"
+                        >
+                          + Insert Row
+                        </button>
+                      </div>
+
+                      <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
+                        {Array.isArray(docData.documents?.access?.records) && docData.documents.access.records.map((rec: any, idx: number) => (
+                          <div key={rec.id} className="p-3 border border-zinc-150 rounded-xl space-y-2 bg-zinc-50 text-[10px]">
+                            <div className="flex justify-between items-center bg-zinc-100 p-1.5 rounded-lg border border-zinc-200">
+                              <span className="font-mono font-bold text-zinc-600">ROW ACCESS ID: #{rec.id}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const list = docData.documents.access.records.filter((r: any) => r.id !== rec.id);
+                                  updateField(['documents', 'access', 'records'], list);
+                                }}
+                                className="text-red-600 font-bold hover:underline"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[8.5px] text-zinc-400 font-bold uppercase">First Name</label>
+                                <input
+                                  type="text"
+                                  value={rec.firstName || ''}
+                                  onChange={(e) => {
+                                    const list = [...docData.documents.access.records];
+                                    list[idx] = { ...rec, firstName: e.target.value };
+                                    updateField(['documents', 'access', 'records'], list);
+                                  }}
+                                  className="w-full p-2 border border-zinc-150 rounded bg-white outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[8.5px] text-zinc-400 font-bold uppercase">Last Name</label>
+                                <input
+                                  type="text"
+                                  value={rec.lastName || ''}
+                                  onChange={(e) => {
+                                    const list = [...docData.documents.access.records];
+                                    list[idx] = { ...rec, lastName: e.target.value };
+                                    updateField(['documents', 'access', 'records'], list);
+                                  }}
+                                  className="w-full p-2 border border-zinc-150 rounded bg-white outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[8.5px] text-zinc-400 font-bold uppercase">Email Account</label>
+                              <input
+                                type="text"
+                                value={rec.email || ''}
+                                onChange={(e) => {
+                                  const list = [...docData.documents.access.records];
+                                  list[idx] = { ...rec, email: e.target.value };
+                                  updateField(['documents', 'access', 'records'], list);
+                                }}
+                                className="w-full p-2 border border-zinc-150 rounded bg-white outline-none animate-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[8.5px] text-zinc-400 font-bold uppercase">Company Affiliation</label>
+                              <input
+                                type="text"
+                                value={rec.company || ''}
+                                onChange={(e) => {
+                                  const list = [...docData.documents.access.records];
+                                  list[idx] = { ...rec, company: e.target.value };
+                                  updateField(['documents', 'access', 'records'], list);
+                                }}
+                                className="w-full p-2 border border-zinc-150 rounded bg-white outline-none"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
           </div>
 
           <div className="pt-4 border-t border-zinc-100 space-y-2">
@@ -1002,7 +1996,7 @@ export default function SmartDocumentCreator({
               Transfer to Markdown Editor
             </button>
             
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 id="btn-cloud-save-file"
                 onClick={saveToFirebaseCloudFiles}
@@ -1010,6 +2004,28 @@ export default function SmartDocumentCreator({
               >
                 <CloudDownload size={13} />
                 Cloud Save
+              </button>
+              <button
+                id="btn-save-as-image"
+                onClick={handleDownloadAsImage}
+                disabled={isSavingImage}
+                className="py-2.5 bg-pink-600 hover:bg-pink-700 disabled:bg-pink-300 text-white rounded-xl text-[10px] uppercase tracking-widest font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-pink-500/10"
+                title="Save Design as high-res PNG Image File"
+              >
+                {isSavingImage ? (
+                  <>
+                    <svg className="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera size={13} />
+                    <span>Save Image</span>
+                  </>
+                )}
               </button>
               <button
                 id="btn-print-doc"
@@ -1841,7 +2857,7 @@ export default function SmartDocumentCreator({
                                       textAnchor="start"
                                       className="vector-shape filter"
                                     >
-                                      {e.text || 'CorelDRAW AI Vector Text'}
+                                      {e.text || 'Exonasoft word AI Vector Text'}
                                     </text>
                                   )}
                                 </g>
@@ -1916,6 +2932,483 @@ export default function SmartDocumentCreator({
                 </div>
               </div>
             )}
+
+            {/* 9. Microsoft Office Suite Preview Layout */}
+            {documentTemplate === 'office' && (() => {
+              const activeApp = docData.activeApp || 'word';
+              const d = docData.documents || {};
+
+              // Real-time cell formula evaluation engine
+              const evaluateCell = (cellId: string): string => {
+                const cells = d.excel?.cells || {};
+                const raw = cells[cellId];
+                if (raw === undefined || raw === null) return '';
+                if (typeof raw === 'string' && raw.startsWith('=')) {
+                  try {
+                    const expr = raw.slice(1).toUpperCase().trim();
+                    if (expr.startsWith('SUM(') && expr.endsWith(')')) {
+                      const range = expr.slice(4, -1).trim();
+                      const [start, end] = range.split(':');
+                      if (!start || !end) return '#VALUE!';
+                      
+                      const startCol = start[0];
+                      const startRow = parseInt(start.slice(1));
+                      const endCol = end[0];
+                      const endRow = parseInt(end.slice(1));
+                      
+                      let sum = 0;
+                      const colStartCharCode = startCol.charCodeAt(0);
+                      const colEndCharCode = endCol.charCodeAt(0);
+                      
+                      for (let c = colStartCharCode; c <= colEndCharCode; c++) {
+                        for (let r = startRow; r <= endRow; r++) {
+                          const currentId = `${String.fromCharCode(c)}${r}`;
+                          const currentVal = cells[currentId];
+                          let numericVal = 0;
+                          if (typeof currentVal === 'number') {
+                            numericVal = currentVal;
+                          } else if (typeof currentVal === 'string') {
+                            if (currentVal.startsWith('=')) {
+                              if (currentId !== cellId) {
+                                numericVal = parseFloat(evaluateCell(currentId)) || 0;
+                              }
+                            } else {
+                              numericVal = parseFloat(currentVal) || 0;
+                            }
+                          }
+                          sum += numericVal;
+                        }
+                      }
+                      return String(sum);
+                    }
+                    return '#NAME?';
+                  } catch (err) {
+                    return '#ERR!';
+                  }
+                }
+                return String(raw);
+              };
+
+              return (
+                <div id="print-office-container" className="w-[105%] max-w-[750px] bg-slate-150 p-1 rounded-[2rem] border border-zinc-250 font-sans leading-normal">
+                  
+                  {/* Word App Design */}
+                  {activeApp === 'word' && (
+                    <div className="bg-white border text-zinc-800 border-zinc-200 shadow-xl rounded-2xl overflow-hidden">
+                      {/* MS Word App Frame Header */}
+                      <div className="bg-blue-600 text-white p-3.5 flex items-center justify-between font-bold select-none text-[10.5px]">
+                        <div className="flex items-center gap-2">
+                          <FileText size={15} className="text-white hover:scale-105" />
+                          <span>{d.word?.title || 'Untitled.docx'} - Exona Word Live Web</span>
+                        </div>
+                        <div className="flex items-center gap-3 font-mono text-[9px] text-blue-150">
+                          <span>Font: {d.word?.theme === 'tech' ? 'JetBrains Mono' : d.word?.theme === 'classic' ? 'Georgia' : 'Inter'}</span>
+                          <span>|</span>
+                          <span>Page 1 of 1</span>
+                        </div>
+                      </div>
+
+                      {/* Word Format Ribbon */}
+                      <div className="bg-zinc-50 border-b border-zinc-200 p-2 text-[10px] flex items-center gap-3 text-zinc-500 overflow-x-auto select-none no-print">
+                        <button type="button" className="font-bold text-zinc-800 hover:text-blue-600">File</button>
+                        <button type="button" className="font-bold text-blue-600 underline">Home</button>
+                        <button type="button" className="hover:text-blue-600">Insert</button>
+                        <button type="button" className="hover:text-blue-600">Layout</button>
+                        <button type="button" className="hover:text-blue-600">References</button>
+                        <button type="button" className="hover:text-blue-600">Review</button>
+                        <button type="button" className="hover:text-blue-600">View</button>
+                        <span className="text-zinc-300">|</span>
+                        <div className="flex items-center gap-1 bg-white border border-zinc-200 px-2 py-0.5 rounded font-mono text-[9px]">
+                          <span>{d.word?.fontSize || 14}px</span>
+                        </div>
+                        <span className="text-zinc-650 ml-auto font-mono text-[9px]">Word Count: {d.word?.content?.split(/\s+/).filter(Boolean).length || 0}</span>
+                      </div>
+
+                      {/* A4 Printed layout area */}
+                      <div className="p-8 sm:p-12 bg-zinc-100/50 min-h-[500px] flex justify-center">
+                        <div className="w-full max-w-[550px] bg-white border border-zinc-200 p-8 shadow-md rounded-lg min-h-[460px] relative text-left">
+                          {/* Top letterhead rule */}
+                          <div className="border-b-2 border-blue-600 pb-3 mb-6 flex justify-between items-end">
+                            <div>
+                              <span className="text-[10px] tracking-widest font-black uppercase text-blue-600">EXONA EXECUTIVE SUITE</span>
+                              <h1 className={`${
+                                d.word?.theme === 'classic' ? 'font-serif text-xl font-bold' : d.word?.theme === 'tech' ? 'font-mono text-lg font-bold' : 'font-sans text-lg font-black'
+                              } text-zinc-900 tracking-tight mt-1`}>
+                                {d.word?.title || 'Annual Document'}
+                              </h1>
+                            </div>
+                            <span className="text-[9px] font-mono text-zinc-400">May 2026</span>
+                          </div>
+
+                          {/* Render Document Content with responsive custom styles */}
+                          <div 
+                            className={`space-y-4`}
+                            style={{
+                              fontSize: `${d.word?.fontSize || 14}px`,
+                              fontFamily: d.word?.theme === 'classic' ? 'Georgia, serif' : d.word?.theme === 'tech' ? 'JetBrains Mono, monospace' : 'Inter, sans-serif'
+                            }}
+                          >
+                            <p className="text-[10px] uppercase font-black tracking-wider text-zinc-400">By {d.word?.author || 'Executive Admin'}</p>
+                            
+                            {/* Simple paragraph renderer supports break lines */}
+                            {String(d.word?.content || '').split('\n\n').map((para, pIdx) => {
+                              if (para.startsWith('## ')) {
+                                return (
+                                  <h3 key={pIdx} className="text-sm font-extrabold text-zinc-850 pt-2 border-b border-zinc-100 pb-1 uppercase tracking-tight">
+                                    {para.replace('## ', '')}
+                                  </h3>
+                                );
+                              } else if (para.startsWith('### ')) {
+                                return (
+                                  <h4 key={pIdx} className="text-[11.5px] font-black text-indigo-700 uppercase tracking-wide">
+                                    {para.replace('### ', '')}
+                                  </h4>
+                                );
+                              }
+                              return (
+                                <p key={pIdx} className="text-zinc-750 leading-relaxed text-justify whitespace-pre-line">
+                                  {para}
+                                </p>
+                              );
+                            })}
+                          </div>
+
+                          {/* Footer Page Number */}
+                          <div className="absolute bottom-4 left-8 right-8 text-center text-[10px] border-t border-zinc-100 pt-2 text-zinc-400 font-mono flex justify-between">
+                            <span>Exona Software Suite</span>
+                            <span>Page 1 of 1</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Excel App Design */}
+                  {activeApp === 'excel' && (
+                    <div className="bg-white border text-zinc-800 border-zinc-200 shadow-xl rounded-2xl overflow-hidden font-sans">
+                      {/* MS Excel App Frame Header */}
+                      <div className="bg-emerald-600 text-white p-3.5 flex items-center justify-between font-bold select-none text-[10.5px]">
+                        <div className="flex items-center gap-2">
+                          <Grid size={15} className="text-white hover:scale-105 animate-pulse" />
+                          <span>{d.excel?.sheetName || 'Book1.xlsx'} - Exona Excel Matrix Ledger</span>
+                        </div>
+                        <span className="text-[9px] font-mono text-emerald-100">Live Formula Parser Mode</span>
+                      </div>
+
+                      {/* Formula display ribbon */}
+                      <div className="bg-zinc-50 border-b border-zinc-200 px-3 py-1 flex items-center gap-2 text-[10px] select-none font-mono text-zinc-500 no-print">
+                        <span className="font-bold text-zinc-700 bg-zinc-200 px-1 py-0.5 rounded">fx</span>
+                        <div className="w-full bg-white border border-zinc-200 px-2 py-1 rounded text-[10px] text-zinc-650 truncate">
+                          Explore formula: Selected cells range summation computes in real time!
+                        </div>
+                      </div>
+
+                      {/* Spreadsheet Grid Design */}
+                      <div className="p-4 bg-zinc-100 overflow-x-auto">
+                        <table className="w-full border-collapse border border-zinc-300 text-[10px] font-mono bg-white shadow-md rounded overflow-hidden min-w-[500px]">
+                          <thead>
+                            <tr className="bg-zinc-50 text-zinc-500 font-bold">
+                              <th className="border border-zinc-350 p-1.5 text-center bg-zinc-100 w-10">#</th>
+                              <th className="border border-zinc-350 p-1.5 text-left bg-zinc-100">A (Label String)</th>
+                              <th className="border border-zinc-350 p-1.5 text-right bg-zinc-100">B (Values)</th>
+                              <th className="border border-zinc-350 p-1.5 text-right bg-zinc-100">C (Values)</th>
+                              <th className="border border-zinc-350 p-1.5 text-right bg-zinc-100">D (Formulas SUM)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[1, 2, 3, 4, 5, 6].map((row) => {
+                              const bVal = evaluateCell(`B${row}`);
+                              const cVal = evaluateCell(`C${row}`);
+                              const dVal = evaluateCell(`D${row}`);
+
+                              const isFormulaDisplay = (cell: string) => {
+                                const raw = d.excel?.cells?.[cell];
+                                return typeof raw === 'string' && raw.startsWith('=');
+                              };
+
+                              return (
+                                <tr key={row} className="hover:bg-emerald-50/40 transition-colors">
+                                  {/* Row index counter */}
+                                  <td className="border border-zinc-300 p-2 font-bold text-center bg-zinc-50 w-10 text-zinc-500">{row}</td>
+                                  
+                                  {/* A Column label */}
+                                  <td className="border border-zinc-300 p-2 font-medium text-zinc-700">
+                                    {d.excel?.cells?.[`A${row}`] || ''}
+                                  </td>
+
+                                  {/* B Column */}
+                                  <td className={`border border-zinc-300 p-2 text-right font-semibold ${isFormulaDisplay(`B${row}`) ? 'text-emerald-600 bg-emerald-50/10' : 'text-zinc-800'}`}>
+                                    {isFormulaDisplay(`B${row}`) ? (
+                                      <span title={`Formula: ${d.excel.cells[`B${row}`]}`}>{parseFloat(bVal)?.toLocaleString() || bVal}</span>
+                                    ) : (
+                                      <span>{parseFloat(bVal)?.toLocaleString() || bVal}</span>
+                                    )}
+                                  </td>
+
+                                  {/* C Column */}
+                                  <td className={`border border-zinc-300 p-2 text-right font-semibold ${isFormulaDisplay(`C${row}`) ? 'text-emerald-600 bg-emerald-50/10' : 'text-zinc-800'}`}>
+                                    {isFormulaDisplay(`C${row}`) ? (
+                                      <span title={`Formula: ${d.excel.cells[`C${row}`]}`}>{parseFloat(cVal)?.toLocaleString() || cVal}</span>
+                                    ) : (
+                                      <span>{parseFloat(cVal)?.toLocaleString() || cVal}</span>
+                                    )}
+                                  </td>
+
+                                  {/* D Column */}
+                                  <td className={`border border-zinc-300 p-2 text-right font-black ${isFormulaDisplay(`D${row}`) ? 'text-emerald-700 bg-emerald-50/40 font-mono text-emerald-800 font-black' : 'text-zinc-800'}`}>
+                                    {isFormulaDisplay(`D${row}`) ? (
+                                      <span title={`Formula: ${d.excel.cells[`D${row}`]}`}>
+                                        £{parseFloat(dVal)?.toLocaleString() || dVal}
+                                      </span>
+                                    ) : (
+                                      <span>{dVal}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Excel Ledger statistics info */}
+                      <div className="bg-emerald-50 text-[9.5px] p-2.5 font-sans border-t border-zinc-200 text-emerald-800 font-bold flex justify-between select-none">
+                        <span>Sheet Name: Exona-Forecast-Data | Auto computations verified</span>
+                        <span>Sum formula syntax: =SUM(coord_start:coord_end)</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PowerPoint App Design */}
+                  {activeApp === 'powerpoint' && (() => {
+                    const ppt = d.powerpoint || {};
+                    const slides = ppt.slides || [];
+                    const activeIndex = ppt.activeSlide || 0;
+                    const activeSlide = slides[activeIndex] || { title: "Strategic Launch", subtitle: "Exona Digital Suite", bullets: [] };
+
+                    return (
+                      <div className="bg-white border text-zinc-900 border-zinc-200 shadow-xl rounded-2xl overflow-hidden">
+                        {/* MS PowerPoint App Frame Header */}
+                        <div className="bg-orange-650 text-white p-3.5 flex items-center justify-between font-bold select-none text-[10.5px]">
+                          <div className="flex items-center gap-2">
+                            <Airplay size={15} className="text-white" />
+                            <span>{ppt.presentationName || 'Presentation1.pptx'} - PowerPoint Presentation Suite</span>
+                          </div>
+                          <span className="text-[9px] font-mono bg-orange-850 px-2 py-0.5 rounded">Active Slide #{activeIndex + 1}</span>
+                        </div>
+
+                        {/* PPT Presentation Canvas Area */}
+                        <div className="bg-zinc-800 p-4 sm:p-6 flex gap-3 h-[460px] overflow-hidden select-none">
+                          
+                          {/* Left Thumb deck navigation list */}
+                          <div className="w-[85px] border-r border-zinc-700 pr-2 pl-0.5 space-y-2 overflow-y-auto no-print h-full flex-shrink-0">
+                            <span className="text-[8px] uppercase tracking-wider text-zinc-400 font-black block mb-1">Slides Set</span>
+                            {slides.map((slide: any, i: number) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => updateField(['documents', 'powerpoint', 'activeSlide'], i)}
+                                className={`w-full p-2 rounded-lg text-left border text-[8px] block transition-all ${
+                                  i === activeIndex 
+                                    ? 'bg-orange-600 text-white border-orange-500 font-bold' 
+                                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:bg-zinc-800'
+                                }`}
+                              >
+                                <span className="block text-[7.5px] truncate font-bold text-zinc-300">#{i + 1}</span>
+                                <span className="block font-black truncate leading-none mt-0.5">{slide.title || 'Untitled'}</span>
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Central projector viewport screen */}
+                          <div className="flex-1 bg-zinc-950 p-8 rounded-xl border border-zinc-700/60 flex flex-col justify-center text-center relative max-h-full overflow-hidden text-zinc-100">
+                            {/* Visual design frame accents */}
+                            <div className="absolute top-4 left-4 flex gap-1.5 opacity-40">
+                              <span className="w-1.5 h-1.5 rounded-full bg-orange-600"></span>
+                              <span className="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+                            </div>
+                            <span className="absolute top-4 right-4 text-[8px] text-zinc-500 font-mono">CONFIDENTIAL SPEC-A</span>
+
+                            <div className="space-y-4 animate-fade-in text-center max-w-[420px] mx-auto">
+                              <h2 className="text-xl font-extrabold tracking-tight text-white leading-tight uppercase font-sans border-b border-orange-800 pb-2.5">
+                                {activeSlide.title || 'No slide title set'}
+                              </h2>
+                              {activeSlide.subtitle && (
+                                <p className="text-xs font-medium text-orange-400 font-mono italic">
+                                  {activeSlide.subtitle}
+                                </p>
+                              )}
+                              
+                              {/* Slide bullet elements list */}
+                              {Array.isArray(activeSlide.bullets) && activeSlide.bullets.length > 0 && (
+                                <div className="space-y-1.5 pt-2 text-left max-w-[340px] mx-auto">
+                                  {activeSlide.bullets.filter(Boolean).map((b: string, bIdx: number) => (
+                                    <div key={bIdx} className="flex gap-2 text-[10.5px] text-zinc-300 leading-snug">
+                                      <span className="text-orange-500 font-bold text-[11px]">•</span>
+                                      <span>{b}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Presentation Page Counter */}
+                            <div className="absolute bottom-4 left-6 right-6 flex justify-between text-[8px] text-zinc-500 font-mono border-t border-zinc-800/80 pt-2">
+                              <span>Exona Compute Sub-Apps</span>
+                              <span>Slide {activeIndex + 1} of {slides.length}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Word stats presentation footer */}
+                        <div className="bg-orange-50 text-[9.5px] p-2.5 border-t border-zinc-200 text-orange-800 flex justify-between font-bold">
+                          <span>Presentation: PowerPoint Web Studio | Fluid layout</span>
+                          <span>Use arrow controls in left pane to navigates</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* OneNote App Design */}
+                  {activeApp === 'onenote' && (
+                    <div className="bg-white border text-zinc-900 border-zinc-200 shadow-xl rounded-2xl overflow-hidden font-sans">
+                      {/* MS OneNote App Frame Header */}
+                      <div className="bg-purple-650 text-white p-3.5 flex items-center justify-between font-bold select-none text-[10.5px]">
+                        <div className="flex items-center gap-2">
+                          <BookOpen size={15} className="text-white" />
+                          <span>Exona OneNote Digital Binder Workspace</span>
+                        </div>
+                        <span className="text-[9px] font-mono text-purple-100">Interactive Sticky Pin Board</span>
+                      </div>
+
+                      {/* Sticky Pin Board Canvas */}
+                      <div className="bg-purple-50/20 p-6 min-h-[440px] shadow-inner">
+                        <div className="mb-4 text-left border-b border-purple-100/80 pb-2">
+                          <span className="text-[10px] uppercase tracking-wider text-purple-600 font-black">Memo Dashboard</span>
+                          <h2 className="text-sm font-extrabold text-zinc-800 tracking-tight leading-none">Typed Notes Matrix</h2>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          {Array.isArray(d.onenote?.notes) && d.onenote.notes.length > 0 ? (
+                            d.onenote.notes.map((note: any, idx: number) => (
+                              <div 
+                                key={note.id || idx} 
+                                className={`p-4 border shadow-md rounded-2xl text-left transform rotate-1 hover:rotate-0 transition-transform duration-300 relative ${note.color}`}
+                                style={{ minHeight: '140px' }}
+                              >
+                                {/* Pin accent on Sticky Notes */}
+                                <div className="absolute -top-1.5 left-1/2 transform -translate-x-1/2 w-3.5 h-3.5 bg-red-500 rounded-full border border-white shadow-sm flex items-center justify-center">
+                                  <span className="w-1 h-1 bg-white rounded-full"></span>
+                                </div>
+                                <span className="text-[8px] font-mono text-zinc-400 uppercase tracking-widest font-black block border-b border-zinc-200/50 pb-1 mb-2">Pin Note #{idx + 1}</span>
+                                <p className="text-[11px] font-medium leading-relaxed text-zinc-800 font-sans whitespace-pre-wrap break-words italic">
+                                  "{note.text || 'Sticky note ready for typing...'}"
+                                </p>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="col-span-3 py-16 text-center text-zinc-400 text-xs">
+                              No sticky notes compiled yet. Click "+ Add Memo" in the control panel to type records.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-purple-100 text-[9.5px] p-2.5 border-t border-zinc-200 text-purple-900 flex justify-between font-bold font-sans">
+                        <span>Sticky Pad: OneNote Hub | Generates on-demand cards</span>
+                        <span>Total Active Notes: {d.onenote?.notes?.length || 0}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Access App Design */}
+                  {activeApp === 'access' && (
+                    <div className="bg-white border text-zinc-900 border-zinc-200 shadow-xl rounded-2xl overflow-hidden font-sans">
+                      {/* MS Access App Frame Header */}
+                      <div className="bg-rose-800 text-white p-3.5 flex items-center justify-between font-bold select-none text-[10.5px]">
+                        <div className="flex items-center gap-2">
+                          <Database size={15} className="text-white animate-pulse" />
+                          <span>{d.access?.tableName || 'DatabaseTable'} - Exonasoft word Relational Table Studio</span>
+                        </div>
+                        <span className="text-[9px] font-mono text-rose-100">Exona DBMS Console</span>
+                      </div>
+
+                      {/* Access Double Columns Layout */}
+                      <div className="grid grid-cols-4 min-h-[440px] bg-zinc-50 border-b border-zinc-200">
+                        {/* Database Navigator panel */}
+                        <div className="col-span-1 border-r border-zinc-250 bg-zinc-100 p-3 text-left">
+                          <span className="text-[9px] uppercase tracking-wider font-extrabold text-rose-800 block mb-2 font-mono">Schema Directory</span>
+                          <div className="space-y-1.5 text-[9.5px] text-zinc-650">
+                            <div className="flex items-center gap-1 font-bold text-zinc-850">
+                              <span className="w-2 h-2 rounded-full bg-rose-700"></span>
+                              <span className="truncate">{d.access?.tableName || 'Customers'}</span>
+                            </div>
+                            <div className="pl-3 space-y-1 text-zinc-500 border-l border-zinc-300 font-mono text-[9px]">
+                              <div>▪ id [INTEGER]</div>
+                              <div>▪ firstName [TEXT]</div>
+                              <div>▪ lastName [TEXT]</div>
+                              <div>▪ email [VARCHAR]</div>
+                              <div>▪ company [TEXT]</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SQL Grid table lists */}
+                        <div className="col-span-3 p-4 bg-white flex flex-col justify-between">
+                          <div className="space-y-3">
+                            <div className="text-left">
+                              <span className="text-[8.5px] uppercase font-black text-zinc-400">Database Active View</span>
+                              <h3 className="text-xs font-bold text-zinc-800 leading-none mt-0.5">Records Dataset Layout</h3>
+                            </div>
+
+                            <table className="w-full border-collapse border border-zinc-200 text-[10px] text-zinc-700 bg-white">
+                              <thead>
+                                <tr className="bg-rose-50 border-b border-zinc-350 text-rose-900 font-bold font-mono text-[9px]">
+                                  <th className="border border-zinc-200 p-1.5 text-center bg-rose-100/50">ROW_ID</th>
+                                  <th className="border border-zinc-200 p-1.5 text-left">FIRST_NAME</th>
+                                  <th className="border border-zinc-200 p-1.5 text-left">LAST_NAME</th>
+                                  <th className="border border-zinc-200 p-1.5 text-left">EMAIL_ADDRESS</th>
+                                  <th className="border border-zinc-200 p-1.5 text-left">COMPANY</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Array.isArray(d.access?.records) && d.access.records.length > 0 ? (
+                                  d.access.records.map((rec: any) => (
+                                    <tr key={rec.id} className="hover:bg-rose-50/20 text-[9.5px] font-medium border-b border-zinc-100">
+                                      <td className="border border-zinc-200 p-1.5 text-center font-bold bg-zinc-50 font-mono text-zinc-500">{rec.id}</td>
+                                      <td className="border border-zinc-200 p-1.5 font-sans">{rec.firstName || ''}</td>
+                                      <td className="border border-zinc-200 p-1.5 font-sans">{rec.lastName || ''}</td>
+                                      <td className="border border-zinc-250 p-1.5 font-mono text-zinc-600 truncate max-w-[120px]" title={rec.email}>{rec.email || ''}</td>
+                                      <td className="border border-zinc-200 p-1.5 truncate max-w-[100px]" title={rec.company}>{rec.company || ''}</td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan={5} className="py-20 text-center text-zinc-400 font-sans">
+                                      Database table is empty. Click "+ Insert Row" in the control panel to type records.
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <span className="text-[9px] text-zinc-400 block text-right font-mono font-bold uppercase mt-2">
+                            DBMS Session Status: Online Client Instance (Records: {d.access?.records?.length || 0})
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="bg-rose-50 text-[9.5px] p-2.5 border-t border-zinc-200 text-rose-800 flex justify-between font-bold font-sans">
+                        <span>Database: Exonasoft word 2026 Table Engine | Standard relational index</span>
+                        <span>DBMS Table: {d.access?.tableName || 'Customers'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              );
+            })()}
 
           </div>
         </div>

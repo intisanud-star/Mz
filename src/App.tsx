@@ -2335,7 +2335,27 @@ function ExonaApp() {
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [editorContent, setEditorContent] = useState<string>('# Creative Studio\n\nStart crafting your technical document here...');
   const [editorMode, setEditorMode] = useState<'standard' | 'smart'>('standard');
-  const [documentTemplate, setDocumentTemplate] = useState<'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw'>('cv');
+  const [freeChances, setFreeChances] = useState<number>(() => {
+    const saved = localStorage.getItem('exonasoft_word_free_chances');
+    return saved !== null ? parseInt(saved, 10) : 3;
+  });
+  const [hasDeductedForCurrentSession, setHasDeductedForCurrentSession] = useState<boolean>(false);
+
+  const consumeFreeChance = (actionDescription: string) => {
+    if (freeChances <= 0) {
+      showNotification(`Failed: No free chances left to ${actionDescription}. Upgrade to Pro!`, 'error');
+      return false;
+    }
+    if (freeChances >= 999) {
+      return true;
+    }
+    const next = freeChances - 1;
+    setFreeChances(next);
+    localStorage.setItem('exonasoft_word_free_chances', next.toString());
+    showNotification(`⚡ Used 1 free chance for ${actionDescription}. ${next} remaining!`, 'success');
+    return true;
+  };
+  const [documentTemplate, setDocumentTemplate] = useState<'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw' | 'office'>('cv');
   const [docAiPrompt, setDocAiPrompt] = useState<string>('');
   const [isDocGenerating, setIsDocGenerating] = useState<boolean>(false);
   const [docData, setDocData] = useState<any>({
@@ -2360,7 +2380,7 @@ function ExonaApp() {
     languages: ["English (Native)", "Spanish (Conversational)"]
   });
 
-  const handleTemplateChange = (type: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw') => {
+  const handleTemplateChange = (type: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw' | 'office') => {
     setDocumentTemplate(type);
     let defaults: any = {};
     if (type === 'cv') {
@@ -2581,7 +2601,7 @@ function ExonaApp() {
                 type: "text",
                 x: 220,
                 y: 215,
-                text: "CorelDRAW AI Vector Layout Suite",
+                text: "Exonasoft word AI Vector Layout Suite",
                 fontSize: 14,
                 fontWeight: "400",
                 fontFamily: "JetBrains Mono, monospace",
@@ -2601,6 +2621,79 @@ function ExonaApp() {
             color: "#94a3b8"
           }
         ]
+      };
+    } else if (type === 'office') {
+      defaults = {
+        suiteName: "Exona Office Suite",
+        activeApp: "word",
+        documents: {
+          word: {
+            title: "Annual Strategy Report.docx",
+            author: "Musa Mustapha",
+            theme: "modern",
+            fontSize: 14,
+            content: "## Exona Digital Group Strategy\n\nWelcome to Exonasoft word Office-inspired online document writer! This workspace lets you perform arbitrary typing challenges in multiple integrated sub-applications.\n\n### Core Mission\nOur core mission centers around visual elegance, ultra-fast interfaces, and robust multi-mode text processing capabilities. Feel free to type in and replace any content here."
+          },
+          excel: {
+            sheetName: "Financial Forecast.xlsx",
+            cells: {
+              "A1": "Revenue Stream", "B1": "Q1 projection", "C1": "Q2 projection", "D1": "Total Projections",
+              "A2": "Direct Software Sales", "B2": 45000, "C2": 55000, "D2": "=SUM(B2:C2)",
+              "A3": "Workspace Memberships", "B3": 12500, "C3": 18500, "D3": "=SUM(B3:C3)",
+              "A4": "Smart Ads Retainer", "B4": 8500, "C4": 12000, "D4": "=SUM(B4:C4)",
+              "A5": "Consultancy & Auditing", "B5": 14000, "C5": 16000, "D5": "=SUM(B5:C5)",
+              "A6": "Strategic Total Sum", "B6": "=SUM(B2:B5)", "C6": "=SUM(C2:C5)", "D6": "=SUM(D2:D5)"
+            }
+          },
+          powerpoint: {
+            presentationName: "Product Launch Strategy.pptx",
+            activeSlide: 0,
+            slides: [
+              {
+                title: "Exona Digital Workspace Launch",
+                subtitle: "Pioneering high-contrast layout interfaces for technical minds",
+                bullets: [
+                  "Designed for fast and intuitive navigation setups",
+                  "Rich, immersive bento-grid expansions",
+                  "Deep-contrast eye protection mechanics built in"
+                ]
+              },
+              {
+                title: "MS Computer Sub-apps Ecosystem",
+                subtitle: "Providing specialized computer products for office typing challenges",
+                bullets: [
+                  "Word Processor: Advanced real-time text layouts",
+                  "Excel Sheets: Self-computing cellular logic matrices",
+                  "Sticky Notes: Fast colored notes capturing details"
+                ]
+              },
+              {
+                title: "Next Milestones & Future Outlines",
+                subtitle: "Empowering the next billion workspace creators around the globe",
+                bullets: [
+                  "Secured £142.5k revenue nodes to guarantee infrastructure",
+                  "Deploying direct print-friendly vector capture workflows",
+                  "Adding localized storage sync pipelines"
+                ]
+              }
+            ]
+          },
+          onenote: {
+            notes: [
+              { id: "note-1", text: "Remember to review Barclays Bank sort codes (20-40-60) and account details.", color: "bg-amber-50 text-amber-900 border-amber-200" },
+              { id: "note-2", text: "Contact Sophia Jenkins from PremiumTrust Bank for auditing logs and credential sign-off.", color: "bg-sky-50 text-sky-900 border-sky-200" },
+              { id: "note-3", text: "Upgrade visual vector outlines inside Exonasoft word AI category next week.", color: "bg-purple-50 text-purple-900 border-purple-200" }
+            ]
+          },
+          access: {
+            tableName: "Customers Database",
+            records: [
+              { id: "1", firstName: "Musa", lastName: "Mustapha", email: "musa@exona.io", company: "Exona Digital" },
+              { id: "2", firstName: "Sarah", lastName: "Jenkins", email: "sarah@premiumtrust.com", company: "PremiumTrust" },
+              { id: "3", firstName: "Alex", lastName: "Rivera", email: "alex.rivera@exona.io", company: "Exona Admin" }
+            ]
+          }
+        }
       };
     }
     setDocData(defaults);
@@ -10063,7 +10156,7 @@ function ExonaApp() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
                     { mode: 'classic', title: 'Classic View', desc: 'Standard professional table with mobile optimized cards.', icon: LayoutList, color: 'bg-indigo-50 text-indigo-600' },
-                    { mode: 'microsoft', title: 'Microsoft View', desc: 'Dense, high-productivity grid design for heavy data entry.', icon: TableProperties, color: 'bg-blue-50 text-blue-600' },
+                    { mode: 'microsoft', title: 'Exonasoft word View', desc: 'Dense, high-productivity grid design for heavy data entry.', icon: TableProperties, color: 'bg-blue-50 text-blue-600' },
                     { mode: 'bento', title: 'Bento Grid', desc: 'Modern, card-based layout with visual status indicators.', icon: LayoutGrid, color: 'bg-emerald-50 text-emerald-600' }
                   ].map((option) => (
                     <button 
@@ -10267,7 +10360,7 @@ function ExonaApp() {
                         {mode === 'classic' && <LayoutList size={12} strokeWidth={2.5} />}
                         {mode === 'microsoft' && <TableProperties size={12} strokeWidth={2.5} />}
                         {mode === 'bento' && <LayoutGrid size={12} strokeWidth={2.5} />}
-                        <span className="hidden lg:inline">{mode}</span>
+                        <span className="hidden lg:inline">{mode === 'microsoft' ? 'exonasoft word' : mode}</span>
                       </button>
                     ))}
                   </div>
@@ -14686,12 +14779,62 @@ function ExonaApp() {
               }
             >
               <div className="max-w-6xl w-full">
+                {/* Free Chances Alert Banner */}
+                <div className="mb-6 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-pink-500/10 border border-purple-100 rounded-[2rem] p-5 flex flex-col md:flex-row items-center justify-between gap-4 no-print shadow-sm">
+                  <div className="flex items-center gap-3.5">
+                    <div className="p-3 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl text-white shadow-md">
+                      <Sparkles size={20} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-zinc-900 text-sm flex items-center gap-2">
+                        Exonasoft Word Creative trial
+                        <span className="text-[10px] font-black tracking-widest uppercase bg-purple-100 text-purple-700 px-3 py-1 rounded-full border border-purple-200">
+                          {freeChances >= 999 ? 'Unlimited Pro Pack' : freeChances > 0 ? `${freeChances}/3 Chances Left` : 'Trial Exhausted'}
+                        </span>
+                      </h4>
+                      <p className="text-zinc-500 text-xs mt-1 leading-relaxed">
+                        {freeChances >= 999
+                          ? "You are using Exonasoft Word Pro - Unlimited document compilation & manual edits active!"
+                          : freeChances > 0 
+                          ? "You have 3 free chances to edit templates, save, print, and process documents. You can always see/copy document markups."
+                          : "You've used all 3 free trial chances. You can view the document contents, but editing and exports are paused. Click Reset below to restart demo!"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    {(freeChances <= 0 || freeChances >= 999) && (
+                      <button 
+                        onClick={() => {
+                          setFreeChances(3);
+                          localStorage.setItem('exonasoft_word_free_chances', '3');
+                          setHasDeductedForCurrentSession(false);
+                          showNotification('Chances restored to 3! Enjoy the editor.', 'success');
+                        }}
+                        className="h-9 px-4 bg-zinc-800 hover:bg-zinc-950 text-white rounded-xl text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-1.5 shadow-sm"
+                      >
+                        <RefreshCw size={12} />
+                        Reset for Demo
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => {
+                        showNotification('Exonasoft Word Pro tier unlocked successfully! Unlimited document generation active.', 'success');
+                        setFreeChances(999);
+                        localStorage.setItem('exonasoft_word_free_chances', '999');
+                      }}
+                      className="h-9 px-4.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:scale-105 text-white rounded-xl text-[10px] uppercase tracking-widest font-black transition-all flex items-center gap-1.5 shadow-md shadow-indigo-500/20"
+                    >
+                      👑 Go Pro
+                    </button>
+                  </div>
+                </div>
+
                 {/* Modern Segmented Tab Switcher */}
                 <div className="flex justify-center mb-6 no-print">
                   <div className="bg-zinc-100/80 p-1.5 rounded-2xl flex gap-1 border border-zinc-200/50 shadow-sm">
                     <button
                       id="mode-toggle-standard"
-                      onClick={() => setEditorMode('standard')}
+                      onClick={() => { setEditorMode('standard'); setHasDeductedForCurrentSession(false); }}
                       className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                         editorMode === 'standard'
                           ? 'bg-white text-zinc-900 shadow-md shadow-zinc-900/5'
@@ -14703,7 +14846,7 @@ function ExonaApp() {
                     </button>
                     <button
                       id="mode-toggle-smart"
-                      onClick={() => setEditorMode('smart')}
+                      onClick={() => { setEditorMode('smart'); setHasDeductedForCurrentSession(false); }}
                       className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
                         editorMode === 'smart'
                           ? 'bg-accent text-white shadow-md shadow-accent/25 animate-pulse-once'
@@ -14735,6 +14878,8 @@ function ExonaApp() {
                       addDoc={addDoc}
                       collection={collection}
                       serverTimestamp={serverTimestamp}
+                      freeChances={freeChances}
+                      consumeFreeChance={consumeFreeChance}
                     />
                   </div>
                 ) : (
@@ -14744,15 +14889,36 @@ function ExonaApp() {
                       <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
                         <span className="text-[10px] font-black uppercase tracking-widest text-muted">Editor (Markdown)</span>
                         <div className="flex gap-2">
-                           <button className="h-8 px-3 bg-white border border-gray-100 rounded-lg text-muted hover:text-ink transition-colors">
-                             <Copy size={14} />
+                           <button 
+                             onClick={() => {
+                               navigator.clipboard.writeText(editorContent);
+                               showNotification('Document content copied to clipboard!', 'success');
+                             }}
+                             className="h-8 px-3 bg-white border border-gray-100 rounded-lg text-muted hover:text-ink hover:border-gray-300 transition-colors flex items-center gap-1.5"
+                             title="Copy all document markups"
+                           >
+                             <Copy size={13} />
+                             <span className="text-[9px] font-black uppercase tracking-wider">Copy</span>
                            </button>
                         </div>
                       </div>
                       <textarea 
                         value={editorContent}
-                        onChange={(e) => setEditorContent(e.target.value)}
-                        className="flex-1 p-8 outline-none text-sm font-mono leading-relaxed bg-white resize-none text-ink"
+                        readOnly={freeChances <= 0}
+                        onChange={(e) => {
+                          if (freeChances <= 0) {
+                            showNotification('No free chances left! Reset demo or upgrade to Pro to edit document.', 'error');
+                            return;
+                          }
+                          if (!hasDeductedForCurrentSession) {
+                            consumeFreeChance('manually edit document template');
+                            setHasDeductedForCurrentSession(true);
+                          }
+                          setEditorContent(e.target.value);
+                        }}
+                        className={`flex-1 p-8 outline-none text-sm font-mono leading-relaxed resize-none text-ink ${
+                          freeChances <= 0 ? 'bg-zinc-50/70 text-zinc-400 cursor-not-allowed' : 'bg-white'
+                        }`}
                         placeholder="Start writing..."
                       />
                     </div>
@@ -14764,7 +14930,15 @@ function ExonaApp() {
                         <div className="flex gap-2 font-sans">
                             <button 
                               onClick={async () => {
+                                if (freeChances <= 0) {
+                                  showNotification('No free chances left! Reset trial or upgrade to Pro to save documents.', 'error');
+                                  return;
+                                }
                                 if (!editorContent.trim() || !user) return;
+                                
+                                // Consume chance
+                                if (!consumeFreeChance('save document file to cloud storage')) return;
+
                                 const title = editorContent.split('\n')[0].replace(/[#*`]/g, '').trim() || 'Untitled Document';
                                 try {
                                   if (editingFileId) {
@@ -14796,7 +14970,27 @@ function ExonaApp() {
                             >
                               Save
                             </button>
-                           <button className="h-8 px-4 bg-white border border-gray-200 text-ink rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+                           <button 
+                             onClick={() => {
+                               if (freeChances <= 0) {
+                                 showNotification('No free chances left! Upgrade to Pro to export files.', 'error');
+                                 return;
+                               }
+                               // Consume a chance for export
+                               if (!consumeFreeChance('export document file')) return;
+                               
+                               const element = document.createElement("a");
+                               const file = new Blob([editorContent], {type: 'text/plain'});
+                               element.href = URL.createObjectURL(file);
+                               const title = editorContent.split('\n')[0].replace(/[#*`]/g, '').trim() || 'Untitled';
+                               element.download = `${title}.md`;
+                               document.body.appendChild(element);
+                               element.click();
+                               document.body.removeChild(element);
+                               showNotification('Document exported!', 'success');
+                             }}
+                             className="h-8 px-4 bg-white border border-gray-200 text-ink rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all"
+                           >
                              Export
                            </button>
                         </div>
