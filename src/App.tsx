@@ -13469,9 +13469,9 @@ function ExonaApp() {
       case 'workspace': {
         const workspaceFeatures = [
           { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
+          { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for technical writing with free trial and template tools.', icon: PenTool, color: 'purple-600' },
           { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
           { id: 'daily-challenge', name: 'Daily Treasury Challenge', description: 'Showcase your intelligence to earn Exon Stars. Entry fee: 50 Stars.', icon: Stars, color: 'amber-600' },
-          { id: 'editor', name: 'Creative Editor (Premium)', description: 'Powerful editor for technical writing. Upgrade to premium to unlock.', icon: PenTool, color: 'purple-600' },
           { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
           { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
           { id: 'e-exam', name: 'E-Examination', description: 'Comprehensive examination system for school-wide assessments and professional certifications.', icon: FileBarChart, color: 'rose-600' },
