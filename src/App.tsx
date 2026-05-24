@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -71,124 +71,124 @@ import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, g
 // --- CONSTANTS ---
 const BRAIN_BATTLE_QUESTIONS = [
   {
-    question: "Which planet has the largest number of moons currently discovered?",
-    options: ["Jupiter", "Saturn", "Uranus", "Neptune"],
-    answer: "Saturn",
-    category: "Space & Science"
-  },
-  {
-    question: "What is the value of π (pi) correct to 3 decimal places?",
-    options: ["3.124", "3.142", "3.141", "3.412"],
-    answer: "3.141",
-    category: "Mathematics"
-  },
-  {
-    question: "Who developed the Theory of Relativity?",
-    options: ["Isaac Newton", "Nikola Tesla", "Albert Einstein", "Galileo Galilei"],
-    answer: "Albert Einstein",
-    category: "Science"
-  },
-  {
-    question: "Which Surah in the Qur’an is known as the “Heart of the Qur’an”?",
-    options: ["Al-Fatiha", "Yaseen", "Al-Mulk", "Ar-Rahman"],
-    answer: "Yaseen",
-    category: "Islamic Knowledge"
-  },
-  {
-    question: "In computer science, what does “CPU” stand for?",
-    options: ["Central Power Unit", "Computer Processing Utility", "Central Processing Unit", "Central Program Unit"],
-    answer: "Central Processing Unit",
-    category: "Technology"
-  },
-  {
-    question: "Which African country was never colonized?",
-    options: ["Ghana", "Kenya", "Ethiopia", "Algeria"],
-    answer: "Ethiopia",
-    category: "History"
-  },
-  {
-    question: "What is the square root of 144?",
-    options: ["11", "12", "14", "16"],
-    answer: "12",
-    category: "Mathematics"
-  },
-  {
-    question: "Which blood group is known as the universal donor?",
-    options: ["AB+", "O+", "O−", "A−"],
-    answer: "O−",
-    category: "Science"
-  },
-  {
-    question: "What is the chemical symbol for Gold?",
-    options: ["Ag", "Gd", "Go", "Au"],
-    answer: "Au",
-    category: "Science"
-  },
-  {
-    question: "Which country currently has the largest population in the world?",
+    question: "Which country has the highest population in the world currently?",
     options: ["India", "China", "USA", "Indonesia"],
     answer: "India",
     category: "General Knowledge"
   },
   {
-    question: "Who wrote “Romeo and Juliet”?",
-    options: ["Charles Dickens", "William Shakespeare", "Mark Twain", "Chinua Achebe"],
-    answer: "William Shakespeare",
-    category: "Literature"
+    question: "What is the hardest natural substance on Earth?",
+    options: ["Gold", "Iron", "Diamond", "Silver"],
+    answer: "Diamond",
+    category: "Science"
   },
   {
-    question: "What does HTTP stand for?",
-    options: ["HyperText Transfer Protocol", "Hyper Transfer Text Program", "HighText Transfer Protocol", "HyperText Transmission Program"],
-    answer: "HyperText Transfer Protocol",
-    category: "Technology"
+    question: "Which Nigerian state is known as the “Treasure Base of the Nation”?",
+    options: ["Rivers", "Delta", "Bayelsa", "Akwa Ibom"],
+    answer: "Rivers",
+    category: "Nigeria Trivia"
   },
   {
-    question: "Which organ purifies blood in the human body?",
-    options: ["Heart", "Liver", "Kidney", "Lung"],
+    question: "Who was the first person to step on the moon?",
+    options: ["Yuri Gagarin", "Buzz Aldrin", "Neil Armstrong", "Michael Collins"],
+    answer: "Neil Armstrong",
+    category: "Space & Science"
+  },
+  {
+    question: "In Islam, what is the name of the cave where Prophet Muhammad (SAW) received the first revelation?",
+    options: ["Cave Thawr", "Cave Hira", "Cave Uhud", "Cave Safa"],
+    answer: "Cave Hira",
+    category: "Islamic Knowledge"
+  },
+  {
+    question: "Solve: 18 × 7",
+    options: ["96", "112", "126", "136"],
+    answer: "126",
+    category: "Mathematics"
+  },
+  {
+    question: "Which blood group is known as the universal donor?",
+    options: ["A", "B", "AB", "O Negative"],
+    answer: "O Negative",
+    category: "Science"
+  },
+  {
+    question: "Which African country was never colonized?",
+    options: ["Kenya", "Ethiopia", "Ghana", "Congo"],
+    answer: "Ethiopia",
+    category: "History"
+  },
+  {
+    question: "What is the main language spoken in Brazil?",
+    options: ["Spanish", "French", "Portuguese", "English"],
+    answer: "Portuguese",
+    category: "General Knowledge"
+  },
+  {
+    question: "Which Prophet could interpret dreams by Allah’s permission?",
+    options: ["Prophet Nuh (AS)", "Prophet Yusuf (AS)", "Prophet Yunus (AS)", "Prophet Isa (AS)"],
+    answer: "Prophet Yusuf (AS)",
+    category: "Islamic Knowledge"
+  },
+  {
+    question: "What is the value of π (pi) approximately?",
+    options: ["2.14", "3.14", "4.13", "5.31"],
+    answer: "3.14",
+    category: "Mathematics"
+  },
+  {
+    question: "Which organ removes waste from human blood?",
+    options: ["Heart", "Liver", "Kidney", "Lungs"],
     answer: "Kidney",
     category: "Science"
   },
   {
-    question: "Which Nigerian state is known as the “Centre of Commerce”?",
-    options: ["Lagos", "Kano", "Abuja", "Kaduna"],
-    answer: "Kano",
-    category: "Nigeria Trivia"
+    question: "Which Nigerian musician is popularly known as “OBO”?",
+    options: ["Burna Boy", "Wizkid", "Davido", "Rema"],
+    answer: "Davido",
+    category: "General Knowledge"
   },
   {
-    question: "In cybersecurity, what is phishing?",
-    options: ["A fishing game", "A hacking attempt to steal information", "A firewall system", "A coding language"],
-    answer: "A hacking attempt to steal information",
-    category: "Technology"
+    question: "What is the capital city of Australia?",
+    options: ["Sydney", "Melbourne", "Canberra", "Perth"],
+    answer: "Canberra",
+    category: "General Knowledge"
   },
   {
-    question: "Which prophet built the ark according to Islamic history?",
-    options: ["Prophet Musa (AS)", "Prophet Ibrahim (AS)", "Prophet Nuh (AS)", "Prophet Isa (AS)"],
-    answer: "Prophet Nuh (AS)",
+    question: "What comes next in the pattern? 2, 6, 12, 20, 30, ?",
+    options: ["36", "40", "42", "44"],
+    answer: "42",
+    category: "Mathematics"
+  },
+  {
+    question: "How many chapters are in the Qur’an?",
+    options: ["100", "110", "114", "120"],
+    answer: "114",
     category: "Islamic Knowledge"
   },
   {
-    question: "What is the binary value of decimal number 10?",
-    options: ["1001", "1010", "1110", "1100"],
-    answer: "1010",
-    category: "Technology"
+    question: "A farmer has 17 sheep. All but 9 die. How many are left?",
+    options: ["7", "8", "9", "17"],
+    answer: "9",
+    category: "General Knowledge"
   },
   {
-    question: "Which company created Android?",
-    options: ["Apple", "Microsoft", "Google", "Samsung"],
-    answer: "Google",
-    category: "Technology"
+    question: "Which planet is famous for its rings?",
+    options: ["Mercury", "Saturn", "Neptune", "Uranus"],
+    answer: "Saturn",
+    category: "Space & Science"
   },
   {
-    question: "What is the fastest land animal?",
-    options: ["Lion", "Horse", "Tiger", "Cheetah"],
-    answer: "Cheetah",
-    category: "Nature"
+    question: "Which part of a plant conducts photosynthesis mainly?",
+    options: ["Root", "Stem", "Flower", "Leaf"],
+    answer: "Leaf",
+    category: "Science"
   },
   {
-    question: "What matters most for a global fintech platform?",
-    options: ["Fancy logo only", "Real user trust", "Expensive ads only", "Random features"],
-    answer: "Real user trust",
-    category: "Fintech"
+    question: "The more you take away from me, the bigger I become. What am I?",
+    options: ["River", "Hole", "Shadow", "Fire"],
+    answer: "Hole",
+    category: "General Knowledge"
   }
 ];
 
@@ -1534,197 +1534,239 @@ const FeedPost = ({
   onDelete, 
   currentUserId, 
   canManage, 
-  canReply = true 
+  canReply = true,
+  fallbackLikesState
 }: any) => {
   const [showMenu, setShowMenu] = useState(false);
-  const isLiked = post.likedBy?.includes(currentUserId);
+  
+  // Resolve likes state: is it a local fallback post or real Firebase post?
+  const isFallback = post.id && post.id.startsWith('fallback-');
+  const postLikesInfo = (isFallback && fallbackLikesState && fallbackLikesState[post.id]) || {
+    likes: post.likes || 0,
+    likedBy: post.likedBy || []
+  };
+
+  const displayLikes = postLikesInfo.likes;
+  const isLiked = postLikesInfo.likedBy?.includes(currentUserId || 'temp-guest-uid');
   const isOwnPost = post.authorUid === currentUserId;
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      className="bg-white rounded-[2rem] p-6 mb-4 border border-gray-100 transition-all group relative"
+      className="bg-white rounded-3xl p-5 mb-5 border border-zinc-150/80 shadow-sm transition-all relative"
     >
-      <div className="flex gap-4">
-        {/* Left Column: Avatar */}
-        <div className="flex flex-col items-center gap-2 shrink-0">
+      {/* Post Owner / Header Block */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3 min-w-0">
           <button 
             onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-            className="shrink-0"
+            className="shrink-0 relative group"
           >
             {post.authorPhoto ? (
-              <img src={post.authorPhoto} className="h-12 w-12 rounded-2xl object-cover ring-2 ring-white transition-all border border-gray-100" referrerPolicy="no-referrer" />
+              <img 
+                src={post.authorPhoto} 
+                className="h-11 w-11 rounded-full object-cover ring-2 ring-zinc-50 border border-zinc-200" 
+                referrerPolicy="no-referrer" 
+                alt={post.authorName}
+              />
             ) : (
-              <div className="h-12 w-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-accent font-black text-lg">
+              <div className="h-11 w-11 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-700 font-bold text-base">
                 {post.authorName?.charAt(0)}
               </div>
             )}
           </button>
-          <div className="w-[2px] grow bg-gray-100 rounded-full" />
-        </div>
-
-        {/* Right Column: Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 min-w-0">
+          
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button 
                 onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-                className="flex flex-col min-w-0 group/author"
+                className="text-[14.5px] font-black text-zinc-900 hover:text-blue-600 transition-colors tracking-tight text-left leading-normal"
               >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[14px] font-black text-ink truncate group-hover/author:text-accent transition-colors uppercase tracking-tight">
-                    {post.authorName}
-                  </span>
-                  {post.authorRole === 'admin' && <Shield size={12} className="text-accent fill-accent/10" />}
-                </div>
-                <span className="text-[10px] font-bold text-muted uppercase tracking-widest leading-none">
-                  {formatTime(post.timestamp)}
-                </span>
+                {post.authorName}
               </button>
-
+              {post.authorRole === 'admin' && <Shield size={12} className="text-blue-600 fill-blue-500/10 shrink-0" />}
+              
               {post.schoolId && (
                 <button 
                   onClick={() => onInstitutionClick?.(post.schoolId)}
-                  className="px-2 py-0.5 rounded-lg bg-accent/5 text-[9px] font-black text-accent uppercase tracking-widest hover:bg-accent/10 transition-colors truncate max-w-[120px]"
+                  className="px-2 py-0.5 rounded-md bg-blue-50 text-[9px] font-extrabold text-blue-600 hover:bg-blue-100 transition-colors uppercase tracking-wider shrink-0"
                 >
                   {post.schoolName}
                 </button>
               )}
             </div>
-
-            <div className="relative">
-              <button 
-                onClick={() => setShowMenu(!showMenu)}
-                className="h-8 w-8 text-muted hover:text-ink hover:bg-gray-100 rounded-xl transition-all flex items-center justify-center"
-              >
-                <MoreHorizontal size={16} />
-              </button>
-              
-              <AnimatePresence>
-                {showMenu && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-2xl py-2 z-30 overflow-hidden"
-                  >
-                    {(isOwnPost || canManage) && (
-                      <>
-                        <button 
-                          onClick={() => { onEdit?.(post); setShowMenu(false); }}
-                          className="w-full px-4 py-2.5 text-left text-[11px] font-black text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
-                        >
-                          <Edit2 size={14} className="text-muted" /> Edit Post
-                        </button>
-                        <button 
-                          onClick={() => { onDelete?.(post); setShowMenu(false); }}
-                          className="w-full px-4 py-2.5 text-left text-[11px] font-black text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
-                        >
-                          <Trash2 size={14} /> Delete
-                        </button>
-                        <div className="h-px bg-gray-50 my-2" />
-                      </>
-                    )}
-                    <button className="w-full px-4 py-2.5 text-left text-[11px] font-black text-ink hover:bg-gray-50 flex items-center gap-3 transition-colors uppercase tracking-widest">
-                      <Share2 size={14} className="text-muted" /> Share
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          <p className="text-[14px] leading-relaxed text-ink whitespace-pre-wrap mb-4 font-medium tracking-tight">
-            {post.content}
-          </p>
-
-          {post.resharedFrom && (
-            <div className="mb-4 p-4 bg-gray-50/50 border border-gray-100 rounded-2xl border-l-4 border-accent/20 group/repost hover:bg-gray-50 transition-colors">
-              <div className="flex items-center gap-2 mb-2">
-                <Repeat size={14} className="text-accent" />
-                <p className="text-[10px] font-black text-accent uppercase tracking-widest">{post.resharedFrom.authorName}</p>
-              </div>
-              <p className="text-[13px] text-muted leading-relaxed line-clamp-3 font-medium">{post.resharedFrom.content}</p>
-            </div>
-          )}
-
-          {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
-            <div className={`mb-4 rounded-2xl overflow-hidden border border-gray-100 bg-gray-50 group/media ${post.mediaUrls && post.mediaUrls.length > 1 ? 'grid grid-cols-2 gap-1' : ''}`}>
-              {post.mediaUrls && post.mediaUrls.length > 0 ? (
-                post.mediaUrls.map((url: string, idx: number) => (
-                  <div key={idx} className={post.mediaUrls!.length === 1 ? '' : 'aspect-square'}>
-                    {post.mediaType === 'image' ? (
-                      <img src={url} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
-                    ) : (
-                      <video src={url} controls className="w-full h-full object-contain bg-black" />
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="">
-                  {post.mediaType === 'image' ? (
-                    <img src={post.mediaUrl} className="w-full h-full object-cover group-hover/media:scale-105 transition-transform duration-700" referrerPolicy="no-referrer" />
-                  ) : (
-                    <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* High-Precision Action Row */}
-          <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-100/50">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <button 
-                onClick={() => onLike?.(post.id, post.likedBy || [])}
-                className={`group flex items-center gap-2 transition-all active:scale-90 ${isLiked ? 'text-rose-500' : 'text-muted hover:text-rose-500'}`}
-              >
-                <div className={`p-2.5 rounded-2xl transition-all duration-300 ${isLiked ? 'bg-rose-50' : 'group-hover:bg-rose-50'}`}>
-                  <Heart size={18} strokeWidth={2} className={isLiked ? 'fill-rose-500' : ''} />
-                </div>
-                {post.likes > 0 && <span className="text-[11px] font-black tabular-nums tracking-tight">{post.likes}</span>}
-              </button>
-
-              <button 
-                onClick={() => canReply && onComment?.(post)}
-                className={`group flex items-center gap-2 transition-all active:scale-90 ${canReply ? 'text-muted hover:text-blue-500' : 'text-muted/20 cursor-not-allowed'}`}
-                disabled={!canReply}
-              >
-                <div className="p-2.5 rounded-2xl group-hover:bg-blue-50 transition-all duration-300">
-                  <MessageCircle size={18} strokeWidth={2} />
-                </div>
-                {post.commentsCount > 0 && <span className="text-[11px] font-black tabular-nums tracking-tight">{post.commentsCount}</span>}
-              </button>
-
-              <button 
-                onClick={() => onReshare?.(post)}
-                className="group flex items-center gap-2 transition-all active:scale-90 text-muted hover:text-emerald-500"
-                title="Institutional Share"
-              >
-                <div className="p-2.5 rounded-2xl group-hover:bg-emerald-50 transition-all duration-300">
-                  <Share size={18} strokeWidth={2} />
-                </div>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {!isOwnPost && (
-                <button 
-                  onClick={() => onMessage?.(post)}
-                  className="group flex items-center transition-all active:scale-90 text-muted hover:text-accent"
-                  title="Direct Secure Message"
-                >
-                  <div className="p-2.5 rounded-2xl group-hover:bg-accent/5 transition-all duration-300">
-                    <Smartphone size={18} strokeWidth={2} />
-                  </div>
-                </button>
-              )}
-            </div>
+            <span className="text-[11px] font-medium text-zinc-400 mt-0.5">
+              {formatTime(post.timestamp)}
+            </span>
           </div>
         </div>
+
+        {/* Action Dropdown Menu */}
+        <div className="relative shrink-0">
+          <button 
+            onClick={() => setShowMenu(!showMenu)}
+            className="h-8 w-8 text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100/60 rounded-full transition-all flex items-center justify-center"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          
+          <AnimatePresence>
+            {showMenu && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                className="absolute right-0 mt-2 w-48 bg-white border border-zinc-100 rounded-2xl py-2 z-30 shadow-xl"
+              >
+                {(isOwnPost || canManage) && (
+                  <>
+                    <button 
+                      onClick={() => { onEdit?.(post); setShowMenu(false); }}
+                      className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
+                    >
+                      <Edit2 size={13} className="text-zinc-400" /> Edit Post
+                    </button>
+                    <button 
+                      onClick={() => { onDelete?.(post); setShowMenu(false); }}
+                      className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
+                    >
+                      <Trash2 size={13} /> Delete Post
+                    </button>
+                    <div className="h-px bg-zinc-100 my-1.5" />
+                  </>
+                )}
+                <button 
+                  onClick={() => { onReshare?.(post); setShowMenu(false); }}
+                  className="w-full px-4 py-2.5 text-left text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 flex items-center gap-3 transition-colors uppercase tracking-widest"
+                >
+                  <Share2 size={13} className="text-zinc-400" /> Share Post
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
+
+      {/* Post Text Description Message */}
+      <h3 className="text-[15.5px] leading-relaxed text-zinc-900 whitespace-pre-wrap mb-4 font-semibold tracking-tight px-0.5">
+        {post.content}
+      </h3>
+
+      {/* Reshared Post Block */}
+      {post.resharedFrom && (
+        <div className="mb-4 p-4 bg-zinc-50/70 border border-zinc-150 rounded-2xl border-l-4 border-blue-500/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Repeat size={13} className="text-blue-500" />
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{post.resharedFrom.authorName}</p>
+          </div>
+          <p className="text-[13px] text-zinc-500 leading-relaxed font-semibold">{post.resharedFrom.content}</p>
+        </div>
+      )}
+
+      {/* Beautiful Rounded Attachment Graphic (Main Image) */}
+      {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
+        <div className={`mb-4 rounded-2xl overflow-hidden border border-zinc-150 bg-zinc-50 group/media ${post.mediaUrls && post.mediaUrls.length > 1 ? 'grid grid-cols-2 gap-1' : ''}`}>
+          {post.mediaUrls && post.mediaUrls.length > 0 ? (
+            post.mediaUrls.map((url: string, idx: number) => (
+              <div key={idx} className={post.mediaUrls!.length === 1 ? '' : 'aspect-square relative overflow-hidden'}>
+                {post.mediaType === 'image' ? (
+                  <img 
+                    src={url} 
+                    className="w-full h-full object-cover group-hover/media:scale-[1.03] transition-transform duration-700" 
+                    referrerPolicy="no-referrer" 
+                    alt="Post Attachment"
+                  />
+                ) : (
+                  <video src={url} controls className="w-full h-full object-contain bg-black" />
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="relative overflow-hidden">
+              {post.mediaType === 'image' ? (
+                <img 
+                  src={post.mediaUrl} 
+                  className="w-full h-auto max-h-[460px] object-cover group-hover/media:scale-[1.03] transition-transform duration-700" 
+                  referrerPolicy="no-referrer" 
+                  alt="Post Attachment"
+                />
+              ) : (
+                <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Premium Social Stacked Reactions Count Row */}
+      <div className="flex items-center justify-between px-1.5 py-2.5 border-b border-zinc-100 text-xs text-zinc-500">
+        <div className="flex items-center gap-1.5">
+          <div className="flex -space-x-1 items-center select-none">
+            {/* Standard stacked reactions */}
+            <div className="h-5 w-5 rounded-full bg-blue-500 flex items-center justify-center text-white ring-2 ring-white">
+              <ThumbsUp size={10} className="fill-white text-white" />
+            </div>
+            <div className="h-5 w-5 rounded-full bg-red-500 flex items-center justify-center text-white ring-2 ring-white">
+              <Heart size={10} className="fill-white text-white" />
+            </div>
+            <div className="h-5 w-5 rounded-full bg-teal-500 flex items-center justify-center text-white ring-2 ring-white">
+              <Sparkles size={10} className="text-white" />
+            </div>
+          </div>
+          <span className="ml-1 text-[13px] font-bold text-zinc-600 leading-none">
+            {displayLikes > 0 ? displayLikes : displayLikes === 0 ? 0 : 128}
+          </span>
+        </div>
+        
+        <button 
+          onClick={() => canReply && onComment?.(post)}
+          className="text-[13px] font-bold text-zinc-500 hover:text-blue-600 transition-colors hover:underline"
+        >
+          {post.commentsCount > 0 ? `${post.commentsCount} Comments` : isFallback ? `${post.commentsCount || 45} Comments` : 'Add Comment'}
+        </button>
+      </div>
+
+      {/* Interactive Activity Control Bar */}
+      <div className="flex items-center justify-around pt-3">
+        <button 
+          onClick={() => onLike?.(post.id, postLikesInfo.likedBy || [])}
+          className={`flex items-center justify-center gap-2 py-2 px-6 rounded-xl transition-all text-[13px] font-bold outline-none group hover:bg-zinc-50 active:scale-95 ${
+            isLiked ? 'text-blue-600' : 'text-zinc-500 hover:text-zinc-800'
+          }`}
+        >
+          <ThumbsUp size={17} className={isLiked ? 'fill-blue-600 text-blue-600' : 'text-zinc-400 group-hover:text-zinc-600'} />
+          <span>Like</span>
+        </button>
+
+        <button 
+          onClick={() => canReply && onComment?.(post)}
+          className="flex items-center justify-center gap-2 py-2 px-6 rounded-xl transition-all text-[13px] font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 active:scale-95 group"
+        >
+          <MessageCircle size={17} className="text-zinc-400 group-hover:text-zinc-600" />
+          <span>Comment</span>
+        </button>
+
+        <button 
+          onClick={() => onReshare?.(post)}
+          className="flex items-center justify-center gap-2 py-2 px-6 rounded-xl transition-all text-[13px] font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 active:scale-95 group"
+        >
+          <Share2 size={17} className="text-zinc-400 group-hover:text-zinc-600" />
+          <span>Share</span>
+        </button>
+      </div>
+
+      {/* Secret Message Button Hidden from Public Feed as Requested but available for Direct Secure Chats */}
+      {!isOwnPost && onMessage && (
+        <button 
+          onClick={() => onMessage?.(post)}
+          className="absolute bottom-4 right-4 p-2 bg-zinc-50 hover:bg-zinc-100 rounded-full text-zinc-400 hover:text-zinc-700 transition-all border border-zinc-100 hidden"
+          title="Direct Message"
+        >
+          <Smartphone size={14} />
+        </button>
+      )}
     </motion.div>
   );
 };
@@ -1747,9 +1789,56 @@ const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, on
   </button>
 );
 
+const FALLBACK_POSTS = [
+  {
+    id: "fallback-post-1",
+    authorUid: "fallback-author-jane",
+    authorName: "Jane Cooper",
+    authorPhoto: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200",
+    timestamp: { seconds: Math.floor((Date.now() - 2 * 60 * 60 * 1000) / 1000) }, // "2h ago"
+    content: "Proud to share our institution's science fair success! 🎉 Help us congratulate our brilliant engineering champions! 🏆🔬✨",
+    mediaUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=1000",
+    mediaType: "image",
+    likes: 128,
+    commentsCount: 45,
+    likedBy: [],
+    category: "for-you"
+  },
+  {
+    id: "fallback-post-2",
+    authorUid: "fallback-author-robert",
+    authorName: "Robert Fox",
+    authorPhoto: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200",
+    timestamp: { seconds: Math.floor((Date.now() - 5 * 60 * 60 * 1000) / 1000) }, // "5h ago"
+    content: "Excited to inaugurate the new computing lab at the East Campus today! This upgrade provides next-generation systems for AI research.",
+    mediaUrl: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=1000",
+    mediaType: "image",
+    likes: 92,
+    commentsCount: 18,
+    likedBy: [],
+    category: "following"
+  },
+  {
+    id: "fallback-post-3",
+    authorUid: "fallback-author-eleanor",
+    authorName: "Eleanor Pena",
+    authorPhoto: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&q=80&w=200",
+    timestamp: { seconds: Math.floor((Date.now() - 12 * 60 * 60 * 1000) / 1000) }, // "12h ago"
+    content: "Weekly study group sessions are open for registration! Join our local discussion forum on mathematical modeling and algorithms.",
+    mediaUrl: "https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?q=80&w=1000",
+    mediaType: "image",
+    likes: 64,
+    commentsCount: 12,
+    likedBy: [],
+    category: "groups"
+  }
+];
+
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
+  const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
+  const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
@@ -7411,6 +7500,25 @@ function ExonaApp() {
 
   const handleLikePost = async (postId: string, likedBy: string[]) => {
     if (!user) { setView('login'); return; }
+    if (postId.startsWith('fallback-')) {
+      const isLiked = likedBy.includes(user.uid);
+      const newLikedBy = isLiked ? likedBy.filter(id => id !== user.uid) : [...likedBy, user.uid];
+      setFallbackPostLikes(prev => {
+        const existing = prev[postId] || { 
+          likes: FALLBACK_POSTS.find(p => p.id === postId)?.likes || 0,
+          likedBy: FALLBACK_POSTS.find(p => p.id === postId)?.likedBy || []
+        };
+        return {
+          ...prev,
+          [postId]: {
+            likes: isLiked ? existing.likes - 1 : existing.likes + 1,
+            likedBy: newLikedBy
+          }
+        };
+      });
+      showNotification(isLiked ? 'Removed reaction' : 'Reacted with Like 👍');
+      return;
+    }
     const isLiked = likedBy.includes(user.uid);
     const newLikedBy = isLiked ? likedBy.filter(id => id !== user.uid) : [...likedBy, user.uid];
     
