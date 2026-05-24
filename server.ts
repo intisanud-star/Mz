@@ -593,6 +593,490 @@ async function startServer() {
     }
   });
 
+  // 1.5. Intelligent Document/Design Image Scanner Endpoint
+  app.post('/api/ai/scan-design', upload.single('image'), async (req: any, res) => {
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ success: false, error: 'No design image provided' });
+    }
+
+    const filePath = path.join(process.cwd(), file.path);
+
+    try {
+      const imageBase64 = fs.readFileSync(filePath, 'base64');
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          templateType: { 
+            type: Type.STRING, 
+            description: "Determine which design/document type this image represents. Must be one of: 'cv', 'id-card', 'report', 'certificate', 'agreement', 'invoice', 'receipt', 'coreldraw'." 
+          },
+          confidence: { type: Type.NUMBER, description: "Match score from 0.0 to 1.0" },
+          reconstructionPrompt: { 
+            type: Type.STRING, 
+            description: "A detailed natural language instructions prompt to reconstruct the exact styling, color palette, custom accents, and layout look and feel seen in the image." 
+          },
+          docData: {
+            type: Type.OBJECT,
+            description: "Extracted structure. Ensure it is highly complete, containing all possible text details found in the image formatted as required by the determined schema (JSON keys matches the chosen template properties)."
+          }
+        },
+        required: ["templateType", "reconstructionPrompt", "docData"]
+      };
+
+      const promptText = `You are an elite expert human-in-the-loop web designer and document layout model.
+Your task is to analyze the uploaded scanned/captured design image and understand which type of template layout it is willing to represent.
+Select the single best matching type from the 8 template types exactly:
+- 'cv': A resume/curriculum vitae (requires: fullName, jobTitle, email, phone, summary, experience array, education array, skills array, etc.)
+- 'id-card': A staff/personal identity card (requires: fullName, idNumber, role, department, issueDate, expiryDate, bloodGroup, signature labels or base64)
+- 'report': A formal business or academy report document (requires: title, subtitle, author, date, executiveSummary, keyMetrics array, sections array, conclusions, recommendations)
+- 'certificate': An elegant completion or congratulations certificate (requires: title, subtitle, recipientName, achievementDescription, institutionName, issueDate, credentialId, issuerName, issuerRole)
+- 'agreement': A contract or partnership legal agreement paper (requires: title, partyA, partyB, effectiveDate, clauses array, paymentTerms, governingLaw, terminationConditions)
+- 'invoice': A billing invoice for sales/services (requires: invoiceNumber, invoiceDate, dueDate, senderInfo clientInfo, recipientInfo customerInfo, items array with description/quantity/rate/total, taxRate)
+- 'receipt': A POS sales receipt (requires: receiptNumber, transactionDate, merchantInfo, customerName, items array, subtotal, discount, tax, totalAmount, paymentMethod, cashier)
+- 'coreldraw': A layered vector drawing, graphic art, complex flyer, logo poster, geometric illustration with wireframes. If selected, output docData matches the coreldraw canvasSize and layers structure (canvasSize: { width: 600, height: 400, background: 'color' }, layers: [{ id, name, visible, locked, opacity, elements: [{ id, type, x, y, width, height, fill, stroke, strokeWidth, rx, ry, cx, cy, r, points, text, fontSize, fontWeight, fontFamily, gradientType, gradientColors, rotation }] }])
+
+Instructions:
+1. Examine the image content carefully to auto-detect which document format/category it is.
+2. Formulate a super polished "reconstructionPrompt" that captures all creative traits, spacing details, background themes (e.g., custom gradients, neon colors, professional colors, borders), layout rules, font styling (e.g., modern, vintage, classic editorial) from the image.
+3. Pull ALL literal text snippets, details, items, titles, names, dates, prices, phone numbers, or coordinates visible in the image, and populate them with perfect structure into "docData" matching the selected template schema.
+4. Output should be strict JSON matching the schema outlined.`;
+
+      const response = await callAiWithRetry(() => ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          {
+            parts: [
+              { text: promptText },
+              {
+                inlineData: {
+                  mimeType: file.mimetype,
+                  data: imageBase64
+                }
+              }
+            ]
+          }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
+        }
+      }));
+
+      const extracted = JSON.parse(response.text || '{"templateType": "cv", "confidence": 0.5, "reconstructionPrompt": "", "docData": {}}');
+      res.json({ success: true, ...extracted });
+
+    } catch (error: any) {
+      console.error('Gemini Scanning Error for design scan:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to scan design template image' });
+    } finally {
+      // Guaranteed cleanup of uploaded image
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (e) {
+        console.error('Failed to unlink scanned design file in finally:', e);
+      }
+    }
+  });
+
+  // 2. Smart Document Creator AI Endpoint
+  app.post('/api/ai/fill-document', async (req, res) => {
+    const { templateType, userRequest } = req.body;
+    if (!templateType || !userRequest) {
+      return res.status(400).json({ success: false, error: 'templateType and userRequest are required' });
+    }
+
+    try {
+      let responseSchema: any;
+      let templateDescription = '';
+
+      switch (templateType.toLowerCase()) {
+        case 'cv':
+        case 'resume':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              fullName: { type: Type.STRING },
+              jobTitle: { type: Type.STRING },
+              email: { type: Type.STRING },
+              phone: { type: Type.STRING },
+              website: { type: Type.STRING },
+              address: { type: Type.STRING },
+              summary: { type: Type.STRING },
+              experience: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    company: { type: Type.STRING },
+                    role: { type: Type.STRING },
+                    period: { type: Type.STRING },
+                    description: { type: Type.STRING }
+                  },
+                  required: ["company", "role"]
+                }
+              },
+              education: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    institution: { type: Type.STRING },
+                    degree: { type: Type.STRING },
+                    period: { type: Type.STRING },
+                    description: { type: Type.STRING }
+                  },
+                  required: ["institution", "degree"]
+                }
+              },
+              skills: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              },
+              projects: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    link: { type: Type.STRING }
+                  }
+                }
+              },
+              languages: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["fullName", "jobTitle", "email"]
+          };
+          templateDescription = "a professional CV / Resume";
+          break;
+
+        case 'id-card':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              fullName: { type: Type.STRING },
+              idNumber: { type: Type.STRING },
+              role: { type: Type.STRING },
+              department: { type: Type.STRING },
+              email: { type: Type.STRING },
+              phone: { type: Type.STRING },
+              issueDate: { type: Type.STRING },
+              expiryDate: { type: Type.STRING },
+              bloodGroup: { type: Type.STRING },
+              signature: { type: Type.STRING }
+            },
+            required: ["fullName", "idNumber", "role"]
+          };
+          templateDescription = "an institutional personal/staff ID Card";
+          break;
+
+        case 'report':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              subtitle: { type: Type.STRING },
+              author: { type: Type.STRING },
+              date: { type: Type.STRING },
+              executiveSummary: { type: Type.STRING },
+              keyMetrics: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    label: { type: Type.STRING },
+                    value: { type: Type.STRING },
+                    status: { type: Type.STRING, description: "Must be 'up', 'down', or 'stable'" }
+                  },
+                  required: ["label", "value"]
+                }
+              },
+              sections: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    heading: { type: Type.STRING },
+                    content: { type: Type.STRING }
+                  },
+                  required: ["heading", "content"]
+                }
+              },
+              conclusions: { type: Type.STRING },
+              recommendations: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING }
+              }
+            },
+            required: ["title", "author", "executiveSummary"]
+          };
+          templateDescription = "a formal business or technical Report";
+          break;
+
+        case 'certificate':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              subtitle: { type: Type.STRING },
+              recipientName: { type: Type.STRING },
+              achievementDescription: { type: Type.STRING },
+              institutionName: { type: Type.STRING },
+              issueDate: { type: Type.STRING },
+              credentialId: { type: Type.STRING },
+              issuerName: { type: Type.STRING },
+              issuerRole: { type: Type.STRING }
+            },
+            required: ["title", "recipientName", "achievementDescription"]
+          };
+          templateDescription = "an elegant achievement/completion Certificate";
+          break;
+
+        case 'agreement':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              partyA: { type: Type.STRING },
+              partyB: { type: Type.STRING },
+              effectiveDate: { type: Type.STRING },
+              clauses: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING }
+                  },
+                  required: ["title", "content"]
+                }
+              },
+              paymentTerms: { type: Type.STRING },
+              governingLaw: { type: Type.STRING },
+              terminationConditions: { type: Type.STRING }
+            },
+            required: ["title", "partyA", "partyB", "effectiveDate"]
+          };
+          templateDescription = "a legally structured professional Contract or Partnership Agreement";
+          break;
+
+        case 'invoice':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              invoiceNumber: { type: Type.STRING },
+              invoiceDate: { type: Type.STRING },
+              dueDate: { type: Type.STRING },
+              senderInfo: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  address: { type: Type.STRING },
+                  email: { type: Type.STRING },
+                  phone: { type: Type.STRING },
+                  taxId: { type: Type.STRING }
+                },
+                required: ["name"]
+              },
+              recipientInfo: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  address: { type: Type.STRING },
+                  email: { type: Type.STRING }
+                },
+                required: ["name"]
+              },
+              items: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    description: { type: Type.STRING },
+                    quantity: { type: Type.NUMBER },
+                    rate: { type: Type.NUMBER },
+                    total: { type: Type.NUMBER }
+                  },
+                  required: ["description", "quantity", "rate"]
+                }
+              },
+              taxRate: { type: Type.NUMBER },
+              notes: { type: Type.STRING },
+              terms: { type: Type.STRING }
+            },
+            required: ["invoiceNumber", "invoiceDate", "senderInfo", "recipientInfo", "items"]
+          };
+          templateDescription = "a professional digital billing Invoice";
+          break;
+
+        case 'receipt':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              receiptNumber: { type: Type.STRING },
+              transactionDate: { type: Type.STRING },
+              merchantInfo: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  address: { type: Type.STRING },
+                  phone: { type: Type.STRING }
+                },
+                required: ["name"]
+              },
+              customerName: { type: Type.STRING },
+              items: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    amount: { type: Type.NUMBER }
+                  },
+                  required: ["name", "amount"]
+                }
+              },
+              subtotal: { type: Type.NUMBER },
+              discount: { type: Type.NUMBER },
+              tax: { type: Type.NUMBER },
+              totalAmount: { type: Type.NUMBER },
+              paymentMethod: { type: Type.STRING },
+              cashier: { type: Type.STRING }
+            },
+            required: ["receiptNumber", "transactionDate", "merchantInfo", "items", "totalAmount"]
+          };
+          templateDescription = "a POS shopping/transaction Receipt";
+          break;
+
+        case 'coreldraw':
+          responseSchema = {
+            type: Type.OBJECT,
+            properties: {
+              canvasSize: {
+                type: Type.OBJECT,
+                properties: {
+                  width: { type: Type.NUMBER },
+                  height: { type: Type.NUMBER },
+                  unit: { type: Type.STRING, description: "Must be 'px'" },
+                  background: { type: Type.STRING, description: "Solid hex color like #0f172a or CSS linear-gradient string" }
+                },
+                required: ["width", "height", "background"]
+              },
+              layers: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    name: { type: Type.STRING },
+                    visible: { type: Type.BOOLEAN },
+                    locked: { type: Type.BOOLEAN },
+                    opacity: { type: Type.NUMBER },
+                    elements: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          id: { type: Type.STRING },
+                          type: { type: Type.STRING, description: "Must be one of: 'rect', 'ellipse', 'path', 'text', 'line', 'polygon', 'star'" },
+                          x: { type: Type.NUMBER },
+                          y: { type: Type.NUMBER },
+                          width: { type: Type.NUMBER },
+                          height: { type: Type.NUMBER },
+                          rx: { type: Type.NUMBER, description: "Rounded corner radius, only for rectangles" },
+                          cx: { type: Type.NUMBER, description: "Center X, only for ellipses" },
+                          cy: { type: Type.NUMBER, description: "Center Y, only for ellipses" },
+                          r: { type: Type.NUMBER, description: "Radius, only for ellipses" },
+                          points: { type: Type.STRING, description: "Coordinate points list like 'x1,y1 x2,y2 x3,y3 ...' for star, polygon, or lines" },
+                          d: { type: Type.STRING, description: "SVG path data (M... C... L... Z) for custom freehand or bezier curves" },
+                          text: { type: Type.STRING, description: "Label text content, only for type 'text'" },
+                          fontSize: { type: Type.NUMBER },
+                          fontWeight: { type: Type.STRING },
+                          fontFamily: { type: Type.STRING },
+                          fill: { type: Type.STRING, description: "Hex color or 'none'" },
+                          gradientType: { type: Type.STRING, description: "'none', 'linear', or 'radial'" },
+                          gradientColors: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: "Palette of 2 or 3 hex colors for high fidelity gradient"
+                          },
+                          gradientAngle: { type: Type.NUMBER, description: "Gradient slope angle in degrees" },
+                          stroke: { type: Type.STRING, description: "Stroke brush outline color hex" },
+                          strokeWidth: { type: Type.NUMBER },
+                          strokeDasharray: { type: Type.STRING, description: "Dash array pattern, e.g. '5,5' or 'none'" },
+                          rotation: { type: Type.NUMBER, description: "Angle in degrees" },
+                          blendMode: { type: Type.STRING },
+                          shadowBlur: { type: Type.NUMBER },
+                          shadowColor: { type: Type.STRING },
+                          contourCount: { type: Type.NUMBER, description: "Number of concentric contour offset paths from 0 to 4 (CorelDRAW special effect)" },
+                          contourColor: { type: Type.STRING, description: "Contour accent hex color" }
+                        },
+                        required: ["id", "type", "x", "y"]
+                      }
+                    }
+                  },
+                  required: ["id", "name", "elements"]
+                }
+              },
+              dimensionLines: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    x1: { type: Type.NUMBER },
+                    y1: { type: Type.NUMBER },
+                    x2: { type: Type.NUMBER },
+                    y2: { type: Type.NUMBER },
+                    label: { type: Type.STRING },
+                    color: { type: Type.STRING }
+                  },
+                  required: ["x1", "y1", "x2", "y2", "label"]
+                }
+              }
+            },
+            required: ["canvasSize", "layers"]
+          };
+          templateDescription = "a highly advanced CorelDRAW vector art canvas, complete with custom layered vector shapes, complex bezier paths, gradient fills, fine geometric alignment, rotation parameters, text layouts, concentric glow contours, and dimension lines showing size measurements";
+          break;
+
+        default:
+          return res.status(400).json({ success: false, error: `Unsupported template category: ${templateType}` });
+      }
+
+      const promptText = `
+        You are an advanced Smart Document Creator assistant.
+        The user wants to automatically generate and populate structured data for ${templateDescription} based on this request:
+        "${userRequest}"
+
+        Carefully extract all available details from the user request and map them to the fields of the schema.
+        For details that are missing from the prompt, use your advanced creative writing skills to populate them with highly realistic, professional, and matching placeholder values so the final document is complete, authentic, and beautiful. Do not use generic texts like "Lorem Ipsum"; instead, write realistic texts, realistic company names (like Exona, PremiumTrust Bank, etc.), genuine looking addresses, appropriate dates (near year 2026), and fully realized sections.
+      `;
+
+      const response = await callAiWithRetry(() => ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
+        }
+      }));
+
+      const filledData = JSON.parse(response.text || '{}');
+      res.json({ success: true, filledData });
+
+    } catch (error: any) {
+      console.error('Fill Document Error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to auto-fill document template' });
+    }
+  });
+
   // 3. Broadcast API Endpoint
   app.post('/api/admin/broadcast', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'video', maxCount: 1 }]), async (req: any, res) => {
     const { message, imageUrl, videoUrl, button } = req.body;

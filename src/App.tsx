@@ -31,6 +31,7 @@ import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import { PDFDocument } from 'pdf-lib';
+import SmartDocumentCreator from './components/SmartDocumentCreator';
 
 declare global {
   interface Window {
@@ -2244,7 +2245,7 @@ function ExonaApp() {
 
   const handleWorkspaceToolClick = (toolId: string) => {
     if (toolId === 'editor') {
-      showNotification('Creative Editor is a Premium feature. Please upgrade to unlock.', 'error');
+      setActiveWorkspaceTool('editor');
       return;
     }
 
@@ -2333,6 +2334,277 @@ function ExonaApp() {
   const [editingFileId, setEditingFileId] = useState<string | null>(null);
   const [cloudFiles, setCloudFiles] = useState<any[]>([]);
   const [editorContent, setEditorContent] = useState<string>('# Creative Studio\n\nStart crafting your technical document here...');
+  const [editorMode, setEditorMode] = useState<'standard' | 'smart'>('standard');
+  const [documentTemplate, setDocumentTemplate] = useState<'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw'>('cv');
+  const [docAiPrompt, setDocAiPrompt] = useState<string>('');
+  const [isDocGenerating, setIsDocGenerating] = useState<boolean>(false);
+  const [docData, setDocData] = useState<any>({
+    fullName: "Jane Doe",
+    jobTitle: "Senior Web Developer",
+    email: "jane.doe@exona.io",
+    phone: "+44 7700 900077",
+    website: "www.janedoe.dev",
+    address: "Sleek Workspace, London EC1",
+    summary: "Driven and innovative Senior Web Developer with 6+ years of experience building highly responsive web applications using React, Node.js, and TypeScript.",
+    experience: [
+      { company: "Exona Digital Ltd", role: "Lead Frontend Engineer", period: "2024 - Present", description: "Led development of real-time workspace collaboration tools and modern dashboard architecture, reducing page loading times by 40%." },
+      { company: "Core Systems Inc", role: "Frontend Developer", period: "2021 - 2024", description: "Designed and implemented robust UI component systems. Partnered with backend engineers to integrate REST & GraphQL APIs." }
+    ],
+    education: [
+      { institution: "University of London", degree: "BSc in Computer Science", period: "2018 - 2021", description: "First Class Honours. Specialised in Software Engineering and Distributed Databases." }
+    ],
+    skills: ["React", "TypeScript", "Node.js", "Tailwind CSS", "Firebase", "Databases", "API Architecture"],
+    projects: [
+      { name: "Sleek Workspace UI", description: "Created an advanced, accessibility-focussed user interface library used by over 50,000 developers worldwide.", link: "github.com/exona/sleek-workspace" }
+    ],
+    languages: ["English (Native)", "Spanish (Conversational)"]
+  });
+
+  const handleTemplateChange = (type: 'cv' | 'id-card' | 'report' | 'certificate' | 'agreement' | 'invoice' | 'receipt' | 'coreldraw') => {
+    setDocumentTemplate(type);
+    let defaults: any = {};
+    if (type === 'cv') {
+      defaults = {
+        fullName: "Jane Doe",
+        jobTitle: "Senior Web Developer",
+        email: "jane.doe@exona.io",
+        phone: "+44 7700 900077",
+        website: "www.janedoe.dev",
+        address: "Sleek Workspace, London EC1",
+        summary: "Driven and innovative Senior Web Developer with 6+ years of experience building highly responsive web applications using React, Node.js, and TypeScript.",
+        experience: [
+          { company: "Exona Digital Ltd", role: "Lead Frontend Engineer", period: "2024 - Present", description: "Led development of real-time workspace collaboration tools and modern dashboard architecture, reducing page loading times by 40%." },
+          { company: "Core Systems Inc", role: "Frontend Developer", period: "2021 - 2024", description: "Designed and implemented robust UI component systems. Partnered with backend engineers to integrate REST & GraphQL APIs." }
+        ],
+        education: [
+          { institution: "University of London", degree: "BSc in Computer Science", period: "2018 - 2021", description: "First Class Honours. Specialised in Software Engineering and Distributed Databases." }
+        ],
+        skills: ["React", "TypeScript", "Node.js", "Tailwind CSS", "Firebase", "Databases", "API Architecture"],
+        projects: [
+          { name: "Sleek Workspace UI", description: "Created an advanced, accessibility-focussed user interface library used by over 50,000 developers worldwide.", link: "github.com/exona/sleek-workspace" }
+        ],
+        languages: ["English (Native)", "Spanish (Conversational)"]
+      };
+    } else if (type === 'id-card') {
+      defaults = {
+        fullName: "Alex Rivera",
+        idNumber: "EX-9044-2026",
+        role: "Systems Specialist",
+        department: "Security & Operations",
+        email: "alex.rivera@exona.io",
+        phone: "+44 7700 901122",
+        issueDate: "2026-01-15",
+        expiryDate: "2029-01-15",
+        bloodGroup: "O+",
+        signature: "Alex Rivera"
+      };
+    } else if (type === 'report') {
+      defaults = {
+        title: "Q1 Financial Audit & Performance Review",
+        subtitle: "Socio-Economic Verification & Decentralised Auditing Status",
+        author: "Director of Operations, Exona",
+        date: "May 2026",
+        executiveSummary: "This report provides a formal summary of the financial transactions, operational stability, and record accuracy under Exona's decentralized workspace registers for Q1 2026.",
+        keyMetrics: [
+          { label: "Total Revenue Recorded", value: "£142,500.00", status: "up" },
+          { label: "Unsettled Balances", value: "£3,200.00", status: "down" },
+          { label: "Audit Compliance Score", value: "99.8%", status: "stable" }
+        ],
+        sections: [
+          { heading: "1. Decentralized Records Integration", content: "Our integration with real-time peer-verified registries has dramatically reduced duplicate discrepancies. 98% of payments are completed within the designated grace periods, while historical audits show flawless retention." },
+          { heading: "2. Settlement & Verification Analytics", content: "Audit trails for daily routines and penalty compliance show extremely high operational adherence. Peer-to-peer chat communication metrics indicate streamlined team coordination." }
+        ],
+        conclusions: "The workspace records maintain a pristine audit standing. System controls and secret-key validations are operating successfully.",
+        recommendations: [
+          "Scale backup cloud files nodes to support increased document throughput",
+          "Onboard auxiliary staff onto the smart routine check mechanisms"
+        ]
+      };
+    } else if (type === 'certificate') {
+      defaults = {
+        title: "Certificate of Achievement",
+        subtitle: "This is proudly presented to",
+        recipientName: "Musa Mustapha",
+        achievementDescription: "for outstanding contributions to the Decentralized Ledger Workspace system, and for mastering multi-role management systems during the May 2026 Evaluation Cycle.",
+        institutionName: "Exona Digital Academy",
+        issueDate: "24 May 2026",
+        credentialId: "CERT-EX-2026-88012",
+        issuerName: "Lord Musa Mustapha",
+        issuerRole: "Chief Executive Executive"
+      };
+    } else if (type === 'agreement') {
+      defaults = {
+        title: "Strategic Software Services Agreement",
+        partyA: "Exona Ltd. (The Provider)",
+        partyB: "PremiumTrust Bank (The Client)",
+        effectiveDate: "2026-05-24",
+        clauses: [
+          { title: "1. Scope of Work", content: "The Provider agrees to architect, build, and support high-throughput cloud dashboards for decentralized banking reconciliation audits." },
+          { title: "2. Performance Guarantee", content: "The Provider guarantees 99.95% system uptime on the deployed sandbox API platforms throughout the active tenure." }
+        ],
+        paymentTerms: "£8,500.00 monthly retainer, invoiced on the last day of each calendar month and payable within 14 business days.",
+        governingLaw: "United Kingdom (England & Wales)",
+        terminationConditions: "Standard 30 days written notice by either party. Immediate termination allowed in case of material breach of confidentiality."
+      };
+    } else if (type === 'invoice') {
+      defaults = {
+        invoiceNumber: "INV-2026-0043",
+        invoiceDate: "2026-05-24",
+        dueDate: "2026-06-07",
+        senderInfo: {
+          name: "Exona Digital Workspace",
+          address: "Workspace One, Canary Wharf, London",
+          email: "billing@exona.io",
+          phone: "+44 20 7946 0192",
+          taxId: "GB-984481023"
+        },
+        recipientInfo: {
+          name: "PremiumTrust Bank Ltd",
+          address: "Financial Sector Hub, Capital City Tower",
+          email: "finance@premiumtrust.com"
+        },
+        items: [
+          { description: "Pro Workspace Dedicated Nodes Setup", quantity: 2, rate: 1200, total: 2400 },
+          { description: "Custom Verification API Integrations & Webhooks", quantity: 1, rate: 3500, total: 3500 },
+          { description: "Premium Ledger Audit Training & Onboarding Workshop", quantity: 3, rate: 450, total: 1350 }
+        ],
+        taxRate: 20,
+        notes: "Thank you for partnering with Exona! It is our absolute pleasure to serve your team.",
+        terms: "Payment should be made to Exona Digital, Barclays Bank, Sort Code: 20-40-60, Account: 98765432."
+      };
+    } else if (type === 'receipt') {
+      defaults = {
+        receiptNumber: "REC-55109-2026",
+        transactionDate: "2026-05-24 10:24:57",
+        merchantInfo: {
+          name: "Exona Tech Hub",
+          address: "Silicon Quarter, Tech City",
+          phone: "+44 20 7946 0551"
+        },
+        customerName: "Musa Mustapha",
+        items: [
+          { name: "Exona Pro Membership Plan", amount: 450.00 },
+          { name: "Smart Document Creator Addon", amount: 150.00 },
+          { name: "Verifiable ID Cards Package (50 units)", amount: 120.00 }
+        ],
+        subtotal: 720.00,
+        discount: 50.00,
+        tax: 134.00,
+        totalAmount: 804.00,
+        paymentMethod: "Credit Card (ending in 4432)",
+        cashier: "Sophia Jenkins (Agent #4)"
+      };
+    } else if (type === 'coreldraw') {
+      defaults = {
+        canvasSize: {
+          width: 600,
+          height: 400,
+          unit: "px",
+          background: "linear-gradient(135deg, #0b1329, #1e293b)"
+        },
+        layers: [
+          {
+            id: "background-layer",
+            name: "Background Grid & Accents",
+            visible: true,
+            locked: false,
+            opacity: 1,
+            elements: [
+              {
+                id: "acc-circle-1",
+                type: "ellipse",
+                x: 450,
+                y: 100,
+                cx: 450,
+                cy: 100,
+                r: 180,
+                fill: "#3b82f6",
+                gradientType: "radial",
+                gradientColors: ["#3b82f6", "transparent"],
+                stroke: "#ffffff",
+                strokeWidth: 0.5,
+                strokeDasharray: "5,5",
+                rotation: 0,
+                blendMode: "screen"
+              },
+              {
+                id: "acc-rect-1",
+                type: "rect",
+                x: 20,
+                y: 20,
+                width: 560,
+                height: 360,
+                rx: 16,
+                fill: "none",
+                stroke: "#475569",
+                strokeWidth: 1,
+                strokeDasharray: "10,10"
+              }
+            ]
+          },
+          {
+            id: "design-elements",
+            name: "Artistic Vectors",
+            visible: true,
+            locked: false,
+            opacity: 1,
+            elements: [
+              {
+                id: "logo-star",
+                type: "star",
+                x: 120,
+                y: 180,
+                points: "120,130 135,165 170,165 142,185 152,220 120,200 88,220 98,185 70,165 105,165",
+                fill: "#f59e0b",
+                gradientType: "linear",
+                gradientColors: ["#f59e0b", "#ef4444"],
+                stroke: "#ffffff",
+                strokeWidth: 2,
+                rotation: 15,
+                contourCount: 3,
+                contourColor: "#fef3c7"
+              },
+              {
+                id: "company-title",
+                type: "text",
+                x: 220,
+                y: 180,
+                text: "EXONA INDUSTRIES",
+                fontSize: 28,
+                fontWeight: "900",
+                fontFamily: "Space Grotesk, sans-serif",
+                fill: "#ffffff",
+                stroke: "none"
+              },
+              {
+                id: "company-tagline",
+                type: "text",
+                x: 220,
+                y: 215,
+                text: "CorelDRAW AI Vector Layout Suite",
+                fontSize: 14,
+                fontWeight: "400",
+                fontFamily: "JetBrains Mono, monospace",
+                fill: "#94a3b8",
+                stroke: "none"
+              }
+            ]
+          }
+        ],
+        dimensionLines: [
+          {
+            x1: 20,
+            y1: 390,
+            x2: 580,
+            y2: 390,
+            label: "W: 560px",
+            color: "#94a3b8"
+          }
+        ]
+      };
+    }
+    setDocData(defaults);
+  };
   const [isCreateGroupModalOpen, setIsCreateGroupModalOpen] = useState(false);
   const [newGroupData, setNewGroupData] = useState({ name: '', description: '', members: [] as string[], photoURL: '' });
   const [chatGroups, setChatGroups] = useState<any[]>([]);
@@ -14414,81 +14686,134 @@ function ExonaApp() {
               }
             >
               <div className="max-w-6xl w-full">
-                <div className="bg-white border border-gray-100 rounded-[2.5rem] overflow-hidden min-h-[700px] flex flex-col md:flex-row">
-                  {/* Editor Side */}
-                  <div className="flex-1 flex flex-col border-r border-gray-100">
-                    <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted">Editor (Markdown)</span>
-                      <div className="flex gap-2">
-                         <button className="h-8 px-3 bg-white border border-gray-100 rounded-lg text-muted hover:text-ink transition-colors">
-                           <Copy size={14} />
-                         </button>
-                      </div>
-                    </div>
-                    <textarea 
-                      value={editorContent}
-                      onChange={(e) => setEditorContent(e.target.value)}
-                      className="flex-1 p-8 outline-none text-sm font-mono leading-relaxed bg-white resize-none text-ink"
-                      placeholder="Start writing..."
-                    />
-                  </div>
-
-                  {/* Preview Side */}
-                  <div className="flex-1 flex flex-col bg-gray-50/30">
-                    <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted">Document Preview</span>
-                      <div className="flex gap-2">
-                          <button 
-                            onClick={async () => {
-                              if (!editorContent.trim() || !user) return;
-                              const title = editorContent.split('\n')[0].replace(/[#*`]/g, '').trim() || 'Untitled Document';
-                              try {
-                                if (editingFileId) {
-                                  await updateDoc(doc(db, 'cloudFiles', editingFileId), {
-                                    name: title + '.md',
-                                    size: new Blob([editorContent]).size,
-                                    timestamp: serverTimestamp(),
-                                    content: editorContent
-                                  });
-                                  showNotification('Document updated successfully');
-                                } else {
-                                  await addDoc(collection(db, 'cloudFiles'), {
-                                    name: title + '.md',
-                                    type: 'text/markdown',
-                                    size: new Blob([editorContent]).size,
-                                    url: '#',
-                                    ownerUid: user.uid,
-                                    timestamp: serverTimestamp(),
-                                    category: 'document',
-                                    content: editorContent
-                                  });
-                                  showNotification('Document saved to Cloud');
-                                }
-                              } catch (err) {
-                                showNotification('Failed to save', 'error');
-                              }
-                            }}
-                            className="h-8 px-4 bg-accent text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
-                          >
-                            Save
-                          </button>
-                         <button className="h-8 px-4 bg-white border border-gray-200 text-ink rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
-                           Export
-                         </button>
-                      </div>
-                    </div>
-                    <div className="flex-1 p-8 overflow-y-auto prose prose-slate prose-sm max-w-none">
-                      <div className="markdown-body">
-                         <Markdown>{editorContent}</Markdown>
-                      </div>
-                    </div>
+                {/* Modern Segmented Tab Switcher */}
+                <div className="flex justify-center mb-6 no-print">
+                  <div className="bg-zinc-100/80 p-1.5 rounded-2xl flex gap-1 border border-zinc-200/50 shadow-sm">
+                    <button
+                      id="mode-toggle-standard"
+                      onClick={() => setEditorMode('standard')}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        editorMode === 'standard'
+                          ? 'bg-white text-zinc-900 shadow-md shadow-zinc-900/5'
+                          : 'text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      <PenTool size={14} />
+                      Markdown Studio
+                    </button>
+                    <button
+                      id="mode-toggle-smart"
+                      onClick={() => setEditorMode('smart')}
+                      className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        editorMode === 'smart'
+                          ? 'bg-accent text-white shadow-md shadow-accent/25 animate-pulse-once'
+                          : 'text-zinc-500 hover:text-zinc-800'
+                      }`}
+                    >
+                      <Sparkles size={14} className="animate-spin-once" />
+                      Smart Document Creator
+                    </button>
                   </div>
                 </div>
 
-                <div className="flex justify-start mt-8">
+                {editorMode === 'smart' ? (
+                  <div className="animate-fade-in-up">
+                    <SmartDocumentCreator
+                      documentTemplate={documentTemplate}
+                      onTemplateChange={handleTemplateChange}
+                      docData={docData}
+                      setDocData={setDocData}
+                      docAiPrompt={docAiPrompt}
+                      setDocAiPrompt={setDocAiPrompt}
+                      isDocGenerating={isDocGenerating}
+                      setIsDocGenerating={setIsDocGenerating}
+                      setEditorContent={setEditorContent}
+                      setEditorMode={setEditorMode}
+                      showNotification={showNotification}
+                      user={user}
+                      database={db}
+                      addDoc={addDoc}
+                      collection={collection}
+                      serverTimestamp={serverTimestamp}
+                    />
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-100 rounded-[2.5rem] overflow-hidden min-h-[700px] flex flex-col md:flex-row shadow-sm">
+                    {/* Editor Side */}
+                    <div className="flex-1 flex flex-col border-r border-gray-100">
+                      <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Editor (Markdown)</span>
+                        <div className="flex gap-2">
+                           <button className="h-8 px-3 bg-white border border-gray-100 rounded-lg text-muted hover:text-ink transition-colors">
+                             <Copy size={14} />
+                           </button>
+                        </div>
+                      </div>
+                      <textarea 
+                        value={editorContent}
+                        onChange={(e) => setEditorContent(e.target.value)}
+                        className="flex-1 p-8 outline-none text-sm font-mono leading-relaxed bg-white resize-none text-ink"
+                        placeholder="Start writing..."
+                      />
+                    </div>
+
+                    {/* Preview Side */}
+                    <div className="flex-1 flex flex-col bg-gray-50/30">
+                      <div className="h-14 border-b border-gray-100 px-6 flex items-center justify-between bg-gray-50/50">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-muted">Document Preview</span>
+                        <div className="flex gap-2 font-sans">
+                            <button 
+                              onClick={async () => {
+                                if (!editorContent.trim() || !user) return;
+                                const title = editorContent.split('\n')[0].replace(/[#*`]/g, '').trim() || 'Untitled Document';
+                                try {
+                                  if (editingFileId) {
+                                    await updateDoc(doc(db, 'cloudFiles', editingFileId), {
+                                      name: title + '.md',
+                                      size: new Blob([editorContent]).size,
+                                      timestamp: serverTimestamp(),
+                                      content: editorContent
+                                    });
+                                    showNotification('Document updated successfully');
+                                  } else {
+                                    await addDoc(collection(db, 'cloudFiles'), {
+                                      name: title + '.md',
+                                      type: 'text/markdown',
+                                      size: new Blob([editorContent]).size,
+                                      url: '#',
+                                      ownerUid: user.uid,
+                                      timestamp: serverTimestamp(),
+                                      category: 'document',
+                                      content: editorContent
+                                    });
+                                    showNotification('Document saved to Cloud');
+                                  }
+                                } catch (err) {
+                                  showNotification('Failed to save', 'error');
+                                }
+                              }}
+                              className="h-8 px-4 bg-accent text-white rounded-lg text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                            >
+                              Save
+                            </button>
+                           <button className="h-8 px-4 bg-white border border-gray-200 text-ink rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+                             Export
+                           </button>
+                        </div>
+                      </div>
+                      <div className="flex-1 p-8 overflow-y-auto prose prose-slate prose-sm max-w-none">
+                        <div className="markdown-body">
+                           <Markdown>{editorContent}</Markdown>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-start mt-8 no-print">
                   <button 
                     onClick={() => setActiveWorkspaceTool(null)}
-                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all"
+                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all cursor-pointer"
                   >
                     <ArrowLeft size={14} />
                     Back to Workspace
