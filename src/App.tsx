@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,6 +33,9 @@ import Markdown from 'react-markdown';
 import { PDFDocument } from 'pdf-lib';
 import SmartDocumentCreator from './components/SmartDocumentCreator';
 import ExonaFileShare from './components/ExonaFileShare';
+import PhotoVideoLab from './components/PhotoVideoLab';
+import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
+import CustomAppSandbox from './components/CustomAppSandbox';
 
 declare global {
   interface Window {
@@ -2374,13 +2377,6 @@ function ExonaApp() {
           setIsSecretKeyModalOpen(true);
         }
       }
-    } else if (toolId === 'e-exam') {
-      const inst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
-      if (!inst) {
-        showNotification('Select a school or place to access this portal', 'success');
-        return;
-      }
-      setActiveWorkspaceTool(toolId);
     } else {
       setActiveWorkspaceTool(toolId);
     }
@@ -2417,6 +2413,32 @@ function ExonaApp() {
   };
 
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
+  const [enabledAppIds, setEnabledAppIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('exonasoft_enabled_workspace_apps');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return ['app-center', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'e-exam'];
+  });
+
+  const [customApps, setCustomApps] = useState<any[]>(() => {
+    const saved = localStorage.getItem('exonasoft_custom_workspace_apps');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('exonasoft_enabled_workspace_apps', JSON.stringify(enabledAppIds));
+  }, [enabledAppIds]);
+
   const [activePdfTool, setActivePdfTool] = useState<string | null>(null);
   const [uploadedPdfFiles, setUploadedPdfFiles] = useState<File[]>([]);
   const [isProcessingPdf, setIsProcessingPdf] = useState(false);
@@ -13576,15 +13598,83 @@ function ExonaApp() {
         );
       }
       case 'workspace': {
+        const catalogAppsById: { [key: string]: { id: string; name: string; description: string; icon: any; color: string } } = {
+          'docs': { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
+          'editor': { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for technical writing with free trial and template tools.', icon: PenTool, color: 'purple-600' },
+          'pdf': { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
+          'file-share': { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
+          'storage': { id: 'storage', name: 'Cloud Storage', description: "Secure cloud storage for your institution's important assets.", icon: HardDrive, color: 'emerald-600' },
+          'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
+          'e-exam': { id: 'e-exam', name: 'Photo and Video Lab', description: 'Interactive studio to adjust image brightness, apply filters, manage customized video subtitles, and export modified media formats.', icon: Video, color: 'rose-600' }
+        };
+
         const workspaceFeatures = [
-          { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
-          { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for technical writing with free trial and template tools.', icon: PenTool, color: 'purple-600' },
-          { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
-          { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
-          { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
-          { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
-          { id: 'e-exam', name: 'E-Examination', description: 'Comprehensive examination system for school-wide assessments and professional certifications.', icon: FileBarChart, color: 'rose-600' },
+          { id: 'app-center', name: 'Workspace App Center', description: 'Explore, install, configure, and custom-design your applications in a Play Store-like dashboard.', icon: ShoppingBag, color: 'blue-600' }
         ];
+
+        // Add standard ones if enabled in App Center
+        const standardIds = ['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'e-exam'];
+        standardIds.forEach(id => {
+          if (enabledAppIds.includes(id)) {
+            const item = catalogAppsById[id];
+            if (item) {
+              workspaceFeatures.push({
+                id: item.id,
+                name: item.name,
+                description: item.description,
+                icon: item.icon,
+                color: item.color
+              });
+            }
+          }
+        });
+
+        // Add custom apps if enabled
+        customApps.forEach((cApp: any) => {
+          if (enabledAppIds.includes(cApp.id)) {
+            workspaceFeatures.push({
+              id: cApp.id,
+              name: cApp.name,
+              description: cApp.description,
+              icon: getAppIcon(cApp.iconName),
+              color: cApp.color
+            });
+          }
+        });
+
+        // App Center Route
+        if (activeWorkspaceTool === 'app-center') {
+          return (
+            <WorkspaceAppCenter
+              onClose={() => setActiveWorkspaceTool(null)}
+              showNotification={showNotification}
+              enabledAppIds={enabledAppIds}
+              setEnabledAppIds={setEnabledAppIds}
+              customApps={customApps}
+              setCustomApps={setCustomApps}
+              onLaunchApp={(id) => {
+                if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'e-exam'].includes(id)) {
+                  setActiveWorkspaceTool(id);
+                } else {
+                  // Custom App
+                  setActiveWorkspaceTool(id);
+                }
+              }}
+            />
+          );
+        }
+
+        // Custom App Sandbox Route
+        const selectedCustomApp = customApps.find(app => app.id === activeWorkspaceTool);
+        if (selectedCustomApp) {
+          return (
+            <CustomAppSandbox
+              app={selectedCustomApp}
+              onClose={() => setActiveWorkspaceTool('app-center')}
+              showNotification={showNotification}
+            />
+          );
+        }
 
         if (activeWorkspaceTool === 'e-test') {
           const activeInst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
@@ -13699,6 +13789,15 @@ function ExonaApp() {
         }
 
         if (activeWorkspaceTool === 'e-exam') {
+          return (
+            <PhotoVideoLab
+              onClose={() => setActiveWorkspaceTool(null)}
+              showNotification={showNotification}
+            />
+          );
+        }
+
+        if (activeWorkspaceTool === 'e-exam-legacy') {
           const activeInst = selectedSchool || selectedPlace || schools.find(s => canManageInstitution(s)) || places.find(p => canManageInstitution(p));
           
           if (isExamStarted) {
