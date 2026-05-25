@@ -262,7 +262,7 @@ const BrainBattleModal = ({
 }: { 
   isActive: boolean,
   setIsActive: (val: boolean) => void,
-  step: 'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing',
+  step: 'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing' | 'study',
   setStep: (val: any) => void,
   [key: string]: any 
 }) => {
@@ -270,6 +270,12 @@ const BrainBattleModal = ({
   const [isChecking, setIsChecking] = useState(false);
   const [existingResult, setExistingResult] = useState<any>(null);
   const [, setTick] = useState(0);
+
+  // Core review and study state
+  const [studyAnswers, setStudyAnswers] = useState<{ [key: string]: string }>({});
+  const [studyCategory, setStudyCategory] = useState<string>('All');
+  const [studyMode, setStudyMode] = useState<'practice' | 'reveal'>('practice');
+  const [studySearch, setStudySearch] = useState<string>('');
 
   useEffect(() => {
     if (isActive && step === 'welcome') {
@@ -402,12 +408,20 @@ const BrainBattleModal = ({
                         <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Your Weekly Status</p>
                         <p className="text-sm font-bold text-ink">You've already participated this week! Score: {existingResult.score}</p>
                       </div>
-                      <button 
-                        onClick={() => setStep('existing')}
-                        className="w-full py-6 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
-                      >
-                        <Trophy size={18} /> View My Record
-                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button 
+                          onClick={() => setStep('existing')}
+                          className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Trophy size={18} /> My Record
+                        </button>
+                        <button 
+                          onClick={() => setStep('study')}
+                          className="w-full py-5 bg-amber-500 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/15"
+                        >
+                          <BookOpen size={18} /> Study Hub
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -458,6 +472,12 @@ const BrainBattleModal = ({
                           <Search size={16} /> My Result
                         </button>
                       </div>
+                      <button 
+                        onClick={() => setStep('study')}
+                        className="w-full py-5 bg-amber-500 text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-amber-600 transition-all flex items-center justify-center gap-2 shadow-md shadow-amber-500/15"
+                      >
+                        <BookOpen size={16} /> Practice & Study Hub
+                      </button>
                     </div>
                   )}
                 </div>
@@ -626,12 +646,20 @@ const BrainBattleModal = ({
                     )}
                   </div>
 
-                  <button 
-                    onClick={() => setStep('welcome')}
-                    className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-[10px] uppercase tracking-[0.3em] border border-gray-100 hover:bg-gray-50 transition-all mt-6"
-                  >
-                    ← Back to Centre
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                    <button 
+                      onClick={() => setStep('welcome')}
+                      className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-[10px] uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
+                    >
+                      ← Back to Centre
+                    </button>
+                    <button 
+                      onClick={() => setStep('study')}
+                      className="w-full py-5 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl font-bold text-[10px] uppercase tracking-[0.25em] hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+                    >
+                      <BookOpen size={14} /> Study Hub
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -772,6 +800,12 @@ const BrainBattleModal = ({
                        className="w-full py-6 bg-ink text-white rounded-[2.5rem] font-bold text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-3"
                     >
                       Check Weekly Leaderboard
+                    </button>
+                    <button 
+                       onClick={() => setStep('study')}
+                       className="w-full py-5 bg-amber-50 text-amber-600 border border-amber-100 rounded-2xl font-bold text-xs uppercase tracking-[0.25em] hover:bg-amber-100 transition-all flex items-center justify-center gap-2"
+                    >
+                      <BookOpen size={16} /> Study & Learning Center
                     </button>
                     <button 
                        onClick={() => setStep('welcome')}
@@ -938,6 +972,251 @@ const BrainBattleModal = ({
                        className="w-full py-5 bg-white text-muted rounded-2xl font-bold text-xs uppercase tracking-[0.25em] border border-gray-100 hover:bg-gray-50 transition-all"
                     >
                       Return to Hub
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {step === 'study' && (
+                <div className="space-y-6">
+                  {/* Study Hub Header */}
+                  <div className="text-left bg-gradient-to-br from-amber-50 to-orange-50/50 p-6 rounded-[2rem] border border-amber-100/50 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 text-amber-500">
+                      <BookOpen size={96} />
+                    </div>
+                    <div className="relative z-10 flex flex-col items-start text-left">
+                      <div className="inline-block px-3 py-1 bg-amber-500 text-white rounded-full text-[8px] font-black uppercase tracking-widest mb-3">
+                        Exona Academy
+                      </div>
+                      <h4 className="text-xl font-black text-ink mb-1.5 flex items-center gap-2">
+                        Battle Study Hub
+                      </h4>
+                      <p className="text-xs text-muted/80 font-medium leading-relaxed max-w-sm">
+                        Become a legend! Tap "Practice" to challenge yourself interactively with instant feedback, or "Cheat Sheet" to view correct answers immediately.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Filter & Search Bar */}
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+                      <input
+                        type="text"
+                        placeholder="Search questions or answers..."
+                        value={studySearch}
+                        onChange={(e) => setStudySearch(e.target.value)}
+                        className="w-full pl-12 pr-10 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none text-xs font-bold focus:bg-white focus:ring-4 focus:ring-amber-500/5 transition-all text-ink placeholder:text-muted/60"
+                      />
+                      {studySearch && (
+                        <button
+                          onClick={() => setStudySearch('')}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink text-xs font-bold"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Category Scroll Select */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 no-scrollbar">
+                      {['All', 'General Knowledge', 'Science', 'Nigeria Trivia', 'Space & Science', 'Islamic Knowledge', 'Mathematics', 'History'].map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setStudyCategory(cat)}
+                          className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap border transition-all shrink-0 ${
+                            studyCategory === cat
+                              ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/10'
+                              : 'bg-white border-gray-100 text-muted hover:border-gray-200 hover:text-ink'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Study Method Selector */}
+                    <div className="bg-gray-50/50 p-2.5 border border-gray-100 rounded-[1.75rem] flex items-center justify-between gap-4">
+                      <div className="text-left pl-2">
+                        <p className="text-[10px] font-black text-ink uppercase tracking-wider leading-none mb-1">Review Mode</p>
+                        <p className="text-[8px] text-muted font-bold uppercase tracking-wide leading-none">
+                          {studyMode === 'practice' 
+                            ? 'Tap options to test your knowledge' 
+                            : 'Cheat Sheet: showing correct answers'}
+                        </p>
+                      </div>
+                      <div className="flex bg-white border border-gray-100 rounded-2xl p-1 shrink-0">
+                        <button
+                          onClick={() => setStudyMode('practice')}
+                          className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                            studyMode === 'practice'
+                              ? 'bg-amber-50 text-amber-600 font-bold'
+                              : 'text-muted hover:text-ink'
+                          }`}
+                        >
+                          Practice
+                        </button>
+                        <button
+                          onClick={() => setStudyMode('reveal')}
+                          className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                            studyMode === 'reveal'
+                              ? 'bg-green-50 text-green-600 font-bold'
+                              : 'text-muted hover:text-ink'
+                          }`}
+                        >
+                          Answers
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* List of study questions */}
+                  <div className="space-y-4 max-h-[42vh] overflow-y-auto pr-1 no-scrollbar">
+                    {(() => {
+                      const filtered = BRAIN_BATTLE_QUESTIONS.filter(q => {
+                        const matchesCategory = studyCategory === 'All' || q.category === studyCategory;
+                        const matchesSearch = q.question.toLowerCase().includes(studySearch.toLowerCase()) || 
+                                              q.options.some(o => o.toLowerCase().includes(studySearch.toLowerCase()));
+                        return matchesCategory && matchesSearch;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="py-12 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
+                            <HelpCircle size={32} className="mx-auto text-gray-200 mb-2" />
+                            <p className="text-xs text-muted font-bold uppercase tracking-wider">No matching trivia questions</p>
+                            <p className="text-[10px] text-muted/60 mt-1">Try adjusting your filters or search terms.</p>
+                          </div>
+                        );
+                      }
+
+                      return filtered.map((q, idx) => {
+                        const userSelected = studyAnswers[q.question];
+                        const isCorrectAnswer = userSelected === q.answer;
+
+                        // Visual categories
+                        const getCategoryColors = (cat: string) => {
+                          switch (cat) {
+                            case 'Science':
+                            case 'Space & Science':
+                              return 'bg-cyan-50 text-cyan-600 border-cyan-100';
+                            case 'History':
+                            case 'Nigeria Trivia':
+                              return 'bg-amber-50 text-amber-600 border-amber-100';
+                            case 'Mathematics':
+                              return 'bg-purple-50 text-purple-600 border-purple-100';
+                            case 'Islamic Knowledge':
+                              return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                            default:
+                              return 'bg-blue-50 text-blue-600 border-blue-100';
+                          }
+                        };
+
+                        return (
+                          <div key={idx} className="bg-white border border-gray-105 p-5 border-gray-100 rounded-[2rem] text-left hover:border-amber-500/20 transition-all shadow-xs relative">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-bold border capitalize leading-none ${getCategoryColors(q.category)}`}>
+                                {q.category}
+                              </span>
+                              {studyMode === 'practice' && userSelected && (
+                                <button
+                                  onClick={() => {
+                                    setStudyAnswers(prev => {
+                                      const updated = { ...prev };
+                                      delete updated[q.question];
+                                      return updated;
+                                    });
+                                  }}
+                                  className="text-[9px] font-black uppercase text-amber-500 tracking-wider hover:underline"
+                                >
+                                  Retry Practice
+                                </button>
+                              )}
+                            </div>
+
+                            <p className="text-sm font-bold text-ink mb-4 leading-normal">
+                              {q.question}
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              {q.options.map((opt, oIdx) => {
+                                const isCurrentOptionCorrect = opt === q.answer;
+                                const isClickedOption = opt === userSelected;
+
+                                let optionStyle = 'bg-white border-gray-100 hover:bg-gray-50 text-ink';
+                                let optionIcon = null;
+
+                                if (studyMode === 'reveal') {
+                                  if (isCurrentOptionCorrect) {
+                                    optionStyle = 'bg-green-50 border-green-200 text-green-800 font-bold';
+                                    optionIcon = <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
+                                  } else {
+                                    optionStyle = 'bg-gray-50/20 border-gray-100 text-muted';
+                                  }
+                                } else if (studyMode === 'practice' && userSelected) {
+                                  // Selected
+                                  if (isCurrentOptionCorrect) {
+                                    optionStyle = 'bg-green-50 border-green-200 text-green-800 font-bold';
+                                    optionIcon = <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
+                                  } else if (isClickedOption) {
+                                    optionStyle = 'bg-red-50 border-red-200 text-red-800 font-bold';
+                                    optionIcon = <XCircle size={14} className="text-red-500 shrink-0" />;
+                                  } else {
+                                    optionStyle = 'bg-gray-50/20 border-gray-100 text-muted';
+                                  }
+                                }
+
+                                return (
+                                  <button
+                                    key={oIdx}
+                                    disabled={studyMode === 'reveal' || !!userSelected}
+                                    onClick={() => {
+                                      setStudyAnswers(prev => ({
+                                        ...prev,
+                                        [q.question]: opt
+                                      }));
+                                    }}
+                                    className={`w-full p-3.5 border rounded-2xl text-left text-xs transition-all flex items-center justify-between gap-2 leading-tight ${optionStyle} ${
+                                      studyMode === 'practice' && !userSelected ? 'active:scale-[0.98]' : ''
+                                    }`}
+                                  >
+                                    <span className="font-medium text-left break-words">{opt}</span>
+                                    {optionIcon}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Practice Feedback Messages */}
+                            {studyMode === 'practice' && userSelected && (
+                              <div className={`mt-3 px-4 py-2.5 rounded-xl border flex items-center gap-2 ${
+                                isCorrectAnswer 
+                                  ? 'bg-green-50/50 border-green-100/50 text-green-700' 
+                                  : 'bg-red-50/50 border-red-100/50 text-red-700'
+                              }`}>
+                                <span className="text-[10px] font-black uppercase tracking-wider leading-none">
+                                  {isCorrectAnswer ? '🎯 Great Job! ' : '💡 Fact Check: '}
+                                </span>
+                                <span className="text-[10px] font-medium leading-none">
+                                  {isCorrectAnswer 
+                                    ? 'You got it correct!' 
+                                    : `The correct answer is: ${q.answer}`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+
+                  {/* Return Button */}
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setStep('welcome')}
+                      className="w-full py-5 bg-ink text-white rounded-[2rem] font-black text-xs uppercase tracking-[0.25em] hover:bg-ink/90 transition-all flex items-center justify-center gap-2"
+                    >
+                      ← Back to Centre
                     </button>
                   </div>
                 </div>
@@ -2844,7 +3123,7 @@ function ExonaApp() {
   const [isUploading, setIsUploading] = useState(false);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [isBrainBattleActive, setIsBrainBattleActive] = useState(false);
-  const [battleStep, setBattleStep] = useState<'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing'>('welcome');
+  const [battleStep, setBattleStep] = useState<'welcome' | 'entry' | 'check-result' | 'playing' | 'result' | 'leaderboard' | 'existing' | 'study'>('welcome');
   const [guestInfo, setGuestInfo] = useState({ name: '', email: '', phone: '', address: '' });
   const [battleScore, setBattleScore] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
