@@ -203,9 +203,8 @@ const isBattleWindowOpen = () => {
   const hour = now.getHours();
   const minute = now.getMinutes();
 
-  // Allowed on Sunday (0) and Monday (1) for this requested event
-  // 6 PM (18:00) to 7:55 PM (19:55) to account for timezones
-  return (day === 0 || day === 1) && ((hour === 18 && minute >= 0) || (hour === 19 && minute <= 55));
+  // Allowed only on Sunday (0) between 7:00 PM (19:00) and 7:55 PM (19:55)
+  return day === 0 && hour === 19 && minute >= 0 && minute <= 55;
 };
 
 const getBattleCountdown = () => {
@@ -216,8 +215,8 @@ const getBattleCountdown = () => {
     const min = now.getMinutes();
     const sec = now.getSeconds();
 
-    // 17 is 5 PM. If it's between 5:50 PM and 5:59 PM (approaching 6 PM)
-    if ((day === 0 || day === 1) && hour === 17 && min >= 50) {
+    // Countdown active between 6:50 PM (18:50) and 6:59 PM (18:59) on Sunday
+    if (day === 0 && hour === 18 && min >= 50) {
       const totalSecsLeft = (60 - min - 1) * 60 + (60 - sec);
       if (totalSecsLeft < 0) return null;
       
@@ -449,7 +448,7 @@ const BrainBattleModal = ({
                                 </div>
                               );
                             }
-                            return <p className="text-[10px] font-bold text-muted uppercase tracking-widest">The Brain Battle will be available at 6:00 PM tonight.</p>;
+                            return <p className="text-[10px] font-bold text-muted uppercase tracking-widest">The Brain Battle will be available at 7:00 PM on Sunday.</p>;
                           })()}
                         </div>
                       )}
@@ -3952,7 +3951,7 @@ function ExonaApp() {
     setExamShowSubmitConfirm(false);
   };
 
-  // Check if current time is within battle window (Sunday or Monday 7:00 PM - 7:55 PM)
+  // Check if current time is within battle window (Sunday 7:00 PM - 7:55 PM)
   const isEntryAllowed = () => {
     return isBattleWindowOpen() && BRAIN_BATTLE_QUESTIONS.length > 0;
   };
