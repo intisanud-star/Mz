@@ -13609,7 +13609,7 @@ function ExonaApp() {
         };
 
         const workspaceFeatures = [
-          { id: 'app-center', name: 'Workspace App Center', description: 'Explore, install, configure, and custom-design your applications in a Play Store-like dashboard.', icon: ShoppingBag, color: 'blue-600' }
+          { id: 'app-center', name: 'Workspace App Center', description: 'Explore, install, configure, and custom-design your applications in the Exona Workspace App Center hub.', icon: ShoppingBag, color: 'blue-600' }
         ];
 
         // Add standard ones if enabled in App Center

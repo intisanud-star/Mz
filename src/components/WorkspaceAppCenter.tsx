@@ -282,7 +282,7 @@ export default function WorkspaceAppCenter({
   return (
     <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden relative">
       
-      {/* Play Store Style Header Banner */}
+      {/* Exona App Store Style Header Banner */}
       <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-blue-950 text-white p-6 md:p-10 shrink-0 relative overflow-hidden">
         <div className="absolute right-0 top-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
         <div className="absolute left-1/3 bottom-0 w-60 h-60 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -290,7 +290,7 @@ export default function WorkspaceAppCenter({
         <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="text-left max-w-2xl">
             <span className="text-[10px] bg-blue-500 text-white font-black px-3 py-1 rounded-full uppercase tracking-widest leading-none block w-max mb-3 shadow-sm shadow-blue-500/15">
-              Google Play Workspace
+              Exona Workspace
             </span>
             <h1 className="text-3xl font-black tracking-tight leading-tight">
               Workspace App Store
@@ -310,7 +310,7 @@ export default function WorkspaceAppCenter({
           </div>
         </div>
 
-        {/* PlayStore Segment Tabs */}
+        {/* Exona Segment Tabs */}
         <div className="flex gap-6 mt-8 border-b border-white/10 text-sm font-black uppercase tracking-wider">
           <button
             onClick={() => setActiveTab('browse')}
@@ -838,7 +838,7 @@ export default function WorkspaceAppCenter({
 
       </div>
 
-      {/* Play Store App Detail Overlapping Drawer/Modal */}
+      {/* Exona App Detail Overlapping Drawer/Modal */}
       {selectedApp && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl text-left border border-zinc-200 animate-fade-in-up">
