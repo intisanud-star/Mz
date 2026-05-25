@@ -274,8 +274,11 @@ const BrainBattleModal = ({
   // Core review and study state
   const [studyAnswers, setStudyAnswers] = useState<{ [key: string]: string }>({});
   const [studyCategory, setStudyCategory] = useState<string>('All');
-  const [studyMode, setStudyMode] = useState<'practice' | 'reveal'>('practice');
+  const [studyMode, setStudyMode] = useState<'practice' | 'reveal' | 'flashcards'>('practice');
   const [studySearch, setStudySearch] = useState<string>('');
+  const [flashcardIndex, setFlashcardIndex] = useState<number>(0);
+  const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [hasStudiedCard, setHasStudiedCard] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     if (isActive && step === 'welcome') {
@@ -1023,7 +1026,11 @@ const BrainBattleModal = ({
                       {['All', 'General Knowledge', 'Science', 'Nigeria Trivia', 'Space & Science', 'Islamic Knowledge', 'Mathematics', 'History'].map((cat) => (
                         <button
                           key={cat}
-                          onClick={() => setStudyCategory(cat)}
+                          onClick={() => {
+                            setStudyCategory(cat);
+                            setFlashcardIndex(0);
+                            setIsFlipped(false);
+                          }}
                           className={`px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-wider whitespace-nowrap border transition-all shrink-0 ${
                             studyCategory === cat
                               ? 'bg-amber-500 border-amber-500 text-white shadow-sm shadow-amber-500/10'
@@ -1036,19 +1043,21 @@ const BrainBattleModal = ({
                     </div>
 
                     {/* Study Method Selector */}
-                    <div className="bg-gray-50/50 p-2.5 border border-gray-100 rounded-[1.75rem] flex items-center justify-between gap-4">
+                    <div className="bg-gray-50/50 p-2.5 border border-gray-100 rounded-[1.75rem] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="text-left pl-2">
                         <p className="text-[10px] font-black text-ink uppercase tracking-wider leading-none mb-1">Review Mode</p>
                         <p className="text-[8px] text-muted font-bold uppercase tracking-wide leading-none">
                           {studyMode === 'practice' 
                             ? 'Tap options to test your knowledge' 
-                            : 'Cheat Sheet: showing correct answers'}
+                            : studyMode === 'reveal'
+                            ? 'Cheat Sheet: showing correct answers'
+                            : 'Flashcards: flip cards for subject revision'}
                         </p>
                       </div>
-                      <div className="flex bg-white border border-gray-100 rounded-2xl p-1 shrink-0">
+                      <div className="flex bg-white border border-gray-100 rounded-2xl p-1 shrink-0 justify-between sm:justify-start">
                         <button
                           onClick={() => setStudyMode('practice')}
-                          className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
                             studyMode === 'practice'
                               ? 'bg-amber-50 text-amber-600 font-bold'
                               : 'text-muted hover:text-ink'
@@ -1058,7 +1067,7 @@ const BrainBattleModal = ({
                         </button>
                         <button
                           onClick={() => setStudyMode('reveal')}
-                          className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
                             studyMode === 'reveal'
                               ? 'bg-green-50 text-green-600 font-bold'
                               : 'text-muted hover:text-ink'
@@ -1066,13 +1075,27 @@ const BrainBattleModal = ({
                         >
                           Answers
                         </button>
+                        <button
+                          onClick={() => {
+                            setStudyMode('flashcards');
+                            setFlashcardIndex(0);
+                            setIsFlipped(false);
+                          }}
+                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                            studyMode === 'flashcards'
+                              ? 'bg-blue-50 text-blue-600 font-bold'
+                              : 'text-muted hover:text-ink'
+                          }`}
+                        >
+                          Flashcards
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* List of study questions */}
-                  <div className="space-y-4 max-h-[42vh] overflow-y-auto pr-1 no-scrollbar">
-                    {(() => {
+                  {/* List of study questions or Flashcards */}
+                  {studyMode === 'flashcards' ? (
+                    (() => {
                       const filtered = BRAIN_BATTLE_QUESTIONS.filter(q => {
                         const matchesCategory = studyCategory === 'All' || q.category === studyCategory;
                         const matchesSearch = q.question.toLowerCase().includes(studySearch.toLowerCase()) || 
@@ -1083,132 +1106,332 @@ const BrainBattleModal = ({
                       if (filtered.length === 0) {
                         return (
                           <div className="py-12 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
-                            <HelpCircle size={32} className="mx-auto text-gray-200 mb-2" />
-                            <p className="text-xs text-muted font-bold uppercase tracking-wider">No matching trivia questions</p>
+                            <BookOpen size={32} className="mx-auto text-gray-200 mb-2 animate-pulse" />
+                            <p className="text-xs text-muted font-bold uppercase tracking-wider">No matching flashcards</p>
                             <p className="text-[10px] text-muted/60 mt-1">Try adjusting your filters or search terms.</p>
                           </div>
                         );
                       }
 
-                      return filtered.map((q, idx) => {
-                        const userSelected = studyAnswers[q.question];
-                        const isCorrectAnswer = userSelected === q.answer;
+                      // Bound flashcard index to the list size
+                      const safeIndex = Math.min(flashcardIndex, filtered.length - 1);
+                      const safeIndexOrZero = safeIndex < 0 ? 0 : safeIndex;
+                      const q = filtered[safeIndexOrZero];
+                      const isMastered = q ? !!hasStudiedCard[q.question] : false;
 
-                        // Visual categories
-                        const getCategoryColors = (cat: string) => {
-                          switch (cat) {
-                            case 'Science':
-                            case 'Space & Science':
-                              return 'bg-cyan-50 text-cyan-600 border-cyan-100';
-                            case 'History':
-                            case 'Nigeria Trivia':
-                              return 'bg-amber-50 text-amber-600 border-amber-100';
-                            case 'Mathematics':
-                              return 'bg-purple-50 text-purple-600 border-purple-100';
-                            case 'Islamic Knowledge':
-                              return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-                            default:
-                              return 'bg-blue-50 text-blue-600 border-blue-100';
-                          }
-                        };
+                      // Visual category styles helper
+                      const getCategoryColors = (cat: string) => {
+                        switch (cat) {
+                          case 'Science':
+                          case 'Space & Science':
+                            return 'bg-cyan-50 text-cyan-600 border-cyan-100';
+                          case 'History':
+                          case 'Nigeria Trivia':
+                            return 'bg-amber-50 text-amber-600 border-amber-100';
+                          case 'Mathematics':
+                            return 'bg-purple-50 text-purple-600 border-purple-100';
+                          case 'Islamic Knowledge':
+                            return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                          default:
+                            return 'bg-blue-50 text-blue-600 border-blue-100';
+                        }
+                      };
 
-                        return (
-                          <div key={idx} className="bg-white border border-gray-105 p-5 border-gray-100 rounded-[2rem] text-left hover:border-amber-500/20 transition-all shadow-xs relative">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-bold border capitalize leading-none ${getCategoryColors(q.category)}`}>
-                                {q.category}
-                              </span>
-                              {studyMode === 'practice' && userSelected && (
+                      if (!q) return null;
+
+                      return (
+                        <div className="space-y-4">
+                          {/* Card progress and controls top line */}
+                          <div className="flex items-center justify-between px-1 text-xs">
+                            <span className="font-bold text-muted uppercase tracking-widest text-[9px]">
+                              Card {safeIndexOrZero + 1} of {filtered.length}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {/* Shuffle Button */}
+                              <button
+                                onClick={() => {
+                                  if (filtered.length <= 1) return;
+                                  let randomIdx = Math.floor(Math.random() * filtered.length);
+                                  if (randomIdx === safeIndexOrZero) {
+                                    randomIdx = (randomIdx + 1) % filtered.length;
+                                  }
+                                  setFlashcardIndex(randomIdx);
+                                  setIsFlipped(false);
+                                }}
+                                className="p-1 px-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 text-muted hover:text-ink rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                                title="Jump to Random Card"
+                              >
+                                <RefreshCw size={10} /> Randomize
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setHasStudiedCard({});
+                                }}
+                                className="p-1 px-2.5 bg-gray-50 hover:bg-gray-100 border border-gray-100 text-[9px] font-black text-red-500 uppercase tracking-wider rounded-lg transition-all"
+                              >
+                                Clear Stats
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Interactive flip card container */}
+                          <div 
+                            onClick={() => setIsFlipped(!isFlipped)}
+                            className="relative min-h-[220px] transition-all duration-300 flex flex-col justify-between active:scale-[0.99]"
+                          >
+                            <div className={`w-full min-h-[225px] rounded-[2.5rem] border p-6 flex flex-col justify-between transition-all duration-300 cursor-pointer ${
+                              isFlipped 
+                                ? 'bg-gradient-to-br from-green-50/75 to-emerald-50/20 border-green-200 shadow-sm shadow-green-500/5' 
+                                : 'bg-white border-zinc-200/50 hover:border-amber-500/30'
+                            }`}>
+                              {/* Card Header */}
+                              <div className="flex items-center justify-between">
+                                <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-bold border capitalize leading-none ${getCategoryColors(q.category)}`}>
+                                  {q.category}
+                                </span>
+                                <div className="flex items-center gap-1.5">
+                                  {isMastered && (
+                                    <span className="flex items-center gap-1 text-[8px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                      <CheckCircle2 size={10} /> Mastered
+                                    </span>
+                                  )}
+                                  <span className="text-[9px] text-muted hover:text-ink font-bold flex items-center gap-1 uppercase tracking-wider">
+                                    <RefreshCcw size={11} className="text-amber-500" /> {isFlipped ? 'Show Q' : 'Flip Card'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Card Body */}
+                              <div className="my-5 text-center select-none">
+                                {isFlipped ? (
+                                  <div className="space-y-4">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-green-600 block">Correct Answer</span>
+                                    <p className="text-xl font-black text-emerald-800 tracking-tight text-center leading-snug">
+                                      {q.answer}
+                                    </p>
+                                    <div className="pt-2 border-t border-green-150 border-green-200/10">
+                                      <p className="text-[9px] font-bold text-muted uppercase tracking-wider mb-2">Options preview for Battle:</p>
+                                      <div className="flex flex-wrap justify-center gap-1.5">
+                                        {q.options.map((opt, oIdx) => (
+                                          <span 
+                                            key={oIdx} 
+                                            className={`px-3 py-1 rounded-xl text-[10px] font-bold leading-normal ${
+                                              opt === q.answer 
+                                                ? 'bg-green-600 text-white shadow-sm' 
+                                                : 'bg-gray-100 text-muted/80'
+                                            }`}
+                                          >
+                                            {opt}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-2">
+                                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-500/80 block select-none">Brain Battle Question</span>
+                                    <p className="text-lg font-black text-ink tracking-tight text-center leading-snug">
+                                      {q.question}
+                                    </p>
+                                    <p className="text-[8px] text-muted/60 font-bold uppercase tracking-widest pt-2 flex items-center justify-center gap-1">
+                                      <span>💡</span> click card to flip & check answer
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Card Footer */}
+                              <div className="flex items-center justify-between border-t border-gray-100/80 pt-3 text-[10px]">
+                                <span className="text-muted font-bold tracking-wider">
+                                  {isFlipped ? '🎯 Keep studying!' : '⚡ Test memory'}
+                                </span>
                                 <button
-                                  onClick={() => {
-                                    setStudyAnswers(prev => {
-                                      const updated = { ...prev };
-                                      delete updated[q.question];
-                                      return updated;
-                                    });
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Stop click events from bubbling up to interactive card
+                                    setHasStudiedCard(prev => ({
+                                      ...prev,
+                                      [q.question]: !isMastered
+                                    }));
                                   }}
-                                  className="text-[9px] font-black uppercase text-amber-500 tracking-wider hover:underline"
+                                  className={`px-3 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-wider transition-all flex items-center gap-1 ${
+                                    isMastered 
+                                      ? 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-100' 
+                                      : 'bg-gray-100 hover:bg-gray-200 text-muted hover:text-ink'
+                                  }`}
                                 >
-                                  Retry Practice
+                                  {isMastered ? '✓ Mastered' : 'Mark Mastered'}
                                 </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Previous & Next Card Actions */}
+                          <div className="grid grid-cols-2 gap-3.5 pt-1">
+                            <button
+                              disabled={safeIndexOrZero === 0}
+                              onClick={() => {
+                                setFlashcardIndex(prev => Math.max(0, prev - 1));
+                                setIsFlipped(false);
+                              }}
+                              className="py-4 border border-gray-200/70 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none rounded-[1.75rem] font-black text-[10px] uppercase tracking-wider text-muted hover:text-ink flex items-center justify-center gap-2 transition-all"
+                            >
+                              <ChevronLeft size={16} /> Past Card
+                            </button>
+                            <button
+                              disabled={safeIndexOrZero === filtered.length - 1}
+                              onClick={() => {
+                                setFlashcardIndex(prev => Math.min(filtered.length - 1, prev + 1));
+                                setIsFlipped(false);
+                              }}
+                              className="py-4 bg-amber-500 hover:bg-amber-600 border border-amber-600/10 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none rounded-[1.75rem] font-black text-[10px] uppercase tracking-wider text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-500/10"
+                            >
+                              Next Card <ChevronRight size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    /* List representation */
+                    <div className="space-y-4 max-h-[42vh] overflow-y-auto pr-1 no-scrollbar">
+                      {(() => {
+                        const filtered = BRAIN_BATTLE_QUESTIONS.filter(q => {
+                          const matchesCategory = studyCategory === 'All' || q.category === studyCategory;
+                          const matchesSearch = q.question.toLowerCase().includes(studySearch.toLowerCase()) || 
+                                                q.options.some(o => o.toLowerCase().includes(studySearch.toLowerCase()));
+                          return matchesCategory && matchesSearch;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <div className="py-12 text-center border-2 border-dashed border-gray-100 rounded-[2rem]">
+                              <HelpCircle size={32} className="mx-auto text-gray-200 mb-2" />
+                              <p className="text-xs text-muted font-bold uppercase tracking-wider">No matching trivia questions</p>
+                              <p className="text-[10px] text-muted/60 mt-1">Try adjusting your filters or search terms.</p>
+                            </div>
+                          );
+                        }
+
+                        return filtered.map((q, idx) => {
+                          const userSelected = studyAnswers[q.question];
+                          const isCorrectAnswer = userSelected === q.answer;
+
+                          // Visual categories
+                          const getCategoryColors = (cat: string) => {
+                            switch (cat) {
+                              case 'Science':
+                              case 'Space & Science':
+                                return 'bg-cyan-50 text-cyan-600 border-cyan-100';
+                              case 'History':
+                              case 'Nigeria Trivia':
+                                return 'bg-amber-50 text-amber-600 border-amber-100';
+                              case 'Mathematics':
+                                return 'bg-purple-50 text-purple-600 border-purple-100';
+                              case 'Islamic Knowledge':
+                                return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                              default:
+                                return 'bg-blue-50 text-blue-600 border-blue-100';
+                            }
+                          };
+
+                          return (
+                            <div key={idx} className="bg-white border border-gray-105 p-5 border-gray-100 rounded-[2rem] text-left hover:border-amber-500/20 transition-all shadow-xs relative">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className={`px-2.5 py-0.5 rounded-lg text-[8px] font-bold border capitalize leading-none ${getCategoryColors(q.category)}`}>
+                                  {q.category}
+                                </span>
+                                {studyMode === 'practice' && userSelected && (
+                                  <button
+                                    onClick={() => {
+                                      setStudyAnswers(prev => {
+                                        const updated = { ...prev };
+                                        delete updated[q.question];
+                                        return updated;
+                                      });
+                                    }}
+                                    className="text-[9px] font-black uppercase text-amber-500 tracking-wider hover:underline"
+                                  >
+                                    Retry Practice
+                                  </button>
+                                )}
+                              </div>
+
+                              <p className="text-sm font-bold text-ink mb-4 leading-normal">
+                                {q.question}
+                              </p>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                {q.options.map((opt, oIdx) => {
+                                  const isCurrentOptionCorrect = opt === q.answer;
+                                  const isClickedOption = opt === userSelected;
+
+                                  let optionStyle = 'bg-white border-gray-100 hover:bg-gray-50 text-ink';
+                                  let optionIcon = null;
+
+                                  if (studyMode === 'reveal') {
+                                    if (isCurrentOptionCorrect) {
+                                      optionStyle = 'bg-green-50 border-green-200 text-green-800 font-bold';
+                                      optionIcon = <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
+                                    } else {
+                                      optionStyle = 'bg-gray-50/20 border-gray-100 text-muted';
+                                    }
+                                  } else if (studyMode === 'practice' && userSelected) {
+                                    // Selected
+                                    if (isCurrentOptionCorrect) {
+                                      optionStyle = 'bg-green-50 border-green-200 text-green-800 font-bold';
+                                      optionIcon = <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
+                                    } else if (isClickedOption) {
+                                      optionStyle = 'bg-red-50 border-red-200 text-red-800 font-bold';
+                                      optionIcon = <XCircle size={14} className="text-red-500 shrink-0" />;
+                                    } else {
+                                      optionStyle = 'bg-gray-50/20 border-gray-100 text-muted';
+                                    }
+                                  }
+
+                                  return (
+                                    <button
+                                      key={oIdx}
+                                      disabled={studyMode === 'reveal' || !!userSelected}
+                                      onClick={() => {
+                                        setStudyAnswers(prev => ({
+                                          ...prev,
+                                          [q.question]: opt
+                                        }));
+                                      }}
+                                      className={`w-full p-3.5 border rounded-2xl text-left text-xs transition-all flex items-center justify-between gap-2 leading-tight ${optionStyle} ${
+                                        studyMode === 'practice' && !userSelected ? 'active:scale-[0.98]' : ''
+                                      }`}
+                                    >
+                                      <span className="font-medium text-left break-words">{opt}</span>
+                                      {optionIcon}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Practice Feedback Messages */}
+                              {studyMode === 'practice' && userSelected && (
+                                <div className={`mt-3 px-4 py-2.5 rounded-xl border flex items-center gap-2 ${
+                                  isCorrectAnswer 
+                                    ? 'bg-green-50/50 border-green-100/50 text-green-700' 
+                                    : 'bg-red-50/50 border-red-100/50 text-red-700'
+                                }`}>
+                                  <span className="text-[10px] font-black uppercase tracking-wider leading-none">
+                                    {isCorrectAnswer ? '🎯 Great Job! ' : '💡 Fact Check: '}
+                                  </span>
+                                  <span className="text-[10px] font-medium leading-none">
+                                    {isCorrectAnswer 
+                                      ? 'You got it correct!' 
+                                      : `The correct answer is: ${q.answer}`}
+                                  </span>
+                                </div>
                               )}
                             </div>
-
-                            <p className="text-sm font-bold text-ink mb-4 leading-normal">
-                              {q.question}
-                            </p>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                              {q.options.map((opt, oIdx) => {
-                                const isCurrentOptionCorrect = opt === q.answer;
-                                const isClickedOption = opt === userSelected;
-
-                                let optionStyle = 'bg-white border-gray-100 hover:bg-gray-50 text-ink';
-                                let optionIcon = null;
-
-                                if (studyMode === 'reveal') {
-                                  if (isCurrentOptionCorrect) {
-                                    optionStyle = 'bg-green-50 border-green-200 text-green-800 font-bold';
-                                    optionIcon = <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
-                                  } else {
-                                    optionStyle = 'bg-gray-50/20 border-gray-100 text-muted';
-                                  }
-                                } else if (studyMode === 'practice' && userSelected) {
-                                  // Selected
-                                  if (isCurrentOptionCorrect) {
-                                    optionStyle = 'bg-green-50 border-green-200 text-green-800 font-bold';
-                                    optionIcon = <CheckCircle2 size={14} className="text-green-500 shrink-0" />;
-                                  } else if (isClickedOption) {
-                                    optionStyle = 'bg-red-50 border-red-200 text-red-800 font-bold';
-                                    optionIcon = <XCircle size={14} className="text-red-500 shrink-0" />;
-                                  } else {
-                                    optionStyle = 'bg-gray-50/20 border-gray-100 text-muted';
-                                  }
-                                }
-
-                                return (
-                                  <button
-                                    key={oIdx}
-                                    disabled={studyMode === 'reveal' || !!userSelected}
-                                    onClick={() => {
-                                      setStudyAnswers(prev => ({
-                                        ...prev,
-                                        [q.question]: opt
-                                      }));
-                                    }}
-                                    className={`w-full p-3.5 border rounded-2xl text-left text-xs transition-all flex items-center justify-between gap-2 leading-tight ${optionStyle} ${
-                                      studyMode === 'practice' && !userSelected ? 'active:scale-[0.98]' : ''
-                                    }`}
-                                  >
-                                    <span className="font-medium text-left break-words">{opt}</span>
-                                    {optionIcon}
-                                  </button>
-                                );
-                              })}
-                            </div>
-
-                            {/* Practice Feedback Messages */}
-                            {studyMode === 'practice' && userSelected && (
-                              <div className={`mt-3 px-4 py-2.5 rounded-xl border flex items-center gap-2 ${
-                                isCorrectAnswer 
-                                  ? 'bg-green-50/50 border-green-100/50 text-green-700' 
-                                  : 'bg-red-50/50 border-red-100/50 text-red-700'
-                              }`}>
-                                <span className="text-[10px] font-black uppercase tracking-wider leading-none">
-                                  {isCorrectAnswer ? '🎯 Great Job! ' : '💡 Fact Check: '}
-                                </span>
-                                <span className="text-[10px] font-medium leading-none">
-                                  {isCorrectAnswer 
-                                    ? 'You got it correct!' 
-                                    : `The correct answer is: ${q.answer}`}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      });
-                    })()}
-                  </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                  )}
 
                   {/* Return Button */}
                   <div className="pt-2">
