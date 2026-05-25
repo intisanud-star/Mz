@@ -25,13 +25,14 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import { PDFDocument } from 'pdf-lib';
 import SmartDocumentCreator from './components/SmartDocumentCreator';
+import ExonaFileShare from './components/ExonaFileShare';
 
 declare global {
   interface Window {
@@ -13579,7 +13580,7 @@ function ExonaApp() {
           { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
           { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for technical writing with free trial and template tools.', icon: PenTool, color: 'purple-600' },
           { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
-          { id: 'daily-challenge', name: 'Daily Treasury Challenge', description: 'Showcase your intelligence to earn Exon Stars. Entry fee: 50 Stars.', icon: Stars, color: 'amber-600' },
+          { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
           { id: 'storage', name: 'Cloud Storage', description: 'Secure cloud storage for your institution\'s important assets.', icon: HardDrive, color: 'emerald-600' },
           { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
           { id: 'e-exam', name: 'E-Examination', description: 'Comprehensive examination system for school-wide assessments and professional certifications.', icon: FileBarChart, color: 'rose-600' },
@@ -13688,44 +13689,12 @@ function ExonaApp() {
           );
         }
 
-        if (activeWorkspaceTool === 'daily-challenge') {
+        if (activeWorkspaceTool === 'file-share') {
           return (
-            <div className="fixed inset-0 z-[150] bg-ink flex flex-col items-center justify-center p-8 text-center">
-              <div className="max-w-md w-full">
-                <Stars size={80} className="text-accent mx-auto mb-8 animate-pulse" />
-                <h2 className="text-4xl font-black text-white mb-4 italic tracking-tighter">Daily Treasury Challenge</h2>
-                <p className="text-white/60 mb-10 font-medium leading-relaxed">
-                  Enter the Arena of Intelligence. Entry requires a signature from the Presidential Treasury.
-                </p>
-                
-                <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] mb-10">
-                   <p className="text-[10px] font-black text-accent uppercase tracking-[0.3em] mb-2">Entry Requirement</p>
-                   <p className="text-3xl font-black text-white">50 EXON STARS</p>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                  <button 
-                    onClick={async () => {
-                      const success = await handleDebitExonStars(50, 'Daily Challenge Entry Fee');
-                      if (success) {
-                        setIsBrainBattleActive(true);
-                        setBattleStep('welcome');
-                        setActiveWorkspaceTool(null);
-                      }
-                    }}
-                    className="py-5 bg-accent text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 transition-all"
-                  >
-                     Authorize Transaction & Play
-                  </button>
-                  <button 
-                     onClick={() => setActiveWorkspaceTool(null)}
-                     className="text-[10px] font-black text-white/40 uppercase tracking-widest hover:text-white transition-all"
-                  >
-                    Abstain For Now
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ExonaFileShare 
+              onClose={() => setActiveWorkspaceTool(null)}
+              showNotification={showNotification}
+            />
           );
         }
 
