@@ -5965,6 +5965,10 @@ function ExonaApp() {
   const [isExporting, setIsExporting] = useState(false);
   const [stories, setStories] = useState<Story[]>([]);
   const [isStoryModalOpen, setIsStoryModalOpen] = useState(false);
+  const [storyNoteText, setStoryNoteText] = useState('');
+  const [storyMediaFile, setStoryMediaFile] = useState<File | null>(null);
+  const [storyBgColor, setStoryBgColor] = useState('from-indigo-600 to-purple-600');
+  const [storyPostAs, setStoryPostAs] = useState('personal');
   const [isStoryViewerOpen, setIsStoryViewerOpen] = useState(false);
   const [selectedStoryGroup, setSelectedStoryGroup] = useState<Story[] | null>(null);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
@@ -8031,26 +8035,29 @@ function ExonaApp() {
     return () => urls.forEach(url => URL.revokeObjectURL(url));
   }, [selectedPostFiles]);
 
-  const handleCreateStory = async (file: File, schoolId?: string) => {
+  const handleCreateStory = async (file: File | null, schoolId?: string, noteText?: string, bgColor?: string) => {
     if (!user) { setView('login'); return; }
     setIsCreatingStory(true);
     try {
       showNotification('Broadcasting to Story...');
-      const mediaType = file.type.startsWith('image/') ? 'image' : 'video';
-      
       let mediaUrl = '';
-      if (mediaType === 'image') {
-        const compressedBase64 = await compressImage(file, 1080, 0.6);
-        const folder = schoolId ? 'institution_stories' : 'user_stories';
-        const fileRef = ref(storage, `${folder}/${user.uid}/${Date.now()}_story.jpg`);
-        const response = await fetch(compressedBase64);
-        const blob = await response.blob();
-        await uploadBytes(fileRef, blob);
-        mediaUrl = await getDownloadURL(fileRef);
-      } else {
-        const fileRef = ref(storage, `stories_video/${user.uid}/${Date.now()}_${file.name}`);
-        await uploadBytes(fileRef, file);
-        mediaUrl = await getDownloadURL(fileRef);
+      let mediaType: 'image' | 'video' | 'text' = 'text';
+      
+      if (file) {
+        mediaType = file.type.startsWith('image/') ? 'image' : 'video';
+        if (mediaType === 'image') {
+          const compressedBase64 = await compressImage(file, 1080, 0.6);
+          const folder = schoolId ? 'institution_stories' : 'user_stories';
+          const fileRef = ref(storage, `${folder}/${user.uid}/${Date.now()}_story.jpg`);
+          const response = await fetch(compressedBase64);
+          const blob = await response.blob();
+          await uploadBytes(fileRef, blob);
+          mediaUrl = await getDownloadURL(fileRef);
+        } else {
+          const fileRef = ref(storage, `stories_video/${user.uid}/${Date.now()}_${file.name}`);
+          await uploadBytes(fileRef, file);
+          mediaUrl = await getDownloadURL(fileRef);
+        }
       }
 
       const school = schoolId ? [...schools, ...places].find(s => s.id === schoolId) : null;
@@ -8061,6 +8068,8 @@ function ExonaApp() {
         authorPhoto: school ? school.logo : (user.photoURL || ''),
         mediaUrl,
         mediaType,
+        note: noteText || '',
+        bgColor: bgColor || 'from-indigo-600 to-purple-600',
         timestamp: serverTimestamp(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         schoolId: schoolId || null,
@@ -19286,7 +19295,7 @@ function ExonaApp() {
             transition={{ delay: 0.8, duration: 1 }}
             className="flex flex-col items-center"
           >
-            <p className="text-[11px] font-bold uppercase tracking-[0.8em] text-muted mb-12">Mastering Records</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.8em] text-muted mb-12">Mastering AI</p>
             
             <div className="flex items-center gap-3">
               <div className="h-1 w-1 bg-ink/10 rounded-full animate-bounce"></div>
@@ -22139,20 +22148,40 @@ function ExonaApp() {
             </div>
 
             {/* Content */}
-            <div className="flex-1 flex items-center justify-center relative">
-              {selectedStoryGroup[activeStoryIndex].mediaType === 'image' ? (
-                <img 
-                  src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
-                  className="max-h-full max-w-full object-contain" 
-                  referrerPolicy="no-referrer"
-                />
+            <div className="flex-1 flex items-center justify-center relative w-full h-full">
+              {selectedStoryGroup[activeStoryIndex].mediaType === 'text' || (!selectedStoryGroup[activeStoryIndex].mediaUrl && selectedStoryGroup[activeStoryIndex].note) ? (
+                <div className={`w-full h-full flex flex-col items-center justify-center p-8 bg-gradient-to-br ${selectedStoryGroup[activeStoryIndex].bgColor || 'from-indigo-600 to-purple-600'} text-white`}>
+                  <p className="text-2xl sm:text-3xl font-extrabold text-center max-w-md leading-relaxed whitespace-pre-wrap px-4 drop-shadow-md">
+                    {selectedStoryGroup[activeStoryIndex].note}
+                  </p>
+                </div>
+              ) : selectedStoryGroup[activeStoryIndex].mediaType === 'image' ? (
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <img 
+                    src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
+                    className="max-h-full max-w-full object-contain animate-fade-in" 
+                    referrerPolicy="no-referrer"
+                  />
+                  {selectedStoryGroup[activeStoryIndex].note && (
+                    <div className="absolute bottom-16 left-4 right-4 bg-black/60 backdrop-blur-md p-4 rounded-2xl text-white text-center text-sm font-semibold max-w-md mx-auto z-20 border border-white/10 shadow-lg leading-relaxed">
+                      {selectedStoryGroup[activeStoryIndex].note}
+                    </div>
+                  )}
+                </div>
               ) : (
-                <video 
-                  src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
-                  className="max-h-full max-w-full object-contain" 
-                  autoPlay
-                  controls={false}
-                />
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <video 
+                    src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
+                    className="max-h-full max-w-full object-contain animate-fade-in" 
+                    autoPlay
+                    controls={false}
+                  />
+                  {selectedStoryGroup[activeStoryIndex].note && (
+                    <div className="absolute bottom-16 left-4 right-4 bg-black/60 backdrop-blur-md p-4 rounded-2xl text-white text-center text-sm font-semibold max-w-md mx-auto z-20 border border-white/10 shadow-lg leading-relaxed">
+                      {selectedStoryGroup[activeStoryIndex].note}
+                    </div>
+                  )}
+                </div>
               )}
               
               {/* Navigation Zones */}
@@ -22183,19 +22212,36 @@ function ExonaApp() {
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[300] flex items-center justify-center p-6"
-            onClick={(e) => e.target === e.currentTarget && setIsStoryModalOpen(false)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsStoryModalOpen(false);
+                setStoryNoteText('');
+                setStoryMediaFile(null);
+                setStoryPostAs('personal');
+              }
+            }}
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[2.5rem] p-8 relative overflow-hidden"
+              className="w-full max-w-md bg-white rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl"
             >
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-accent/20" />
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h3 className="text-2xl font-black text-ink mb-1">New Status</h3>
-                  <p className="text-[11px] font-bold text-muted uppercase tracking-[0.3em]">{isCreatingStory ? 'Transmitting to network...' : 'Share a moment with others'}</p>
+                  <h3 className="text-2xl font-black text-ink mb-1 font-display">New Status Story</h3>
+                  <p className="text-[11px] font-bold text-muted uppercase tracking-[0.3em]">
+                    {isCreatingStory ? 'Transmitting to network...' : 'Share a note or moment'}
+                  </p>
                 </div>
-                <button onClick={() => setIsStoryModalOpen(false)} className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center">
+                <button 
+                  onClick={() => {
+                    setIsStoryModalOpen(false);
+                    setStoryNoteText('');
+                    setStoryMediaFile(null);
+                    setStoryPostAs('personal');
+                  }} 
+                  className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors"
+                >
                   <X size={20} />
                 </button>
               </div>
@@ -22208,65 +22254,164 @@ function ExonaApp() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-[11px] font-bold text-muted uppercase tracking-widest text-center">Post as Author:</p>
-                    <div className="flex flex-wrap gap-4 justify-center">
-                      {/* Post as Personal */}
-                      <button 
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*,video/*';
-                          input.onchange = (e) => {
-                            const file = (e.target as HTMLInputElement).files?.[0];
-                            if (file) {
-                              handleCreateStory(file);
-                              setIsStoryModalOpen(false);
-                            }
-                          };
-                          input.click();
-                        }}
-                        className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-[2rem] border border-gray-100 hover:border-accent hover:bg-accent/[0.02] transition-all group shrink-0 w-[120px]"
-                      >
-                        <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          {user?.photoURL ? (
-                            <img src={user.photoURL} className="h-full w-full object-cover rounded-2xl" />
-                          ) : (
-                            <UserIcon size={24} className="text-gray-300" />
-                          )}
-                        </div>
-                        <span className="text-[11px] font-black text-ink uppercase tracking-widest">Personal</span>
-                      </button>
+                    {/* Note / Text Input */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest block font-display">Write a Note</label>
+                      <textarea
+                        value={storyNoteText}
+                        onChange={(e) => setStoryNoteText(e.target.value)}
+                        placeholder="What's happening? Write a note for followers..."
+                        className="w-full h-24 p-4 rounded-2xl bg-gray-50 border border-gray-100 text-sm text-ink font-medium focus:bg-white focus:border-accent/40 focus:ring-1 focus:ring-accent/20 outline-none resize-none transition-all leading-relaxed"
+                        maxLength={350}
+                      />
+                      <div className="flex justify-end text-[10px] text-muted font-bold tracking-wider">
+                        {storyNoteText.length} / 350
+                      </div>
+                    </div>
 
-                      {/* Post as Institution */}
-                      {[...schools, ...places].filter(s => canManageInstitution(s)).map(s => (
-                        <button 
-                          key={s.id}
+                    {/* Background Selection (Optional, only for non-media) */}
+                    {!storyMediaFile && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest block font-display">Background Theme</label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {[
+                            { label: 'Indigo', value: 'from-indigo-600 to-purple-600' },
+                            { label: 'Sunset', value: 'from-rose-500 to-orange-500' },
+                            { label: 'Ocean', value: 'from-cyan-500 to-blue-600' },
+                            { label: 'Teal', value: 'from-emerald-500 to-teal-700' },
+                            { label: 'Midnight', value: 'from-gray-900 to-black' },
+                          ].map((grad) => (
+                            <button
+                              key={grad.value}
+                              type="button"
+                              onClick={() => setStoryBgColor(grad.value)}
+                              className={`h-8 w-8 rounded-full bg-gradient-to-br ${grad.value} transition-all duration-300 relative shrink-0 ${
+                                storyBgColor === grad.value ? 'ring-4 ring-accent/30 scale-110 shadow-md' : 'hover:scale-105 hover:opacity-90'
+                              }`}
+                              title={grad.label}
+                            >
+                              {storyBgColor === grad.value && (
+                                <span className="absolute inset-0 flex items-center justify-center text-white text-[10px] font-bold">✓</span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Media File Attachment */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest block font-display font-bold">Attachment (Optional)</label>
+                      {storyMediaFile ? (
+                        <div className="relative h-20 w-full bg-gray-50 rounded-2xl overflow-hidden border border-gray-100 flex items-center p-3 gap-3 animate-fade-in">
+                          {storyMediaFile.type.startsWith('image/') ? (
+                            <img src={URL.createObjectURL(storyMediaFile)} className="h-14 w-14 object-cover rounded-xl border border-gray-100" />
+                          ) : (
+                            <div className="h-14 w-14 bg-black rounded-xl border border-gray-100 flex items-center justify-center text-white shrink-0">
+                              <Video size={18} />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-ink truncate font-medium">{storyMediaFile.name}</p>
+                            <p className="text-[10px] font-black text-muted uppercase mt-0.5 tracking-wider">{(storyMediaFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setStoryMediaFile(null)}
+                            className="h-8 w-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors shrink-0"
+                            title="Remove attachment"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
                           onClick={() => {
                             const input = document.createElement('input');
                             input.type = 'file';
                             input.accept = 'image/*,video/*';
                             input.onchange = (e) => {
                               const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) {
-                                handleCreateStory(file, s.id);
-                                setIsStoryModalOpen(false);
-                              }
+                              if (file) setStoryMediaFile(file);
                             };
                             input.click();
                           }}
-                          className="flex flex-col items-center gap-3 p-4 bg-gray-50 rounded-[2rem] border border-gray-100 hover:border-accent hover:bg-accent/[0.02] transition-all group shrink-0 w-[120px]"
+                          className="w-full py-4 px-6 border-2 border-dashed border-gray-200 hover:border-accent rounded-2xl flex items-center justify-center gap-2 text-xs font-bold text-muted hover:text-ink hover:bg-gray-50/30 transition-all cursor-pointer font-medium"
                         >
-                          <div className="h-14 w-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
-                            {s.logo ? (
-                              <img src={s.logo} className="h-full w-full object-cover" />
+                          <CameraIcon size={16} className="text-muted" />
+                          <span>Attach Photo or Video</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Author Select */}
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest block font-display">Post as Identity</label>
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                        <button
+                          type="button"
+                          onClick={() => setStoryPostAs('personal')}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 ${
+                            storyPostAs === 'personal'
+                              ? 'bg-accent/5 border-accent text-accent shadow-sm'
+                              : 'bg-gray-50 border-gray-100 text-muted hover:text-ink'
+                          }`}
+                        >
+                          <div className="h-5 w-5 rounded-full overflow-hidden border border-gray-200 bg-white">
+                            {user?.photoURL ? (
+                              <img src={user.photoURL} className="h-full w-full object-cover" />
                             ) : (
-                              <LayoutGrid size={24} className="text-gray-300" />
+                              <div className="h-full w-full bg-white flex items-center justify-center text-ink text-[10px] font-bold">
+                                {user?.displayName?.charAt(0)}
+                              </div>
                             )}
                           </div>
-                          <span className="text-[11px] font-black text-ink uppercase tracking-widest truncate w-full text-center">{s.name}</span>
+                          <span>Personal ({user?.displayName?.split(' ')[0]})</span>
                         </button>
-                      ))}
+
+                        {[...schools, ...places].filter(s => canManageInstitution(s)).map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setStoryPostAs(s.id)}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold transition-all shrink-0 ${
+                              storyPostAs === s.id
+                                ? 'bg-accent/5 border-accent text-accent shadow-sm'
+                                : 'bg-gray-50 border-gray-100 text-muted hover:text-ink'
+                            }`}
+                          >
+                            <div className="h-5 w-5 rounded-full overflow-hidden border border-gray-200 bg-white">
+                              {s.logo ? (
+                                <img src={s.logo} className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="h-full w-full bg-white flex items-center justify-center text-ink text-[10px] font-bold">
+                                  {s.name.charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                            <span>{s.name}</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
+
+                    {/* Submit Action */}
+                    <button
+                      type="button"
+                      disabled={isCreatingStory || (!storyNoteText.trim() && !storyMediaFile)}
+                      onClick={async () => {
+                        const authorId = storyPostAs === 'personal' ? undefined : storyPostAs;
+                        await handleCreateStory(storyMediaFile, authorId, storyNoteText.trim() || undefined, storyBgColor);
+                        setStoryNoteText('');
+                        setStoryMediaFile(null);
+                        setStoryPostAs('personal');
+                        setIsStoryModalOpen(false);
+                      }}
+                      className="w-full py-4 bg-accent text-white font-extrabold rounded-2xl shadow-lg shadow-accent/20 hover:shadow-accent/30 active:scale-95 disabled:scale-100 disabled:opacity-40 disabled:shadow-none transition-all duration-300 text-xs uppercase tracking-widest mt-2"
+                    >
+                      {isCreatingStory ? 'Transmitting Story...' : 'Broadcast Story'}
+                    </button>
                   </>
                 )}
               </div>
