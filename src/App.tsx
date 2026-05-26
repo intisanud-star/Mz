@@ -1526,6 +1526,58 @@ interface DailyRoutine {
   timestamp: any;
 }
 
+interface Classroom {
+  id: string;
+  schoolId: string;
+  name: string;
+  subject: string;
+  teacher: string;
+  schedule: string;
+  description?: string;
+  capacity?: number;
+  students?: string[];
+  lessons?: {
+    id: string;
+    title: string;
+    content: string;
+    timestamp: any;
+    authorName: string;
+  }[];
+  stream?: {
+    id: string;
+    authorUid: string;
+    authorName: string;
+    authorPhoto: string;
+    content: string;
+    timestamp: any;
+    comments?: {
+      id: string;
+      authorUid: string;
+      authorName: string;
+      authorPhoto: string;
+      content: string;
+      timestamp: any;
+    }[];
+  }[];
+  liveSession?: {
+    isActive: boolean;
+    streamUrl?: string;
+    topic?: string;
+    startedAt?: any;
+    quizQuestion?: {
+      question: string;
+      options: string[];
+      answer: string;
+      active: boolean;
+      submittedResponses?: { [uid: string]: string };
+    };
+  };
+  attendanceSessions?: {
+    date: string;
+    presents: string[];
+  }[];
+}
+
 interface School {
   id: string;
   name: string;
@@ -2344,7 +2396,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -2509,6 +2561,25 @@ function ExonaApp() {
   const [records, setRecords] = useState<Record[]>([]);
   const [dailyRoutines, setDailyRoutines] = useState<DailyRoutine[]>([]);
   const [newRoutine, setNewRoutine] = useState({ title: '', activity: '', category: '', timeSlot: '', notes: '' });
+
+  // Exona Classrooms States
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
+  const [isCreateClassroomOpen, setIsCreateClassroomOpen] = useState(false);
+  const [classroomName, setClassroomName] = useState('');
+  const [classroomSubject, setClassroomSubject] = useState('');
+  const [classroomTeacher, setClassroomTeacher] = useState('');
+  const [classroomSchedule, setClassroomSchedule] = useState('');
+  const [classroomDesc, setClassroomDesc] = useState('');
+  const [classroomCapacity, setClassroomCapacity] = useState<number>(30);
+  const [newLessonTitle, setNewLessonTitle] = useState('');
+  const [newLessonContent, setNewLessonContent] = useState('');
+  const [newStreamMessage, setNewStreamMessage] = useState('');
+  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members'>('stream');
+  const [activeQuizQuestion, setActiveQuizQuestion] = useState('');
+  const [activeQuizOpts, setActiveQuizOpts] = useState<string[]>(['', '', '', '']);
+  const [activeQuizAns, setActiveQuizAns] = useState('');
+  const [selectedQuizResp, setSelectedQuizResp] = useState('');
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
@@ -5411,6 +5482,15 @@ function ExonaApp() {
       }
     }
   }, [schools, places, selectedSchool]);
+
+  useEffect(() => {
+    if (selectedClassroom) {
+      const updated = classrooms.find(c => c.id === selectedClassroom.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedClassroom)) {
+        setSelectedClassroom(updated);
+      }
+    }
+  }, [classrooms, selectedClassroom]);
 
   useEffect(() => {
     if (!user) return;
@@ -8683,7 +8763,13 @@ function ExonaApp() {
       }
     });
 
-    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); unsubRoutines(); };
+    const unsubClassrooms = onSnapshot(query(collection(db, 'classrooms'), where('schoolId', '==', selectedSchool.id)), (snap) => {
+      setClassrooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as Classroom)));
+    }, (error) => {
+      console.error('Error loading classrooms:', error);
+    });
+
+    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); unsubRoutines(); unsubClassrooms(); };
   }, [selectedSchool, user?.uid, userDoc?.role]);
 
   const renderIconForNotification = (type: Notification['type']) => {
@@ -10167,6 +10253,15 @@ function ExonaApp() {
                         <Calendar size={20} />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
+                    </button>
+                    <button 
+                      onClick={() => handleNavigateToData('classroom')}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                        <GraduationCap size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Exona Class Room</span>
                     </button>
                     <button 
                       onClick={() => setView('daily-routine')}
@@ -12218,6 +12313,831 @@ function ExonaApp() {
           </WordLayout>
         );
       }
+      case 'classroom': {
+        if (!user) { setView('login'); return null; }
+        if (!selectedSchool) {
+          return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] p-12 text-center bg-card">
+              <div className="h-20 w-20 bg-accent/5 text-accent rounded-3xl flex items-center justify-center mb-6">
+                <GraduationCap size={40} />
+              </div>
+              <h2 className="text-xl font-bold text-ink mb-2">Institution Required</h2>
+              <p className="text-muted text-xs max-w-xs mb-8 leading-relaxed font-semibold uppercase tracking-wider">
+                Select an institution first to access Exona Classroom.
+              </p>
+              <button 
+                onClick={() => setView('schools')}
+                className="px-8 py-3.5 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Choose Institution
+              </button>
+            </div>
+          );
+        }
+
+        const isManager = canManageInstitution(selectedSchool);
+        const classroomLabels = getLabels(selectedSchool.type);
+
+        // Nested helper handlers
+        const handleCreateClass = async () => {
+          if (!classroomName || !classroomSubject) {
+            showNotification('Please fill in Class Name and Subject', 'error');
+            return;
+          }
+          try {
+            const newRef = doc(collection(db, 'classrooms'));
+            const dataObj: Classroom = {
+              id: newRef.id,
+              schoolId: selectedSchool.id,
+              name: classroomName,
+              subject: classroomSubject,
+              teacher: classroomTeacher || userDoc?.displayName || user.displayName || 'Moderator',
+              schedule: classroomSchedule || 'No schedule set',
+              description: classroomDesc || '',
+              capacity: Number(classroomCapacity) || 30,
+              students: [],
+              lessons: [],
+              stream: [],
+              liveSession: { isActive: false },
+              attendanceSessions: []
+            };
+            await setDoc(newRef, dataObj);
+            setIsCreateClassroomOpen(false);
+            setClassroomName('');
+            setClassroomSubject('');
+            setClassroomTeacher('');
+            setClassroomSchedule('');
+            setClassroomDesc('');
+            showNotification('Classroom successfully created!', 'success');
+          } catch (e) {
+            console.error(e);
+            showNotification('Failed to create classroom', 'error');
+          }
+        };
+
+        const handleJoinClass = async (cId: string) => {
+          try {
+            await updateDoc(doc(db, 'classrooms', cId), {
+              students: arrayUnion(user.uid)
+            });
+            showNotification('Successfully registered in classroom!', 'success');
+          } catch (e) {
+            console.error(e);
+            showNotification('Enrollment failed', 'error');
+          }
+        };
+
+        const handleLeaveClass = async (cId: string) => {
+          try {
+            await updateDoc(doc(db, 'classrooms', cId), {
+              students: arrayRemove(user.uid)
+            });
+            showNotification('Unregistered from classroom successfully', 'success');
+            if (selectedClassroom?.id === cId) {
+              setSelectedClassroom(null);
+            }
+          } catch (e) {
+            console.error(e);
+            showNotification('Action failed', 'error');
+          }
+        };
+
+        const handleAddAnnouncement = async () => {
+          if (!selectedClassroom || !newStreamMessage) return;
+          try {
+            const annObj = {
+              id: doc(collection(db, 'temp')).id,
+              authorUid: user.uid,
+              authorName: userDoc?.displayName || user.displayName || 'Anonymous Partner',
+              authorPhoto: userDoc?.photoURL || user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=200',
+              content: newStreamMessage,
+              timestamp: new Date().toISOString()
+            };
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              stream: arrayUnion(annObj)
+            });
+            setNewStreamMessage('');
+            showNotification('Posted successfully!', 'success');
+          } catch (e) {
+            console.error(e);
+            showNotification('Error posting stream content', 'error');
+          }
+        };
+
+        const handleUploadLesson = async () => {
+          if (!selectedClassroom || !newLessonTitle || !newLessonContent) return;
+          try {
+            const lessonObj = {
+              id: doc(collection(db, 'temp')).id,
+              title: newLessonTitle,
+              content: newLessonContent,
+              timestamp: new Date().toISOString(),
+              authorName: userDoc?.displayName || user.displayName || 'Instructor'
+            };
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              lessons: arrayUnion(lessonObj)
+            });
+            setNewLessonTitle('');
+            setNewLessonContent('');
+            showNotification('Lesson content published!', 'success');
+          } catch (e) {
+            console.error(e);
+            showNotification('Failed to publish lesson', 'error');
+          }
+        };
+
+        const handleStartQuizAssessment = async () => {
+          if (!selectedClassroom || !activeQuizQuestion || !activeQuizAns) {
+            showNotification('Enter Question & Correct Answer Option', 'error');
+            return;
+          }
+          try {
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              'liveSession.isActive': true,
+              'liveSession.quizQuestion': {
+                question: activeQuizQuestion,
+                options: activeQuizOpts.filter(o => o.trim() !== ''),
+                answer: activeQuizAns,
+                active: true,
+                submittedResponses: {}
+              }
+            });
+            setActiveQuizQuestion('');
+            setActiveQuizAns('');
+            setActiveQuizOpts(['', '', '', '']);
+            showNotification('Live Assessment active now!', 'success');
+          } catch (e) {
+            console.error(e);
+          }
+        };
+
+        const handleEndQuizAssessment = async () => {
+          if (!selectedClassroom) return;
+          try {
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              'liveSession.isActive': false,
+              'liveSession.quizQuestion.active': false
+            });
+            showNotification('Assessment session finalized.', 'success');
+          } catch (e) {
+            console.error(e);
+          }
+        };
+
+        const handleSendStudentAnswer = async (opt: string) => {
+          if (!selectedClassroom) return;
+          try {
+            const currentResp = selectedClassroom.liveSession?.quizQuestion?.submittedResponses || {};
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              'liveSession.quizQuestion.submittedResponses': {
+                ...currentResp,
+                [user.uid]: opt
+              }
+            });
+            setSelectedQuizResp(opt);
+            showNotification('Assessment reply dispatched!', 'success');
+          } catch (e) {
+            console.error(e);
+          }
+        };
+
+        const handleMarkAttend = async () => {
+          if (!selectedClassroom) return;
+          try {
+            const dateVal = new Date().toLocaleDateString();
+            const sessions = selectedClassroom.attendanceSessions || [];
+            const idx = sessions.findIndex(s => s.date === dateVal);
+            if (idx === -1) {
+              await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+                attendanceSessions: arrayUnion({ date: dateVal, presents: [user.uid] })
+              });
+            } else {
+              const updated = [...sessions];
+              if (!updated[idx].presents.includes(user.uid)) {
+                updated[idx].presents.push(user.uid);
+                await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+                  attendanceSessions: updated
+                });
+              }
+            }
+            showNotification('Checked present for today!', 'success');
+          } catch (e) {
+            console.error(e);
+            showNotification('Error registering attendance', 'error');
+          }
+        };
+
+        return (
+          <div className="flex flex-col bg-slate-50 min-h-screen pb-24">
+            {/* Header Area */}
+            <div className="bg-white border-b border-gray-100 px-6 py-5 sticky top-0 z-10 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => selectedClassroom ? setSelectedClassroom(null) : setView('tools')}
+                  className="h-10 w-10 border border-gray-100 bg-white rounded-xl flex items-center justify-center text-muted hover:text-ink transition-transform hover:scale-105"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div>
+                  <h2 className="text-xl font-black text-ink tracking-tight flex items-center gap-2">
+                    <GraduationCap className="text-accent" size={24} />
+                    {selectedClassroom ? selectedClassroom.name : "Exona Classroom"}
+                  </h2>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{selectedSchool.name}</p>
+                </div>
+              </div>
+
+              {!selectedClassroom && isManager && (
+                <button 
+                  onClick={() => setIsCreateClassroomOpen(true)}
+                  className="flex items-center gap-2 px-5 py-3.5 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-sm"
+                >
+                  <Plus size={16} />
+                  Add Class Room
+                </button>
+              )}
+            </div>
+
+            {/* Create Classroom Modal/Form overlay */}
+            {isCreateClassroomOpen && (
+              <div className="fixed inset-0 bg-ink/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <motion.div 
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden text-ink"
+                >
+                  <div className="px-8 py-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-extrabold text-[16px]">Create Classroom</h3>
+                      <p className="text-[10px] text-muted font-black uppercase tracking-widest">School & Organisation Classroom</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsCreateClassroomOpen(false)}
+                      className="h-10 w-10 hover:bg-gray-100 rounded-full flex items-center justify-center text-muted"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="p-8 space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Name*</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Grade 11 - Advanced Algebra"
+                        value={classroomName}
+                        onChange={(e) => setClassroomName(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Subject / Course*</label>
+                        <input 
+                          type="text"
+                          placeholder="Mathematics"
+                          value={classroomSubject}
+                          onChange={(e) => setClassroomSubject(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Instructor / Teacher</label>
+                        <input 
+                          type="text"
+                          placeholder="Mr. Musa"
+                          value={classroomTeacher}
+                          onChange={(e) => setClassroomTeacher(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Regular Days / Time</label>
+                        <input 
+                          type="text"
+                          placeholder="Mon & Wed 10:00 AM"
+                          value={classroomSchedule}
+                          onChange={(e) => setClassroomSchedule(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Student Capacity</label>
+                        <input 
+                          type="number"
+                          value={classroomCapacity}
+                          onChange={(e) => setClassroomCapacity(Number(e.target.value))}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Brief Description</label>
+                      <textarea 
+                        rows={3}
+                        placeholder="Outline course objectives and materials"
+                        value={classroomDesc}
+                        onChange={(e) => setClassroomDesc(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none"
+                      />
+                    </div>
+
+                    <button 
+                      onClick={handleCreateClass}
+                      className="w-full py-4 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.01] transition-all pt-4"
+                    >
+                      Provision Classroom
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {/* CLASSROOM DIRECTORY */}
+            {!selectedClassroom ? (
+              <div className="px-6 py-8 max-w-6xl mx-auto w-full">
+                <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-2xl font-black text-ink tracking-tight">Active Classrooms</h3>
+                    <p className="text-xs text-muted font-semibold uppercase tracking-wider">Join or manage classroom spaces for this organization</p>
+                  </div>
+                </div>
+
+                {classrooms.length === 0 ? (
+                  <div className="py-24 bg-white rounded-[3rem] text-center border border-dashed border-gray-200">
+                    <div className="h-16 w-16 bg-slate-50 text-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                      <GraduationCap size={28} />
+                    </div>
+                    <h4 className="font-extrabold text-ink mb-1">No Classrooms Available</h4>
+                    <p className="text-xs text-muted max-w-xs mx-auto mb-6">Classrooms allow schools to hold live assessments, lessons, and schedules.</p>
+                    {isManager && (
+                      <button 
+                        onClick={() => setIsCreateClassroomOpen(true)}
+                        className="px-6 py-3 bg-accent text-white font-black uppercase tracking-widest text-xs rounded-xl"
+                      >
+                        Create Classroom
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {classrooms.map((c) => {
+                      const isEnrolled = c.students?.includes(user?.uid || '');
+                      return (
+                        <div key={c.id} className="bg-white border border-gray-100 rounded-[2.5rem] p-6 hover:shadow-lg transition-all flex flex-col justify-between group">
+                          <div>
+                            <div className="flex items-center justify-between mb-4">
+                              <span className="text-[9px] font-black uppercase tracking-widest text-accent bg-accent/5 px-2.5 py-1 rounded-full">{c.subject}</span>
+                              <div className="flex items-center gap-1.5 text-xs text-muted font-bold font-mono">
+                                <Users size={12} />
+                                {c.students?.length || 0} / {c.capacity || 30}
+                              </div>
+                            </div>
+                            
+                            <h4 className="text-lg font-black text-ink mb-2 group-hover:text-accent transition-colors">{c.name}</h4>
+                            <p className="text-xs text-muted font-semibold mb-4 w-full truncate">{c.description || "No description provided."}</p>
+
+                            <div className="border-t border-gray-50 pt-4 space-y-2 text-[11px] font-semibold text-muted">
+                              <div className="flex items-center gap-2">
+                                <span className="text-accent">●</span> Instructor: <strong className="text-ink">{c.teacher}</strong>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-accent">●</span> Timing: <strong className="text-ink">{c.schedule}</strong>
+                              </div>
+                              {c.liveSession?.isActive && (
+                                <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-50 text-green-700 text-[10px] font-black uppercase mt-2 animate-bounce">
+                                  <span>🟢 Active Q&A Quiz Live</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="border-t border-gray-50 pt-5 mt-6 flex items-center gap-3">
+                            {isEnrolled || isManager ? (
+                              <button 
+                                onClick={() => { setSelectedClassroom(c); setClassroomActiveTab('stream'); }}
+                                className="flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                              >
+                                Enter Classroom
+                              </button>
+                            ) : (
+                              <button 
+                                onClick={() => handleJoinClass(c.id)}
+                                className="flex-1 py-3 bg-slate-100 text-ink hover:bg-accent hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-colors"
+                              >
+                                Join Classroom
+                              </button>
+                            )}
+                            {isEnrolled && !isManager && (
+                              <button 
+                                onClick={() => handleLeaveClass(c.id)}
+                                className="px-3 py-3 border border-gray-100 text-muted hover:text-red-600 rounded-xl"
+                                title="Leave Class"
+                              >
+                                <X size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* DETAILED VIEW OF SPECIFIC CLASSROOM */
+              <div className="px-6 py-8 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-4 gap-8">
+                {/* Left Side Tab Menu */}
+                <div className="lg:col-span-1 bg-white border border-gray-100 rounded-[2.5rem] p-6 h-fit shrink-0 space-y-2">
+                  <div className="mb-6">
+                    <p className="text-[10px] text-muted font-black uppercase tracking-widest">Navigation Area</p>
+                    <h4 className="font-extrabold text-sm text-ink truncate">{selectedClassroom.name}</h4>
+                  </div>
+
+                  <button 
+                    onClick={() => setClassroomActiveTab('stream')}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                  >
+                    <MessageSquare size={16} />
+                    Stream & Chat
+                  </button>
+
+                  <button 
+                    onClick={() => setClassroomActiveTab('lessons')}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                  >
+                    <BookOpen size={16} />
+                    Lesson Notes
+                  </button>
+
+                  <button 
+                    onClick={() => setClassroomActiveTab('live')}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'live' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                  >
+                    <Trophy size={16} />
+                    Live Assessment
+                    {selectedClassroom.liveSession?.isActive && (
+                      <span className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
+                    )}
+                  </button>
+
+                  <button 
+                    onClick={() => setClassroomActiveTab('attendance')}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'attendance' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                  >
+                    <CalendarCheck2 size={16} />
+                    Attendance
+                  </button>
+
+                  <button 
+                    onClick={() => setClassroomActiveTab('members')}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                  >
+                    <Users size={16} />
+                    Class Members
+                  </button>
+
+                  <div className="border-t border-gray-100 pt-6 mt-6">
+                    <button 
+                      onClick={() => setSelectedClassroom(null)}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-gray-50 hover:bg-red-50 hover:text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-muted"
+                    >
+                      All Classrooms
+                    </button>
+                  </div>
+                </div>
+
+                {/* Right Side Working Panel */}
+                <div className="lg:col-span-3 min-h-[60vh]">
+                  {classroomActiveTab === 'stream' && (
+                    <div className="space-y-6">
+                      {/* announcement / stream message post board */}
+                      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6">
+                        <h4 className="text-sm font-extrabold mb-4 uppercase tracking-widest text-ink block">Stream Announcement / Note</h4>
+                        <textarea 
+                          rows={3}
+                          placeholder="Type notes or class updates..."
+                          value={newStreamMessage}
+                          onChange={(e) => setNewStreamMessage(e.target.value)}
+                          className="w-full border border-gray-100 bg-slate-50 rounded-2xl p-4 text-sm resize-none mb-4"
+                        />
+                        <div className="flex justify-end">
+                          <button 
+                            onClick={handleAddAnnouncement}
+                            className="flex items-center gap-2 px-6 py-3 bg-accent text-white font-black uppercase tracking-widest text-[10px] rounded-xl text-center"
+                          >
+                            <Send size={14} /> Send Note
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* stream history feeds */}
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-black uppercase text-muted tracking-widest">Classroom Feed Board</h3>
+                        {(!selectedClassroom.stream || selectedClassroom.stream.length === 0) ? (
+                          <p className="text-xs text-muted font-bold py-10 text-center">No announcements published on stream yet.</p>
+                        ) : (
+                          [...selectedClassroom.stream].reverse().map((msg) => (
+                            <div key={msg.id} className="bg-white border border-gray-100 rounded-[2rem] p-6">
+                              <div className="flex items-center gap-3 mb-3">
+                                <img src={msg.authorPhoto} className="h-9 w-9 rounded-full object-cover" referrerPolicy="no-referrer" />
+                                <div>
+                                  <h4 className="text-xs font-black text-ink">{msg.authorName}</h4>
+                                  <span className="text-[9px] text-muted font-mono">{msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ""}</span>
+                                </div>
+                              </div>
+                              <p className="text-xs text-ink whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {classroomActiveTab === 'lessons' && (
+                    <div className="space-y-6">
+                      {isManager && (
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4">
+                          <h4 className="text-sm font-extrabold uppercase tracking-widest text-ink">Publish Lesson notes</h4>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Lesson Title</label>
+                            <input 
+                              type="text"
+                              placeholder="e.g. Unit 2: Intro to Chemical Equilibrium"
+                              value={newLessonTitle}
+                              onChange={(e) => setNewLessonTitle(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Body Material (Markdown Supported)</label>
+                            <textarea 
+                              rows={5}
+                              placeholder="Write materials and formulas..."
+                              value={newLessonContent}
+                              onChange={(e) => setNewLessonContent(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs resize-none"
+                            />
+                          </div>
+                          <button 
+                            onClick={handleUploadLesson}
+                            className="px-6 py-3.5 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest block w-fit"
+                          >
+                            Publish Lesson
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-muted">Lesson Library</h3>
+                        {(!selectedClassroom.lessons || selectedClassroom.lessons.length === 0) ? (
+                          <p className="text-xs text-muted font-bold py-10 text-center">No lesson documents uploaded for this classroom.</p>
+                        ) : (
+                          selectedClassroom.lessons.map((lesson) => (
+                            <div key={lesson.id} className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-[15px] font-black text-ink">{lesson.title}</h4>
+                                <span className="text-[9px] text-muted font-mono">{lesson.timestamp ? new Date(lesson.timestamp).toLocaleDateString() : ""}</span>
+                              </div>
+                              <div className="text-[13px] text-muted prose prose-sm max-w-none leading-relaxed">
+                                <Markdown>{lesson.content}</Markdown>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {classroomActiveTab === 'live' && (
+                    <div className="space-y-6">
+                      {/* Interactive assessment screen */}
+                      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 text-center space-y-4">
+                        <div className="h-14 w-14 bg-accent/5 text-accent rounded-full flex items-center justify-center mx-auto mb-2 font-black">
+                          <Trophy size={28} />
+                        </div>
+                        <h3 className="text-xl font-black text-ink">Assessment Hub</h3>
+                        <p className="text-xs text-muted max-w-sm mx-auto font-bold uppercase tracking-wider">
+                          Participate in live class study and review activities launched by the teacher.
+                        </p>
+                      </div>
+
+                      {/* Instructor launch control */}
+                      {isManager && (
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-ink">Launch Classroom Assessment</h4>
+                            {selectedClassroom.liveSession?.isActive && (
+                              <span className="bg-green-50 text-green-700 px-3 py-1 rounded text-[10px] font-black uppercase tracking-widest animate-pulse">Assess Live Now</span>
+                            )}
+                          </div>
+
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-[9px] font-black uppercase tracking-widest text-muted block mb-1">Continuous Assessment Question</label>
+                              <input 
+                                type="text"
+                                placeholder="e.g. Solve: What is the oxidation state of Cr in K2Cr2O7?"
+                                value={activeQuizQuestion}
+                                onChange={(e) => setActiveQuizQuestion(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                              {activeQuizOpts.map((opt, oIdx) => (
+                                <div key={oIdx}>
+                                  <label className="text-[9px] font-black uppercase tracking-widest text-muted block mb-1">Option {String.fromCharCode(65 + oIdx)}</label>
+                                  <input 
+                                    type="text"
+                                    placeholder={`Option text`}
+                                    value={opt}
+                                    onChange={(e) => {
+                                      const updated = [...activeQuizOpts];
+                                      updated[oIdx] = e.target.value;
+                                      setActiveQuizOpts(updated);
+                                    }}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+
+                            <div>
+                              <label className="text-[9px] font-black uppercase tracking-widest text-muted block mb-1">Correct Option Answer Code</label>
+                              <input 
+                                type="text"
+                                placeholder="e.g. Option text exact copy, Option code"
+                                value={activeQuizAns}
+                                onChange={(e) => setActiveQuizAns(e.target.value)}
+                                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs"
+                              />
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
+                              {selectedClassroom.liveSession?.isActive ? (
+                                <button 
+                                  onClick={handleEndQuizAssessment}
+                                  className="px-6 py-3.5 bg-red-600 text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-red-700 transition"
+                                >
+                                  Terminate Quiz
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={handleStartQuizAssessment}
+                                  className="px-6 py-3.5 bg-accent text-white font-black uppercase tracking-widest text-[10px] rounded-xl"
+                                >
+                                  Deploy Assessment
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Active Quiz Card for Member students */}
+                      {selectedClassroom.liveSession?.isActive && selectedClassroom.liveSession?.quizQuestion ? (
+                        <div className="bg-white border-2 border-accent/20 rounded-[2.5rem] p-8 space-y-6">
+                          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent animate-pulse">
+                            <Sparkles size={14} /> LIVE ASSESSMENT RUNNING
+                          </div>
+
+                          <h4 className="text-lg font-black text-ink">{selectedClassroom.liveSession.quizQuestion.question}</h4>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {selectedClassroom.liveSession.quizQuestion.options.map((opt, oIdx) => {
+                              const alreadySubmitted = selectedClassroom.liveSession?.quizQuestion?.submittedResponses?.[user.uid];
+                              const isSelected = alreadySubmitted === opt;
+                              return (
+                                <button 
+                                  key={oIdx}
+                                  disabled={!!alreadySubmitted}
+                                  onClick={() => handleSendStudentAnswer(opt)}
+                                  className={`p-5 rounded-2xl border text-left font-black text-xs transition-all ${isSelected ? 'border-accent bg-accent/5 text-accent' : 'border-gray-100 hover:border-gray-200 text-ink bg-slate-50'}`}
+                                >
+                                  <span className="pr-3 text-muted">{String.fromCharCode(65 + oIdx)}.</span> {opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Leaderboard and participation counts */}
+                          <div className="border-t border-gray-100 pt-6">
+                            <h5 className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3">Live Responses Submitted</h5>
+                            <div className="space-y-2">
+                              {Object.entries(selectedClassroom.liveSession.quizQuestion.submittedResponses || {}).map(([cUid, chosen]) => {
+                                const isCorrect = chosen === selectedClassroom.liveSession?.quizQuestion?.answer;
+                                return (
+                                  <div key={cUid} className="flex items-center justify-between text-xs py-1.5 px-3 bg-slate-50 rounded-xl">
+                                    <span className="font-bold text-ink">Student {cUid.substring(0, 5)}...</span>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-muted font-mono">{chosen}</span>
+                                      {isCorrect ? (
+                                        <span className="text-green-600 font-bold font-mono">✓ Correct (+10 pts)</span>
+                                      ) : (
+                                        <span className="text-red-500 font-bold font-mono">✗ Wrong</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {Object.keys(selectedClassroom.liveSession.quizQuestion.submittedResponses || {}).length === 0 && (
+                                <p className="text-[11px] text-muted font-bold">Waiting for students to submit answers...</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-8 bg-slate-100/50 rounded-2xl border border-dashed border-gray-200 text-center text-xs text-muted font-semibold">
+                          No live continuous assessment is currently active.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {classroomActiveTab === 'attendance' && (
+                    <div className="space-y-6">
+                      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="text-sm font-black uppercase text-ink block">Daily Class Register</h4>
+                            <p className="text-[10px] text-muted font-bold tracking-widest">{new Date().toLocaleDateString()}</p>
+                          </div>
+                          {!isManager && (
+                            <button 
+                              onClick={handleMarkAttend}
+                              className="px-6 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                            >
+                              Sign Attendance
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Attendance Log List */}
+                        <div className="space-y-4 border-t border-gray-50 pt-5">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Past Registers</h4>
+                          {(!selectedClassroom.attendanceSessions || selectedClassroom.attendanceSessions.length === 0) ? (
+                            <p className="text-xs text-muted font-semibold text-center py-6">No registers found for this classroom.</p>
+                          ) : (
+                            selectedClassroom.attendanceSessions.map((sess, sIdx) => (
+                              <div key={sIdx} className="p-4 bg-slate-50 border border-gray-100 rounded-2xl flex items-center justify-between">
+                                <div>
+                                  <span className="text-xs font-black text-ink">{sess.date}</span>
+                                  <p className="text-[10px] text-muted font-black uppercase tracking-widest">Marked Present Students</p>
+                                </div>
+                                <div className="text-xs font-black text-accent bg-accent/5 px-3 py-1.5 rounded-xl font-mono">
+                                  {sess.presents?.length || 0} Present
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {classroomActiveTab === 'members' && (
+                    <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-6">
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Instructors & Moderators</h4>
+                        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-gray-100 rounded-2xl w-fit">
+                          <div className="h-9 w-9 bg-accent text-white rounded-full flex items-center justify-center font-bold">
+                            {selectedClassroom.teacher.charAt(0)}
+                          </div>
+                          <div>
+                            <strong className="text-xs text-ink block">{selectedClassroom.teacher}</strong>
+                            <span className="text-[9px] text-accent font-black uppercase tracking-widest">Moderator</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-50 pt-6">
+                        <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Enrolled Members ({selectedClassroom.students?.length || 0})</h4>
+                        <div className="space-y-2">
+                          {selectedClassroom.students?.map((stuUid) => (
+                            <div key={stuUid} className="flex items-center justify-between py-2 px-4 bg-slate-50 rounded-xl">
+                              <span className="text-xs font-bold text-ink">Student {stuUid.substring(0, 8)}...</span>
+                              <span className="text-[9px] bg-slate-100 text-muted px-2 py-1 rounded font-black uppercase tracking-widest">Active Partner</span>
+                            </div>
+                          ))}
+                          {(!selectedClassroom.students || selectedClassroom.students.length === 0) && (
+                            <p className="text-xs text-muted font-semibold text-center py-6">No members registered in this classroom yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
       case 'attendance': {
         if (!user) { setView('login'); return null; }
         const labels = selectedSchool ? getLabels(selectedSchool.type) : getLabels();
@@ -13121,6 +14041,13 @@ function ExonaApp() {
                     >
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                    >
+                      <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
                     </button>
                   </div>
                 </div>
@@ -19598,6 +20525,12 @@ function ExonaApp() {
                       label={labels.routine} 
                       active={view === 'daily-routine'} 
                       onClick={() => { setView('daily-routine'); setSidebarOpen(false); }} 
+                    />
+                    <SidebarItem 
+                      icon={GraduationCap} 
+                      label="Exona Class Room" 
+                      active={view === 'classroom'} 
+                      onClick={() => handleNavigateToData('classroom')} 
                     />
                     <SidebarItem 
                       icon={Shield} 

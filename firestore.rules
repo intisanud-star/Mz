@@ -443,7 +443,7 @@ service cloud.firestore {
     }
 
     match /settlements/{settlementId} {
-      allow read: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isSchoolManager(resource.data.get('schoolId', '')) || isAdmin());
+      allow read: if isAuthenticated() && (resource.data.get('authorUid', '') == request.auth.uid || isInstitutionManager(resource.data.get('schoolId', '')) || isAdmin());
       allow create: if isValidSettlement(request.resource.data);
       allow update, delete: if isAdmin();
     }
@@ -507,6 +507,19 @@ service cloud.firestore {
       allow update: if isAuthenticated() && request.auth.uid == userId &&
                        isValidWallet(incoming()) &&
                        incoming().userId == existing().userId; // Immutable userId
+    }
+
+    match /classrooms/{classroomId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAuthenticated() && (
+        isInstitutionManager(request.resource.data.schoolId) || 
+        (resource != null && isInstitutionManager(resource.data.schoolId)) || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['students', 'lessons', 'announcements', 'stream', 'liveSession', 'attendanceSessions'])
+      );
+
+      match /{allSubcollections=**} {
+        allow read, write: if isAuthenticated();
+      }
     }
   }
 }
