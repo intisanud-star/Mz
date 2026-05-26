@@ -421,6 +421,12 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (isInstitutionCreator(resource.data.schoolId) || isAdmin());
     }
 
+    match /attendancePhotos/{photoId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && (isInstitutionManager(request.resource.data.schoolId) || isAdmin());
+      allow delete: if isAuthenticated() && (isInstitutionManager(resource.data.schoolId) || isAdmin());
+    }
+
     match /finance/{schoolId} {
       allow read: if isAuthenticated() && (isAdmin() || isInstitutionManager(schoolId));
       allow create: if isAuthenticated() && (

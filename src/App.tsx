@@ -1460,6 +1460,7 @@ interface Place {
   type: 'place';
   category: 'School' | 'Business' | 'Community' | 'Personal' | 'Other';
   logo: string;
+  coverURL?: string;
   description: string;
   creatorUid: string;
   timestamp: any;
@@ -1585,6 +1586,7 @@ interface School {
   name: string;
   description: string;
   logo: string;
+  coverURL?: string;
   type: 'school';
   creatorUid: string;
   timestamp: any;
@@ -1670,6 +1672,7 @@ interface StudentRecord {
   addedBy: string;
   timestamp: any;
   subFolder?: string;
+  photoURL?: string;
 }
 
 interface Record {
@@ -1688,6 +1691,7 @@ interface Record {
   addedBy: string;
   timestamp: any;
   subFolder?: string;
+  photoURL?: string;
 }
 
 interface Message {
@@ -1720,6 +1724,7 @@ interface UserDoc {
   email: string;
   displayName: string;
   photoURL?: string;
+  coverURL?: string;
   role?: 'admin' | 'user';
   schoolId?: string;
   following?: string[];
@@ -2838,6 +2843,7 @@ function ExonaApp() {
   const [isDeletePostModalOpen, setIsDeletePostModalOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<Post | null>(null);
   const [attendance, setAttendance] = useState<TeacherAttendance[]>([]);
+  const [attendancePhotos, setAttendancePhotos] = useState<{ [name: string]: string }>({});
   const [attendanceViewMode, setAttendanceViewMode] = useState<'landing' | 'log' | 'manage' | 'summary'>('landing');
   const [selectedAttendanceMember, setSelectedAttendanceMember] = useState<string | null>(null);
   const [editingAttendance, setEditingAttendance] = useState<TeacherAttendance | null>(null);
@@ -5859,10 +5865,10 @@ function ExonaApp() {
       return {
         uid: matchedUser?.uid || `recorded-${name}`,
         displayName: name,
-        photoURL: matchedUser?.photoURL || null
+        photoURL: attendancePhotos[name] || matchedUser?.photoURL || null
       };
     });
-  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults, selectedSchool]);
+  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults, selectedSchool, attendancePhotos]);
 
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
@@ -6198,7 +6204,18 @@ function ExonaApp() {
     replyPermission: 'everyone' as 'everyone' | 'followers' | 'none'
   });
   const [customCategoryInput, setCustomCategoryInput] = useState('');
-  const [newRecord, setNewRecord] = useState({ 
+  const [newRecord, setNewRecord] = useState<{
+    studentName: string;
+    studentClass: string;
+    parentNumber: string;
+    category: string;
+    paid: number;
+    balance: number;
+    visibility: Record['visibility'];
+    sharedWith: string;
+    subFolder: string;
+    photoURL?: string;
+  }>({ 
     studentName: '', 
     studentClass: '',
     parentNumber: '',
@@ -6207,7 +6224,8 @@ function ExonaApp() {
     balance: 0, 
     visibility: 'private' as Record['visibility'], 
     sharedWith: '',
-    subFolder: ''
+    subFolder: '',
+    photoURL: ''
   });
 
   const labels = getLabels(selectedSchool?.type);
@@ -6790,6 +6808,94 @@ function ExonaApp() {
     }
   };
 
+  const handleUpdateCoverPicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Cover image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingProfile(true);
+    try {
+      console.log('Cover Update Start:', file.name, file.size);
+      
+      const compressedBase64 = await compressImage(file, 1200, 0.7);
+      
+      if (compressedBase64.length < 500 * 1024) {
+        await setDoc(doc(db, 'users', user.uid), { coverURL: compressedBase64 }, { merge: true });
+        
+        const updatedDoc = await getDoc(doc(db, 'users', user.uid));
+        if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
+        showNotification('Cover picture updated (Direct)');
+        return;
+      }
+
+      const response = await fetch(compressedBase64);
+      const blob = await response.blob();
+      
+      const fileRef = ref(storage, `users/${user.uid}/cover_${Date.now()}.jpg`);
+      const snapshot = await uploadBytes(fileRef, blob);
+      const coverURL = await getDownloadURL(snapshot.ref);
+      
+      await setDoc(doc(db, 'users', user.uid), { coverURL }, { merge: true });
+      
+      const updatedDoc = await getDoc(doc(db, 'users', user.uid));
+      if (updatedDoc.exists()) setUserDoc(updatedDoc.data() as UserDoc);
+      showNotification('Cover picture updated successfully');
+    } catch (error: any) {
+      console.error('Cover update failure:', error);
+      alert('COVER ERROR:\n' + (error.message || 'Upload failed.'));
+    } finally {
+      setIsUploadingProfile(false);
+    }
+  };
+
+  const handleUpdateInstitutionCover = async (institution: School | Place, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Cover size must be less than 5MB.');
+      return;
+    }
+
+    setUploadingInstitutionId(institution.id);
+    try {
+      const collectionName = institution.type === 'school' ? 'schools' : 'places';
+      
+      const compressedBase64 = await compressImage(file, 1200, 0.7);
+
+      if (compressedBase64.length < 500 * 1024) {
+        await setDoc(doc(db, collectionName, institution.id), { coverURL: compressedBase64 }, { merge: true });
+        if (selectedInstitutionForProfile && selectedInstitutionForProfile.id === institution.id) {
+          setSelectedInstitutionForProfile({ ...selectedInstitutionForProfile, coverURL: compressedBase64 });
+        }
+        showNotification('Institution cover updated (Direct)');
+        return;
+      }
+
+      const response = await fetch(compressedBase64);
+      const blob = await response.blob();
+
+      const fileRef = ref(storage, `${collectionName}/${institution.id}/cover_${Date.now()}.jpg`);
+      const snapshot = await uploadBytes(fileRef, blob);
+      const coverURL = await getDownloadURL(snapshot.ref);
+      
+      await setDoc(doc(db, collectionName, institution.id), { coverURL }, { merge: true });
+      if (selectedInstitutionForProfile && selectedInstitutionForProfile.id === institution.id) {
+        setSelectedInstitutionForProfile({ ...selectedInstitutionForProfile, coverURL });
+      }
+      showNotification('Institution cover updated');
+    } catch (error: any) {
+      console.error('Cover update failure:', error);
+      alert('COVER ERROR:\n' + (error.message || 'Upload failed.'));
+    } finally {
+      setUploadingInstitutionId(null);
+    }
+  };
+
   const handleUpdateReplyPermission = async (schoolId: string, permission: 'everyone' | 'followers' | 'none') => {
     try {
       const collectionName = selectedSchool?.type === 'school' ? 'schools' : 'places';
@@ -7040,7 +7146,8 @@ function ExonaApp() {
           balance: Number(newRecord.balance),
           visibility: (typeof newRecord.visibility === 'string' && newRecord.visibility) ? newRecord.visibility : 'private',
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
-          subFolder: newRecord.subFolder || ''
+          subFolder: newRecord.subFolder || '',
+          photoURL: newRecord.photoURL || ''
         }, { merge: true });
       } else {
         console.log('Adding new record');
@@ -7058,7 +7165,8 @@ function ExonaApp() {
           visibility: (typeof newRecord.visibility === 'string' && newRecord.visibility) ? newRecord.visibility : 'private',
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
           timestamp: serverTimestamp(),
-          subFolder: newRecord.subFolder || ''
+          subFolder: newRecord.subFolder || '',
+          photoURL: newRecord.photoURL || ''
         });
       }
       console.log('Record operation successful');
@@ -7072,7 +7180,8 @@ function ExonaApp() {
         balance: 0, 
         visibility: 'private' as Record['visibility'], 
         sharedWith: '',
-        subFolder: ''
+        subFolder: '',
+        photoURL: ''
       });
       setIsRecordModalOpen(false);
       setEditingRecord(null);
@@ -7873,7 +7982,8 @@ function ExonaApp() {
       balance: record.balance,
       visibility: (record && typeof record.visibility === 'string' && record.visibility) ? record.visibility : 'private',
       sharedWith: record.sharedWith?.join(', ') || '',
-      subFolder: record.subFolder || ''
+      subFolder: record.subFolder || '',
+      photoURL: record.photoURL || ''
     });
     setIsRecordModalOpen(true);
   };
@@ -7888,7 +7998,8 @@ function ExonaApp() {
       balance: 0, 
       visibility: 'private' as Record['visibility'], 
       sharedWith: '',
-      subFolder: selectedSubFolder || ''
+      subFolder: selectedSubFolder || '',
+      photoURL: ''
     });
     setEditingRecord(null);
     setIsRecordModalOpen(true);
@@ -8802,7 +8913,20 @@ function ExonaApp() {
       console.error('Error loading classrooms:', error);
     });
 
-    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); unsubRoutines(); unsubClassrooms(); };
+    const unsubAttendancePhotos = onSnapshot(query(collection(db, 'attendancePhotos'), where('schoolId', '==', selectedSchool.id)), (snap) => {
+      const photos: { [name: string]: string } = {};
+      snap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.name && data.photoURL) {
+          photos[data.name] = data.photoURL;
+        }
+      });
+      setAttendancePhotos(photos);
+    }, (error) => {
+      console.error('Error loading attendance photos:', error);
+    });
+
+    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); unsubRoutines(); unsubClassrooms(); unsubAttendancePhotos(); };
   }, [selectedSchool, user?.uid, userDoc?.role]);
 
   const renderIconForNotification = (type: Notification['type']) => {
@@ -10462,7 +10586,29 @@ function ExonaApp() {
         if (!selectedUserProfile) { setView('feed'); return null; }
         const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4">
+          <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
+            {/* Top Bar with Back Button */}
+            <div className="flex items-center justify-between mb-6">
+              <button 
+                onClick={() => setView('feed')}
+                className="h-10 w-10 sm:h-12 sm:w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            </div>
+
+            {/* Cover Picture Block */}
+            <div className="relative h-32 sm:h-36 bg-gray-50 rounded-3xl overflow-hidden mb-6 border border-gray-100/50 flex items-center justify-center">
+              {selectedUserProfileDoc?.coverURL ? (
+                <img src={selectedUserProfileDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
+              ) : (
+                <div className="h-full w-full bg-gray-50 flex items-center justify-center">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted/30">Exona Cover Banner</span>
+                </div>
+              )}
+            </div>
+
+            {/* Previous View Profile Info Row */}
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
@@ -10471,7 +10617,7 @@ function ExonaApp() {
                   <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
                 </div>
               </div>
-              <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
+              <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 shrink-0">
                 {selectedUserProfile.photo ? (
                   <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
@@ -11353,13 +11499,64 @@ function ExonaApp() {
                         filteredRecords.map((record) => (
                           <tr key={record.id} className="hover:bg-white border-b border-gray-100 transition-colors group">
                             <td className="px-6 py-4">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-ink text-sm">{record.studentName}</span>
-                                {record.subFolder && (
-                                  <span className="inline-flex items-center gap-1 mt-1 text-[8px] text-accent font-extrabold uppercase tracking-widest bg-accent/5 px-1.5 py-0.5 rounded w-max">
-                                    <Folder size={8} strokeWidth={3} /> {record.subFolder}
-                                  </span>
-                                )}
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-muted overflow-hidden shrink-0 relative group/classic-avatar">
+                                  {record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName] ? (
+                                    <img
+                                      src={record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName]}
+                                      className="h-full w-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                      alt={record.studentName}
+                                    />
+                                  ) : (
+                                    <Users size={14} className="text-accent" />
+                                  )}
+
+                                  {canManageInstitution(selectedSchool) && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          document.getElementById(`record-photo-upload-classic-${record.id}`)?.click();
+                                        }}
+                                        className="absolute inset-0 bg-black/40 opacity-0 group-hover/classic-avatar:opacity-100 transition-opacity z-10 flex items-center justify-center text-white cursor-pointer"
+                                        title="Upload Photo"
+                                      >
+                                        <CameraIcon size={12} />
+                                      </button>
+                                      <input
+                                        id={`record-photo-upload-classic-${record.id}`}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file && file.type.startsWith('image/')) {
+                                            try {
+                                              const compressed = await compressImage(file, 400, 0.7);
+                                              await updateDoc(doc(db, 'studentRecords', record.id), {
+                                                photoURL: compressed
+                                              });
+                                              showNotification('Record photo updated!');
+                                            } catch (err) {
+                                              console.error(err);
+                                              showNotification('Failed to upload photo', 'error');
+                                            }
+                                          }
+                                        }}
+                                      />
+                                    </>
+                                  )}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-ink text-sm">{record.studentName}</span>
+                                  {record.subFolder && (
+                                    <span className="inline-flex items-center gap-1 mt-1 text-[8px] text-accent font-extrabold uppercase tracking-widest bg-accent/5 px-1.5 py-0.5 rounded w-max">
+                                      <Folder size={8} strokeWidth={3} /> {record.subFolder}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
@@ -11421,9 +11618,60 @@ function ExonaApp() {
                     filteredRecords.map((record) => (
                       <div key={record.id} className="bg-white border border-gray-100 rounded-xl p-4">
                         <div className="flex justify-between items-start mb-3">
-                          <div>
-                            <h4 className="font-bold text-ink">{record.studentName}</h4>
-                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</p>
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-muted overflow-hidden shrink-0 relative group/classic-mobile-avatar">
+                              {record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName] ? (
+                                <img
+                                  src={record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName]}
+                                  className="h-full w-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  alt={record.studentName}
+                                />
+                              ) : (
+                                <Users size={14} className="text-accent" />
+                              )}
+
+                              {canManageInstitution(selectedSchool) && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      document.getElementById(`record-photo-upload-classic-mobile-${record.id}`)?.click();
+                                    }}
+                                    className="absolute -bottom-1 -right-1 h-4 w-4 bg-accent text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all z-20 border border-white cursor-pointer"
+                                    title="Upload Photo"
+                                  >
+                                    <CameraIcon size={8} />
+                                  </button>
+                                  <input
+                                    id={`record-photo-upload-classic-mobile-${record.id}`}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file && file.type.startsWith('image/')) {
+                                        try {
+                                          const compressed = await compressImage(file, 400, 0.7);
+                                          await updateDoc(doc(db, 'studentRecords', record.id), {
+                                            photoURL: compressed
+                                          });
+                                          showNotification('Record photo updated!');
+                                        } catch (err) {
+                                          console.error(err);
+                                          showNotification('Failed to upload photo', 'error');
+                                        }
+                                      }
+                                    }}
+                                  />
+                                </>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-ink">{record.studentName}</h4>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{record.category}</p>
+                            </div>
                           </div>
                           <div className="flex gap-1">
                             <button 
@@ -11493,7 +11741,21 @@ function ExonaApp() {
                     ) : (
                       filteredRecords.map((record) => (
                         <tr key={record.id} className="hover:bg-[#f3f2f1]/50 border-b border-gray-50 group">
-                          <td className="px-4 py-2.5 font-semibold text-[#0078d4] border-r border-gray-50">{record.studentName}</td>
+                          <td className="px-4 py-2.5 font-semibold text-[#0078d4] border-r border-gray-50 flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-md bg-white border border-gray-100 flex items-center justify-center text-muted overflow-hidden shrink-0">
+                              {record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName] ? (
+                                <img
+                                  src={record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName]}
+                                  className="h-full w-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  alt={record.studentName}
+                                />
+                              ) : (
+                                <Users size={10} className="text-accent" />
+                              )}
+                            </div>
+                            {record.studentName}
+                          </td>
                           <td className="px-4 py-2.5 border-r border-gray-50 text-gray-600 font-bold">{record.studentClass || '-'}</td>
                           <td className="px-4 py-2.5 border-r border-gray-50">
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-sm bg-gray-100 text-[9px] font-semibold text-gray-600 uppercase">
@@ -11534,8 +11796,56 @@ function ExonaApp() {
                       
                       <div className="relative">
                         <div className="flex justify-between items-start mb-6">
-                          <div className="h-10 w-10 bg-accent/10 rounded-2xl flex items-center justify-center text-accent">
-                            <Users size={20} strokeWidth={2.5} />
+                          <div className="relative group/bento-avatar shrink-0">
+                            <div className="h-14 w-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-muted relative shadow-sm overflow-hidden transition-all duration-300">
+                              {record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName] ? (
+                                <img
+                                  src={record.photoURL || attendancePhotos[`${selectedSchool?.id}_${record.studentName}`] || attendancePhotos[record.studentName]}
+                                  className="h-full w-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  alt={record.studentName}
+                                />
+                              ) : (
+                                <Users size={20} strokeWidth={2.5} className="text-accent" />
+                              )}
+                            </div>
+                            
+                            {canManageInstitution(selectedSchool) && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    document.getElementById(`record-photo-upload-bento-${record.id}`)?.click();
+                                  }}
+                                  className="absolute -bottom-1 -right-1 h-5 w-5 bg-accent text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all z-20 border border-white cursor-pointer"
+                                  title="Upload Photo"
+                                >
+                                  <CameraIcon size={10} />
+                                </button>
+                                <input
+                                  id={`record-photo-upload-bento-${record.id}`}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file && file.type.startsWith('image/')) {
+                                      try {
+                                        const compressed = await compressImage(file, 400, 0.7);
+                                        await updateDoc(doc(db, 'studentRecords', record.id), {
+                                          photoURL: compressed
+                                        });
+                                        showNotification('Record photo updated!');
+                                      } catch (err) {
+                                        console.error(err);
+                                        showNotification('Failed to upload photo', 'error');
+                                      }
+                                    }
+                                  }}
+                                />
+                              </>
+                            )}
                           </div>
                           <div className="flex gap-1 translate-x-2">
                              <button onClick={() => handleEditRecord(record)} className="p-2 text-muted hover:text-ink hover:bg-gray-50 rounded-full transition-all"><Edit2 size={14} /></button>
@@ -13995,6 +14305,9 @@ function ExonaApp() {
               total: memberRecords.length
             };
 
+            const matchedCandidate = staffCandidates.find(s => s.displayName === selectedAttendanceMember);
+            const memberPhoto = attendancePhotos[selectedAttendanceMember] || matchedCandidate?.photoURL;
+
             return (
               <WordLayout 
                 title={`${selectedAttendanceMember}'s History`}
@@ -14017,10 +14330,57 @@ function ExonaApp() {
                   </button>
                 }
               >
-                <div className="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-                  <div>
-                    <h1 className="text-4xl font-extrabold text-ink mb-2">{selectedAttendanceMember}</h1>
-                    <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Detailed participation log</p>
+                <div className="mb-12 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="relative group/avatar shrink-0">
+                      <div className="h-20 w-20 rounded-3xl overflow-hidden bg-slate-50 border-2 border-slate-100 flex items-center justify-center text-muted relative shadow-sm transition-transform duration-300 hover:scale-105">
+                        {memberPhoto ? (
+                          <img src={memberPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt={selectedAttendanceMember} />
+                        ) : (
+                          <UserIcon size={36} strokeWidth={1.5} />
+                        )}
+                      </div>
+                      {canManageInstitution(selectedSchool) && (
+                        <>
+                          <button 
+                            type="button"
+                            onClick={() => document.getElementById('history-header-photo-upload')?.click()}
+                            className="absolute -bottom-1 -right-1 h-8 w-8 bg-accent text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all cursor-pointer border-2 border-white z-10"
+                            title="Upload Profile Picture"
+                          >
+                            <CameraIcon size={14} />
+                          </button>
+                          <input 
+                            id="history-header-photo-upload"
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file && file.type.startsWith('image/')) {
+                                try {
+                                  const compressed = await compressImage(file, 400, 0.7);
+                                  await setDoc(doc(db, 'attendancePhotos', `${selectedSchool.id}_${selectedAttendanceMember}`), {
+                                    schoolId: selectedSchool.id,
+                                    name: selectedAttendanceMember,
+                                    photoURL: compressed,
+                                    updatedAt: new Date().toISOString()
+                                  }, { merge: true });
+                                  showNotification('Profile photo updated!');
+                                } catch (err) {
+                                  console.error("Error updating image:", err);
+                                  showNotification('Error updating member image', 'error');
+                                }
+                              }
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
+                    <div>
+                      <h1 className="text-4xl font-extrabold text-ink mb-1">{selectedAttendanceMember}</h1>
+                      <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Detailed participation log</p>
+                    </div>
                   </div>
                   {canManageInstitution(selectedSchool) && (
                     <button 
@@ -14168,41 +14528,90 @@ function ExonaApp() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {summaryList.map((ind) => (
-                  <button 
-                    key={ind.name} 
-                    onClick={() => setSelectedAttendanceMember(ind.name)}
-                    className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98]"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="h-12 w-12 bg-gray-50 rounded-2xl flex items-center justify-center text-muted group-hover:bg-accent/5 group-hover:text-accent transition-colors">
-                        <UserIcon size={24} strokeWidth={1.5} />
+                {summaryList.map((ind) => {
+                  const staffMatch = staffCandidates.find(s => s.displayName === ind.name);
+                  const photo = attendancePhotos[ind.name] || staffMatch?.photoURL;
+                  return (
+                    <div 
+                      key={ind.name} 
+                      onClick={() => setSelectedAttendanceMember(ind.name)}
+                      className="p-8 bg-white border border-gray-100 rounded-[2.5rem] shadow-sm hover:shadow-md transition-all text-left group active:scale-[0.98] relative cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="relative group/avatar shrink-0">
+                          <div className="h-12 w-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-muted group-hover:bg-accent/5 group-hover:text-accent transition-colors overflow-hidden">
+                            {photo ? (
+                              <img src={photo} alt={ind.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <UserIcon size={24} strokeWidth={1.5} />
+                            )}
+                          </div>
+                          {canManageInstitution(selectedSchool) && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  document.getElementById(`attendance-photo-upload-${ind.name.replace(/\s+/g, '-')}`)?.click();
+                                }}
+                                className="absolute -bottom-1 -right-1 h-5 w-5 bg-accent text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all z-20 border border-white"
+                                title="Upload Picture"
+                              >
+                                <CameraIcon size={10} />
+                              </button>
+                              <input 
+                                id={`attendance-photo-upload-${ind.name.replace(/\s+/g, '-')}`}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={async (e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file && file.type.startsWith('image/')) {
+                                    try {
+                                      const compressed = await compressImage(file, 400, 0.7);
+                                      await setDoc(doc(db, 'attendancePhotos', `${selectedSchool.id}_${ind.name}`), {
+                                        schoolId: selectedSchool.id,
+                                        name: ind.name,
+                                        photoURL: compressed,
+                                        updatedAt: new Date().toISOString()
+                                      }, { merge: true });
+                                      showNotification('Profile picture uploaded successfully!');
+                                    } catch (err) {
+                                      console.error(err);
+                                      showNotification('Failed to upload photo', 'error');
+                                    }
+                                  }
+                                }}
+                              />
+                            </>
+                          )}
+                        </div>
+                        <div className="p-2 bg-gray-50 rounded-lg text-muted group-hover:bg-accent/10 group-hover:text-accent transition-colors">
+                           <ChevronRight size={14} strokeWidth={2.5} />
+                        </div>
                       </div>
-                      <div className="p-2 bg-gray-50 rounded-lg text-muted group-hover:bg-accent/10 group-hover:text-accent transition-colors">
-                         <ChevronRight size={14} strokeWidth={2.5} />
+                      <h4 className="text-lg font-black text-ink mb-6 truncate">{ind.name}</h4>
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-green-600">{ind.present}</p>
+                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Present</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-red-600">{ind.absent}</p>
+                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Absent</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-amber-500">{ind.late}</p>
+                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Late</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-black text-ink">{ind.total}</p>
+                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Total</p>
+                        </div>
                       </div>
                     </div>
-                    <h4 className="text-lg font-black text-ink mb-6 truncate">{ind.name}</h4>
-                    <div className="grid grid-cols-4 gap-2">
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-green-600">{ind.present}</p>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Present</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-red-600">{ind.absent}</p>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Absent</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-amber-500">{ind.late}</p>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Late</p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-2xl font-black text-ink">{ind.total}</p>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest">Total</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             </WordLayout>
           );
@@ -14331,23 +14740,64 @@ function ExonaApp() {
                         className="p-5 bg-white border border-gray-100 rounded-[2.5rem] hover:border-accent/30 transition-all group relative overflow-hidden"
                       >
                         <div className="flex flex-col items-center text-center">
-                          <div className="h-14 w-14 rounded-2xl bg-gray-50 border border-gray-100 mb-4 overflow-hidden shrink-0 group-hover:scale-105 transition-transform relative">
-                            {staff.photoURL ? (
-                              <img src={staff.photoURL} alt={staff.displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="h-full w-full flex items-center justify-center text-muted">
-                                <UserIcon size={24} />
-                              </div>
-                            )}
-                            {filteredAttendance.find(r => r.teacherName === staff.displayName) && (
-                              <div className="absolute inset-0 bg-accent/10 backdrop-blur-[2px] flex items-center justify-center">
-                                <div className={`h-6 w-6 rounded-lg flex items-center justify-center text-white shadow-sm ${
-                                  filteredAttendance.find(r => r.teacherName === staff.displayName)?.status === 'present' ? 'bg-green-500' :
-                                  filteredAttendance.find(r => r.teacherName === staff.displayName)?.status === 'absent' ? 'bg-red-500' : 'bg-amber-500'
-                                }`}>
-                                  <Check size={14} strokeWidth={3} />
+                          <div className="relative group/avatar-cand mb-4 shrink-0">
+                            <div className="h-14 w-14 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden group-hover:scale-105 transition-transform relative">
+                              {staff.photoURL ? (
+                                <img src={staff.photoURL} alt={staff.displayName} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-muted">
+                                  <UserIcon size={24} />
                                 </div>
-                              </div>
+                              )}
+                              {filteredAttendance.find(r => r.teacherName === staff.displayName) && (
+                                <div className="absolute inset-0 bg-accent/10 backdrop-blur-[2px] flex items-center justify-center">
+                                  <div className={`h-6 w-6 rounded-lg flex items-center justify-center text-white shadow-sm ${
+                                    filteredAttendance.find(r => r.teacherName === staff.displayName)?.status === 'present' ? 'bg-green-500' :
+                                    filteredAttendance.find(r => r.teacherName === staff.displayName)?.status === 'absent' ? 'bg-red-500' : 'bg-amber-500'
+                                  }`}>
+                                    <Check size={14} strokeWidth={3} />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            {canManageInstitution(selectedSchool) && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    document.getElementById(`attendance-photo-upload-cand-${staff.displayName.replace(/\s+/g, '-')}`)?.click();
+                                  }}
+                                  className="absolute -bottom-1 -right-1 h-5 w-5 bg-accent text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all z-20 border border-white"
+                                  title="Upload Picture"
+                                >
+                                  <CameraIcon size={10} />
+                                </button>
+                                <input 
+                                  id={`attendance-photo-upload-cand-${staff.displayName.replace(/\s+/g, '-')}`}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={async (e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file && file.type.startsWith('image/')) {
+                                      try {
+                                        const compressed = await compressImage(file, 400, 0.7);
+                                        await setDoc(doc(db, 'attendancePhotos', `${selectedSchool.id}_${staff.displayName}`), {
+                                          schoolId: selectedSchool.id,
+                                          name: staff.displayName,
+                                          photoURL: compressed,
+                                          updatedAt: new Date().toISOString()
+                                        }, { merge: true });
+                                        showNotification('Profile picture uploaded successfully!');
+                                      } catch (err) {
+                                        console.error(err);
+                                        showNotification('Failed to upload photo', 'error');
+                                      }
+                                    }
+                                  }}
+                                />
+                              </>
                             )}
                           </div>
                           <div className="flex items-center justify-center gap-2 mb-3 w-full">
@@ -14587,8 +15037,11 @@ function ExonaApp() {
         );
       }
       case 'institution-profile': {
-        const inst = selectedInstitutionForProfile;
+        let inst = selectedInstitutionForProfile;
         if (!inst) { setView('feed'); return null; }
+
+        const latestInst = [...schools, ...places].find(s => s.id === inst!.id);
+        if (latestInst) inst = latestInst;
 
         const institutionPosts = posts.filter(p => p.schoolId === inst.id);
         const isFollowing = userDoc?.following?.includes(inst.id);
@@ -14599,18 +15052,49 @@ function ExonaApp() {
           <div className="flex flex-col bg-card pb-32">
             {/* Header / Cover area */}
             <div className="relative h-48 bg-gray-50 flex items-center justify-center border-b border-gray-100">
+              {/* Cover Image Wrapper with overflow-hidden */}
+              <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
+                {inst.coverURL && (
+                  <img src={inst.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
+                )}
+              </div>
+
               <button 
                 onClick={() => setView('feed')}
-                className="absolute top-6 left-6 h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10"
+                className="absolute top-6 left-6 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10 shadow-sm"
               >
                 <ChevronLeft size={20} />
               </button>
+
+              {canManage && (
+                <label className="absolute top-6 right-6 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full flex items-center justify-center text-muted hover:text-ink hover:scale-105 active:scale-95 cursor-pointer shadow-sm transition-all z-10" title="Upload Cover Image">
+                  <CameraIcon size={18} />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => handleUpdateInstitutionCover(inst!, e)}
+                  />
+                </label>
+              )}
               
-              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden">
+              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm group/inst-logo z-10">
                 {inst.logo ? (
                   <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                 ) : (
                   <span className="text-3xl font-black text-accent">{inst.name.charAt(0)}</span>
+                )}
+
+                {canManage && (
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/inst-logo:opacity-100 transition-opacity cursor-pointer z-10">
+                    <CameraIcon size={18} />
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={(e) => handleUpdateInstitutionLogo(inst!, e)}
+                    />
+                  </label>
                 )}
               </div>
             </div>
@@ -18365,87 +18849,92 @@ function ExonaApp() {
       case 'profile': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4">
+          <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
+            {/* Top Bar with Back Button */}
+            <div className="flex items-center justify-between mb-6">
+              <button 
+                onClick={() => setView('feed')}
+                className="h-10 w-10 sm:h-12 sm:w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            </div>
+
+            {/* Cover Picture Block */}
+            <div className="relative h-32 sm:h-36 bg-gray-50 rounded-3xl overflow-hidden mb-6 border border-gray-100/50 flex items-center justify-center group/user-cover">
+              {userDoc?.coverURL ? (
+                <img src={userDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
+              ) : (
+                <div className="h-full w-full bg-gray-50 flex items-center justify-center">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted/30">Exona Cover Banner</span>
+                </div>
+              )}
+
+              <label className="absolute top-3 right-3 h-8 w-8 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full flex items-center justify-center text-muted hover:text-ink hover:scale-105 active:scale-95 cursor-pointer shadow-sm transition-all z-10" title="Upload Cover Image">
+                <CameraIcon size={14} />
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleUpdateCoverPicture}
+                />
+              </label>
+            </div>
+
+            {/* Previous View Profile Info Row */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex-1 mr-4 min-h-[80px] flex flex-col justify-center">
-                <AnimatePresence mode="wait">
-                  {isEditingProfileInline ? (
-                    <motion.div 
-                      key="edit-name"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="space-y-2"
-                    >
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
-                      <input 
-                        type="text" 
-                        value={editingProfile.displayName}
-                        onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
-                        className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
-                        placeholder="Your name..."
-                        autoFocus
-                      />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="view-name"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                    >
-                      <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
-                      <div className="flex items-center gap-2">
-                        <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                        <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
-                        {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
-                          <button 
-                            onClick={async () => {
-                              try {
-                                await sendEmailVerification(user);
-                                showNotification('Verification email sent!');
-                              } catch (e: any) {
-                                showNotification(e.message || 'Failed to send verification', 'error');
-                              }
-                            }}
-                            className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
-                          >
-                            Verify Email
-                          </button>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <div className="relative group h-20 w-20 shrink-0">
-                <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100">
-                  {isUploadingProfile ? (
-                    <div className="h-full w-full bg-white border border-gray-100 flex flex-col items-center justify-center">
-                      <div className="h-5 w-5 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
-                      <p className="text-[8px] font-bold text-ink mt-2">Uploading...</p>
-                    </div>
-                  ) : userDoc?.photoURL || user.photoURL ? (
-                    <img src={userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                  ) : (
-                    <div className="h-full w-full bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
-                      {user.displayName?.charAt(0)}
-                    </div>
-                  )}
+                  <AnimatePresence mode="wait">
+                    {isEditingProfileInline ? (
+                      <motion.div 
+                        key="edit-name"
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 10 }}
+                        className="space-y-2"
+                      >
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
+                        <input 
+                          type="text" 
+                          value={editingProfile.displayName}
+                          onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
+                          className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
+                          placeholder="Your name..."
+                          autoFocus
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="view-name"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                      >
+                        <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
+                        <div className="flex items-center gap-2">
+                          <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
+                          <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
+                          {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
+                            <button 
+                              onClick={async () => {
+                                try {
+                                  await sendEmailVerification(user);
+                                  showNotification('Verification email sent!');
+                                } catch (e: any) {
+                                  showNotification(e.message || 'Failed to send verification', 'error');
+                                }
+                              }}
+                              className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
+                            >
+                              Verify Email
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                {!isUploadingProfile && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer rounded-full">
-                    <Camera size={20} />
-                    <input 
-                      type="file" 
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={handleUpdateProfilePicture}
-                    />
-                  </label>
-                )}
               </div>
-            </div>
 
             <div className="mb-6 min-h-[60px]">
               <AnimatePresence mode="wait">
@@ -19512,6 +20001,65 @@ function ExonaApp() {
                 </button>
               </div>
               <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-gray-50">
+                  <div className="relative group/modal-avatar">
+                    <div className="h-20 w-20 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center text-muted relative shadow-sm overflow-hidden transition-all duration-300">
+                      {newRecord.photoURL ? (
+                        <img
+                          src={newRecord.photoURL}
+                          className="h-full w-full object-cover"
+                          referrerPolicy="no-referrer"
+                          alt="Profile preview"
+                        />
+                      ) : (
+                        <Users size={28} className="text-accent" />
+                      )}
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('modal-record-photo-upload')?.click()}
+                      className="absolute -bottom-1 -right-1 h-7 w-7 bg-accent text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all z-20 border border-white cursor-pointer"
+                      title="Upload Photo"
+                    >
+                      <CameraIcon size={12} />
+                    </button>
+                    <input
+                      id="modal-record-photo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file && file.type.startsWith('image/')) {
+                          try {
+                            const compressed = await compressImage(file, 400, 0.7);
+                            setNewRecord({ ...newRecord, photoURL: compressed });
+                          } catch (err) {
+                            console.error(err);
+                            showNotification('Failed to process image', 'error');
+                          }
+                        }
+                      }}
+                    />
+                    {newRecord.photoURL && (
+                      <button
+                        type="button"
+                        onClick={() => setNewRecord({ ...newRecord, photoURL: '' })}
+                        className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:scale-110 active:scale-95 transition-all z-20"
+                        title="Remove Photo"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="text-center sm:text-left">
+                    <h4 className="text-sm font-bold text-ink">Member Profile Picture</h4>
+                    <p className="text-xs text-muted">Upload a clear photo of the individual for authentication and directory identification.</p>
+                  </div>
+                </div>
+
                 <div className="group">
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Full Name</label>
                   <input 
