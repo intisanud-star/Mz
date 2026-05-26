@@ -18884,57 +18884,86 @@ function ExonaApp() {
             {/* Previous View Profile Info Row */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex-1 mr-4 min-h-[80px] flex flex-col justify-center">
-                  <AnimatePresence mode="wait">
-                    {isEditingProfileInline ? (
-                      <motion.div 
-                        key="edit-name"
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
-                        className="space-y-2"
-                      >
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
-                        <input 
-                          type="text" 
-                          value={editingProfile.displayName}
-                          onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
-                          className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
-                          placeholder="Your name..."
-                          autoFocus
-                        />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="view-name"
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                      >
-                        <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
-                        <div className="flex items-center gap-2">
-                          <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                          <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
-                          {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  await sendEmailVerification(user);
-                                  showNotification('Verification email sent!');
-                                } catch (e: any) {
-                                  showNotification(e.message || 'Failed to send verification', 'error');
-                                }
-                              }}
-                              className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
-                            >
-                              Verify Email
-                            </button>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+                <AnimatePresence mode="wait">
+                  {isEditingProfileInline ? (
+                    <motion.div 
+                      key="edit-name"
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="space-y-2"
+                    >
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
+                      <input 
+                        type="text" 
+                        value={editingProfile.displayName}
+                        onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
+                        className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
+                        placeholder="Your name..."
+                        autoFocus
+                      />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="view-name"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                    >
+                      <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
+                      <div className="flex items-center gap-2">
+                        <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
+                        <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
+                        {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await sendEmailVerification(user);
+                                showNotification('Verification email sent!');
+                              } catch (e: any) {
+                                showNotification(e.message || 'Failed to send verification', 'error');
+                              }
+                            }}
+                            className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
+                          >
+                            Verify Email
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+
+              {/* Round profile avatar on the right with camera hover overlay */}
+              <div className="relative group/profile-avatar h-20 w-20 shrink-0">
+                <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center">
+                  {isUploadingProfile ? (
+                    <div className="h-full w-full bg-white flex flex-col items-center justify-center">
+                      <div className="h-5 w-5 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+                    </div>
+                  ) : userDoc?.photoURL || user.photoURL ? (
+                    <img src={userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Profile" />
+                  ) : (
+                    <div className="h-full w-full bg-white flex items-center justify-center text-ink font-bold text-2xl">
+                      {user.displayName?.charAt(0)}
+                    </div>
+                  )}
+                </div>
+
+                {!isUploadingProfile && (
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/profile-avatar:opacity-100 transition-opacity cursor-pointer rounded-full z-20">
+                    <CameraIcon size={16} />
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      accept="image/*"
+                      onChange={handleUpdateProfilePicture}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
 
             <div className="mb-6 min-h-[60px]">
               <AnimatePresence mode="wait">
