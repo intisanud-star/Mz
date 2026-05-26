@@ -2580,6 +2580,7 @@ function ExonaApp() {
   const [activeQuizOpts, setActiveQuizOpts] = useState<string[]>(['', '', '', '']);
   const [activeQuizAns, setActiveQuizAns] = useState('');
   const [selectedQuizResp, setSelectedQuizResp] = useState('');
+  const [deletingClassroomId, setDeletingClassroomId] = useState<string | null>(null);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
   const [allFinance, setAllFinance] = useState<any[]>([]);
@@ -10254,15 +10255,17 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
                     </button>
-                    <button 
-                      onClick={() => handleNavigateToData('classroom')}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                        <GraduationCap size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Exona Class Room</span>
-                    </button>
+                    {selectedSchool?.type === 'school' && (
+                      <button 
+                        onClick={() => handleNavigateToData('classroom')}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <GraduationCap size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Exona Class Room</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => setView('daily-routine')}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
@@ -12335,6 +12338,26 @@ function ExonaApp() {
           );
         }
 
+        if (selectedSchool.type !== 'school') {
+          return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] p-12 text-center bg-card">
+              <div className="h-20 w-20 bg-accent/5 text-accent rounded-3xl flex items-center justify-center mb-6">
+                <GraduationCap size={40} />
+              </div>
+              <h2 className="text-xl font-bold text-ink mb-2">Unavailable for Places</h2>
+              <p className="text-muted text-xs max-w-xs mb-8 leading-relaxed font-semibold uppercase tracking-wider">
+                Exona Classroom is only available for school institutions, not for places.
+              </p>
+              <button 
+                onClick={() => setView('tools')}
+                className="px-8 py-3.5 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
+              >
+                Go to Institutional Hub
+              </button>
+            </div>
+          );
+        }
+
         const isManager = canManageInstitution(selectedSchool);
         const classroomLabels = getLabels(selectedSchool.type);
 
@@ -12399,6 +12422,19 @@ function ExonaApp() {
           } catch (e) {
             console.error(e);
             showNotification('Action failed', 'error');
+          }
+        };
+
+        const handleDeleteClassroom = async (cId: string) => {
+          try {
+            await deleteDoc(doc(db, 'classrooms', cId));
+            showNotification('Classroom deleted successfully!', 'success');
+            if (selectedClassroom?.id === cId) {
+              setSelectedClassroom(null);
+            }
+          } catch (e) {
+            console.error(e);
+            showNotification('Failed to delete classroom', 'error');
           }
         };
 
@@ -12718,29 +12754,60 @@ function ExonaApp() {
                           </div>
 
                           <div className="border-t border-gray-50 pt-5 mt-6 flex items-center gap-3">
-                            {isEnrolled || isManager ? (
-                              <button 
-                                onClick={() => { setSelectedClassroom(c); setClassroomActiveTab('stream'); }}
-                                className="flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
-                              >
-                                Enter Classroom
-                              </button>
+                            {deletingClassroomId === c.id ? (
+                              <div className="flex items-center gap-2 w-full">
+                                <button 
+                                  onClick={async () => {
+                                    await handleDeleteClassroom(c.id);
+                                    setDeletingClassroomId(null);
+                                  }}
+                                  className="flex-1 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-transform active:scale-[0.98]"
+                                >
+                                  Yes, Delete
+                                </button>
+                                <button 
+                                  onClick={() => setDeletingClassroomId(null)}
+                                  className="px-4 py-3 bg-slate-100 text-ink rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             ) : (
-                              <button 
-                                onClick={() => handleJoinClass(c.id)}
-                                className="flex-1 py-3 bg-slate-100 text-ink hover:bg-accent hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-colors"
-                              >
-                                Join Classroom
-                              </button>
-                            )}
-                            {isEnrolled && !isManager && (
-                              <button 
-                                onClick={() => handleLeaveClass(c.id)}
-                                className="px-3 py-3 border border-gray-100 text-muted hover:text-red-600 rounded-xl"
-                                title="Leave Class"
-                              >
-                                <X size={14} />
-                              </button>
+                              <>
+                                {isEnrolled || isManager ? (
+                                  <button 
+                                    onClick={() => { setSelectedClassroom(c); setClassroomActiveTab('stream'); }}
+                                    className="flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                                  >
+                                    Enter Classroom
+                                  </button>
+                                ) : (
+                                  <button 
+                                    onClick={() => handleJoinClass(c.id)}
+                                    className="flex-1 py-3 bg-slate-100 text-ink hover:bg-accent hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-colors"
+                                  >
+                                    Join Classroom
+                                  </button>
+                                )}
+                                {isEnrolled && !isManager && (
+                                  <button 
+                                    onClick={() => handleLeaveClass(c.id)}
+                                    className="px-3 py-3 border border-gray-100 text-muted hover:text-red-600 rounded-xl"
+                                    title="Leave Class"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                )}
+                                {isManager && (
+                                  <button 
+                                    onClick={() => setDeletingClassroomId(c.id)}
+                                    className="px-3 py-3 border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl transition-all"
+                                    title="Delete Classroom"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>
@@ -12802,13 +12869,49 @@ function ExonaApp() {
                     Class Members
                   </button>
 
-                  <div className="border-t border-gray-100 pt-6 mt-6">
+                  <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
                     <button 
                       onClick={() => setSelectedClassroom(null)}
-                      className="w-full flex items-center justify-center gap-2 py-3 bg-gray-50 hover:bg-red-50 hover:text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-muted"
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-gray-50 hover:bg-neutral-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-muted"
                     >
                       All Classrooms
                     </button>
+
+                    {isManager && (
+                      <div className="border-t border-red-50 pt-4">
+                        {deletingClassroomId === selectedClassroom.id ? (
+                          <div className="space-y-2 bg-red-50/50 p-3 rounded-2xl border border-red-100/50">
+                            <p className="text-[9px] text-red-600 font-black text-center uppercase tracking-widest">Confirm permanent delete?</p>
+                            <div className="flex gap-1.5">
+                              <button
+                                onClick={async () => {
+                                  const idToDelete = selectedClassroom.id;
+                                  setDeletingClassroomId(null);
+                                  await handleDeleteClassroom(idToDelete);
+                                }}
+                                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white text-[9px] font-black uppercase tracking-widest rounded-lg text-center transition-all"
+                              >
+                                Delete
+                              </button>
+                              <button
+                                onClick={() => setDeletingClassroomId(null)}
+                                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-ink text-[9px] font-black uppercase tracking-widest rounded-lg text-center"
+                              >
+                                No
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeletingClassroomId(selectedClassroom.id)}
+                            className="w-full flex items-center justify-center gap-2 py-3 border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                          >
+                            <Trash2 size={13} />
+                            Delete Class
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -14042,13 +14145,15 @@ function ExonaApp() {
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
                     </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
-                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                    >
-                      <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                      <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
-                    </button>
+                    {inst.type === 'school' && (
+                      <button 
+                        onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
+                        className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                      >
+                        <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -20526,12 +20631,14 @@ function ExonaApp() {
                       active={view === 'daily-routine'} 
                       onClick={() => { setView('daily-routine'); setSidebarOpen(false); }} 
                     />
-                    <SidebarItem 
-                      icon={GraduationCap} 
-                      label="Exona Class Room" 
-                      active={view === 'classroom'} 
-                      onClick={() => handleNavigateToData('classroom')} 
-                    />
+                    {selectedSchool?.type === 'school' && (
+                      <SidebarItem 
+                        icon={GraduationCap} 
+                        label="Exona Class Room" 
+                        active={view === 'classroom'} 
+                        onClick={() => handleNavigateToData('classroom')} 
+                      />
+                    )}
                     <SidebarItem 
                       icon={Shield} 
                       label="Penalty System" 
