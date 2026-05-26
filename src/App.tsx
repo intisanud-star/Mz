@@ -1534,7 +1534,9 @@ interface Classroom {
   teacher: string;
   schedule: string;
   description?: string;
+  photoUrl?: string;
   capacity?: number;
+  createdByUid?: string;
   students?: string[];
   lessons?: {
     id: string;
@@ -2566,16 +2568,26 @@ function ExonaApp() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
   const [isCreateClassroomOpen, setIsCreateClassroomOpen] = useState(false);
+  const [isEditClassroomOpen, setIsEditClassroomOpen] = useState(false);
+  const [editingClassroomId, setEditingClassroomId] = useState<string | null>(null);
   const [classroomName, setClassroomName] = useState('');
   const [classroomSubject, setClassroomSubject] = useState('');
   const [classroomTeacher, setClassroomTeacher] = useState('');
   const [classroomSchedule, setClassroomSchedule] = useState('');
   const [classroomDesc, setClassroomDesc] = useState('');
   const [classroomCapacity, setClassroomCapacity] = useState<number>(30);
+  const [classroomPhotoUrl, setClassroomPhotoUrl] = useState('');
+  const [editClassroomName, setEditClassroomName] = useState('');
+  const [editClassroomSubject, setEditClassroomSubject] = useState('');
+  const [editClassroomTeacher, setEditClassroomTeacher] = useState('');
+  const [editClassroomSchedule, setEditClassroomSchedule] = useState('');
+  const [editClassroomDesc, setEditClassroomDesc] = useState('');
+  const [editClassroomCapacity, setEditClassroomCapacity] = useState<number>(30);
+  const [editClassroomPhotoUrl, setEditClassroomPhotoUrl] = useState('');
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
   const [newStreamMessage, setNewStreamMessage] = useState('');
-  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members'>('stream');
+  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings'>('stream');
   const [activeQuizQuestion, setActiveQuizQuestion] = useState('');
   const [activeQuizOpts, setActiveQuizOpts] = useState<string[]>(['', '', '', '']);
   const [activeQuizAns, setActiveQuizAns] = useState('');
@@ -5492,6 +5504,26 @@ function ExonaApp() {
       }
     }
   }, [classrooms, selectedClassroom]);
+
+  useEffect(() => {
+    if (selectedClassroom) {
+      setEditClassroomName(selectedClassroom.name || '');
+      setEditClassroomSubject(selectedClassroom.subject || '');
+      setEditClassroomTeacher(selectedClassroom.teacher || '');
+      setEditClassroomSchedule(selectedClassroom.schedule || '');
+      setEditClassroomDesc(selectedClassroom.description || '');
+      setEditClassroomCapacity(selectedClassroom.capacity || 30);
+      setEditClassroomPhotoUrl(selectedClassroom.photoUrl || '');
+    } else {
+      setEditClassroomName('');
+      setEditClassroomSubject('');
+      setEditClassroomTeacher('');
+      setEditClassroomSchedule('');
+      setEditClassroomDesc('');
+      setEditClassroomCapacity(30);
+      setEditClassroomPhotoUrl('');
+    }
+  }, [selectedClassroom]);
 
   useEffect(() => {
     if (!user) return;
@@ -12378,6 +12410,8 @@ function ExonaApp() {
               schedule: classroomSchedule || 'No schedule set',
               description: classroomDesc || '',
               capacity: Number(classroomCapacity) || 30,
+              photoUrl: classroomPhotoUrl || '',
+              createdByUid: user?.uid || '',
               students: [],
               lessons: [],
               stream: [],
@@ -12391,6 +12425,7 @@ function ExonaApp() {
             setClassroomTeacher('');
             setClassroomSchedule('');
             setClassroomDesc('');
+            setClassroomPhotoUrl('');
             showNotification('Classroom successfully created!', 'success');
           } catch (e) {
             console.error(e);
@@ -12435,6 +12470,32 @@ function ExonaApp() {
           } catch (e) {
             console.error(e);
             showNotification('Failed to delete classroom', 'error');
+          }
+        };
+
+        const handleUpdateClassroom = async () => {
+          const targetId = editingClassroomId || selectedClassroom?.id;
+          if (!targetId) return;
+          if (!editClassroomName || !editClassroomSubject) {
+            showNotification('Class Name and Subject are required', 'error');
+            return;
+          }
+          try {
+            await updateDoc(doc(db, 'classrooms', targetId), {
+              name: editClassroomName,
+              subject: editClassroomSubject,
+              teacher: editClassroomTeacher,
+              schedule: editClassroomSchedule,
+              description: editClassroomDesc,
+              capacity: Number(editClassroomCapacity) || 30,
+              photoUrl: editClassroomPhotoUrl
+            });
+            setIsEditClassroomOpen(false);
+            setEditingClassroomId(null);
+            showNotification('Classroom details updated successfully!', 'success');
+          } catch (e) {
+            console.error(e);
+            showNotification('Failed to update classroom details', 'error');
           }
         };
 
@@ -12683,11 +12744,289 @@ function ExonaApp() {
                       />
                     </div>
 
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Profile Picture / Banner</label>
+                      
+                      {/* Drag and Drop Zone */}
+                      <div 
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setClassroomPhotoUrl(event.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        onClick={() => document.getElementById('classroom-file-upload-create')?.click()}
+                        className="border-2 border-dashed border-gray-200 hover:border-accent bg-slate-50 hover:bg-accent/5 rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group mb-3 min-h-[120px]"
+                      >
+                        {classroomPhotoUrl ? (
+                          <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-100">
+                            <img src={classroomPhotoUrl} className="w-full h-full object-cover" alt="Preview" referrerPolicy="no-referrer" />
+                            <button 
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setClassroomPhotoUrl(''); }}
+                              className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white p-1.5 rounded-full transition-colors flex items-center justify-center"
+                            >
+                              <XIcon size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="h-10 w-10 bg-white rounded-xl shadow-sm text-muted group-hover:text-accent transition-colors flex items-center justify-center border border-gray-100">
+                              <CameraIcon size={20} />
+                            </div>
+                            <p className="text-xs font-bold text-ink">Drag & drop image, or <span className="text-accent underline">browse</span></p>
+                            <p className="text-[8px] text-muted font-bold uppercase tracking-wider">Supports JPG, PNG with automatic encoding</p>
+                          </>
+                        )}
+                      </div>
+                      <input 
+                        id="classroom-file-upload-create" 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setClassroomPhotoUrl(event.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+
+                      <p className="text-[10px] text-muted font-black uppercase tracking-widest mb-1">Or paste an Image URL / Choose a Preset</p>
+                      <input 
+                        type="text"
+                        placeholder="Paste custom image URL (https://...)"
+                        value={classroomPhotoUrl}
+                        onChange={(e) => setClassroomPhotoUrl(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm mb-3"
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { name: 'General', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Math & Stats', url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Science', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Tech & Code', url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Arts & Music', url: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Literature', url: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=400' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setClassroomPhotoUrl(preset.url)}
+                            className={`p-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider text-center flex flex-col items-center gap-1 transition-all ${classroomPhotoUrl === preset.url ? 'border-accent bg-accent/5 font-black text-accent' : 'border-gray-100 hover:bg-slate-50 text-muted'}`}
+                          >
+                            <img src={preset.url} className="h-8 w-full object-cover rounded-md" referrerPolicy="no-referrer" alt={preset.name} />
+                            <span className="truncate w-full">{preset.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     <button 
                       onClick={handleCreateClass}
                       className="w-full py-4 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.01] transition-all pt-4"
                     >
                       Provision Classroom
+                    </button>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
+            {/* Edit Classroom Modal/Form overlay */}
+            {isEditClassroomOpen && (
+              <div className="fixed inset-0 bg-ink/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <motion.div 
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-y-auto max-h-[90vh] text-ink animate-fade-in"
+                >
+                  <div className="px-8 py-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
+                    <div>
+                      <h3 className="font-extrabold text-[16px]">Edit Classroom Details</h3>
+                      <p className="text-[10px] text-muted font-black uppercase tracking-widest">Update Classroom Name, Photos, and parameters</p>
+                    </div>
+                    <button 
+                      onClick={() => { setIsEditClassroomOpen(false); setEditingClassroomId(null); }}
+                      className="h-10 w-10 hover:bg-gray-100 rounded-full flex items-center justify-center text-muted"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="p-8 space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Name*</label>
+                      <input 
+                        type="text"
+                        placeholder="e.g. Grade 11 - Advanced Algebra"
+                        value={editClassroomName}
+                        onChange={(e) => setEditClassroomName(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Subject / Course*</label>
+                        <input 
+                          type="text"
+                          placeholder="Mathematics"
+                          value={editClassroomSubject}
+                          onChange={(e) => setEditClassroomSubject(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Instructor / Teacher</label>
+                        <input 
+                          type="text"
+                          placeholder="Dr. Evelyn Chase"
+                          value={editClassroomTeacher}
+                          onChange={(e) => setEditClassroomTeacher(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Regular Days / Time</label>
+                        <input 
+                          type="text"
+                          placeholder="Mon & Wed 10:00 AM"
+                          value={editClassroomSchedule}
+                          onChange={(e) => setEditClassroomSchedule(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Student Capacity</label>
+                        <input 
+                          type="number"
+                          value={editClassroomCapacity}
+                          onChange={(e) => setEditClassroomCapacity(Number(e.target.value))}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Brief Description</label>
+                      <textarea 
+                        rows={3}
+                        placeholder="Outline course objectives and materials"
+                        value={editClassroomDesc}
+                        onChange={(e) => setEditClassroomDesc(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Profile Picture / Banner</label>
+                      
+                      {/* Drag and Drop Zone */}
+                      <div 
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = e.dataTransfer.files?.[0];
+                          if (file && file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setEditClassroomPhotoUrl(event.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        onClick={() => document.getElementById('classroom-file-upload-edit-modal')?.click()}
+                        className="border-2 border-dashed border-gray-200 hover:border-accent bg-slate-50 hover:bg-accent/5 rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group mb-3 min-h-[120px]"
+                      >
+                        {editClassroomPhotoUrl ? (
+                          <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-100">
+                            <img src={editClassroomPhotoUrl} className="w-full h-full object-cover" alt="Preview" referrerPolicy="no-referrer" />
+                            <button 
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setEditClassroomPhotoUrl(''); }}
+                              className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white p-1.5 rounded-full transition-colors flex items-center justify-center"
+                            >
+                              <XIcon size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="h-10 w-10 bg-white rounded-xl shadow-sm text-muted group-hover:text-accent transition-colors flex items-center justify-center border border-gray-100">
+                              <CameraIcon size={20} />
+                            </div>
+                            <p className="text-xs font-bold text-ink">Drag & drop image, or <span className="text-accent underline">browse</span></p>
+                            <p className="text-[8px] text-muted font-bold uppercase tracking-wider">Supports JPG, PNG with automatic encoding</p>
+                          </>
+                        )}
+                      </div>
+                      <input 
+                        id="classroom-file-upload-edit-modal" 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file && file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              setEditClassroomPhotoUrl(event.target?.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+
+                      <p className="text-[10px] text-muted font-black uppercase tracking-widest mb-1">Or paste an Image URL / Choose a Preset</p>
+                      <input 
+                        type="text"
+                        placeholder="Paste custom image URL (https://...)"
+                        value={editClassroomPhotoUrl}
+                        onChange={(e) => setEditClassroomPhotoUrl(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm mb-3"
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { name: 'General', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Math & Stats', url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Science', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Tech & Code', url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Arts & Music', url: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=400' },
+                          { name: 'Literature', url: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=400' }
+                        ].map((preset) => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => setEditClassroomPhotoUrl(preset.url)}
+                            className={`p-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider text-center flex flex-col items-center gap-1 transition-all ${editClassroomPhotoUrl === preset.url ? 'border-accent bg-accent/5 font-black text-accent' : 'border-gray-100 hover:bg-slate-50 text-muted'}`}
+                          >
+                            <img src={preset.url} className="h-8 w-full object-cover rounded-md" referrerPolicy="no-referrer" alt={preset.name} />
+                            <span className="truncate w-full">{preset.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={handleUpdateClassroom}
+                      className="w-full py-4 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.01] transition-all pt-4"
+                    >
+                      Save Changes
                     </button>
                   </div>
                 </motion.div>
@@ -12724,6 +13063,7 @@ function ExonaApp() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {classrooms.map((c) => {
                       const isEnrolled = c.students?.includes(user?.uid || '');
+                      const canEdit = isManager || c.createdByUid === user?.uid;
                       return (
                         <div key={c.id} className="bg-white border border-gray-100 rounded-[2.5rem] p-6 hover:shadow-lg transition-all flex flex-col justify-between group">
                           <div>
@@ -12733,6 +13073,21 @@ function ExonaApp() {
                                 <Users size={12} />
                                 {c.students?.length || 0} / {c.capacity || 30}
                               </div>
+                            </div>
+
+                            <div className="w-full h-32 rounded-2xl bg-slate-50 overflow-hidden mb-4 border border-gray-100 relative shrink-0">
+                              {c.photoUrl ? (
+                                <img src={c.photoUrl} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" alt={c.name} />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-tr from-accent/10 to-accent/5 flex items-center justify-center p-4">
+                                  <GraduationCap className="text-accent/30" size={32} />
+                                </div>
+                              )}
+                              {c.liveSession?.isActive && (
+                                <span className="absolute top-2.5 right-2.5 px-2 py-0.5 bg-green-500 text-white font-mono text-[8px] font-black uppercase tracking-widest rounded-full animate-pulse shadow-sm">
+                                  Live
+                                </span>
+                              )}
                             </div>
                             
                             <h4 className="text-lg font-black text-ink mb-2 group-hover:text-accent transition-colors">{c.name}</h4>
@@ -12798,7 +13153,26 @@ function ExonaApp() {
                                     <X size={14} />
                                   </button>
                                 )}
-                                {isManager && (
+                                {canEdit && (
+                                  <button 
+                                    onClick={() => {
+                                      setEditingClassroomId(c.id);
+                                      setEditClassroomName(c.name || '');
+                                      setEditClassroomSubject(c.subject || '');
+                                      setEditClassroomTeacher(c.teacher || '');
+                                      setEditClassroomSchedule(c.schedule || '');
+                                      setEditClassroomDesc(c.description || '');
+                                      setEditClassroomCapacity(c.capacity || 30);
+                                      setEditClassroomPhotoUrl(c.photoUrl || '');
+                                      setIsEditClassroomOpen(true);
+                                    }}
+                                    className="px-3 py-3 border border-gray-200 text-muted hover:text-accent rounded-xl transition-all flex items-center justify-center"
+                                    title="Edit Classroom Details"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                )}
+                                {canEdit && (
                                   <button 
                                     onClick={() => setDeletingClassroomId(c.id)}
                                     className="px-3 py-3 border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 rounded-xl transition-all"
@@ -12868,6 +13242,16 @@ function ExonaApp() {
                     <Users size={16} />
                     Class Members
                   </button>
+
+                  {isManager && (
+                    <button 
+                      onClick={() => setClassroomActiveTab('settings')}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'settings' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                    >
+                      <Settings size={16} />
+                      Class Settings
+                    </button>
+                  )}
 
                   <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
                     <button 
@@ -13232,6 +13616,175 @@ function ExonaApp() {
                             <p className="text-xs text-muted font-semibold text-center py-6">No members registered in this classroom yet.</p>
                           )}
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {classroomActiveTab === 'settings' && isManager && (
+                    <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-6">
+                      <div>
+                        <h3 className="font-extrabold text-[16px] text-ink">Class Settings</h3>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Update course parameters, schedules, and representation image</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Name*</label>
+                          <input 
+                            type="text"
+                            value={editClassroomName}
+                            onChange={(e) => setEditClassroomName(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Subject / Course*</label>
+                            <input 
+                              type="text"
+                              value={editClassroomSubject}
+                              onChange={(e) => setEditClassroomSubject(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Instructor / Teacher</label>
+                            <input 
+                              type="text"
+                              value={editClassroomTeacher}
+                              onChange={(e) => setEditClassroomTeacher(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Regular Days / Time</label>
+                            <input 
+                              type="text"
+                              value={editClassroomSchedule}
+                              onChange={(e) => setEditClassroomSchedule(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Student Capacity</label>
+                            <input 
+                              type="number"
+                              value={editClassroomCapacity}
+                              onChange={(e) => setEditClassroomCapacity(Number(e.target.value))}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Brief Description</label>
+                          <textarea 
+                            rows={3}
+                            value={editClassroomDesc}
+                            onChange={(e) => setEditClassroomDesc(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Profile Picture / Banner</label>
+                          
+                          {/* Drag and Drop Zone */}
+                          <div 
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const file = e.dataTransfer.files?.[0];
+                              if (file && file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  setEditClassroomPhotoUrl(event.target?.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                            onClick={() => document.getElementById('classroom-file-upload-edit')?.click()}
+                            className="border-2 border-dashed border-gray-200 hover:border-accent bg-slate-50 hover:bg-accent/5 rounded-2xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 group mb-3 min-h-[120px]"
+                          >
+                            {editClassroomPhotoUrl ? (
+                              <div className="relative w-full h-28 rounded-xl overflow-hidden border border-gray-100">
+                                <img src={editClassroomPhotoUrl} className="w-full h-full object-cover" alt="Preview" referrerPolicy="no-referrer" />
+                                <button 
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setEditClassroomPhotoUrl(''); }}
+                                  className="absolute top-2 right-2 bg-black/70 hover:bg-red-600 text-white p-1.5 rounded-full transition-colors flex items-center justify-center"
+                                >
+                                  <XIcon size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="h-10 w-10 bg-white rounded-xl shadow-sm text-muted group-hover:text-accent transition-colors flex items-center justify-center border border-gray-100">
+                                  <CameraIcon size={20} />
+                                </div>
+                                <p className="text-xs font-bold text-ink">Drag & drop image, or <span className="text-accent underline">browse</span></p>
+                                <p className="text-[8px] text-muted font-bold uppercase tracking-wider">Supports JPG, PNG with automatic encoding</p>
+                              </>
+                            )}
+                          </div>
+                          <input 
+                            id="classroom-file-upload-edit" 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file && file.type.startsWith('image/')) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  setEditClassroomPhotoUrl(event.target?.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+
+                          <p className="text-[10px] text-muted font-black uppercase tracking-widest mb-1">Or paste an Image URL / Choose a Preset</p>
+                          <input 
+                            type="text"
+                            placeholder="Paste custom image URL (https://...)"
+                            value={editClassroomPhotoUrl}
+                            onChange={(e) => setEditClassroomPhotoUrl(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm mb-3"
+                          />
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { name: 'General', url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&q=80&w=400' },
+                              { name: 'Math & Stats', url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=400' },
+                              { name: 'Science', url: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=400' },
+                              { name: 'Tech & Code', url: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&q=80&w=400' },
+                              { name: 'Arts & Music', url: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?auto=format&fit=crop&q=80&w=400' },
+                              { name: 'Literature', url: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=400' }
+                            ].map((preset) => (
+                              <button
+                                key={preset.name}
+                                type="button"
+                                onClick={() => setEditClassroomPhotoUrl(preset.url)}
+                                className={`p-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider text-center flex flex-col items-center gap-1 transition-all ${editClassroomPhotoUrl === preset.url ? 'border-accent bg-accent/5 font-black text-accent' : 'border-gray-100 hover:bg-slate-50 text-muted'}`}
+                              >
+                                <img src={preset.url} className="h-8 w-full object-cover rounded-md" referrerPolicy="no-referrer" alt={preset.name} />
+                                <span className="truncate w-full">{preset.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={handleUpdateClassroom}
+                          className="w-full py-4 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.01] transition-all"
+                        >
+                          Save Changes
+                        </button>
                       </div>
                     </div>
                   )}
