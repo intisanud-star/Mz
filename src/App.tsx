@@ -1529,6 +1529,7 @@ interface DailyRoutine {
 
 interface Classroom {
   id: string;
+  code?: string;
   schoolId: string;
   name: string;
   subject: string;
@@ -2596,6 +2597,7 @@ function ExonaApp() {
   const [newLessonContent, setNewLessonContent] = useState('');
   const [newStreamMessage, setNewStreamMessage] = useState('');
   const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant'>('stream');
+  const [classJoinCodeInput, setClassJoinCodeInput] = useState('');
   
   // AI Moderator tab local states
   const [aiPrompt, setAiPrompt] = useState('');
@@ -12871,8 +12873,10 @@ function ExonaApp() {
           }
           try {
             const newRef = doc(collection(db, 'classrooms'));
+            const classCode = newRef.id.slice(0, 6).toUpperCase();
             const dataObj: Classroom = {
               id: newRef.id,
+              code: classCode,
               schoolId: selectedSchool.id,
               name: classroomName,
               subject: classroomSubject,
@@ -12912,6 +12916,56 @@ function ExonaApp() {
           } catch (e) {
             console.error(e);
             showNotification('Enrollment failed', 'error');
+          }
+        };
+
+        const handleJoinClassByCode = async () => {
+          if (!classJoinCodeInput.trim()) {
+            showNotification('Please enter a class code', 'error');
+            return;
+          }
+          const targetCode = classJoinCodeInput.trim().toUpperCase();
+          let targetClass = classrooms.find(c => {
+            const code = (c.code || c.id.substring(0, 6)).toUpperCase();
+            return code === targetCode;
+          });
+          try {
+            if (!targetClass) {
+              const classroomsRef = collection(db, 'classrooms');
+              const qCode = query(classroomsRef, where('code', '==', targetCode));
+              const codeSnap = await getDocs(qCode);
+              if (!codeSnap.empty) {
+                targetClass = { id: codeSnap.docs[0].id, ...codeSnap.docs[0].data() } as Classroom;
+              } else {
+                const docRef = doc(db, 'classrooms', classJoinCodeInput.trim());
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                  targetClass = { id: docSnap.id, ...docSnap.data() } as Classroom;
+                }
+              }
+            }
+            if (!targetClass) {
+              showNotification('No classroom found with that code.', 'error');
+              return;
+            }
+            const isEnrolled = targetClass.students?.includes(user?.uid || '');
+            if (isEnrolled) {
+              showNotification(`You are already enrolled in ${targetClass.name}!`, 'info');
+              setSelectedClassroom(targetClass);
+              setClassroomActiveTab('stream');
+              setClassJoinCodeInput('');
+              return;
+            }
+            await updateDoc(doc(db, 'classrooms', targetClass.id), {
+              students: arrayUnion(user.uid)
+            });
+            showNotification(`Successfully joined ${targetClass.name}!`, 'success');
+            setSelectedClassroom(targetClass);
+            setClassroomActiveTab('stream');
+            setClassJoinCodeInput('');
+          } catch (err) {
+            console.error('Error joining class by code:', err);
+            showNotification('Failed to join classroom. Check permissions or network.', 'error');
           }
         };
 
@@ -13688,10 +13742,30 @@ function ExonaApp() {
             {/* CLASSROOM DIRECTORY */}
             {!selectedClassroom ? (
               <div className="px-6 py-8 max-w-6xl mx-auto w-full">
-                <div className="mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div>
                     <h3 className="text-2xl font-black text-ink tracking-tight">Active Classrooms</h3>
                     <p className="text-xs text-muted font-semibold uppercase tracking-wider">Join or manage classroom spaces for this organization</p>
+                  </div>
+                  
+                  {/* Join with Class Code Input */}
+                  <div className="flex items-center gap-2 bg-white p-2.5 rounded-2xl border border-gray-100 shadow-sm w-full md:w-auto">
+                    <input 
+                      type="text" 
+                      placeholder="ENTER CLASS CODE" 
+                      value={classJoinCodeInput} 
+                      onChange={(e) => setClassJoinCodeInput(e.target.value)} 
+                      className="px-3 py-2 text-xs border border-gray-100 rounded-xl focus:ring-1 focus:ring-accent outline-none w-full md:w-44 font-mono font-black uppercase text-center tracking-wider bg-slate-50"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleJoinClassByCode();
+                      }}
+                    />
+                    <button 
+                      onClick={handleJoinClassByCode}
+                      className="px-4 py-2 bg-accent hover:opacity-95 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap active:scale-95"
+                    >
+                      Join Code
+                    </button>
                   </div>
                 </div>
 
@@ -13915,29 +13989,30 @@ function ExonaApp() {
                     </button>
                   )}
 
-                  {/* Class Invite Link Copy Card */}
+                  {/* Class Code Copy Card */}
                   <div className="border-t border-gray-100 pt-5 mt-4 space-y-2">
-                    <p className="text-[10px] text-muted font-black uppercase tracking-widest block">Class Join Link</p>
+                    <p className="text-[10px] text-muted font-black uppercase tracking-widest block">Class Code Number</p>
                     <div className="flex items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-gray-100 relative">
                       <input 
                         type="text" 
                         readOnly 
-                        value={`${window.location.origin}?classId=${selectedClassroom.id}`}
-                        className="bg-transparent border-none text-[10px] text-ink font-mono font-bold focus:ring-0 outline-none w-full select-all truncate p-0.5"
+                        value={selectedClassroom.code || selectedClassroom.id.slice(0, 6).toUpperCase()}
+                        className="bg-transparent border-none text-[12px] text-ink font-mono font-black focus:ring-0 outline-none w-full select-all text-center tracking-widest p-0.5"
                       />
                       <button 
                         onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}?classId=${selectedClassroom.id}`);
-                          showNotification('Classroom link copied! Share this in your chats.', 'success');
+                          const code = selectedClassroom.code || selectedClassroom.id.slice(0, 6).toUpperCase();
+                          navigator.clipboard.writeText(code);
+                          showNotification('Class code copied! Share this with your students.', 'success');
                         }}
                         className="h-8 px-2.5 bg-accent hover:opacity-90 text-white rounded-xl flex items-center justify-center active:scale-95 transition-all outline-none"
-                        title="Copy Classroom Invite URL"
+                        title="Copy Classroom Code"
                       >
                         <Copy size={12} />
                       </button>
                     </div>
                     <p className="text-[9px] text-muted leading-relaxed font-medium">
-                      Share this custom direct link in chat groups. Clicking it opens this classroom instantly.
+                      Share this custom class code in chat groups. Students can enter this code to join the class.
                     </p>
                   </div>
 
