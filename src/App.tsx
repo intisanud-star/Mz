@@ -1579,6 +1579,7 @@ interface Classroom {
     date: string;
     presents: string[];
   }[];
+  coAdmins?: string[];
 }
 
 interface School {
@@ -2479,10 +2480,12 @@ function ExonaApp() {
         if (data.success) setBroadcastHistory(data.broadcasts);
       })
       .catch(err => {
-        console.error('[Presidential Broadcasts] Error:', err);
         if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+          console.warn('[Presidential Broadcasts] Network transition, retrying shortly...', err.message);
           // Silent retry in background
           setTimeout(fetchBroadcastHistory, 15000);
+        } else {
+          console.error('[Presidential Broadcasts] Error:', err);
         }
       });
   }, [serverReady]);
@@ -2550,12 +2553,12 @@ function ExonaApp() {
           }
         })
         .catch(err => {
-          // Detailed logging for debugging "Failed to fetch"
-          console.error('[Presidential Stats] Error:', err);
-          
           if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+            console.warn('[Presidential Stats] Network transition, retrying shortly...', err.message);
             // Silently retry stats in 15s if it's a network/proxy issue
             setTimeout(fetchStats, 15000);
+          } else {
+            console.error('[Presidential Stats] Error:', err);
           }
         });
     };
@@ -2592,7 +2595,26 @@ function ExonaApp() {
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
   const [newStreamMessage, setNewStreamMessage] = useState('');
-  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings'>('stream');
+  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant'>('stream');
+  
+  // AI Moderator tab local states
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiGenerateImage, setAiGenerateImage] = useState(true);
+  const [aiLessonResult, setAiLessonResult] = useState<{
+    lessonTitle: string;
+    markdownNotes: string;
+    summary: string;
+    imagePrompt: string;
+    videoUrl: string;
+    videoExplanation: string;
+    interactiveExplanations: { title: string; content: string }[];
+    generatedImageUrl?: string | null;
+  } | null>(null);
+  const [aiAssistantStatus, setAiAssistantStatus] = useState('');
+  const [isSavingToLessons, setIsSavingToLessons] = useState(false);
+  const [isPostingToStream, setIsPostingToStream] = useState(false);
+
   const [activeQuizQuestion, setActiveQuizQuestion] = useState('');
   const [activeQuizOpts, setActiveQuizOpts] = useState<string[]>(['', '', '', '']);
   const [activeQuizAns, setActiveQuizAns] = useState('');
@@ -5530,6 +5552,110 @@ function ExonaApp() {
       setEditClassroomPhotoUrl('');
     }
   }, [selectedClassroom]);
+
+  const handleClassroomLinkNavigation = async (classId: string) => {
+    try {
+      const classDoc = await getDoc(doc(db, 'classrooms', classId));
+      if (!classDoc.exists()) {
+        showNotification('Classroom not found.', 'error');
+        return;
+      }
+      const classData = { id: classDoc.id, ...classDoc.data() } as Classroom;
+      
+      const schoolId = classData.schoolId;
+      let school = schools.find(s => s.id === schoolId) || places.find(p => p.id === schoolId);
+      
+      if (!school) {
+        const schoolDoc = await getDoc(doc(db, 'schools', schoolId));
+        if (schoolDoc.exists()) {
+          school = { id: schoolDoc.id, ...schoolDoc.data() } as any;
+        } else {
+          const placeDoc = await getDoc(doc(db, 'places', schoolId));
+          if (placeDoc.exists()) {
+            school = { id: placeDoc.id, ...placeDoc.data() } as any;
+          }
+        }
+      }
+      
+      if (!school) {
+        showNotification('Associated Institution check failed.', 'error');
+        return;
+      }
+      
+      setSelectedSchool(school as any);
+      setView('classroom');
+      
+      // Auto-join user if not enrolled, not creator, not manager
+      const isEnrolled = classData.students?.includes(user?.uid || '');
+      const isTeacher = classData.createdByUid === user?.uid;
+      const isManager = school.creatorUid === user?.uid || (school.administrativeViewers && school.administrativeViewers.includes(user?.uid));
+      
+      if (!isEnrolled && !isTeacher && !isManager && user) {
+        await updateDoc(doc(db, 'classrooms', classId), {
+          students: arrayUnion(user.uid)
+        });
+      }
+      
+      setSelectedClassroom(classData);
+      setClassroomActiveTab('stream');
+      showNotification(`Redirected to ${classData.name}!`, 'success');
+    } catch (err) {
+      console.error('Error navigating to classroom:', err);
+      showNotification('Failed to open classroom link.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const classId = urlParams.get('classId');
+    if (classId) {
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete('classId');
+      const searchStr = newParams.toString();
+      const newUrl = window.location.pathname + (searchStr ? '?' + searchStr : '');
+      window.history.replaceState({}, '', newUrl);
+      
+      handleClassroomLinkNavigation(classId);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!selectedClassroom || !selectedClassroom.students) return;
+    const missingUids = selectedClassroom.students.filter(
+      uid => uid !== user?.uid && !pendingFollowerProfilesMap[uid]
+    );
+    if (missingUids.length === 0) return;
+
+    const fetchClassroomStudentProfiles = async () => {
+      const newProfiles: {[uid: string]: { displayName: string, photoURL?: string }} = {};
+      
+      for (let i = 0; i < missingUids.length; i += 10) {
+        const batch = missingUids.slice(i, i + 10);
+        await Promise.all(batch.map(async (uid) => {
+          try {
+            const userRef = doc(db, 'users', uid);
+            const userSnapshot = await getDoc(userRef);
+            if (userSnapshot.exists()) {
+              const data = userSnapshot.data();
+              newProfiles[uid] = {
+                displayName: data.displayName || 'Exona User',
+                photoURL: data.photoURL || ''
+              };
+            }
+          } catch (e) {
+            console.error('Error fetching student profile:', e);
+          }
+        }));
+      }
+
+      if (Object.keys(newProfiles).length > 0) {
+        setPendingFollowerProfilesMap(prev => ({ ...prev, ...newProfiles }));
+      }
+    };
+
+    fetchClassroomStudentProfiles();
+  }, [selectedClassroom?.students]);
 
   useEffect(() => {
     if (!user) return;
@@ -12712,7 +12838,30 @@ function ExonaApp() {
         }
 
         const isManager = canManageInstitution(selectedSchool);
+        const isClassStaff = isManager || 
+                             (selectedClassroom && (
+                               selectedClassroom.createdByUid === user?.uid || 
+                               (selectedClassroom.coAdmins || []).includes(user?.uid)
+                             )) ? true : false;
         const classroomLabels = getLabels(selectedSchool.type);
+
+        const getUserDisplayName = (uid: string) => {
+          if (uid === user?.uid) return userDoc?.displayName || user?.displayName || 'You';
+          const profile = pendingFollowerProfilesMap[uid];
+          if (profile?.displayName) return profile.displayName;
+          const cu = chatUsers.find(u => u.uid === uid);
+          if (cu?.displayName) return cu.displayName;
+          return `Student ${uid.slice(0, 6)}`;
+        };
+
+        const getUserPhotoURL = (uid: string) => {
+          if (uid === user?.uid) return userDoc?.photoURL || user?.photoURL;
+          const profile = pendingFollowerProfilesMap[uid];
+          if (profile?.photoURL) return profile.photoURL;
+          const cu = chatUsers.find(u => u.uid === uid);
+          if (cu?.photoURL) return cu.photoURL;
+          return null;
+        };
 
         // Nested helper handlers
         const handleCreateClass = async () => {
@@ -12763,6 +12912,27 @@ function ExonaApp() {
           } catch (e) {
             console.error(e);
             showNotification('Enrollment failed', 'error');
+          }
+        };
+
+        const handleToggleCoAdmin = async (studentUid: string) => {
+          if (!selectedClassroom) return;
+          const currentCoAdmins = selectedClassroom.coAdmins || [];
+          const isCoAdmin = currentCoAdmins.includes(studentUid);
+          
+          try {
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              coAdmins: isCoAdmin ? arrayRemove(studentUid) : arrayUnion(studentUid)
+            });
+            showNotification(
+              isCoAdmin 
+                ? 'Member status set to Student' 
+                : 'Member promoted to Assistant / Monitor!', 
+              'success'
+            );
+          } catch (e) {
+            console.error('Error toggling coAdmin status:', e);
+            showNotification('Failed to update member status', 'error');
           }
         };
 
@@ -12839,6 +13009,167 @@ function ExonaApp() {
           } catch (e) {
             console.error(e);
             showNotification('Error posting stream content', 'error');
+          }
+        };
+
+        const handleGenerateAiLesson = async () => {
+          if (!aiPrompt.trim() || !selectedClassroom) {
+            showNotification('Please enter a creative prompt or instruction.', 'error');
+            return;
+          }
+
+          setAiGenerating(true);
+          setAiLessonResult(null);
+          
+          const messages = [
+            "Syncing with Gemini educational networks...",
+            "Analyzing subject parameters & grade alignment...",
+            "Curating comprehensive text blocks & study guides...",
+            "Sourcing premium visual materials & YouTube embeds...",
+            "Running Imagen pipeline to render custom scientific diagrams...",
+            "Validating and polishing final lesson layout..."
+          ];
+
+          let currIdx = 0;
+          setAiAssistantStatus(messages[0]);
+          const statusInterval = setInterval(() => {
+            currIdx = (currIdx + 1) % messages.length;
+            setAiAssistantStatus(messages[currIdx]);
+          }, 3500);
+
+          try {
+            const res = await fetch('/api/ai/classroom-moderator', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: aiPrompt,
+                classroomSubject: selectedClassroom.subject || 'General Academic',
+                className: selectedClassroom.name || 'Academy Course',
+                generateImage: aiGenerateImage
+              })
+            });
+
+            if (!res.ok) {
+              const errData = await res.json();
+              throw new Error(errData.error || 'Server responded with an error');
+            }
+
+            const data = await res.json();
+            if (data.success) {
+              setAiLessonResult({
+                lessonTitle: data.lessonTitle,
+                markdownNotes: data.markdownNotes,
+                summary: data.summary,
+                imagePrompt: data.imagePrompt,
+                videoUrl: data.videoUrl,
+                videoExplanation: data.videoExplanation,
+                interactiveExplanations: data.interactiveExplanations || [],
+                generatedImageUrl: data.generatedImageUrl
+              });
+              showNotification('Custom educational lesson crafted successfully!', 'success');
+            } else {
+              throw new Error(data.error || 'Failed to craft guide');
+            }
+          } catch (e: any) {
+            console.error('[AI ASSISTANT ERROR]', e);
+            showNotification(e.message || 'AI assistant encountered an issue. Please try again.', 'error');
+          } finally {
+            clearInterval(statusInterval);
+            setAiGenerating(false);
+            setAiAssistantStatus('');
+          }
+        };
+
+        const handlePublishAiLessonToCollection = async () => {
+          if (!selectedClassroom || !aiLessonResult) return;
+          setIsSavingToLessons(true);
+          try {
+            // Include image/video embeds nicely inside markdown body so it's fully viewable anywhere
+            let finalContent = aiLessonResult.markdownNotes;
+            
+            if (aiLessonResult.generatedImageUrl) {
+              finalContent += `\n\n---\n\n### 🔬 Lesson Graphic Aid\n![Visual Aid](${aiLessonResult.generatedImageUrl})`;
+            }
+            if (aiLessonResult.videoUrl) {
+              finalContent += `\n\n---\n\n### 📹 Recommended Study Video \n*[Video Summary]: ${aiLessonResult.videoExplanation}*\n\n*(Watch this educational video inside the lesson stream or on YouTube)*`;
+            }
+
+            if (aiLessonResult.interactiveExplanations && aiLessonResult.interactiveExplanations.length > 0) {
+              finalContent += `\n\n---\n\n### 🧠 Interactive Glossary & QA\n`;
+              aiLessonResult.interactiveExplanations.forEach((item) => {
+                finalContent += `\n**Q: ${item.title}**\n*A: ${item.content}*\n`;
+              });
+            }
+
+            const lessonObj = {
+              id: doc(collection(db, 'temp')).id,
+              title: aiLessonResult.lessonTitle,
+              content: finalContent,
+              timestamp: new Date().toISOString(),
+              authorName: 'AI Educational Assistant & ' + (userDoc?.displayName || user.displayName || 'Instructor'),
+              imageUrl: aiLessonResult.generatedImageUrl || null,
+              videoUrl: aiLessonResult.videoUrl || null
+            };
+
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              lessons: arrayUnion(lessonObj)
+            });
+
+            // Update local selectedClassroom status
+            setSelectedClassroom(prev => {
+              if (!prev) return prev;
+              const prevLessons = prev.lessons || [];
+              return {
+                ...prev,
+                lessons: [...prevLessons, lessonObj]
+              };
+            });
+
+            showNotification('Crafted lesson successfully added to Classroom Lessons!', 'success');
+            setClassroomActiveTab('lessons');
+          } catch (e) {
+            console.error(e);
+            showNotification('Failed to add lesson notes.', 'error');
+          } finally {
+            setIsSavingToLessons(false);
+          }
+        };
+
+        const handlePublishAiLessonToStream = async () => {
+          if (!selectedClassroom || !aiLessonResult) return;
+          setIsPostingToStream(true);
+          try {
+            const introContent = `📢 **AI Academic Alert**: New Study Lesson published!\n\n**"${aiLessonResult.lessonTitle}"**\n\n${aiLessonResult.summary}\n\n*Study notes detailing this topic have been uploaded under our main Lesson Notes tab. Take a look!*`;
+            
+            const annObj = {
+              id: doc(collection(db, 'temp')).id,
+              authorUid: 'ai-moderator',
+              authorName: 'AI Moderator Assistant',
+              authorPhoto: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200',
+              content: introContent,
+              timestamp: new Date().toISOString()
+            };
+
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              stream: arrayUnion(annObj)
+            });
+
+            setSelectedClassroom(prev => {
+              if (!prev) return prev;
+              const prevStream = prev.stream || [];
+              return {
+                ...prev,
+                stream: [...prevStream, annObj]
+              };
+            });
+
+            showNotification('Announcement posted to Classroom Stream!', 'success');
+            setClassroomActiveTab('stream');
+          } catch (e) {
+            console.error(e);
+            showNotification('Failed to announce stream update.', 'error');
+          } finally {
+            setIsPostingToStream(false);
           }
         };
 
@@ -13564,7 +13895,17 @@ function ExonaApp() {
                     Class Members
                   </button>
 
-                  {isManager && (
+                  {isClassStaff && (
+                    <button 
+                      onClick={() => setClassroomActiveTab('ai-assistant')}
+                      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'ai-assistant' ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100' : 'text-muted hover:bg-slate-50'}`}
+                    >
+                      <Sparkles size={16} className="text-indigo-600 animate-pulse" />
+                      AI Moderator
+                    </button>
+                  )}
+
+                  {(isManager || selectedClassroom.createdByUid === user?.uid) && (
                     <button 
                       onClick={() => setClassroomActiveTab('settings')}
                       className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'settings' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
@@ -13573,6 +13914,32 @@ function ExonaApp() {
                       Class Settings
                     </button>
                   )}
+
+                  {/* Class Invite Link Copy Card */}
+                  <div className="border-t border-gray-100 pt-5 mt-4 space-y-2">
+                    <p className="text-[10px] text-muted font-black uppercase tracking-widest block">Class Join Link</p>
+                    <div className="flex items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-gray-100 relative">
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={`${window.location.origin}?classId=${selectedClassroom.id}`}
+                        className="bg-transparent border-none text-[10px] text-ink font-mono font-bold focus:ring-0 outline-none w-full select-all truncate p-0.5"
+                      />
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}?classId=${selectedClassroom.id}`);
+                          showNotification('Classroom link copied! Share this in your chats.', 'success');
+                        }}
+                        className="h-8 px-2.5 bg-accent hover:opacity-90 text-white rounded-xl flex items-center justify-center active:scale-95 transition-all outline-none"
+                        title="Copy Classroom Invite URL"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-muted leading-relaxed font-medium">
+                      Share this custom direct link in chat groups. Clicking it opens this classroom instantly.
+                    </p>
+                  </div>
 
                   <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
                     <button 
@@ -13625,24 +13992,26 @@ function ExonaApp() {
                   {classroomActiveTab === 'stream' && (
                     <div className="space-y-6">
                       {/* announcement / stream message post board */}
-                      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6">
-                        <h4 className="text-sm font-extrabold mb-4 uppercase tracking-widest text-ink block">Stream Announcement / Note</h4>
-                        <textarea 
-                          rows={3}
-                          placeholder="Type notes or class updates..."
-                          value={newStreamMessage}
-                          onChange={(e) => setNewStreamMessage(e.target.value)}
-                          className="w-full border border-gray-100 bg-slate-50 rounded-2xl p-4 text-sm resize-none mb-4"
-                        />
-                        <div className="flex justify-end">
-                          <button 
-                            onClick={handleAddAnnouncement}
-                            className="flex items-center gap-2 px-6 py-3 bg-accent text-white font-black uppercase tracking-widest text-[10px] rounded-xl text-center"
-                          >
-                            <Send size={14} /> Send Note
-                          </button>
+                      {isClassStaff && (
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6">
+                          <h4 className="text-sm font-extrabold mb-4 uppercase tracking-widest text-ink block">Stream Announcement / Note</h4>
+                          <textarea 
+                            rows={3}
+                            placeholder="Type notes or class updates..."
+                            value={newStreamMessage}
+                            onChange={(e) => setNewStreamMessage(e.target.value)}
+                            className="w-full border border-gray-100 bg-slate-50 rounded-2xl p-4 text-sm resize-none mb-4"
+                          />
+                          <div className="flex justify-end">
+                            <button 
+                              onClick={handleAddAnnouncement}
+                              className="flex items-center gap-2 px-6 py-3 bg-accent text-white font-black uppercase tracking-widest text-[10px] rounded-xl text-center"
+                            >
+                              <Send size={14} /> Send Note
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* stream history feeds */}
                       <div className="space-y-4">
@@ -13669,7 +14038,7 @@ function ExonaApp() {
 
                   {classroomActiveTab === 'lessons' && (
                     <div className="space-y-6">
-                      {isManager && (
+                      {isClassStaff && (
                         <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4">
                           <h4 className="text-sm font-extrabold uppercase tracking-widest text-ink">Publish Lesson notes</h4>
                           <div>
@@ -13736,7 +14105,7 @@ function ExonaApp() {
                       </div>
 
                       {/* Instructor launch control */}
-                      {isManager && (
+                      {isClassStaff && (
                         <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4">
                           <div className="flex justify-between items-center">
                             <h4 className="text-xs font-black uppercase tracking-widest text-ink">Launch Classroom Assessment</h4>
@@ -13876,7 +14245,7 @@ function ExonaApp() {
                             <h4 className="text-sm font-black uppercase text-ink block">Daily Class Register</h4>
                             <p className="text-[10px] text-muted font-bold tracking-widest">{new Date().toLocaleDateString()}</p>
                           </div>
-                          {!isManager && (
+                          {!isClassStaff && (
                             <button 
                               onClick={handleMarkAttend}
                               className="px-6 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
@@ -13913,26 +14282,89 @@ function ExonaApp() {
                     <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-6">
                       <div>
                         <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Instructors & Moderators</h4>
-                        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-gray-100 rounded-2xl w-fit">
-                          <div className="h-9 w-9 bg-accent text-white rounded-full flex items-center justify-center font-bold">
-                            {selectedClassroom.teacher.charAt(0)}
+                        <div className="flex flex-wrap items-center gap-3">
+                          {/* Original Classroom Teacher */}
+                          <div className="flex items-center gap-3 p-3 bg-slate-50 border border-gray-100 rounded-2xl">
+                            <div className="h-9 w-9 bg-accent text-white rounded-[0.75rem] flex items-center justify-center font-bold">
+                              {selectedClassroom.teacher.charAt(0)}
+                            </div>
+                            <div>
+                              <strong className="text-xs text-ink block">{selectedClassroom.teacher}</strong>
+                              <span className="text-[9px] text-accent font-black uppercase tracking-widest">Main Instructor</span>
+                            </div>
                           </div>
-                          <div>
-                            <strong className="text-xs text-ink block">{selectedClassroom.teacher}</strong>
-                            <span className="text-[9px] text-accent font-black uppercase tracking-widest">Moderator</span>
-                          </div>
+
+                          {/* Co-Admins / Assistant Monitors */}
+                          {(selectedClassroom.coAdmins || []).map((coUid) => {
+                            const displayName = getUserDisplayName(coUid);
+                            const photoUrl = getUserPhotoURL(coUid);
+                            return (
+                              <div key={coUid} className="flex items-center gap-3 p-3 bg-indigo-50/50 border border-indigo-100/35 rounded-2xl">
+                                <div className="h-9 w-9 rounded-[0.75rem] overflow-hidden border border-gray-200 bg-white flex items-center justify-center">
+                                  {photoUrl ? (
+                                    <img src={photoUrl} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <span className="text-xs font-bold text-indigo-600">{displayName.charAt(0)}</span>
+                                  )}
+                                </div>
+                                <div>
+                                  <strong className="text-xs text-ink block">{displayName}</strong>
+                                  <span className="text-[9px] text-indigo-600 font-black uppercase tracking-widest">Assistant Monitor</span>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 
                       <div className="border-t border-gray-50 pt-6">
                         <h4 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-3">Enrolled Members ({selectedClassroom.students?.length || 0})</h4>
                         <div className="space-y-2">
-                          {selectedClassroom.students?.map((stuUid) => (
-                            <div key={stuUid} className="flex items-center justify-between py-2 px-4 bg-slate-50 rounded-xl">
-                              <span className="text-xs font-bold text-ink">Student {stuUid.substring(0, 8)}...</span>
-                              <span className="text-[9px] bg-slate-100 text-muted px-2 py-1 rounded font-black uppercase tracking-widest">Active Partner</span>
-                            </div>
-                          ))}
+                          {selectedClassroom.students?.map((stuUid) => {
+                            const isCo = (selectedClassroom.coAdmins || []).includes(stuUid);
+                            const displayName = getUserDisplayName(stuUid);
+                            const photoUrl = getUserPhotoURL(stuUid);
+                            const canToggle = isManager || selectedClassroom.createdByUid === user?.uid;
+                            return (
+                              <div key={stuUid} className="flex items-center justify-between py-2.5 px-4 bg-slate-50 border border-gray-50 rounded-xl hover:bg-slate-100/55 transition-all">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="h-8 w-8 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center shadow-sm shrink-0">
+                                    {photoUrl ? (
+                                      <img src={photoUrl} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <span className="text-[11px] font-black text-muted">{displayName.charAt(0)}</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <span className="text-xs font-bold text-ink block">{displayName}</span>
+                                    <span className="text-[9px] text-muted font-mono">{stuUid === user?.uid ? 'You' : `${stuUid.substring(0, 8)}...`}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  {isCo ? (
+                                    <span className="text-[9px] bg-indigo-50 text-indigo-700 px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider">Monitor / Helper</span>
+                                  ) : (
+                                    <span className="text-[9px] bg-slate-100 text-muted px-2.5 py-1.5 rounded-lg font-black uppercase tracking-wider">Student</span>
+                                  )}
+                                  
+                                  {/* Staff Promotion Controls */}
+                                  {canToggle && stuUid !== user?.uid && (
+                                    <button
+                                      onClick={() => handleToggleCoAdmin(stuUid)}
+                                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all select-none border ${
+                                        isCo 
+                                          ? 'border-red-100 bg-red-50 text-red-600 hover:bg-red-100'
+                                          : 'border-indigo-100 bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                                      }`}
+                                    >
+                                      {isCo ? 'Revoke Helper' : 'Appoint Monitor'}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
                           {(!selectedClassroom.students || selectedClassroom.students.length === 0) && (
                             <p className="text-xs text-muted font-semibold text-center py-6">No members registered in this classroom yet.</p>
                           )}
@@ -13941,7 +14373,7 @@ function ExonaApp() {
                     </div>
                   )}
 
-                  {classroomActiveTab === 'settings' && isManager && (
+                  {classroomActiveTab === 'settings' && (isManager || selectedClassroom.createdByUid === user?.uid) && (
                     <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-6">
                       <div>
                         <h3 className="font-extrabold text-[16px] text-ink">Class Settings</h3>
@@ -14107,6 +14539,275 @@ function ExonaApp() {
                           Save Changes
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {classroomActiveTab === 'ai-assistant' && isClassStaff && (
+                    <div className="space-y-6">
+                      {/* AI Assistant Banner */}
+                      <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 border border-indigo-800 text-white rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl shadow-indigo-900/10">
+                        {/* Background Decorative Circles */}
+                        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-indigo-500/10 blur-3xl animate-pulse" />
+                        <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-cyan-500/10 blur-3xl animate-pulse" />
+
+                        <div className="relative z-10 space-y-3 max-w-xl">
+                          <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest text-indigo-400">
+                            <Sparkles size={12} className="text-cyan-400 animate-spin" />
+                            Elite Classroom Co-Moderator
+                          </div>
+                          <h3 className="text-2xl font-black tracking-tight text-white leading-tight">AI Academic Assistant</h3>
+                          <p className="text-xs text-slate-300 font-medium leading-relaxed">
+                            Command your AI assistant to draft beautifully structured educational study materials, formulate interactive glossaries, and include interactive visual graphics and curated video explanations instantly.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* AI Control Terminal */}
+                      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-6">
+                        <div>
+                          <p className="text-[10px] text-muted font-black uppercase tracking-widest block mb-1">Interactive Command</p>
+                          <h4 className="font-extrabold text-[15px] text-ink">What academic topic would you like to draft today?</h4>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="relative">
+                            <textarea 
+                              disabled={aiGenerating}
+                              value={aiPrompt}
+                              onChange={(e) => setAiPrompt(e.target.value)}
+                              placeholder="e.g., Explain the visual structure of a eukaryotic cell, particularly focusing on the nucleus and Golgi apparatus, with technical diagram instructions."
+                              rows={3}
+                              className="w-full px-5 py-4 border border-gray-200 rounded-3xl text-sm placeholder-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all outline-none resize-none"
+                            />
+                            {aiPrompt && !aiGenerating && (
+                              <button 
+                                onClick={() => setAiPrompt('')}
+                                className="absolute right-4 bottom-4 p-1.5 hover:bg-slate-100 rounded-xl text-muted text-xs font-semibold"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Quick Predefined Prompts */}
+                          <div className="space-y-2">
+                            <p className="text-[9px] text-muted font-black uppercase tracking-widest">Or choose a predefined academic command</p>
+                            <div className="flex flex-wrap gap-2">
+                              {[
+                                "Introduce photosynthesis light reaction with detailed step diagrams",
+                                "Structure the laws of thermodynamics with real-world examples",
+                                "Provide a comprehensive guide on Shakespeare's usage of tragic irony",
+                                "Draft study notes on continental drift theory and geological plate tectonic boundaries"
+                              ].map((p, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  disabled={aiGenerating}
+                                  onClick={() => setAiPrompt(p)}
+                                  className={`px-3 py-2 text-[10px] font-bold rounded-xl border transition-all ${aiPrompt === p ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-extrabold' : 'border-gray-100 hover:bg-slate-50 text-muted'}`}
+                                >
+                                  {p}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Configuration Options */}
+                          <div className="flex items-center justify-between border-t border-slate-50 pt-4">
+                            <div className="flex items-center gap-3">
+                              <input 
+                                type="checkbox"
+                                id="generate_image_toggle"
+                                disabled={aiGenerating}
+                                checked={aiGenerateImage}
+                                onChange={(e) => setAiGenerateImage(e.target.checked)}
+                                className="h-4 w-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                              />
+                              <label htmlFor="generate_image_toggle" className="text-[11px] font-extrabold text-ink select-none cursor-pointer">
+                                Auto-Generate Custom visual graphic/diagram using Gemini-Image Model
+                              </label>
+                            </div>
+                          </div>
+
+                          {/* Submit Action */}
+                          <button 
+                            onClick={handleGenerateAiLesson}
+                            disabled={aiGenerating || !aiPrompt.trim()}
+                            className="w-full py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-white shadow-lg bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-100 disabled:text-muted disabled:shadow-none hover:scale-[1.01] transition-all flex items-center justify-center gap-2"
+                          >
+                            {aiGenerating ? (
+                              <>
+                                <span className="h-4 w-4 border-2 border-slate-300 border-t-white rounded-full animate-spin" />
+                                <span>{aiAssistantStatus}</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles size={14} />
+                                <span>Craft Study Notes & Media</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Generated Results Area */}
+                      {aiLessonResult && (
+                        <div className="space-y-6">
+                          <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-6 animate-fade-in">
+                            {/* Title Block */}
+                            <div className="flex items-start justify-between border-b border-gray-50 pb-5">
+                              <div>
+                                <span className="text-[9px] text-indigo-600 font-black uppercase tracking-widest">Generated Study Material</span>
+                                <h3 className="text-xl font-black text-ink">{aiLessonResult.lessonTitle}</h3>
+                              </div>
+                              <div className="flex items-center gap-1 bg-green-50 border border-green-100 text-green-700 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest">
+                                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                                Ready
+                              </div>
+                            </div>
+
+                            {/* Stream Announcement Summary Pre-visualizer */}
+                            <div className="bg-slate-50 border border-slate-100 rounded-3xl p-5 space-y-2">
+                              <span className="text-[8px] text-muted font-black uppercase tracking-widest">Pre-drafted Stream Announcement Summary</span>
+                              <p className="text-xs text-slate-700 leading-relaxed font-bold">"{aiLessonResult.summary}"</p>
+                            </div>
+
+                            {/* Notes Markdown Viewer */}
+                            <div className="space-y-2">
+                              <span className="text-[10px] text-muted font-black uppercase tracking-widest block">Detailed Markdown Study Content</span>
+                              <div className="prose prose-slate prose-sm max-w-none border border-gray-100 rounded-3xl p-6 bg-slate-50 overflow-y-auto max-h-[400px]">
+                                <Markdown>{aiLessonResult.markdownNotes}</Markdown>
+                              </div>
+                            </div>
+
+                            {/* Media Section: Image & Video Display */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* Video Explanatory Component */}
+                              <div className="border border-gray-100 rounded-3xl p-5 space-y-3 bg-slate-50 flex flex-col justify-between">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="bg-red-50 text-red-600 p-1.5 rounded-lg border border-red-100">
+                                      <Trophy size={14} className="text-red-500" />
+                                    </span>
+                                    <span className="text-[10px] text-ink font-black uppercase tracking-widest">Curated Reference Video</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                                    {aiLessonResult.videoExplanation}
+                                  </p>
+                                </div>
+                                
+                                {aiLessonResult.videoUrl ? (
+                                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+                                    <iframe 
+                                      src={aiLessonResult.videoUrl}
+                                      className="absolute top-0 left-0 w-full h-full border-0"
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                      allowFullScreen
+                                      title={aiLessonResult.lessonTitle}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="p-6 text-center text-[11px] text-muted font-bold border border-dashed border-gray-200 rounded-2xl">
+                                    No compatible reference video found
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Image Representation Display component */}
+                              <div className="border border-gray-100 rounded-3xl p-5 space-y-3 bg-slate-50 flex flex-col justify-between">
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="bg-indigo-50 text-indigo-600 p-1.5 rounded-lg border border-indigo-100">
+                                      <Sparkles size={14} className="text-indigo-500" />
+                                    </span>
+                                    <span className="text-[10px] text-ink font-black uppercase tracking-widest">Visual Illustration / Diagram</span>
+                                  </div>
+                                  <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                                    {aiLessonResult.imagePrompt}
+                                  </p>
+                                </div>
+
+                                {aiLessonResult.generatedImageUrl ? (
+                                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+                                    <img 
+                                      src={aiLessonResult.generatedImageUrl} 
+                                      className="absolute top-0 left-0 w-full h-full object-cover" 
+                                      referrerPolicy="no-referrer"
+                                      alt="Generated illustration" 
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="p-8 text-center text-[11px] text-muted-foreground bg-white border border-gray-200 rounded-2xl flex flex-col items-center justify-center gap-1 border-dashed">
+                                    <span>AI diagram synthesis was skipped or disabled.</span>
+                                    <span className="text-[9px] text-muted font-normal">Enable the custom diagram checkbox and try again.</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Solidifier Cards Glossary FAQ Array */}
+                            {aiLessonResult.interactiveExplanations && aiLessonResult.interactiveExplanations.length > 0 && (
+                              <div className="space-y-3">
+                                <span className="text-[10px] text-muted font-black uppercase tracking-widest block">Core Comprehension Flashcards</span>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  {aiLessonResult.interactiveExplanations.map((item, idx) => (
+                                    <div key={idx} className="bg-indigo-50/20 border border-indigo-100/40 p-4 rounded-2xl hover:bg-slate-50/40 transition-all">
+                                      <h5 className="font-extrabold text-[11px] text-indigo-900 mb-1">{item.title}</h5>
+                                      <p className="text-[10px] text-indigo-700/80 leading-relaxed font-semibold">{item.content}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Instant Publishing Actions Console */}
+                            <div className="border-t border-gray-50 pt-5 flex flex-col md:flex-row gap-3">
+                              <button
+                                disabled={isSavingToLessons}
+                                onClick={handlePublishAiLessonToCollection}
+                                className="flex-1 py-4 px-6 bg-indigo-600 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl hover:scale-[1.01] transition-all disabled:bg-slate-100 disabled:text-muted flex items-center justify-center gap-2"
+                              >
+                                {isSavingToLessons ? (
+                                  <>
+                                    <span className="h-3 w-3 border-2 border-slate-300 border-t-indigo-600 rounded-full animate-spin" />
+                                    <span>Publishing...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <BookOpen size={14} />
+                                    <span>Publish to Lesson Notes Collection</span>
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                disabled={isPostingToStream}
+                                onClick={handlePublishAiLessonToStream}
+                                className="flex-1 py-4 px-6 bg-slate-900 text-white font-black uppercase tracking-widest text-[11px] rounded-2xl hover:scale-[1.01] transition-all disabled:bg-slate-100 disabled:text-muted flex items-center justify-center gap-2"
+                              >
+                                {isPostingToStream ? (
+                                  <>
+                                    <span className="h-3 w-3 border-2 border-slate-300 border-t-slate-900 rounded-full animate-spin" />
+                                    <span>Posting...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <MessageSquare size={14} />
+                                    <span>Broadcast Summary via Class Stream</span>
+                                  </>
+                                )}
+                              </button>
+
+                              <button
+                                onClick={() => setAiLessonResult(null)}
+                                className="py-4 px-6 border border-red-100 text-red-500 font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-red-50 transition-all"
+                              >
+                                Try Another Topic
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -1259,6 +1259,97 @@ Instructions:
     res.json({ success: true, message: 'Transaction authorized by Presidential treasury' });
   });
 
+  // AI Classroom Moderator & Educational Assistant
+  app.post('/api/ai/classroom-moderator', async (req, res) => {
+    const { prompt, classroomSubject, className, generateImage } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: 'No prompt command provided' });
+    }
+
+    try {
+      console.log(`[AI MODERATOR] Generating educational lesson for: "${prompt}"`);
+
+      const systemPrompt = `You are a curriculum-aligned AI Academic Assistant and Class Moderator.
+Generate highly informative educational lesson notes, visual illustration prompts, and curated virtual reference material.
+Suggest a functional YouTube embed link (format: https://www.youtube.com/embed/<id>) that exists and provides excellent education about this topic (e.g. from highly reputable creators like TED-Ed, Crash Course, Khan Academy, Kurzgesagt, Physics Girl, SciShow, etc.).
+Structure the lesson output in comprehensive Markdown notes, including detailed sub-topics, glossary terms, definitions, and FAQs.
+Return a STRICT JSON response matching the given schema parameters.`;
+
+      const promptText = `Generate educational material and reference multimedia for the topic: "${prompt}"
+Class: "${className || 'General Academy'}"
+Course Subject: "${classroomSubject || 'General Science & Humanities'}"`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          lessonTitle: { type: Type.STRING, description: "Highly engaging, academic, and clear title of the lesson" },
+          markdownNotes: { type: Type.STRING, description: "Thorough, structured study notes of the subject formatted in rich Markdown" },
+          summary: { type: Type.STRING, description: "A simple, motivating 1-2 sentence announcement summarizing the lesson" },
+          imagePrompt: { type: Type.STRING, description: "A detailed visual description for generating a technical illustration, labeled diagram, or flat educational vector for this lesson topic" },
+          videoUrl: { type: Type.STRING, description: "A valid working YouTube embed video URL (format: https://www.youtube.com/embed/XXXXXX) from an educational source" },
+          videoExplanation: { type: Type.STRING, description: "A summary explaining this video's focus and content" },
+          interactiveExplanations: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING, description: "Glossary term or FAQ question" },
+                content: { type: Type.STRING, description: "Scientific translation, description or answer" }
+              },
+              required: ["title", "content"]
+            },
+            description: "At least 3 quick questions or definition pairs to expand comprehension"
+          }
+        },
+        required: ["lessonTitle", "markdownNotes", "summary", "imagePrompt", "videoUrl", "videoExplanation", "interactiveExplanations"]
+      };
+
+      const aiResponse = await callAiWithRetry(() => ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: promptText,
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+          responseSchema
+        }
+      }));
+
+      const parsedData = JSON.parse(aiResponse.text.trim());
+      let generatedImageBase64 = "";
+
+      if (generateImage && parsedData.imagePrompt) {
+        try {
+          console.log(`[AI MODERATOR] Requesting image generation with prompt: "${parsedData.imagePrompt}"`);
+          const imageResponse = await callAiWithRetry(() => ai.models.generateContent({
+            model: "gemini-2.5-flash-image",
+            contents: {
+              parts: [{ text: `Educational illustration: ${parsedData.imagePrompt}. High definition academic labeled flat vector art icon, isolated background, no text clutter.` }]
+            }
+          }));
+
+          for (const part of imageResponse.candidates[0].content.parts) {
+            if (part.inlineData) {
+              generatedImageBase64 = `data:image/png;base64,${part.inlineData.data}`;
+              break;
+            }
+          }
+        } catch (imgErr) {
+          console.error('[AI MODERATOR] Image synthesis failed:', imgErr);
+        }
+      }
+
+      res.json({
+        success: true,
+        ...parsedData,
+        generatedImageUrl: generatedImageBase64 || null
+      });
+
+    } catch (err: any) {
+      console.error('[AI MODERATOR] Error generating lesson notes:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to generate classroom guide' });
+    }
+  });
+
   // Global error handler for API routes (Must be after all routes)
   app.use('/api', (err: any, req: any, res: any, next: any) => {
     console.error(`API Error on ${req.method} ${req.url}:`, err);
