@@ -115,45 +115,45 @@ function getBot() {
     const newBot = new Telegraf(token);
     setupBot(newBot);
     
-    // Proactively delete any existing webhook to ensure long-polling can start
-    newBot.telegram.deleteWebhook({ drop_pending_updates: true }).then(async () => {
-      console.log('Telegram: Webhook deleted and updates dropped. Waiting for stale sessions...');
-      
-      // Add a longer delay to avoid race conditions with previous instances in dev environments
-      await delay(10000);
-      
+    // Attempt to launch the bot
+    const attemptLaunch = async () => {
       let retryCount = 0;
-      const maxRetries = 10;
+      const maxRetries = 3;
       
-      const attemptLaunch = async () => {
+      while (retryCount < maxRetries) {
         try {
-          // Use dropPendingUpdates in the launch options as well
+          // Launch the bot (Telegraf handles deleting any active webhook internally)
           await newBot.launch({ dropPendingUpdates: true });
           console.log('Telegram bot launched successfully');
           isBotLaunching = false;
+          break;
         } catch (err: any) {
           const errorCode = err.response?.error_code || err.code || err.error_code;
           const errorDesc = err.description || err.message || '';
           
-          if ((errorCode === 409 || errorDesc.includes('Conflict')) && retryCount < maxRetries) {
-            retryCount++;
-            // Exponential backoff
-            const backoff = Math.min(retryCount * 10000, 60000); 
-            console.warn(`Telegram conflict (409) detected. Another instance might be running. Retrying in ${backoff/1000}s... (Attempt ${retryCount}/${maxRetries})`);
-            await delay(backoff);
-            return attemptLaunch();
+          if (errorCode === 409 || errorDesc.includes('Conflict')) {
+            console.warn('Telegram bot: Conflict (409) detected. Another instance is already polling. Gracefully bypassing polling setup for this instance.');
+            isBotLaunching = false;
+            break;
           }
-          console.error('Failed to launch Telegram bot after retries:', err);
-          isBotLaunching = false;
-          bot = null;
+          
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.warn(`Telegram bot launch failed. Retrying in 5s... (Attempt ${retryCount}/${maxRetries}):`, err.message || err);
+            await delay(5000);
+          } else {
+            console.error('Failed to launch Telegram bot after retries:', err);
+            isBotLaunching = false;
+            bot = null;
+          }
         }
-      };
+      }
+    };
 
-      return attemptLaunch();
-    }).catch(err => {
-      console.error('Critical failure in Telegram bot initialization sequence:', err);
+    attemptLaunch().catch(err => {
+      console.error('Unexpected error in Telegram launch task:', err);
       isBotLaunching = false;
-      bot = null; 
+      bot = null;
     });
     
     // Add global error handler to prevent crashing on runtime issues

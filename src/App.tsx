@@ -3587,7 +3587,7 @@ function ExonaApp() {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
       // Set initial color based on user preference or default to white
-      const initialColor = userDoc?.telegramHeaderColor || '#FFFFFF';
+      const initialColor = userDoc?.telegramHeaderColor || '#2481CC';
       if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
         window.Telegram.WebApp.setHeaderColor(initialColor);
         window.Telegram.WebApp.setBackgroundColor(initialColor);
@@ -5782,9 +5782,11 @@ function ExonaApp() {
   const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#ffffff');
 
   useEffect(() => {
-    if (window.Telegram?.WebApp && userDoc?.telegramHeaderColor) {
+    if (window.Telegram?.WebApp) {
+      const activeColor = userDoc?.telegramHeaderColor || '#2481CC';
       if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
-        window.Telegram.WebApp.setHeaderColor(userDoc.telegramHeaderColor);
+        window.Telegram.WebApp.setHeaderColor(activeColor);
+        window.Telegram.WebApp.setBackgroundColor(activeColor);
       }
     }
   }, [userDoc?.telegramHeaderColor]);
@@ -21243,7 +21245,7 @@ function ExonaApp() {
                       <p className="text-[9px] text-muted font-medium">Customize the top bar color</p>
                     </div>
                     <div className="flex items-center gap-2">
-                       {['#FFFFFF', '#000000', '#2481CC', '#F28B82', '#FBBC04', '#34A853'].map((color) => (
+                       {['#2481CC', '#FFFFFF', '#000000', '#F28B82', '#FBBC04', '#34A853'].map((color) => (
                          <button
                            key={color}
                            onClick={async () => {
@@ -21265,14 +21267,14 @@ function ExonaApp() {
                              }
                            }}
                            className={`h-6 w-6 rounded-full border border-border transition-transform active:scale-95 ${
-                             (userDoc?.telegramHeaderColor || '#FFFFFF') === color ? 'ring-2 ring-accent ring-offset-2' : ''
+                             (userDoc?.telegramHeaderColor || '#2481CC') === color ? 'ring-2 ring-accent ring-offset-2' : ''
                            }`}
                            style={{ backgroundColor: color }}
                          />
                        ))}
                        <input 
                          type="color" 
-                         value={userDoc?.telegramHeaderColor || '#FFFFFF'}
+                         value={userDoc?.telegramHeaderColor || '#2481CC'}
                          onChange={async (e) => {
                            const color = e.target.value;
                            if (!user) return;
