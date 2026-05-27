@@ -5498,6 +5498,14 @@ function ExonaApp() {
                    places.find(p => p.id === baseSchool.id) || 
                    baseSchool;
 
+    // Direct guard for non-administrative members trying to open Records or Attendance
+    if (targetView === 'records' || targetView === 'attendance') {
+      if (!canManageInstitution(school)) {
+        showNotification('Permission Denied. You are not permitted to access Student Records or Attendance. This folder is restricted strictly to administrative members.', 'error');
+        return;
+      }
+    }
+
     if (canAccessInstitutionData(school)) {
       setSelectedSchool(school); // Sync it just in case
       setView(targetView as any);
@@ -10126,9 +10134,11 @@ function ExonaApp() {
                       if (globalSearch.trim() !== '') return true;
                       // Admins see all
                       if (userDoc?.role === 'admin') return true;
-                      // Otherwise only show created or where user is an administrative viewer
+                      // Otherwise show if created, administrative viewer, or user is follower/approved member
                       return s.creatorUid === user?.uid || 
-                             s.administrativeViewers?.includes(user?.uid || '');
+                             s.administrativeViewers?.includes(user?.uid || '') ||
+                             s.followers?.includes(user?.uid || '') ||
+                             userDoc?.following?.includes(s.id);
                     })
                     .map(school => {
                       const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -12908,11 +12918,20 @@ function ExonaApp() {
         };
 
         const handleJoinClass = async (cId: string) => {
+          const targetClass = classrooms.find(c => c.id === cId);
+          if (!targetClass) return;
+          const classCode = targetClass.code || targetClass.id.substring(0, 6).toUpperCase();
+          const enteredCode = prompt(`Please enter the Class Code Number to access and join "${targetClass.name}":`);
+          if (enteredCode === null) return; // User cancelled prompt
+          if (enteredCode.trim().toUpperCase() !== classCode.toUpperCase()) {
+            showNotification('Incorrect Class Code. Access Denied.', 'error');
+            return;
+          }
           try {
             await updateDoc(doc(db, 'classrooms', cId), {
               students: arrayUnion(user.uid)
             });
-            showNotification('Successfully registered in classroom!', 'success');
+            showNotification('Classroom code verified! Successfully joined classroom.', 'success');
           } catch (e) {
             console.error(e);
             showNotification('Enrollment failed', 'error');
@@ -13865,9 +13884,9 @@ function ExonaApp() {
                                 ) : (
                                   <button 
                                     onClick={() => handleJoinClass(c.id)}
-                                    className="flex-1 py-3 bg-slate-100 text-ink hover:bg-accent hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-colors"
+                                    className="flex-1 py-3 bg-slate-100 text-ink hover:bg-accent hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-colors flex items-center justify-center gap-1.5"
                                   >
-                                    Join Classroom
+                                    <Lock size={12} /> Unlock with Code
                                   </button>
                                 )}
                                 {isEnrolled && !isManager && (
@@ -15950,10 +15969,12 @@ function ExonaApp() {
                 </div>
               </div>
 
-              {/* Admin Quick Actions */}
-              {canManage && (
+              {/* Admin & Member Quick Actions */}
+              {(canManage || isFollowing || inst.followers?.includes(user?.uid || '')) && (
                 <div className="mb-10">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">Administrative Access</p>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
+                    {canManage ? "Administrative Access" : "Member Portal"}
+                  </p>
                   <div className="flex flex-wrap gap-3">
                     <button 
                       onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records', inst as School); }}
