@@ -2596,7 +2596,8 @@ function ExonaApp() {
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
   const [newStreamMessage, setNewStreamMessage] = useState('');
-  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant'>('stream');
+  const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant' | 'tasks'>('stream');
+  const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [classJoinCodeInput, setClassJoinCodeInput] = useState('');
   
   // AI Moderator tab local states
@@ -5552,6 +5553,29 @@ function ExonaApp() {
       setEditClassroomDesc(selectedClassroom.description || '');
       setEditClassroomCapacity(selectedClassroom.capacity || 30);
       setEditClassroomPhotoUrl(selectedClassroom.photoUrl || '');
+
+      // Determine if student to default to tasks tab automatically
+      const isManager = canManageInstitution(selectedSchool);
+      const isClassStaff = isManager || 
+                           selectedClassroom.createdByUid === user?.uid || 
+                           (selectedClassroom.coAdmins || []).includes(user?.uid || '');
+      if (!isClassStaff) {
+        setClassroomActiveTab('tasks');
+      } else {
+        setClassroomActiveTab('stream');
+      }
+
+      // Load lesson check-offs
+      try {
+        const stored = localStorage.getItem(`completed_lessons_${selectedClassroom.id}`);
+        if (stored) {
+          setCompletedLessonIds(JSON.parse(stored));
+        } else {
+          setCompletedLessonIds([]);
+        }
+      } catch (e) {
+        setCompletedLessonIds([]);
+      }
     } else {
       setEditClassroomName('');
       setEditClassroomSubject('');
@@ -5560,8 +5584,9 @@ function ExonaApp() {
       setEditClassroomDesc('');
       setEditClassroomCapacity(30);
       setEditClassroomPhotoUrl('');
+      setCompletedLessonIds([]);
     }
-  }, [selectedClassroom]);
+  }, [selectedClassroom, selectedSchool, user?.uid]);
 
   const handleClassroomLinkNavigation = async (classId: string) => {
     try {
@@ -13372,6 +13397,20 @@ function ExonaApp() {
           }
         };
 
+        const handleToggleLessonCompleted = (lessonId: string) => {
+          if (!selectedClassroom) return;
+          const isCompleted = completedLessonIds.includes(lessonId);
+          let updated: string[];
+          if (isCompleted) {
+            updated = completedLessonIds.filter(id => id !== lessonId);
+          } else {
+            updated = [...completedLessonIds, lessonId];
+            showNotification('Lesson marked as completed! Nice study progress. 📚', 'success');
+          }
+          setCompletedLessonIds(updated);
+          localStorage.setItem(`completed_lessons_${selectedClassroom.id}`, JSON.stringify(updated));
+        };
+
         return (
           <div className="flex flex-col bg-slate-50 min-h-screen pb-24">
             {/* Header Area */}
@@ -13968,57 +14007,96 @@ function ExonaApp() {
                     <h4 className="font-extrabold text-sm text-ink truncate">{selectedClassroom.name}</h4>
                   </div>
 
-                  <button 
-                    onClick={() => setClassroomActiveTab('stream')}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
-                  >
-                    <MessageSquare size={16} />
-                    Stream & Chat
-                  </button>
+                  {isClassStaff ? (
+                    <>
+                      <button 
+                        onClick={() => setClassroomActiveTab('stream')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <MessageSquare size={16} />
+                        Stream & Chat
+                      </button>
 
-                  <button 
-                    onClick={() => setClassroomActiveTab('lessons')}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
-                  >
-                    <BookOpen size={16} />
-                    Lesson Notes
-                  </button>
+                      <button 
+                        onClick={() => setClassroomActiveTab('lessons')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <BookOpen size={16} />
+                        Lesson Notes
+                      </button>
 
-                  <button 
-                    onClick={() => setClassroomActiveTab('live')}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'live' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
-                  >
-                    <Trophy size={16} />
-                    Live Assessment
-                    {selectedClassroom.liveSession?.isActive && (
-                      <span className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
-                    )}
-                  </button>
+                      <button 
+                        onClick={() => setClassroomActiveTab('live')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'live' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <Trophy size={16} />
+                        Live Assessment
+                        {selectedClassroom.liveSession?.isActive && (
+                          <span className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
+                        )}
+                      </button>
 
-                  <button 
-                    onClick={() => setClassroomActiveTab('attendance')}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'attendance' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
-                  >
-                    <CalendarCheck2 size={16} />
-                    Attendance
-                  </button>
+                      <button 
+                        onClick={() => setClassroomActiveTab('attendance')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'attendance' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <CalendarCheck2 size={16} />
+                        Attendance
+                      </button>
 
-                  <button 
-                    onClick={() => setClassroomActiveTab('members')}
-                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
-                  >
-                    <Users size={16} />
-                    Class Members
-                  </button>
+                      <button 
+                        onClick={() => setClassroomActiveTab('members')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <Users size={16} />
+                        Class Members
+                      </button>
 
-                  {isClassStaff && (
-                    <button 
-                      onClick={() => setClassroomActiveTab('ai-assistant')}
-                      className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'ai-assistant' ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100' : 'text-muted hover:bg-slate-50'}`}
-                    >
-                      <Sparkles size={16} className="text-indigo-600 animate-pulse" />
-                      AI Moderator
-                    </button>
+                      <button 
+                        onClick={() => setClassroomActiveTab('ai-assistant')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'ai-assistant' ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <Sparkles size={16} className="text-indigo-600 animate-pulse" />
+                        AI Moderator
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={() => setClassroomActiveTab('tasks')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'tasks' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <ClipboardList size={16} />
+                        My Task Board
+                        {selectedClassroom.liveSession?.isActive && !selectedClassroom.liveSession?.quizQuestion?.submittedResponses?.[user?.uid || ''] && (
+                          <span className="h-2 w-2 rounded-full bg-amber-500 ml-auto flex animate-ping shrink-0" />
+                        )}
+                      </button>
+
+                      <button 
+                        onClick={() => setClassroomActiveTab('stream')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <MessageSquare size={16} />
+                        Class Stream
+                      </button>
+
+                      <button 
+                        onClick={() => setClassroomActiveTab('lessons')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <BookOpen size={16} />
+                        Lesson Library
+                      </button>
+
+                      <button 
+                        onClick={() => setClassroomActiveTab('members')}
+                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
+                      >
+                        <Users size={16} />
+                        Classmate Directory
+                      </button>
+                    </>
                   )}
 
                   {(isManager || selectedClassroom.createdByUid === user?.uid) && (
@@ -14106,6 +14184,207 @@ function ExonaApp() {
 
                 {/* Right Side Working Panel */}
                 <div className="lg:col-span-3 min-h-[60vh]">
+                  {classroomActiveTab === 'tasks' && !isClassStaff && (
+                    <div className="space-y-6">
+                      {/* Interactive Header with progress */}
+                      <div className="bg-gradient-to-tr from-accent/90 to-accent text-white rounded-[2.5rem] p-8 shadow-sm">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-white/20 px-3 py-1 rounded-full text-white">
+                              Student Workspace
+                            </span>
+                            <h3 className="text-2xl font-black mt-2">Welcome to your Task Board</h3>
+                            <p className="text-xs text-white/85 mt-1 font-semibold max-w-md">
+                              Stay on top of active assessments, mark your daily register, and track checked-off lesson materials.
+                            </p>
+                          </div>
+                          <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-5 border border-white/10 flex items-center gap-4 shrink-0">
+                            <div>
+                              <p className="text-[10px] uppercase font-black tracking-widest text-white/80">Study Completion</p>
+                              <div className="flex items-baseline gap-1 mt-1">
+                                <span className="text-3xl font-black">
+                                  {selectedClassroom.lessons && selectedClassroom.lessons.length > 0
+                                    ? Math.round((completedLessonIds.length / selectedClassroom.lessons.length) * 100)
+                                    : 0}
+                                </span>
+                                <span className="text-xs font-semibold text-white/80">%</span>
+                              </div>
+                            </div>
+                            <div className="h-10 w-[2px] bg-white/20" />
+                            <div>
+                              <p className="text-[10px] uppercase font-black tracking-widest text-white/80">Signed Days</p>
+                              <p className="text-3xl font-black mt-1">
+                                {(selectedClassroom.attendanceSessions || []).filter(s => s.presents?.includes(user?.uid || '')).length}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* 1. ATTENDANCE SIGN-IN REGISTER TASK */}
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4 shadow-sm flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold shadow-sm">
+                                <CalendarCheck2 size={20} />
+                              </div>
+                              {(() => {
+                                const dateVal = new Date().toLocaleDateString();
+                                const sessions = selectedClassroom.attendanceSessions || [];
+                                const todaySession = sessions.find(s => s.date === dateVal);
+                                const isAttendanceMarkedToday = todaySession?.presents?.includes(user?.uid || '') || false;
+                                return isAttendanceMarkedToday ? (
+                                  <span className="text-[9px] bg-emerald-50 text-emerald-700 font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                                    ✓ Signed
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] bg-amber-50 text-amber-600 font-black uppercase tracking-widest px-2.5 py-1 rounded-full animate-pulse">
+                                    🔴 Pending Signature
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                            <h4 className="text-base font-black text-ink mt-3">Daily Attendance Sign-In</h4>
+                            <p className="text-xs text-muted font-semibold mt-1">
+                              Remember to sign today's presence register once classroom sessions have commenced.
+                            </p>
+                          </div>
+                          <div className="pt-4 border-t border-gray-50 mt-4">
+                            {(() => {
+                              const dateVal = new Date().toLocaleDateString();
+                              const sessions = selectedClassroom.attendanceSessions || [];
+                              const todaySession = sessions.find(s => s.date === dateVal);
+                              const isAttendanceMarkedToday = todaySession?.presents?.includes(user?.uid || '') || false;
+                              return isAttendanceMarkedToday ? (
+                                <div className="flex items-center gap-2 p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 text-emerald-700 text-xs font-bold">
+                                  <Check size={16} /> Marked Present for Today ({dateVal})
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={handleMarkAttend}
+                                  className="w-full py-3 bg-accent hover:opacity-95 text-white font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-sm active:scale-[0.98]"
+                                >
+                                  Sign Present Register
+                                </button>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* 2. ACTIVE LIVE QUIZ ASSESSMENT TASK */}
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4 shadow-sm flex flex-col justify-between">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center font-bold shadow-sm">
+                                <Trophy size={20} />
+                              </div>
+                              {selectedClassroom.liveSession?.isActive ? (
+                                <span className="text-[9px] bg-indigo-50 text-indigo-700 font-black uppercase tracking-widest px-2.5 py-1 rounded-full animate-bounce">
+                                  🟢 Live Assessment Active
+                                </span>
+                              ) : (
+                                <span className="text-[9px] bg-slate-50 text-muted font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
+                                  No Active Exam
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-base font-black text-ink mt-3">Live Q&A Assessment</h4>
+                            <p className="text-xs text-muted font-semibold mt-1">
+                              Participate in active quiz evaluations deployed live by your instructors in this classroom.
+                            </p>
+                          </div>
+                          
+                          <div className="pt-4 border-t border-gray-50 mt-4">
+                            {selectedClassroom.liveSession?.isActive && selectedClassroom.liveSession?.quizQuestion ? (
+                              <div>
+                                <button
+                                  onClick={() => setClassroomActiveTab('live')}
+                                  className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-black uppercase tracking-widest text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-2"
+                                >
+                                  <Sparkles size={14} /> Open Live Quiz Now
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted font-bold text-center py-2.5">
+                                No assessment active at the moment.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. LESSON MATERIAL CHECKLIST */}
+                      <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                          <div>
+                            <h4 className="text-lg font-black text-ink">Lesson Notes Checklist</h4>
+                            <p className="text-xs text-muted font-semibold">Track notes and topics you have read and studied.</p>
+                          </div>
+                          <span className="text-xs font-mono font-black text-accent bg-accent/5 px-3 py-1.5 rounded-xl">
+                            {completedLessonIds.length} / {selectedClassroom.lessons?.length || 0} Complete
+                          </span>
+                        </div>
+
+                        {(!selectedClassroom.lessons || selectedClassroom.lessons.length === 0) ? (
+                          <div className="py-8 text-center bg-slate-50/50 rounded-2xl">
+                            <p className="text-xs text-muted font-semibold">No assigned lesson notes found in this class.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {selectedClassroom.lessons.map((lesson) => {
+                              const isCompleted = completedLessonIds.includes(lesson.id);
+                              return (
+                                <div
+                                  key={lesson.id}
+                                  className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                                    isCompleted 
+                                      ? 'bg-slate-50/40 border-gray-100 opacity-90' 
+                                      : 'bg-white border-gray-100 hover:border-gray-200 hover:shadow-sm'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <button
+                                      onClick={() => handleToggleLessonCompleted(lesson.id)}
+                                      className={`h-6 w-6 rounded-lg flex items-center justify-center border transition-all shrink-0 ${
+                                        isCompleted
+                                          ? 'bg-accent border-accent text-white'
+                                          : 'border-gray-200 hover:border-accent bg-slate-50 text-transparent'
+                                      }`}
+                                    >
+                                      <Check size={14} className="stroke-[3]" />
+                                    </button>
+                                    <div className="min-w-0">
+                                      <span
+                                        className={`text-xs font-black block truncate ${
+                                          isCompleted ? 'text-slate-400 line-through' : 'text-ink'
+                                        }`}
+                                      >
+                                        {lesson.title}
+                                      </span>
+                                      <span className="text-[10px] text-muted font-mono block mt-0.5">
+                                        Published: {lesson.timestamp ? new Date(lesson.timestamp).toLocaleDateString() : ''}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <button
+                                    onClick={() => {
+                                      setClassroomActiveTab('lessons');
+                                    }}
+                                    className="px-3.5 py-1.5 bg-slate-100 hover:bg-accent hover:text-white text-ink rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors"
+                                  >
+                                    Read Note
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {classroomActiveTab === 'stream' && (
                     <div className="space-y-6">
                       {/* announcement / stream message post board */}
@@ -15996,61 +16275,31 @@ function ExonaApp() {
               {(canManage || isFollowing || inst.followers?.includes(user?.uid || '')) && (
                 <div className="mb-10">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
-                    {canManage ? "Administrative Access — Moderator Dashboard" : "Member Portal — My Tasks & Schedules"}
+                    {canManage ? "Administrative Access" : "Member Portal"}
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    {canManage ? (
-                      <>
-                        <button 
-                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records', inst as School); }}
-                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                        >
-                          <ClipboardList size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-black uppercase tracking-widest">{instLabels.student} Records</span>
-                        </button>
-                        <button 
-                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance', inst as School); }}
-                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                        >
-                          <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
-                        </button>
-                        {inst.type === 'school' && (
-                          <button 
-                            onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
-                            className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                          >
-                            <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                            <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('daily-routine', inst as School); }}
-                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                        >
-                          <Activity size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-black uppercase tracking-widest">{instLabels.routine} Planner</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {inst.type === 'school' && (
-                          <button 
-                            onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
-                            className="flex items-center gap-2 px-6 py-4 bg-accent/5 border border-accent/10 text-accent hover:bg-accent hover:text-white rounded-2xl transition-all group"
-                          >
-                            <GraduationCap size={18} className="text-accent group-hover:scale-110 group-hover:text-white transition-all" />
-                            <span className="text-xs font-black uppercase tracking-widest">Exona Classroom Portal</span>
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('daily-routine', inst as School); }}
-                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                        >
-                          <Activity size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-black uppercase tracking-widest">My Daily Routine & Schedule</span>
-                        </button>
-                      </>
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records', inst as School); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                    >
+                      <ClipboardList size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.student} Records</span>
+                    </button>
+                    <button 
+                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance', inst as School); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                    >
+                      <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
+                    </button>
+                    {inst.type === 'school' && (
+                      <button 
+                        onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
+                        className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                      >
+                        <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                        <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
+                      </button>
                     )}
                   </div>
                 </div>
