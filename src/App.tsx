@@ -9010,71 +9010,94 @@ function ExonaApp() {
     setCalcTuition('');
     setCalcPaid('');
 
-    // Only set up listeners if user is authorized to see this data
-    const canAccess = selectedSchool.creatorUid === user?.uid || 
-                     userDoc?.role === 'admin' || 
-                     selectedSchool.administrativeViewers?.includes(user?.uid || '');
+    // Pre-emptively clear all list states to prevent leakage of data between institutions
+    setRecords([]);
+    setFinance(null);
+    setAttendance([]);
+    setDailyRoutines([]);
+    setClassrooms([]);
+    setAttendancePhotos({});
 
-    if (!canAccess) {
-      setRecords([]);
-      setFinance(null);
-      setAttendance([]);
-      return;
-    }
-    
-    const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
-    const unsubRecords = onSnapshot(q, (snap) => {
-      setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-    }, (error) => {
-      console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
-      if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'studentRecords');
-      }
-    });
+    const unsubs: (() => void)[] = [];
 
-    const unsubFinance = onSnapshot(doc(db, 'finance', selectedSchool.id), (snap) => {
-      if (snap.exists()) setFinance(snap.data() as SchoolFinance);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `finance/${selectedSchool.id}`);
-    });
+    // Find the latest state-tracked version of selected school
+    const latestSchool = schools.find(s => s.id === selectedSchool.id) || 
+                         places.find(p => p.id === selectedSchool.id) || 
+                         selectedSchool;
 
-    const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
-      setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
-    }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
-      }
-    });
+    // Only set up administrative listeners if user is authorized to see administrative data
+    const canAccessAdmin = latestSchool.creatorUid === user?.uid || 
+                          userDoc?.role === 'admin' || 
+                          (latestSchool.administrativeViewers && latestSchool.administrativeViewers.includes(user?.uid || ''));
 
-    const unsubRoutines = onSnapshot(query(collection(db, 'dailyRoutines'), where('institutionId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
-      setDailyRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() } as DailyRoutine)));
-    }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'dailyRoutines');
-      }
-    });
-
-    const unsubClassrooms = onSnapshot(query(collection(db, 'classrooms'), where('schoolId', '==', selectedSchool.id)), (snap) => {
-      setClassrooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as Classroom)));
-    }, (error) => {
-      console.error('Error loading classrooms:', error);
-    });
-
-    const unsubAttendancePhotos = onSnapshot(query(collection(db, 'attendancePhotos'), where('schoolId', '==', selectedSchool.id)), (snap) => {
-      const photos: { [name: string]: string } = {};
-      snap.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.name && data.photoURL) {
-          photos[data.name] = data.photoURL;
+    if (canAccessAdmin) {
+      const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
+      const unsubRecords = onSnapshot(q, (snap) => {
+        setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+      }, (error) => {
+        console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'studentRecords');
         }
       });
-      setAttendancePhotos(photos);
-    }, (error) => {
-      console.error('Error loading attendance photos:', error);
-    });
+      unsubs.push(unsubRecords);
 
-    return () => { unsubRecords(); unsubFinance(); unsubAttendance(); unsubRoutines(); unsubClassrooms(); unsubAttendancePhotos(); };
-  }, [selectedSchool, user?.uid, userDoc?.role]);
+      const unsubFinance = onSnapshot(doc(db, 'finance', selectedSchool.id), (snap) => {
+        if (snap.exists()) setFinance(snap.data() as SchoolFinance);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `finance/${selectedSchool.id}`);
+      });
+      unsubs.push(unsubFinance);
+
+      const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
+        setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
+        }
+      });
+      unsubs.push(unsubAttendance);
+    }
+
+    // Load routine and classroom data if user has member (approved follower) or manager access
+    const canAccessMemberData = canAccessAdmin || (latestSchool.followers && latestSchool.followers.includes(user?.uid || ''));
+
+    if (canAccessMemberData) {
+      const unsubRoutines = onSnapshot(query(collection(db, 'dailyRoutines'), where('institutionId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
+        setDailyRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() } as DailyRoutine)));
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'dailyRoutines');
+        }
+      });
+      unsubs.push(unsubRoutines);
+
+      const unsubClassrooms = onSnapshot(query(collection(db, 'classrooms'), where('schoolId', '==', selectedSchool.id)), (snap) => {
+        setClassrooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as Classroom)));
+      }, (error) => {
+        console.error('Error loading classrooms:', error);
+      });
+      unsubs.push(unsubClassrooms);
+
+      const unsubAttendancePhotos = onSnapshot(query(collection(db, 'attendancePhotos'), where('schoolId', '==', selectedSchool.id)), (snap) => {
+        const photos: { [name: string]: string } = {};
+        snap.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.name && data.photoURL) {
+            photos[data.name] = data.photoURL;
+          }
+        });
+        setAttendancePhotos(photos);
+      }, (error) => {
+        console.error('Error loading attendance photos:', error);
+      });
+      unsubs.push(unsubAttendancePhotos);
+    }
+
+    return () => {
+      unsubs.forEach(unsub => unsub());
+    };
+  }, [selectedSchool, user?.uid, userDoc?.role, schools, places]);
 
   const renderIconForNotification = (type: Notification['type']) => {
     switch (type) {
@@ -15973,31 +15996,61 @@ function ExonaApp() {
               {(canManage || isFollowing || inst.followers?.includes(user?.uid || '')) && (
                 <div className="mb-10">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
-                    {canManage ? "Administrative Access" : "Member Portal"}
+                    {canManage ? "Administrative Access — Moderator Dashboard" : "Member Portal — My Tasks & Schedules"}
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    <button 
-                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records', inst as School); }}
-                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                    >
-                      <ClipboardList size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.student} Records</span>
-                    </button>
-                    <button 
-                      onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance', inst as School); }}
-                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                    >
-                      <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
-                    </button>
-                    {inst.type === 'school' && (
-                      <button 
-                        onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
-                        className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                      >
-                        <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
-                      </button>
+                    {canManage ? (
+                      <>
+                        <button 
+                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('records', inst as School); }}
+                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                        >
+                          <ClipboardList size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-black uppercase tracking-widest">{instLabels.student} Records</span>
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('attendance', inst as School); }}
+                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                        >
+                          <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
+                        </button>
+                        {inst.type === 'school' && (
+                          <button 
+                            onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
+                            className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                          >
+                            <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                            <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('daily-routine', inst as School); }}
+                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                        >
+                          <Activity size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-black uppercase tracking-widest">{instLabels.routine} Planner</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {inst.type === 'school' && (
+                          <button 
+                            onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
+                            className="flex items-center gap-2 px-6 py-4 bg-accent/5 border border-accent/10 text-accent hover:bg-accent hover:text-white rounded-2xl transition-all group"
+                          >
+                            <GraduationCap size={18} className="text-accent group-hover:scale-110 group-hover:text-white transition-all" />
+                            <span className="text-xs font-black uppercase tracking-widest">Exona Classroom Portal</span>
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('daily-routine', inst as School); }}
+                          className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                        >
+                          <Activity size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-black uppercase tracking-widest">My Daily Routine & Schedule</span>
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
