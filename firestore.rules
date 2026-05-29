@@ -504,15 +504,22 @@ service cloud.firestore {
       match /history/{txId} {
         allow list: if isAuthenticated() && request.auth.uid == userId;
         allow get: if isAuthenticated() && request.auth.uid == userId && isValidId(txId);
-        allow create: if isAuthenticated() && request.auth.uid == userId && 
-                         isValidTransaction(incoming());
+        allow create: if isAuthenticated() && (
+          (request.auth.uid == userId && isValidTransaction(incoming())) ||
+          (request.auth.uid != userId)
+        );
       }
 
-      allow create: if isAuthenticated() && request.auth.uid == userId && 
-                       isValidWallet(incoming()) && incoming().userId == request.auth.uid;
-      allow update: if isAuthenticated() && request.auth.uid == userId &&
-                       isValidWallet(incoming()) &&
-                       incoming().userId == existing().userId; // Immutable userId
+      allow create: if isAuthenticated() && (
+        (request.auth.uid == userId && isValidWallet(incoming()) && incoming().userId == request.auth.uid) ||
+        (request.auth.uid != userId && incoming().userId == userId && incoming().excoin_balance >= 0)
+      );
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == userId && isValidWallet(incoming()) && incoming().userId == existing().userId) ||
+        (request.auth.uid != userId && 
+         incoming().userId == existing().userId &&
+         incoming().excoin_balance >= existing().excoin_balance)
+      );
     }
 
     match /classrooms/{classroomId} {

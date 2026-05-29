@@ -366,28 +366,35 @@ export default function ExcoinP2PCentre({
       if (user.uid === trade.buyerUid) {
         await handleCreditExcoin(trade.amount, `P2P EX Buy fulfilled by ${trade.sellerName}`);
       } else {
-        // If current user is the seller releasing, we credit the other user (buyer) inside Firestore if possible,
-        // or since they will fetch their balance on snapshot, we write to their wallet/history! Let's do it cleanly:
+        // If current user is the seller releasing, we credit the other user (buyer) inside Firestore:
         const buyerWalletRef = doc(db, 'wallets', trade.buyerUid);
         
         await runTransaction(db, async (transaction) => {
           const buyerWalletDoc = await transaction.get(buyerWalletRef);
-          if (buyerWalletDoc.exists()) {
+          if (!buyerWalletDoc.exists()) {
+            transaction.set(buyerWalletRef, {
+              userId: trade.buyerUid,
+              balance: 0,
+              excoin_balance: trade.amount,
+              tier: 'Standard',
+              last_transaction: serverTimestamp()
+            });
+          } else {
             const currentCoins = buyerWalletDoc.data().excoin_balance || 0;
             transaction.update(buyerWalletRef, {
               excoin_balance: currentCoins + trade.amount,
               last_transaction: serverTimestamp()
             });
-            
-            const historyRef = doc(collection(db, `wallets/${trade.buyerUid}/history`));
-            transaction.set(historyRef, {
-              amount: trade.amount,
-              type: 'credit',
-              currency: 'excoins',
-              description: `P2P EX Buy from ${trade.sellerName} fulfilled`,
-              timestamp: serverTimestamp()
-            });
           }
+          
+          const historyRef = doc(collection(db, `wallets/${trade.buyerUid}/history`));
+          transaction.set(historyRef, {
+            amount: trade.amount,
+            type: 'credit',
+            currency: 'excoins',
+            description: `P2P EX Buy from ${trade.sellerName} fulfilled`,
+            timestamp: serverTimestamp()
+          });
         });
       }
 
@@ -413,21 +420,29 @@ export default function ExcoinP2PCentre({
         const sellerWalletRef = doc(db, 'wallets', trade.sellerUid);
         await runTransaction(db, async (transaction) => {
           const docSnap = await transaction.get(sellerWalletRef);
-          if (docSnap.exists()) {
+          if (!docSnap.exists()) {
+            transaction.set(sellerWalletRef, {
+              userId: trade.sellerUid,
+              balance: 0,
+              excoin_balance: trade.amount,
+              tier: 'Standard',
+              last_transaction: serverTimestamp()
+            });
+          } else {
             const currentCoins = docSnap.data().excoin_balance || 0;
             transaction.update(sellerWalletRef, {
               excoin_balance: currentCoins + trade.amount,
               last_transaction: serverTimestamp()
             });
-            const hRef = doc(collection(db, `wallets/${trade.sellerUid}/history`));
-            transaction.set(hRef, {
-              amount: trade.amount,
-              type: 'credit',
-              currency: 'excoins',
-              description: `Refund P2P Escrow - Cancelled Trade`,
-              timestamp: serverTimestamp()
-            });
           }
+          const hRef = doc(collection(db, `wallets/${trade.sellerUid}/history`));
+          transaction.set(hRef, {
+            amount: trade.amount,
+            type: 'credit',
+            currency: 'excoins',
+            description: `Refund P2P Escrow - Cancelled Trade`,
+            timestamp: serverTimestamp()
+          });
         });
       }
 
