@@ -527,5 +527,30 @@ service cloud.firestore {
         allow read, write: if isAuthenticated();
       }
     }
+
+    match /p2pOffers/{offerId} {
+      allow read, list: if true;
+      allow create: if isAuthenticated() && 
+                    request.resource.data.uid == request.auth.uid &&
+                    request.resource.data.timestamp == request.time;
+      allow update: if isAuthenticated() && (
+        resource.data.uid == request.auth.uid || 
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    match /p2pTrades/{tradeId} {
+      allow read, get, list: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+                    request.resource.data.buyerUid == request.auth.uid &&
+                    request.resource.data.timestamp == request.time;
+      allow update: if isAuthenticated() && (
+        resource.data.buyerUid == request.auth.uid || 
+        resource.data.sellerUid == request.auth.uid || 
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
   }
 }

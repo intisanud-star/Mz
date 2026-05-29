@@ -36,6 +36,7 @@ import ExonaFileShare from './components/ExonaFileShare';
 import PhotoVideoLab from './components/PhotoVideoLab';
 import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
 import CustomAppSandbox from './components/CustomAppSandbox';
+import ExcoinP2PCentre from './components/ExcoinP2PCentre';
 
 declare global {
   interface Window {
@@ -1546,6 +1547,9 @@ interface Classroom {
     content: string;
     timestamp: any;
     authorName: string;
+    imageUrl?: string | null;
+    videoUrl?: string | null;
+    videoExplanation?: string | null;
   }[];
   stream?: {
     id: string;
@@ -2595,6 +2599,7 @@ function ExonaApp() {
   const [editClassroomPhotoUrl, setEditClassroomPhotoUrl] = useState('');
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
+  const [newLessonVideoUrl, setNewLessonVideoUrl] = useState('');
   const [newStreamMessage, setNewStreamMessage] = useState('');
   const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant' | 'tasks'>('stream');
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
@@ -2604,6 +2609,7 @@ function ExonaApp() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiGenerateImage, setAiGenerateImage] = useState(true);
+  const [aiReferencePreference, setAiReferencePreference] = useState<'both' | 'image' | 'video'>('both');
   const [aiLessonResult, setAiLessonResult] = useState<{
     lessonTitle: string;
     markdownNotes: string;
@@ -13166,7 +13172,8 @@ function ExonaApp() {
                 prompt: aiPrompt,
                 classroomSubject: selectedClassroom.subject || 'General Academic',
                 className: selectedClassroom.name || 'Academy Course',
-                generateImage: aiGenerateImage
+                generateImage: aiReferencePreference === 'both' || aiReferencePreference === 'image',
+                referencePreference: aiReferencePreference
               })
             });
 
@@ -13212,7 +13219,8 @@ function ExonaApp() {
               finalContent += `\n\n---\n\n### 🔬 Lesson Graphic Aid\n![Visual Aid](${aiLessonResult.generatedImageUrl})`;
             }
             if (aiLessonResult.videoUrl) {
-              finalContent += `\n\n---\n\n### 📹 Recommended Study Video \n*[Video Summary]: ${aiLessonResult.videoExplanation}*\n\n*(Watch this educational video inside the lesson stream or on YouTube)*`;
+              const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(aiLessonResult.lessonTitle + ' tutorial help')}`;
+              finalContent += `\n\n---\n\n### 📹 Recommended Study Video \n*[Video Summary]: ${aiLessonResult.videoExplanation}*\n\n*(YouTube blocks active direct embedding sometimes: [Click here to find active clips on YouTube](${ytSearchUrl}))*\n\n<!--youtube: ${aiLessonResult.videoUrl}-->`;
             }
 
             if (aiLessonResult.interactiveExplanations && aiLessonResult.interactiveExplanations.length > 0) {
@@ -13229,7 +13237,8 @@ function ExonaApp() {
               timestamp: new Date().toISOString(),
               authorName: 'AI Educational Assistant & ' + (userDoc?.displayName || user.displayName || 'Instructor'),
               imageUrl: aiLessonResult.generatedImageUrl || null,
-              videoUrl: aiLessonResult.videoUrl || null
+              videoUrl: aiLessonResult.videoUrl || null,
+              videoExplanation: aiLessonResult.videoExplanation || null
             };
 
             await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
@@ -13297,19 +13306,51 @@ function ExonaApp() {
         const handleUploadLesson = async () => {
           if (!selectedClassroom || !newLessonTitle || !newLessonContent) return;
           try {
-            const lessonObj = {
+            let processedVideoUrl = '';
+            if (newLessonVideoUrl.trim()) {
+              const trimmed = newLessonVideoUrl.trim();
+              if (trimmed.includes('/embed/')) {
+                processedVideoUrl = trimmed;
+              } else {
+                const watchMatch = trimmed.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]+)/);
+                if (watchMatch && watchMatch[1]) {
+                  processedVideoUrl = `https://www.youtube.com/embed/${watchMatch[1]}`;
+                } else {
+                  processedVideoUrl = trimmed;
+                }
+              }
+            }
+
+            const lessonObj: any = {
               id: doc(collection(db, 'temp')).id,
               title: newLessonTitle,
               content: newLessonContent,
               timestamp: new Date().toISOString(),
               authorName: userDoc?.displayName || user.displayName || 'Instructor'
             };
+
+            if (processedVideoUrl) {
+              lessonObj.videoUrl = processedVideoUrl;
+            }
+
             await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
               lessons: arrayUnion(lessonObj)
             });
+
+            // Update local selected classroom state so it renders immediately
+            setSelectedClassroom(prev => {
+              if (!prev) return prev;
+              const prevLessons = prev.lessons || [];
+              return {
+                ...prev,
+                lessons: [...prevLessons, lessonObj]
+              };
+            });
+
             setNewLessonTitle('');
             setNewLessonContent('');
-            showNotification('Lesson content published!', 'success');
+            setNewLessonVideoUrl('');
+            showNotification('Lesson content published and synced successfully!', 'success');
           } catch (e) {
             console.error(e);
             showNotification('Failed to publish lesson', 'error');
@@ -14457,6 +14498,17 @@ function ExonaApp() {
                               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs resize-none"
                             />
                           </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">YouTube Video Link (Optional)</label>
+                            <input 
+                              type="text"
+                              placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                              value={newLessonVideoUrl}
+                              onChange={(e) => setNewLessonVideoUrl(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs"
+                            />
+                            <p className="text-[8px] text-muted font-bold mt-1 uppercase tracking-wider">Pasted YouTube links will automatically convert to playable players for all students.</p>
+                          </div>
                           <button 
                             onClick={handleUploadLesson}
                             className="px-6 py-3.5 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest block w-fit"
@@ -14471,17 +14523,159 @@ function ExonaApp() {
                         {(!selectedClassroom.lessons || selectedClassroom.lessons.length === 0) ? (
                           <p className="text-xs text-muted font-bold py-10 text-center">No lesson documents uploaded for this classroom.</p>
                         ) : (
-                          selectedClassroom.lessons.map((lesson) => (
-                            <div key={lesson.id} className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-3">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-[15px] font-black text-ink">{lesson.title}</h4>
-                                <span className="text-[9px] text-muted font-mono">{lesson.timestamp ? new Date(lesson.timestamp).toLocaleDateString() : ""}</span>
+                          selectedClassroom.lessons.map((lesson) => {
+                            // Extract video if available directly or inside the content body dynamically safely without slash-literals inside JSX
+                            let activeUiVideoUrl = lesson.videoUrl || null;
+                            const videoExplanation = lesson.videoExplanation || null;
+                            let searchWordMatch = "";
+
+                            if (lesson.content) {
+                              const content = lesson.content;
+                              // Try to find search query in legacy lessons as well
+                              const queryIdx = content.indexOf("search_query=");
+                              if (queryIdx !== -1) {
+                                const afterQuery = content.substring(queryIdx + 13);
+                                let matchVal = "";
+                                for (let i = 0; i < afterQuery.length; i++) {
+                                  const c = afterQuery[i];
+                                  if (c !== ")" && c !== "]" && c !== " " && c !== '"' && c !== "'" && c !== "&") {
+                                    matchVal += c;
+                                  } else {
+                                    break;
+                                  }
+                                }
+                                if (matchVal) {
+                                  searchWordMatch = decodeURIComponent(matchVal);
+                                }
+                              }
+
+                              // Try parsing video embed if main videoUrl field is empty
+                              if (!activeUiVideoUrl) {
+                                const embedIdx = content.indexOf("youtube.com/embed/");
+                                const watchIdx = content.indexOf("v=");
+                                const shortIdx = content.indexOf("youtu.be/");
+                                
+                                if (embedIdx !== -1) {
+                                  const afterUrl = content.substring(embedIdx + 18);
+                                  let idMatch = "";
+                                  for (let i = 0; i < afterUrl.length; i++) {
+                                    const c = afterUrl[i];
+                                    if ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c === "_" || c === "-") {
+                                      idMatch += c;
+                                    } else {
+                                      break;
+                                    }
+                                  }
+                                  if (idMatch) {
+                                    activeUiVideoUrl = "https://www.youtube.com/embed/" + idMatch;
+                                  }
+                                } else if (watchIdx !== -1) {
+                                  const afterUrl = content.substring(watchIdx + 2);
+                                  let idMatch = "";
+                                  for (let i = 0; i < afterUrl.length; i++) {
+                                    const c = afterUrl[i];
+                                    if ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c === "_" || c === "-") {
+                                      idMatch += c;
+                                    } else {
+                                      break;
+                                    }
+                                  }
+                                  if (idMatch) {
+                                    activeUiVideoUrl = "https://www.youtube.com/embed/" + idMatch;
+                                  }
+                                } else if (shortIdx !== -1) {
+                                  const afterUrl = content.substring(shortIdx + 9);
+                                  let idMatch = "";
+                                  for (let i = 0; i < afterUrl.length; i++) {
+                                    const c = afterUrl[i];
+                                    if ((c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || (c >= "0" && c <= "9") || c === "_" || c === "-") {
+                                      idMatch += c;
+                                    } else {
+                                      break;
+                                    }
+                                  }
+                                  if (idMatch) {
+                                    activeUiVideoUrl = "https://www.youtube.com/embed/" + idMatch;
+                                  }
+                                }
+                              }
+                            }
+
+                            return (
+                              <div key={lesson.id} className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4">
+                                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                  <div>
+                                    <h4 className="text-[15px] font-black text-ink">{lesson.title}</h4>
+                                    <p className="text-[9px] text-muted font-bold uppercase mt-0.5">By {lesson.authorName || 'Instructor'}</p>
+                                  </div>
+                                  <span className="text-[9px] text-muted font-mono">{lesson.timestamp ? new Date(lesson.timestamp).toLocaleDateString() : ""}</span>
+                                </div>
+                                <div className="text-[13px] text-muted prose prose-sm max-w-none leading-relaxed">
+                                  <Markdown>{lesson.content}</Markdown>
+                                </div>
+
+                                {/* Interactive Video Embed matching AI moderator video styles */}
+                                {(activeUiVideoUrl || searchWordMatch) && (
+                                  <div className="border border-gray-150 rounded-[1.8rem] p-5 bg-slate-50 space-y-4 mt-6">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <span className="bg-red-50 text-red-600 p-1.5 rounded-lg border border-red-100">
+                                          <VideoIcon size={14} className="text-red-500" />
+                                        </span>
+                                        <span className="text-[10px] text-ink font-black uppercase tracking-widest font-sans">Curated Reference Video</span>
+                                      </div>
+                                      {(searchWordMatch || activeUiVideoUrl) && (
+                                        <a 
+                                          href={searchWordMatch ? `https://www.youtube.com/results?search_query=${encodeURIComponent(searchWordMatch)}` : `https://www.youtube.com/results?search_query=${encodeURIComponent(lesson.title + ' tutorial help')}`}
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-[9px] font-black text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 uppercase tracking-widest font-sans shrink-0"
+                                        >
+                                          <Search size={10} />
+                                          Search YouTube
+                                        </a>
+                                      )}
+                                    </div>
+
+                                    {videoExplanation ? (
+                                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                                        {videoExplanation}
+                                      </p>
+                                    ) : (
+                                      <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
+                                        Use and play this recommended academic clip to master current subjects.
+                                      </p>
+                                    )}
+                                    
+                                    {activeUiVideoUrl ? (
+                                      <div className="space-y-3">
+                                        <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-150 shadow-sm bg-black">
+                                          <iframe 
+                                            src={activeUiVideoUrl}
+                                            className="absolute top-0 left-0 w-full h-full border-0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                            title={lesson.title}
+                                          />
+                                        </div>
+                                        <div className="bg-amber-50/50 border border-amber-100/75 rounded-2xl p-3 text-center">
+                                          <p className="text-[9px] text-amber-800 leading-normal font-medium leading-relaxed">
+                                            ⚠️ <strong>Video shows "unavailable"?</strong> Inside iframe preview environments, YouTube sometimes restricts local direct embeds. Click the red <strong>Search YouTube</strong> shortcut above to search and play active videos directly!
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="p-4 bg-amber-50/20 rounded-2xl border border-dashed border-amber-200 text-center">
+                                        <p className="text-[10px] text-amber-800 font-bold leading-normal">
+                                          This is a legacy lesson. Click the red <strong>Search YouTube</strong> button above to load recommended active links for: <strong>"{searchWordMatch || lesson.title}"</strong>!
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-[13px] text-muted prose prose-sm max-w-none leading-relaxed">
-                                <Markdown>{lesson.content}</Markdown>
-                              </div>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -15008,20 +15202,66 @@ function ExonaApp() {
                             </div>
                           </div>
 
-                          {/* Configuration Options */}
-                          <div className="flex items-center justify-between border-t border-slate-50 pt-4">
-                            <div className="flex items-center gap-3">
-                              <input 
-                                type="checkbox"
-                                id="generate_image_toggle"
+                          {/* Reference Configuration Picker */}
+                          <div className="border-t border-slate-100 pt-5 space-y-3">
+                            <div>
+                              <h5 className="text-[11px] font-black uppercase tracking-widest text-indigo-700 flex items-center gap-1.5">
+                                <Sparkles size={12} className="animate-pulse" />
+                                Academic Reference Configuration
+                              </h5>
+                              <p className="text-[10px] text-muted font-bold mt-0.5">
+                                Please choose the reference materials you want the AI to source for this academic lesson:
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <button
+                                type="button"
                                 disabled={aiGenerating}
-                                checked={aiGenerateImage}
-                                onChange={(e) => setAiGenerateImage(e.target.checked)}
-                                className="h-4 w-4 rounded text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                              />
-                              <label htmlFor="generate_image_toggle" className="text-[11px] font-extrabold text-ink select-none cursor-pointer">
-                                Auto-Generate Custom visual graphic/diagram using Gemini-Image Model
-                              </label>
+                                onClick={() => setAiReferencePreference('image')}
+                                className={`flex flex-col items-center justify-center py-4 px-2 rounded-2xl border text-center transition-all ${
+                                  aiReferencePreference === 'image'
+                                    ? 'bg-indigo-50/80 border-indigo-200 text-indigo-700 font-extrabold shadow-sm'
+                                    : 'bg-white border-gray-200 text-muted hover:bg-slate-50 font-bold'
+                                }`}
+                              >
+                                <ImageIcon size={18} className="mb-1 text-indigo-600" />
+                                <span className="text-[10px] uppercase tracking-widest block font-black font-sans">Picture Only</span>
+                                <span className="text-[8px] text-slate-400 font-medium block mt-0.5">Custom Diagram</span>
+                              </button>
+                              
+                              <button
+                                type="button"
+                                disabled={aiGenerating}
+                                onClick={() => setAiReferencePreference('video')}
+                                className={`flex flex-col items-center justify-center py-4 px-2 rounded-2xl border text-center transition-all ${
+                                  aiReferencePreference === 'video'
+                                    ? 'bg-indigo-50/80 border-indigo-200 text-indigo-700 font-extrabold shadow-sm'
+                                    : 'bg-white border-gray-200 text-muted hover:bg-slate-50 font-bold'
+                                }`}
+                              >
+                                <VideoIcon size={18} className="mb-1 text-red-500" />
+                                <span className="text-[10px] uppercase tracking-widest block font-black font-sans">Video Only</span>
+                                <span className="text-[8px] text-slate-400 font-medium block mt-0.5">YouTube Embed</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={aiGenerating}
+                                onClick={() => setAiReferencePreference('both')}
+                                className={`flex flex-col items-center justify-center py-4 px-2 rounded-2xl border text-center transition-all ${
+                                  aiReferencePreference === 'both'
+                                    ? 'bg-indigo-50/80 border-indigo-200 text-indigo-700 font-extrabold shadow-sm'
+                                    : 'bg-white border-gray-200 text-muted hover:bg-slate-50 font-bold'
+                                }`}
+                              >
+                                <div className="flex gap-1 items-center mb-1">
+                                  <ImageIcon size={14} className="text-indigo-600" />
+                                  <span className="text-xs text-indigo-400 font-bold">+</span>
+                                  <VideoIcon size={14} className="text-red-500" />
+                                </div>
+                                <span className="text-[10px] uppercase tracking-widest block font-black font-sans">Both Together</span>
+                                <span className="text-[8px] text-slate-400 font-medium block mt-0.5">Full Resources</span>
+                              </button>
                             </div>
                           </div>
 
@@ -15081,11 +15321,24 @@ function ExonaApp() {
                               {/* Video Explanatory Component */}
                               <div className="border border-gray-100 rounded-3xl p-5 space-y-3 bg-slate-50 flex flex-col justify-between">
                                 <div className="space-y-2">
-                                  <div className="flex items-center gap-2">
-                                    <span className="bg-red-50 text-red-600 p-1.5 rounded-lg border border-red-100">
-                                      <Trophy size={14} className="text-red-500" />
-                                    </span>
-                                    <span className="text-[10px] text-ink font-black uppercase tracking-widest">Curated Reference Video</span>
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="bg-red-50 text-red-600 p-1.5 rounded-lg border border-red-100">
+                                        <Trophy size={14} className="text-red-500" />
+                                      </span>
+                                      <span className="text-[10px] text-ink font-black uppercase tracking-widest">Curated Reference Video</span>
+                                    </div>
+                                    {aiLessonResult.lessonTitle && (
+                                      <a 
+                                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(aiLessonResult.lessonTitle + ' tutorial help')}`}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-[9px] font-black text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0 uppercase tracking-widest"
+                                      >
+                                        <Search size={10} />
+                                        Search YouTube
+                                      </a>
+                                    )}
                                   </div>
                                   <p className="text-[11px] text-slate-600 font-semibold leading-relaxed">
                                     {aiLessonResult.videoExplanation}
@@ -15093,18 +15346,25 @@ function ExonaApp() {
                                 </div>
                                 
                                 {aiLessonResult.videoUrl ? (
-                                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-md">
-                                    <iframe 
-                                      src={aiLessonResult.videoUrl}
-                                      className="absolute top-0 left-0 w-full h-full border-0"
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                      title={aiLessonResult.lessonTitle}
-                                    />
+                                  <div className="space-y-2.5">
+                                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+                                      <iframe 
+                                        src={aiLessonResult.videoUrl}
+                                        className="absolute top-0 left-0 w-full h-full border-0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        title={aiLessonResult.lessonTitle}
+                                      />
+                                    </div>
+                                    <div className="bg-amber-50/50 border border-amber-100/75 rounded-2xl p-3 text-center">
+                                      <p className="text-[9px] text-amber-800 leading-normal font-medium">
+                                        ⚠️ <strong>Video shows "unavailable"?</strong> Inside iframe preview sandboxes, YouTube sometimes restricts direct embeds of AI-recommended links. Click the red <strong>Search YouTube</strong> shortcut above to search and play active videos directly!
+                                      </p>
+                                    </div>
                                   </div>
                                 ) : (
                                   <div className="p-6 text-center text-[11px] text-muted font-bold border border-dashed border-gray-200 rounded-2xl">
-                                    No compatible reference video found
+                                    No compatible reference video was requested
                                   </div>
                                 )}
                               </div>
@@ -18999,7 +19259,7 @@ function ExonaApp() {
           { id: 'export', name: 'Download Center', description: 'Download complete institutional records and full history', icon: Download, color: 'blue-600' },
           { id: 'export-attendance', name: 'Participation Hub', description: 'Export attendance and participation records', icon: Users, color: 'orange-600' },
           { id: 'export-wallet', name: 'Wallet Center', description: 'Download wallet statements and financial history', icon: Wallet, color: 'green-600' },
-          { id: 'penalty', name: 'Penalty Board', description: 'View disciplinary records and notices', icon: ShieldAlert, color: 'red-600' },
+          { id: 'penalty', name: 'Excoin P2P', description: 'Trade Excoins securely with our active peer market', icon: Repeat, color: 'orange-500' },
           { id: 'referral', name: 'Referral Hub', description: 'Manage your referrals and rewards', icon: Gift, color: 'green-600' },
           { id: 'id-gen', name: 'ID Generator', description: 'Generate member and staff identification cards', icon: IdCard, color: 'blue-600' },
           { id: 'reports', name: 'Report Center', description: 'Generate financial and operational reports', icon: FileBarChart, color: 'purple-600' },
@@ -19537,9 +19797,9 @@ function ExonaApp() {
         if (activeTool === 'penalty') {
           return (
             <WordLayout 
-              title="Penalty Board"
-              subtitle="Disciplinary Records & Notices"
-              icon={ShieldAlert}
+              title="Excoin P2P Centre"
+              subtitle="Decentralized Peer-to-Peer Trading Platform"
+              icon={Repeat}
               branding={{ name: userInstitution?.name || selectedSchool?.name }}
               showNotification={showNotification}
               handlePrint={handlePrint}
@@ -19551,20 +19811,20 @@ function ExonaApp() {
                 <button onClick={() => setActiveTool(null)} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Tools</button>
               }
             >
-              <div className="mb-16 border-b border-gray-100 pb-12 text-center">
-                <h1 className="text-4xl font-extrabold text-ink mb-2">Institutional Conduct Report</h1>
-                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Confidential • {new Date().toLocaleDateString()}</p>
+              <div className="mb-8 border-b border-gray-100 pb-6">
+                <h1 className="text-3xl font-extrabold text-ink tracking-tight">Excoin P2P Centre</h1>
+                <p className="text-muted text-xs font-medium uppercase tracking-[0.2em] mt-1">Decentralized Trustless Escrow Exchange</p>
               </div>
 
-              <div className="flex flex-col items-center justify-center py-32 text-center">
-                <div className="h-24 w-24 bg-white text-green-600 rounded-full flex items-center justify-center mb-8 border border-gray-100">
-                  <ShieldCheck size={48} strokeWidth={1.5} />
-                </div>
-                <h3 className="font-extrabold text-3xl text-ink mb-4">Exemplary Record</h3>
-                <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
-                  No disciplinary actions or penalties have been recorded for your account. Maintain this standard of excellence.
-                </p>
-              </div>
+              <ExcoinP2PCentre
+                user={user}
+                userDoc={userDoc}
+                excoinBalance={excoinBalance}
+                handleCreditExcoin={handleCreditExcoin}
+                handleDebitExcoin={handleDebitExcoin}
+                showNotification={showNotification}
+                currencySymbol={currencySymbol}
+              />
             </WordLayout>
           );
         }
@@ -19911,9 +20171,9 @@ function ExonaApp() {
       case 'penalty': {
         return (
           <WordLayout 
-            title="Penalty Board"
-            subtitle="Disciplinary Records & Notices"
-            icon={ShieldCheck}
+            title="Excoin P2P Centre"
+            subtitle="Secure Peer-to-Peer Excoin Trading"
+            icon={Repeat}
             branding={{ name: selectedSchool?.name || 'Institution' }}
             showNotification={showNotification}
             handlePrint={handlePrint}
@@ -19923,36 +20183,24 @@ function ExonaApp() {
             hideIcon={true}
             toolbar={
               <div className="flex items-center gap-4">
-                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all">Filter</button>
-                <button className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-white hover:border-gray-300 transition-all">Export</button>
+                <button onClick={() => setView('feed')} className="px-4 py-1.5 bg-white border border-gray-200 text-ink rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all">Back to Feed</button>
               </div>
             }
           >
-            <div className="mb-16 border-b border-gray-100 pb-12 text-center">
-              <h1 className="text-4xl font-extrabold text-ink mb-2">Institutional Conduct Report</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">Confidential • {new Date().toLocaleDateString()}</p>
+            <div className="mb-8 border-b border-gray-100 pb-6">
+              <h1 className="text-3xl font-extrabold text-ink tracking-tight">Excoin P2P Centre</h1>
+              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em] mt-1">Decentralized Trustless Escrow Exchange</p>
             </div>
 
-            <div className="flex flex-col items-center justify-center py-32 text-center">
-              <div className="h-24 w-24 bg-white text-green-600 rounded-full flex items-center justify-center mb-8 border border-gray-100">
-                <ShieldCheck size={48} strokeWidth={1.5} />
-              </div>
-              <h3 className="font-extrabold text-3xl text-ink mb-4">Exemplary Record</h3>
-              <p className="text-muted text-sm font-medium max-w-sm leading-relaxed">
-                You have no active penalties or disciplinary notices. Your commitment to institutional standards is noted and appreciated.
-              </p>
-            </div>
-
-            <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
-              <div>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Institutional Document</p>
-                <p className="text-[10px] text-muted">{new Date().toLocaleString()}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Office of Conduct</p>
-                <div className="h-8 w-32 border-b border-gray-200" />
-              </div>
-            </div>
+            <ExcoinP2PCentre
+              user={user}
+              userDoc={userDoc}
+              excoinBalance={excoinBalance}
+              handleCreditExcoin={handleCreditExcoin}
+              handleDebitExcoin={handleDebitExcoin}
+              showNotification={showNotification}
+              currencySymbol={currencySymbol}
+            />
           </WordLayout>
         );
       }
@@ -22880,8 +23128,8 @@ function ExonaApp() {
                       />
                     )}
                     <SidebarItem 
-                      icon={Shield} 
-                      label="Penalty System" 
+                      icon={Repeat} 
+                      label="P2P Centre" 
                       active={view === 'penalty'} 
                       onClick={() => { setView('penalty'); setSidebarOpen(false); }} 
                     />

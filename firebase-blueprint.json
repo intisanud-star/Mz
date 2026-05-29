@@ -371,6 +371,50 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "institutionId", "creatorUid", "title", "activity"]
+    },
+    "P2POffer": {
+      "title": "P2POffer",
+      "description": "P2P Excoin buy or sell ad listing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["buy", "sell"] },
+        "amount": { "type": "number" },
+        "price": { "type": "number" },
+        "minLimit": { "type": "number" },
+        "maxLimit": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "paymentDetails": { "type": "string" },
+        "contactInfo": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] }
+      },
+      "required": ["uid", "name", "type", "amount", "price", "minLimit", "maxLimit", "paymentMethod", "paymentDetails", "contactInfo", "timestamp", "status"]
+    },
+    "P2PTrade": {
+      "title": "P2PTrade",
+      "description": "P2P active Excoin trade order match",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "offerId": { "type": "string" },
+        "buyerUid": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "sellerUid": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "amount": { "type": "number" },
+        "price": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending_payment", "paid_confirming", "completed", "cancelled"] },
+        "sellerPaymentDetails": { "type": "string" },
+        "contactInfo": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "tradeInitiatorUid": { "type": "string" }
+      },
+      "required": ["offerId", "buyerUid", "buyerName", "sellerUid", "sellerName", "amount", "price", "totalCost", "status", "timestamp"]
     }
   },
   "firestore": {
@@ -396,6 +440,8 @@
     "/wallets/{userId}/history/{txId}": { "schema": "TransactionHistory", "description": "Transaction logs" },
     "/broadcasts/{broadcastId}": { "schema": "Broadcast", "description": "Admin broadcast logs" },
     "/broadcasts/{broadcastId}/messages/{chatId}": { "schema": "BroadcastMessage", "description": "Individual message IDs for unsend/deletion" },
-    "/dailyRoutines/{routineId}": { "schema": "DailyRoutine", "description": "Institutional routine schedule" }
+    "/dailyRoutines/{routineId}": { "schema": "DailyRoutine", "description": "Institutional routine schedule" },
+    "/p2pOffers/{offerId}": { "schema": "P2POffer", "description": "P2P Excoin ad listings" },
+    "/p2pTrades/{tradeId}": { "schema": "P2PTrade", "description": "Active Excoin P2P trades" }
   }
 }

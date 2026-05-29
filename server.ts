@@ -59,7 +59,11 @@ async function callAiWithRetry(fn: () => Promise<any>, maxRetries = 3) {
     } catch (err: any) {
       lastError = err;
       const status = err.status || err.response?.status || err.error?.code;
-      const isRetryable = status === 503 || status === 429 || (err.message && err.message.includes('503'));
+      const errMsg = err.message ? err.message.toLowerCase() : '';
+      
+      // If we got a 429 or 403 but it is explicitly about quota limits/resource exhaustion, do NOT retry.
+      const isQuotaExceeded = errMsg.includes('quota') || errMsg.includes('limit') || errMsg.includes('exhausted') || errMsg.includes('rate_limit') || errMsg.includes('rate limit');
+      const isRetryable = (status === 503 || status === 429 || errMsg.includes('503')) && !isQuotaExceeded;
       
       if (isRetryable && i < maxRetries - 1) {
         const backoff = Math.pow(2, i) * 2000 + Math.random() * 1000;
@@ -73,15 +77,25 @@ async function callAiWithRetry(fn: () => Promise<any>, maxRetries = 3) {
   throw lastError;
 }
 
-// Initialize Gemini
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
+// Lazy initialization of Gemini to prevent startup crashes when GEMINI_API_KEY is not defined at module load time.
+let aiInstance: GoogleGenAI | null = null;
+function getAi(): GoogleGenAI {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY environment variable is required but missing.');
     }
+    aiInstance = new GoogleGenAI({
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
-});
+  return aiInstance;
+}
 
 // Initialize Telegram Bot
 let bot: Telegraf | null = null;
@@ -303,7 +317,7 @@ function setupBot(botInstance: Telegraf) {
         };
       }
 
-      const aiResponse = await callAiWithRetry(() => ai.models.generateContent({
+      const aiResponse = await callAiWithRetry(() => getAi().models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ parts: [{ text: promptText }, { inlineData: { mimeType, data: imageBase64 } }] }],
         config: { responseMimeType: "application/json", responseSchema }
@@ -554,7 +568,7 @@ async function startServer() {
         };
       }
 
-      const response = await callAiWithRetry(() => ai.models.generateContent({
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
           {
@@ -643,7 +657,7 @@ Instructions:
 3. Pull ALL literal text snippets, details, items, titles, names, dates, prices, phone numbers, or coordinates visible in the image, and populate them with perfect structure into "docData" matching the selected template schema.
 4. Output should be strict JSON matching the schema outlined.`;
 
-      const response = await callAiWithRetry(() => ai.models.generateContent({
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
         model: "gemini-3.5-flash",
         contents: [
           {
@@ -1059,7 +1073,7 @@ Instructions:
         For details that are missing from the prompt, use your advanced creative writing skills to populate them with highly realistic, professional, and matching placeholder values so the final document is complete, authentic, and beautiful. Do not use generic texts like "Lorem Ipsum"; instead, write realistic texts, realistic company names (like Exona, PremiumTrust Bank, etc.), genuine looking addresses, appropriate dates (near year 2026), and fully realized sections.
       `;
 
-      const response = await callAiWithRetry(() => ai.models.generateContent({
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
         model: "gemini-3.5-flash",
         contents: promptText,
         config: {
@@ -1261,23 +1275,28 @@ Instructions:
 
   // AI Classroom Moderator & Educational Assistant
   app.post('/api/ai/classroom-moderator', async (req, res) => {
-    const { prompt, classroomSubject, className, generateImage } = req.body;
+    const { prompt, classroomSubject, className, generateImage, referencePreference } = req.body;
     if (!prompt) {
       return res.status(400).json({ success: false, error: 'No prompt command provided' });
     }
 
     try {
-      console.log(`[AI MODERATOR] Generating educational lesson for: "${prompt}"`);
+      console.log(`[AI MODERATOR] Generating educational lesson for: "${prompt}" with preference "${referencePreference}"`);
+
+      const includeVideo = referencePreference === 'both' || referencePreference === 'video' || referencePreference === undefined;
+      const includeImage = referencePreference === 'both' || referencePreference === 'image' || referencePreference === undefined;
 
       const systemPrompt = `You are a curriculum-aligned AI Academic Assistant and Class Moderator.
 Generate highly informative educational lesson notes, visual illustration prompts, and curated virtual reference material.
-Suggest a functional YouTube embed link (format: https://www.youtube.com/embed/<id>) that exists and provides excellent education about this topic (e.g. from highly reputable creators like TED-Ed, Crash Course, Khan Academy, Kurzgesagt, Physics Girl, SciShow, etc.).
+${includeVideo ? 'Suggest a functional YouTube embed link (format: https://www.youtube.com/embed/<id>) that exists and provides excellent education about this topic (e.g. from highly reputable creators like TED-Ed, Crash Course, Khan Academy, Kurzgesagt, Physics Girl, SciShow, etc.).' : 'Because the user requested NO video references, you MUST populate "videoUrl" and "videoExplanation" with empty strings "".'}
+${includeImage ? 'Provide a detailed visual prompt for generating a technical illustration or labeled diagram.' : 'Because the user requested NO image visual aid, you MUST populate "imagePrompt" with an empty string "".'}
 Structure the lesson output in comprehensive Markdown notes, including detailed sub-topics, glossary terms, definitions, and FAQs.
 Return a STRICT JSON response matching the given schema parameters.`;
 
-      const promptText = `Generate educational material and reference multimedia for the topic: "${prompt}"
+      const promptText = `Generate educational material for the topic: "${prompt}"
 Class: "${className || 'General Academy'}"
-Course Subject: "${classroomSubject || 'General Science & Humanities'}"`;
+Course Subject: "${classroomSubject || 'General Science & Humanities'}"
+User configuration choice: Include Video references? ${includeVideo}. Include custom visual diagrams and illustrations? ${includeImage}.`;
 
       const responseSchema = {
         type: Type.OBJECT,
@@ -1304,7 +1323,7 @@ Course Subject: "${classroomSubject || 'General Science & Humanities'}"`;
         required: ["lessonTitle", "markdownNotes", "summary", "imagePrompt", "videoUrl", "videoExplanation", "interactiveExplanations"]
       };
 
-      const aiResponse = await callAiWithRetry(() => ai.models.generateContent({
+      const aiResponse = await callAiWithRetry(() => getAi().models.generateContent({
         model: "gemini-3.5-flash",
         contents: promptText,
         config: {
@@ -1320,7 +1339,7 @@ Course Subject: "${classroomSubject || 'General Science & Humanities'}"`;
       if (generateImage && parsedData.imagePrompt) {
         try {
           console.log(`[AI MODERATOR] Requesting image generation with prompt: "${parsedData.imagePrompt}"`);
-          const imageResponse = await callAiWithRetry(() => ai.models.generateContent({
+          const imageResponse = await callAiWithRetry(() => getAi().models.generateContent({
             model: "gemini-2.5-flash-image",
             contents: {
               parts: [{ text: `Educational illustration: ${parsedData.imagePrompt}. High definition academic labeled flat vector art icon, isolated background, no text clutter.` }]
@@ -1334,7 +1353,10 @@ Course Subject: "${classroomSubject || 'General Science & Humanities'}"`;
             }
           }
         } catch (imgErr) {
-          console.error('[AI MODERATOR] Image synthesis failed:', imgErr);
+          console.error('[AI MODERATOR] Image synthesis failed (likely due to API key quota). Falling back to dynamic academic graphic:', imgErr);
+          // Fallback to high-definition free academic photography from public source Unsplash matching the topic
+          const cleanTopic = encodeURIComponent((parsedData.lessonTitle || prompt || 'education').replace(/[^a-zA-Z0-9 ]/g, ' '));
+          generatedImageBase64 = `https://images.unsplash.com/featured/800x450/?academic,${cleanTopic || 'diagram'}`;
         }
       }
 
