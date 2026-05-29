@@ -37,6 +37,7 @@ import PhotoVideoLab from './components/PhotoVideoLab';
 import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
 import CustomAppSandbox from './components/CustomAppSandbox';
 import ExcoinP2PCentre from './components/ExcoinP2PCentre';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 declare global {
   interface Window {
@@ -2582,6 +2583,8 @@ function ExonaApp() {
   // Exona Classrooms States
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [selectedClassroom, setSelectedClassroom] = useState<Classroom | null>(null);
+  const [isEnteringClassroom, setIsEnteringClassroom] = useState(false);
+  const isEnteringClassroomRef = useRef(false);
   const [isCreateClassroomOpen, setIsCreateClassroomOpen] = useState(false);
   const [isEditClassroomOpen, setIsEditClassroomOpen] = useState(false);
   const [editingClassroomId, setEditingClassroomId] = useState<string | null>(null);
@@ -2630,6 +2633,15 @@ function ExonaApp() {
   const [activeQuizOpts, setActiveQuizOpts] = useState<string[]>(['', '', '', '']);
   const [activeQuizAns, setActiveQuizAns] = useState('');
   const [selectedQuizResp, setSelectedQuizResp] = useState('');
+
+  // Live Poll State declarations
+  const [livePollQuestion, setLivePollQuestion] = useState('');
+  const [livePollOptions, setLivePollOptions] = useState<string[]>(['', '']);
+  const [livePollCorrectIndex, setLivePollCorrectIndex] = useState<number | null>(null);
+  const [livePollSubmitting, setLivePollSubmitting] = useState(false);
+  const [studentPollSelection, setStudentPollSelection] = useState<number | null>(null);
+  const [studentPollVoting, setStudentPollVoting] = useState(false);
+
   const [deletingClassroomId, setDeletingClassroomId] = useState<string | null>(null);
   const [allRecords, setAllRecords] = useState<Record[]>([]);
   const [allAttendance, setAllAttendance] = useState<TeacherAttendance[]>([]);
@@ -3524,8 +3536,18 @@ function ExonaApp() {
   }
 
   const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+    const errorStr = error instanceof Error ? error.message : String(error);
+    if (
+      errorStr.toLowerCase().includes('quota') || 
+      errorStr.toLowerCase().includes('resource_exhausted') || 
+      errorStr.toLowerCase().includes('limit exceeded') ||
+      errorStr.toLowerCase().includes('exhausted')
+    ) {
+      setIsQuotaExceeded(true);
+    }
+
     const errInfo: FirestoreErrorInfo = {
-      error: error instanceof Error ? error.message : String(error),
+      error: errorStr,
       authInfo: {
         userId: auth.currentUser?.uid,
         email: auth.currentUser?.email,
@@ -5564,6 +5586,7 @@ function ExonaApp() {
   }, [user]);
 
   const [showPassword, setShowPassword] = useState(false);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -5655,11 +5678,40 @@ function ExonaApp() {
   useEffect(() => {
     if (selectedSchool) {
       const updated = schools.find(s => s.id === selectedSchool.id) || places.find(p => p.id === selectedSchool.id);
-      if (updated && updated !== selectedSchool) {
-        setSelectedSchool(updated as any);
+      if (updated) {
+        const hasChanged = 
+          updated.name !== selectedSchool.name || 
+          updated.photoUrl !== selectedSchool.photoUrl || 
+          (updated.followers || []).length !== (selectedSchool.followers || []).length ||
+          (updated.administrativeViewers || []).length !== (selectedSchool.administrativeViewers || []).length;
+        if (hasChanged) {
+          setSelectedSchool(updated as any);
+        }
       }
     }
-  }, [schools, places, selectedSchool]);
+  }, [schools, places, selectedSchool?.id]);
+
+  const managedFollowersTracker = useMemo(() => {
+    return [...schools, ...places]
+      .filter(inst => inst.creatorUid === user?.uid || inst.administrativeViewers?.includes(user?.uid || ''))
+      .map(inst => `${inst.id}:${(inst.followers || []).join(',')}`)
+      .join('|');
+  }, [schools, places, user?.uid]);
+
+  const managedIdsTracker = useMemo(() => {
+    return [
+      ...schools.filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')).map(s => s.id),
+      ...places.filter(p => p.creatorUid === user?.uid || p.administrativeViewers?.includes(user?.uid || '')).map(p => p.id)
+    ].join(',');
+  }, [schools, places, user?.uid]);
+
+  const selectedLatestSchoolTracker = useMemo(() => {
+    if (!selectedSchool) return '';
+    const found = schools.find(s => s.id === selectedSchool.id) || 
+                  places.find(p => p.id === selectedSchool.id) || 
+                  selectedSchool;
+    return `${found.id}:${found.creatorUid}:${(found.followers || []).length}:${(found.administrativeViewers || []).join(',')}`;
+  }, [selectedSchool, schools, places]);
 
   useEffect(() => {
     if (selectedClassroom) {
@@ -6135,7 +6187,7 @@ function ExonaApp() {
     };
     
     fetchFollowerDocs();
-  }, [user, schools, places, myFollowers, chatUsers]);
+  }, [user, managedFollowersTracker, myFollowers, chatUsers]);
   const staffCandidates = useMemo(() => {
     if (!attendance) return [];
     const recordedNames = Array.from(new Set(attendance.map(a => a.teacherName).filter(Boolean)));
@@ -6655,6 +6707,41 @@ function ExonaApp() {
   const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
+  };
+
+  /**
+   * Compresses a base64 data URL to fit within Firestore limit rules.
+   */
+  const compressDataUrl = async (dataUrl: string, maxWidth = 400, quality = 0.7): Promise<string> => {
+    if (!dataUrl || !dataUrl.startsWith('data:image/')) return dataUrl;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxWidth) {
+            width *= maxWidth / height;
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+    });
   };
 
   /**
@@ -7983,6 +8070,10 @@ function ExonaApp() {
   };
 
   const handleEnterClassroom = async (c: Classroom) => {
+    if (isEnteringClassroomRef.current) {
+      console.log('Classroom entry in progress. Double-click prevention active.');
+      return;
+    }
     if (!user) {
       showNotification('You must be logged in to access classrooms.', 'error');
       return;
@@ -8025,44 +8116,52 @@ function ExonaApp() {
       return;
     }
     
-    const success = await handleDebitExcoin(10, `Exona Classroom Entry Access: ${c.name} (10 EX Burned)`);
-    if (success) {
-      try {
-        const updatedSessions = {
-          ...paidSessions,
-          [user.uid]: now
-        };
-        const paidUsers = c.paidUsers || [];
-        const updatedPaidUsers = paidUsers.includes(user.uid) ? paidUsers : [...paidUsers, user.uid];
-        
-        await updateDoc(doc(db, 'classrooms', c.id), {
-          paidUsers: updatedPaidUsers,
-          paidSessions: updatedSessions
-        });
-        
-        showNotification('10 Excoin successfully collected and burned! 4-hour access pass activated.', 'success');
-        setSelectedClassroom({
-          ...c,
-          paidUsers: updatedPaidUsers,
-          paidSessions: updatedSessions
-        });
-        setClassroomActiveTab('stream');
-      } catch (err) {
-        console.error('Error updating classroom paid status:', err);
-        // Still allow them to enter since we successfully debited their wallet
-        const updatedSessions = {
-          ...paidSessions,
-          [user.uid]: now
-        };
-        const paidUsers = c.paidUsers || [];
-        const updatedPaidUsers = paidUsers.includes(user.uid) ? paidUsers : [...paidUsers, user.uid];
-        setSelectedClassroom({
-          ...c,
-          paidUsers: updatedPaidUsers,
-          paidSessions: updatedSessions
-        });
-        setClassroomActiveTab('stream');
+    isEnteringClassroomRef.current = true;
+    setIsEnteringClassroom(true);
+    
+    try {
+      const success = await handleDebitExcoin(10, `Exona Classroom Entry Access: ${c.name} (10 EX Burned)`);
+      if (success) {
+        try {
+          const updatedSessions = {
+            ...paidSessions,
+            [user.uid]: now
+          };
+          const paidUsers = c.paidUsers || [];
+          const updatedPaidUsers = paidUsers.includes(user.uid) ? paidUsers : [...paidUsers, user.uid];
+          
+          await updateDoc(doc(db, 'classrooms', c.id), {
+            paidUsers: updatedPaidUsers,
+            paidSessions: updatedSessions
+          });
+          
+          showNotification('10 Excoin successfully collected and burned! 4-hour access pass activated.', 'success');
+          setSelectedClassroom({
+            ...c,
+            paidUsers: updatedPaidUsers,
+            paidSessions: updatedSessions
+          });
+          setClassroomActiveTab('stream');
+        } catch (err) {
+          console.error('Error updating classroom paid status:', err);
+          // Still allow them to enter since we successfully debited their wallet
+          const updatedSessions = {
+            ...paidSessions,
+            [user.uid]: now
+          };
+          const paidUsers = c.paidUsers || [];
+          const updatedPaidUsers = paidUsers.includes(user.uid) ? paidUsers : [...paidUsers, user.uid];
+          setSelectedClassroom({
+            ...c,
+            paidUsers: updatedPaidUsers,
+            paidSessions: updatedSessions
+          });
+          setClassroomActiveTab('stream');
+        }
       }
+    } finally {
+      isEnteringClassroomRef.current = false;
+      setIsEnteringClassroom(false);
     }
   };
 
@@ -9349,7 +9448,7 @@ function ExonaApp() {
       unsubWallet();
       unsubWalletHistory();
     };
-  }, [user?.uid, userDoc?.role, userDoc?.following, schools.length, places.length, selectedSchool?.id, postsLimit]);
+  }, [user?.uid, userDoc?.role, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMorePosts) return;
@@ -9485,7 +9584,7 @@ function ExonaApp() {
     return () => {
       unsubs.forEach(unsub => unsub());
     };
-  }, [selectedSchool, user?.uid, userDoc?.role, schools, places]);
+  }, [selectedLatestSchoolTracker, user?.uid, userDoc?.role]);
 
   const renderIconForNotification = (type: Notification['type']) => {
     switch (type) {
@@ -13295,6 +13394,7 @@ function ExonaApp() {
           try {
             const newRef = doc(collection(db, 'classrooms'));
             const classCode = newRef.id.slice(0, 6).toUpperCase();
+            const finalPhotoUrl = await compressDataUrl(classroomPhotoUrl || '', 400, 0.7);
             const dataObj: Classroom = {
               id: newRef.id,
               code: classCode,
@@ -13305,7 +13405,7 @@ function ExonaApp() {
               schedule: classroomSchedule || 'No schedule set',
               description: classroomDesc || '',
               capacity: Number(classroomCapacity) || 30,
-              photoUrl: classroomPhotoUrl || '',
+              photoUrl: finalPhotoUrl,
               createdByUid: user?.uid || '',
               students: [],
               lessons: [],
@@ -13454,6 +13554,7 @@ function ExonaApp() {
             return;
           }
           try {
+            const finalPhotoUrl = await compressDataUrl(editClassroomPhotoUrl || '', 400, 0.7);
             await updateDoc(doc(db, 'classrooms', targetId), {
               name: editClassroomName,
               subject: editClassroomSubject,
@@ -13461,7 +13562,7 @@ function ExonaApp() {
               schedule: editClassroomSchedule,
               description: editClassroomDesc,
               capacity: Number(editClassroomCapacity) || 30,
-              photoUrl: editClassroomPhotoUrl
+              photoUrl: finalPhotoUrl
             });
             setIsEditClassroomOpen(false);
             setEditingClassroomId(null);
@@ -13491,6 +13592,112 @@ function ExonaApp() {
           } catch (e) {
             console.error(e);
             showNotification('Error posting stream content', 'error');
+          }
+        };
+
+        const handleLaunchLivePoll = async () => {
+          if (!selectedClassroom) return;
+          if (!livePollQuestion.trim()) {
+            showNotification('Please enter a poll question.', 'error');
+            return;
+          }
+          const validOptions = livePollOptions.map(o => o.trim()).filter(Boolean);
+          if (validOptions.length < 2) {
+            showNotification('Please add at least 2 non-empty options.', 'error');
+            return;
+          }
+
+          setLivePollSubmitting(true);
+          try {
+            const pollData = {
+              question: livePollQuestion.trim(),
+              options: validOptions,
+              correctIndex: livePollCorrectIndex !== null && livePollCorrectIndex < validOptions.length ? livePollCorrectIndex : null,
+              voters: {},
+              active: true,
+              createdAt: new Date().toISOString()
+            };
+
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              livePoll: pollData
+            });
+
+            // Post an automatic announcement to notify students
+            const pollAnnouncement = {
+              id: doc(collection(db, 'temp')).id,
+              authorUid: 'ai-moderator',
+              authorName: 'Classroom System',
+              authorPhoto: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=200',
+              content: `📊 **LIVE POLL LAUNCHED**: ${userDoc?.displayName || user.displayName || 'The instructor'} has launched a real-time classroom check!\n\n**"${livePollQuestion.trim()}"**\n\n*Head to the classroom stream to submit your answer and view live bar chart analytics!*`,
+              timestamp: new Date().toISOString()
+            };
+
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              stream: arrayUnion(pollAnnouncement)
+            });
+
+            // Reset local states
+            setLivePollQuestion('');
+            setLivePollOptions(['', '']);
+            setLivePollCorrectIndex(null);
+
+            showNotification('Live Poll successfully launched!', 'success');
+          } catch (err) {
+            console.error('Error launching live poll:', err);
+            showNotification('Failed to launch live poll', 'error');
+          } finally {
+            setLivePollSubmitting(false);
+          }
+        };
+
+        const handleEndLivePoll = async () => {
+          if (!selectedClassroom || !selectedClassroom.livePoll) return;
+          try {
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              'livePoll.active': false
+            });
+            showNotification('Live poll closed. Current results frozen.', 'info');
+          } catch (err) {
+            console.error('Error closing live poll:', err);
+            showNotification('Failed to end live poll', 'error');
+          }
+        };
+
+        const handleDeleteLivePoll = async () => {
+          if (!selectedClassroom) return;
+          const confirmReset = window.confirm('Are you sure you want to permanently clear this poll and all its student votes?');
+          if (!confirmReset) return;
+
+          try {
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              livePoll: null
+            });
+            showNotification('Live poll cleared.', 'success');
+          } catch (err) {
+            console.error('Error clearing live poll:', err);
+            showNotification('Failed to clear live poll', 'error');
+          }
+        };
+
+        const handleVoteLivePoll = async (optionIndex: number) => {
+          if (!selectedClassroom || !selectedClassroom.livePoll || !user) return;
+          if (!selectedClassroom.livePoll.active) {
+            showNotification('This poll is closed and no longer accepting response votes.', 'error');
+            return;
+          }
+
+          setStudentPollVoting(true);
+          try {
+            await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
+              [`livePoll.voters.${user.uid}`]: optionIndex
+            });
+            showNotification('Your poll answer has been counted!', 'success');
+            setStudentPollSelection(null);
+          } catch (err) {
+            console.error('Error casting vote:', err);
+            showNotification('Failed to submit vote. Please try again.', 'error');
+          } finally {
+            setStudentPollVoting(false);
           }
         };
 
@@ -13840,13 +14047,13 @@ function ExonaApp() {
 
             {/* Create Classroom Modal/Form overlay */}
             {isCreateClassroomOpen && (
-              <div className="fixed inset-0 bg-ink/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="fixed inset-0 bg-ink/70 backdrop-blur-sm z-50 overflow-y-auto flex items-start sm:items-center justify-center p-2 sm:p-4">
                 <motion.div 
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden text-ink"
+                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl text-ink my-auto animate-fade-in overflow-hidden"
                 >
-                  <div className="px-8 py-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between">
+                  <div className="px-8 py-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
                     <div>
                       <h3 className="font-extrabold text-[16px]">Create Classroom</h3>
                       <p className="text-[10px] text-muted font-black uppercase tracking-widest">School & Organisation Classroom</p>
@@ -13933,16 +14140,17 @@ function ExonaApp() {
                       {/* Drag and Drop Zone */}
                       <div 
                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        onDrop={(e) => {
+                        onDrop={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           const file = e.dataTransfer.files?.[0];
                           if (file && file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setClassroomPhotoUrl(event.target?.result as string);
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressed = await compressImage(file, 400, 0.7);
+                              setClassroomPhotoUrl(compressed);
+                            } catch (err) {
+                              console.error('Image compression failed', err);
+                            }
                           }
                         }}
                         onClick={() => document.getElementById('classroom-file-upload-create')?.click()}
@@ -13974,14 +14182,15 @@ function ExonaApp() {
                         type="file" 
                         accept="image/*" 
                         className="hidden" 
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file && file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setClassroomPhotoUrl(event.target?.result as string);
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressed = await compressImage(file, 400, 0.7);
+                              setClassroomPhotoUrl(compressed);
+                            } catch (err) {
+                              console.error('Image compression failed', err);
+                            }
                           }
                         }}
                       />
@@ -14029,11 +14238,11 @@ function ExonaApp() {
 
             {/* Edit Classroom Modal/Form overlay */}
             {isEditClassroomOpen && (
-              <div className="fixed inset-0 bg-ink/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="fixed inset-0 bg-ink/70 backdrop-blur-sm z-50 overflow-y-auto flex items-start sm:items-center justify-center p-2 sm:p-4">
                 <motion.div 
                   initial={{ scale: 0.95, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-y-auto max-h-[90vh] text-ink animate-fade-in"
+                  className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl text-ink my-auto animate-fade-in overflow-hidden"
                 >
                   <div className="px-8 py-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
                     <div>
@@ -14122,16 +14331,17 @@ function ExonaApp() {
                       {/* Drag and Drop Zone */}
                       <div 
                         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        onDrop={(e) => {
+                        onDrop={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           const file = e.dataTransfer.files?.[0];
                           if (file && file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setEditClassroomPhotoUrl(event.target?.result as string);
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressed = await compressImage(file, 400, 0.7);
+                              setEditClassroomPhotoUrl(compressed);
+                            } catch (err) {
+                              console.error('Image compression failed', err);
+                            }
                           }
                         }}
                         onClick={() => document.getElementById('classroom-file-upload-edit-modal')?.click()}
@@ -14163,14 +14373,15 @@ function ExonaApp() {
                         type="file" 
                         accept="image/*" 
                         className="hidden" 
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (file && file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              setEditClassroomPhotoUrl(event.target?.result as string);
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const compressed = await compressImage(file, 400, 0.7);
+                              setEditClassroomPhotoUrl(compressed);
+                            } catch (err) {
+                              console.error('Image compression failed', err);
+                            }
                           }
                         }}
                       />
@@ -14335,9 +14546,10 @@ function ExonaApp() {
                                 {isEnrolled || isManager ? (
                                   <button 
                                     onClick={() => handleEnterClassroom(c)}
-                                    className="flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                                    disabled={isEnteringClassroom}
+                                    className={`flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center transition-all ${isEnteringClassroom ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >
-                                    Enter Classroom
+                                    {isEnteringClassroom ? 'Entering...' : 'Enter Classroom'}
                                   </button>
                                 ) : (
                                   <button 
@@ -14661,9 +14873,11 @@ function ExonaApp() {
 
                           <button
                             onClick={() => handleEnterClassroom(selectedClassroom)}
-                            className="px-8 py-3.5 bg-accent hover:opacity-95 active:scale-95 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-sm transition-all"
+                            disabled={isEnteringClassroom}
+                            className={`px-8 py-3.5 bg-accent hover:opacity-95 active:scale-95 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-sm transition-all flex items-center justify-center gap-1.5 ${isEnteringClassroom ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
-                            Burn 10 Excoins to Enter
+                            {isEnteringClassroom && <RefreshCw size={11} className="animate-spin" />}
+                            {isEnteringClassroom ? 'Burning & Entering...' : 'Burn 10 Excoins to Enter'}
                           </button>
                         </div>
                       );
@@ -14874,6 +15088,319 @@ function ExonaApp() {
 
                   {classroomActiveTab === 'stream' && (
                     <div className="space-y-6">
+                      {/* LIVE POLL WIDGET */}
+                      {(() => {
+                        const poll = selectedClassroom.livePoll;
+                        
+                        if (poll) {
+                          const hasVoted = user && poll.voters && (user.uid in poll.voters);
+                          const userSelection = hasVoted ? poll.voters[user.uid] : null;
+                          const totalVotes = Object.values(poll.voters || {}).length;
+                          
+                          // Count votes for each option
+                          const pollResultsData = poll.options.map((option: string, idx: number) => {
+                            let count = 0;
+                            if (poll.voters) {
+                              Object.values(poll.voters).forEach((val: any) => {
+                                if (Number(val) === idx) {
+                                  count++;
+                                }
+                              });
+                            }
+                            return {
+                              name: String.fromCharCode(65 + idx),
+                              label: String.fromCharCode(65 + idx),
+                              optionText: option,
+                              votes: count,
+                            };
+                          });
+
+                          const showResults = isClassStaff || !poll.active || hasVoted;
+
+                          return (
+                            <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4 shadow-sm">
+                              <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                                <div className="flex items-center gap-2">
+                                  <Radio className="text-accent animate-pulse" size={18} />
+                                  <h4 className="text-sm font-extrabold uppercase tracking-widest text-[#0F172A]">Live Classroom Poll</h4>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {poll.active ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 text-[9px] font-black uppercase tracking-widest">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                      Active
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-500/15 text-slate-700 text-[9px] font-black uppercase tracking-widest">
+                                      Closed
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-50 border border-gray-100 rounded-2xl p-4">
+                                <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest mb-1">Question</p>
+                                <p className="text-sm font-bold text-ink whitespace-pre-wrap leading-relaxed">{poll.question}</p>
+                              </div>
+
+                              {!showResults ? (
+                                <div className="space-y-3">
+                                  <p className="text-[9px] text-muted font-bold uppercase tracking-widest mb-2">Select Your Answer:</p>
+                                  <div className="space-y-2">
+                                    {poll.options.map((opt: string, idx: number) => (
+                                      <button
+                                        type="button"
+                                        key={idx}
+                                        onClick={() => setStudentPollSelection(idx)}
+                                        className={`w-full p-4 rounded-2xl border text-left flex items-center gap-3 transition-all ${studentPollSelection === idx ? 'border-accent bg-accent/5 font-black text-accent' : 'border-gray-200 hover:bg-slate-50 text-ink'}`}
+                                      >
+                                        <div className={`h-6 w-6 rounded-lg font-bold flex items-center justify-center text-xs shrink-0 ${studentPollSelection === idx ? 'bg-accent text-white' : 'bg-slate-100 text-slate-600'}`}>
+                                          {String.fromCharCode(65 + idx)}
+                                        </div>
+                                        <span className="text-xs font-semibold">{opt}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                  <div className="flex justify-end pt-2">
+                                    <button
+                                      onClick={() => handleVoteLivePoll(studentPollSelection!)}
+                                      disabled={studentPollSelection === null || studentPollVoting}
+                                      className="flex items-center gap-2 px-6 py-3 bg-accent hover:opacity-95 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl text-center shadow-sm disabled:opacity-40 transition-all active:scale-[0.98]"
+                                    >
+                                      {studentPollVoting ? <RefreshCw size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                                      Submit Answer
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {hasVoted && (
+                                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-[10px] font-bold flex items-center gap-2">
+                                      <Check size={14} /> You answered Option {String.fromCharCode(65 + userSelection!)}: <strong className="text-emerald-950">"{poll.options[userSelection!]}"</strong>
+                                    </div>
+                                  )}
+
+                                  {totalVotes > 0 && (
+                                    <>
+                                      <p className="text-[9px] text-muted font-bold uppercase tracking-widest">Live Bar Chart Analytics:</p>
+                                      <div className="bg-slate-50 border border-slate-100 p-4 rounded-3xl h-64 w-full">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                          <BarChart
+                                            layout="vertical"
+                                            data={pollResultsData}
+                                            margin={{ top: 10, right: 30, left: 10, bottom: 5 }}
+                                          >
+                                            <XAxis type="number" allowDecimals={false} stroke="#64748b" fontSize={9} />
+                                            <YAxis dataKey="label" type="category" stroke="#64748b" fontSize={11} width={15} />
+                                            <Tooltip 
+                                              contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px' }}
+                                              itemStyle={{ color: '#38bdf8' }}
+                                              formatter={(value) => [`${value} votes`, 'Votes']}
+                                            />
+                                            <Bar dataKey="votes" radius={[0, 6, 6, 0]} barSize={16}>
+                                              {pollResultsData.map((entry: any, index: number) => {
+                                                const isCorrect = poll.correctIndex !== null && poll.correctIndex === index;
+                                                const isUserChoice = userSelection === index;
+                                                let barColor = '#4f46e5'; // default Accent Indigo
+                                                if (isCorrect) barColor = '#10b981'; // emerald
+                                                else if (isUserChoice) barColor = '#f59e0b'; // amber
+                                                return <Cell key={`cell-${index}`} fill={barColor} />;
+                                              })}
+                                              <LabelList dataKey="votes" position="right" fontSize={10} fontWeight="bold" fill="#475569" />
+                                            </Bar>
+                                          </BarChart>
+                                        </ResponsiveContainer>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  <div className="space-y-2 mt-4">
+                                    <p className="text-[9px] text-muted font-bold uppercase tracking-widest">Details ({totalVotes} total responses):</p>
+                                    {pollResultsData.map((data: any, idx: number) => {
+                                      const percent = totalVotes > 0 ? Math.round((data.votes / totalVotes) * 100) : 0;
+                                      const isCorrect = poll.correctIndex !== null && poll.correctIndex === idx;
+                                      const isUserChoice = userSelection === idx;
+                                      
+                                      return (
+                                        <div key={idx} className={`p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-50/50 border-emerald-100' : isUserChoice ? 'bg-amber-50/50 border-amber-100' : 'bg-slate-50/50 border-slate-100'} flex items-center justify-between gap-4 transition-all hover:bg-slate-50`}>
+                                          <div className="flex items-center gap-3">
+                                            <div className={`h-8 w-8 rounded-xl font-bold flex items-center justify-center text-xs shrink-0 ${isCorrect ? 'bg-emerald-100 text-emerald-800' : isUserChoice ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}`}>
+                                              {data.label}
+                                            </div>
+                                            <div>
+                                              <p className="text-xs font-black text-ink flex items-center gap-2">
+                                                {data.optionText}
+                                                {isCorrect && <span className="text-[8px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full uppercase tracking-widest">Correct</span>}
+                                                {isUserChoice && <span className="text-[8px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full uppercase tracking-widest">Your Vote</span>}
+                                              </p>
+                                              <p className="text-[10px] text-muted font-bold">{data.votes} votes</p>
+                                            </div>
+                                          </div>
+                                          <div className="text-right">
+                                            <span className="text-sm font-black text-ink">{percent}%</span>
+                                            <div className="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
+                                              <div 
+                                                style={{ width: `${percent}%` }}
+                                                className={`h-full ${isCorrect ? 'bg-emerald-500' : isUserChoice ? 'bg-amber-500' : 'bg-accent'}`}
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isClassStaff && (
+                                <div className="flex gap-2 pt-4 border-t border-gray-100 flex-wrap justify-end">
+                                  {poll.active && (
+                                    <button
+                                      onClick={handleEndLivePoll}
+                                      className="px-4 py-2 bg-slate-100 hover:bg-neutral-200 text-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                    >
+                                      🛑 End Poll
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={handleDeleteLivePoll}
+                                    className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5"
+                                  >
+                                    <Trash2 size={12} /> Clear Poll
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        // Show creation panel if instructor
+                        if (isClassStaff) {
+                          return (
+                            <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 space-y-4 shadow-sm">
+                              <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+                                <div className="flex items-center gap-2">
+                                  <BarChart3 className="text-slate-900 animate-pulse" size={18} />
+                                  <h4 className="text-sm font-extrabold uppercase tracking-widest text-[#0F172A]">Create Live Classroom Poll</h4>
+                                </div>
+                                <span className="text-[9px] text-accent bg-accent/5 px-2.5 py-0.5 rounded-full font-black uppercase tracking-widest">Instructor Panel</span>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                                    Poll Question *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    placeholder="e.g., Which data structure operates on a FIFO basis?"
+                                    value={livePollQuestion}
+                                    onChange={(e) => setLivePollQuestion(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-accent bg-slate-50 font-semibold"
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1.5 flex justify-between items-center">
+                                    <span>Options (Min 2, Max 6)</span>
+                                    <span className="font-mono text-accent text-[9px] font-bold">{livePollOptions.length} Options</span>
+                                  </label>
+                                  
+                                  <div className="space-y-2">
+                                    {livePollOptions.map((opt, idx) => (
+                                      <div key={idx} className="flex items-center gap-2">
+                                        <span className="text-xs font-black text-muted w-5 text-center">{String.fromCharCode(65 + idx)}.</span>
+                                        <input
+                                          type="text"
+                                          placeholder={`Choice Option ${idx + 1}`}
+                                          value={opt}
+                                          onChange={(e) => {
+                                            const updated = [...livePollOptions];
+                                            updated[idx] = e.target.value;
+                                            setLivePollOptions(updated);
+                                          }}
+                                          className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-xs focus:ring-1 focus:ring-accent bg-slate-50 font-semibold"
+                                        />
+                                        {livePollOptions.length > 2 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const updated = livePollOptions.filter((_, oIdx) => oIdx !== idx);
+                                              setLivePollOptions(updated);
+                                              if (livePollCorrectIndex === idx) {
+                                                setLivePollCorrectIndex(null);
+                                              } else if (livePollCorrectIndex !== null && livePollCorrectIndex > idx) {
+                                                setLivePollCorrectIndex(livePollCorrectIndex - 1);
+                                              }
+                                            }}
+                                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Remove choice option"
+                                          >
+                                            <Trash2 size={14} />
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  <div className="flex gap-2 mt-3">
+                                    {livePollOptions.length < 6 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setLivePollOptions([...livePollOptions, ''])}
+                                        className="px-3 py-1.5 border border-gray-200 hover:border-accent hover:text-accent rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 text-muted"
+                                      >
+                                        <Plus size={10} /> Add Option
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="pt-2">
+                                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">
+                                    Mark a correct answer (Optional, for interactive checks)
+                                  </label>
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => setLivePollCorrectIndex(null)}
+                                      className={`px-3 py-2 border rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${livePollCorrectIndex === null ? 'border-accent bg-accent/5 text-accent' : 'border-gray-100 hover:bg-slate-50 text-muted'}`}
+                                    >
+                                      No Correct Answer
+                                    </button>
+                                    {livePollOptions.map((opt, idx) => (
+                                      <button
+                                        type="button"
+                                        key={idx}
+                                        disabled={!opt.trim()}
+                                        onClick={() => setLivePollCorrectIndex(idx)}
+                                        className={`px-3 py-2 border rounded-xl text-[9px] font-black uppercase tracking-wider transition-all leading-snug truncate ${livePollCorrectIndex === idx ? 'border-emerald-600 bg-emerald-50 text-emerald-700' : 'border-gray-100 hover:bg-slate-50 text-muted disabled:opacity-40 disabled:cursor-not-allowed'}`}
+                                      >
+                                        Option {String.fromCharCode(65 + idx)} {opt.trim() ? `("${opt.slice(0, 10)}...")` : ''}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="pt-3 border-t border-gray-100 flex justify-end">
+                                <button
+                                  onClick={handleLaunchLivePoll}
+                                  disabled={livePollSubmitting}
+                                  className="flex items-center gap-2 px-6 py-3.5 bg-accent hover:bg-accent/90 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl text-center shadow-sm disabled:opacity-50 transition-all active:scale-[0.98]"
+                                >
+                                  {livePollSubmitting ? <RefreshCw size={12} className="animate-spin" /> : <Send size={12} />}
+                                  Launch Live Poll
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // For students when no poll is active
+                        return null;
+                      })()}
+
                       {/* announcement / stream message post board */}
                       {isClassStaff && (
                         <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6">
@@ -15485,16 +16012,17 @@ function ExonaApp() {
                           {/* Drag and Drop Zone */}
                           <div 
                             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            onDrop={(e) => {
+                            onDrop={async (e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               const file = e.dataTransfer.files?.[0];
                               if (file && file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  setEditClassroomPhotoUrl(event.target?.result as string);
-                                };
-                                reader.readAsDataURL(file);
+                                try {
+                                  const compressed = await compressImage(file, 400, 0.7);
+                                  setEditClassroomPhotoUrl(compressed);
+                                } catch (err) {
+                                  console.error('Image compression failed', err);
+                                }
                               }
                             }}
                             onClick={() => document.getElementById('classroom-file-upload-edit')?.click()}
@@ -15526,14 +16054,15 @@ function ExonaApp() {
                             type="file" 
                             accept="image/*" 
                             className="hidden" 
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (file && file.type.startsWith('image/')) {
-                                const reader = new FileReader();
-                                reader.onload = (event) => {
-                                  setEditClassroomPhotoUrl(event.target?.result as string);
-                                };
-                                reader.readAsDataURL(file);
+                                try {
+                                  const compressed = await compressImage(file, 400, 0.7);
+                                  setEditClassroomPhotoUrl(compressed);
+                                } catch (err) {
+                                  console.error('Image compression failed', err);
+                                }
                               }
                             }}
                           />
@@ -21418,6 +21947,24 @@ function ExonaApp() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
+      {/* Free Tier Quota Exhausted Warning Banner */}
+      {isQuotaExceeded && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center justify-between text-amber-900 text-xs sm:text-sm font-semibold z-[999] animate-fade-in shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="text-amber-500 animate-pulse shrink-0" size={18} />
+            <span>
+              <strong>Free-Tier Quota Limit Active:</strong> Exona's database has reached its daily free limit of 50,000 read units. The system is in read-only standby and will automatically reactivate fully at midnight.
+            </span>
+          </div>
+          <button 
+            onClick={() => setIsQuotaExceeded(false)}
+            className="text-amber-600 hover:text-amber-900 transition-colors ml-4 text-xs tracking-wider uppercase font-bold shrink-0"
+          >
+            Dimiss
+          </button>
+        </div>
+      )}
+
       {/* Global Notification */}
       <AnimatePresence>
         {notification && (

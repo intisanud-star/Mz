@@ -1208,6 +1208,10 @@ Instructions:
       res.json({ success: true, broadcasts });
     } catch (e: any) {
       console.error('Error in /api/admin/broadcasts:', e);
+      const errMsg = e.message || '';
+      if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('resource_exhausted')) {
+        return res.json({ success: true, broadcasts: [], isQuotaExceeded: true });
+      }
       res.status(500).json({ success: false, error: e.message });
     }
   });
@@ -1232,6 +1236,15 @@ Instructions:
       });
     } catch (error: any) {
       console.error('Error fetching admin stats:', error);
+      const errMsg = error.message || '';
+      if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('resource_exhausted')) {
+        return res.json({
+          success: true,
+          communitySize: 0,
+          isQuotaExceeded: true,
+          timestamp: new Date().toISOString()
+        });
+      }
       res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
     }
   });
