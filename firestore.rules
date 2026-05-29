@@ -498,7 +498,7 @@ service cloud.firestore {
     }
 
     match /wallets/{userId} {
-      allow get: if isAuthenticated() && request.auth.uid == userId && isValidId(userId);
+      allow get: if isAuthenticated() && isValidId(userId);
       allow list: if false; // Users shouldn't list all wallets
 
       match /history/{txId} {

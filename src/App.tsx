@@ -8223,7 +8223,10 @@ function ExonaApp() {
           });
         } else {
           transaction.set(recipientWalletRef, {
+            userId: wealthVerifiedRecipient.uid,
+            balance: 0,
             excoin_balance: amt,
+            tier: 'Standard',
             last_transaction: serverTimestamp()
           });
         }

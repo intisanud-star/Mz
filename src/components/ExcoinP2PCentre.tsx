@@ -567,7 +567,10 @@ export default function ExcoinP2PCentre({
           });
         } else {
           transaction.set(recipientWalletRef, {
+            userId: verifiedRecipient.uid,
+            balance: 0,
             excoin_balance: amt,
+            tier: 'Standard',
             last_transaction: serverTimestamp()
           });
         }
