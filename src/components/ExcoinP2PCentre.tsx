@@ -6,7 +6,7 @@ import {
   Landmark, Info, Filter, ArrowUpRight, ArrowDownLeft, Trash2, Coins, ExternalLink, Star
 } from 'lucide-react';
 import { 
-  collection, addDoc, doc, setDoc, updateDoc, deleteDoc, 
+  collection, addDoc, doc, setDoc, getDoc, updateDoc, deleteDoc, 
   serverTimestamp, onSnapshot, query, orderBy, where, runTransaction 
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -32,7 +32,16 @@ export default function ExcoinP2PCentre({
   currencySymbol
 }: ExcoinP2PCentreProps) {
   // Navigation & Tabs
-  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'my-ads' | 'my-trades'>('buy');
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell' | 'my-ads' | 'my-trades' | 'transfer'>('buy');
+  
+  // Direct Transfer state
+  const [targetUid, setTargetUid] = useState('');
+  const [verifiedRecipient, setVerifiedRecipient] = useState<any>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [transferAmount, setTransferAmount] = useState('');
+  const [transferNote, setTransferNote] = useState('');
+  const [isSubmittingTransfer, setIsSubmittingTransfer] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   
   // Real-time Firestore state
   const [offers, setOffers] = useState<any[]>([]);
@@ -441,6 +450,157 @@ export default function ExcoinP2PCentre({
     }
   };
 
+  // Direct Transfer Helpers
+  const handleVerifyUid = async () => {
+    const trimmed = targetUid.trim();
+    if (!trimmed) {
+      showNotification('Please enter a UID to verify.', 'error');
+      return;
+    }
+    if (trimmed === user?.uid) {
+      showNotification('You cannot transfer Excoins to yourself!', 'error');
+      setVerifiedRecipient(null);
+      return;
+    }
+    setIsVerifying(true);
+    try {
+      // 1. Try to fetch user entry
+      const userRef = doc(db, 'users', trimmed);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const d = userSnap.data();
+        setVerifiedRecipient({
+          uid: trimmed,
+          displayName: d.displayName || d.username || d.name || 'Exona User',
+          email: d.email || 'Private Workspace User',
+          institution: d.institutionName || d.school || ''
+        });
+        showNotification('Recipient workspace profile verified!', 'success');
+      } else {
+        // 2. Try to fetch wallet address directly
+        const walletRef = doc(db, 'wallets', trimmed);
+        const walletSnap = await getDoc(walletRef);
+        if (walletSnap.exists()) {
+          setVerifiedRecipient({
+            uid: trimmed,
+            displayName: 'Exona Wallet Holder',
+            email: 'Registered Wallet Address',
+            institution: ''
+          });
+          showNotification('Recipient Wallet verified!', 'success');
+        } else {
+          showNotification('System found no wallet or profile with this user ID.', 'error');
+          setVerifiedRecipient(null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Verification error. Please confirm ID spelling.', 'error');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleExecuteTransfer = async () => {
+    if (!user) {
+      showNotification('Please authenticate your workspace first.', 'error');
+      return;
+    }
+    if (!verifiedRecipient) {
+      showNotification('You must verify the beneficiary UID first!', 'error');
+      return;
+    }
+    
+    const amt = parseFloat(transferAmount);
+    if (isNaN(amt) || amt <= 0) {
+      showNotification('Please state a valid transfer volume higher than 0 EX.', 'error');
+      return;
+    }
+
+    if (excoinBalance < amt) {
+      showNotification(`Insufficient funds. Your transfer balance is ${excoinBalance} EX.`, 'error');
+      return;
+    }
+
+    setIsSubmittingTransfer(true);
+    try {
+      const senderWalletRef = doc(db, 'wallets', user.uid);
+      const recipientWalletRef = doc(db, 'wallets', verifiedRecipient.uid);
+
+      await runTransaction(db, async (transaction) => {
+        // Double check sender balance in transaction
+        const senderSnap = await transaction.get(senderWalletRef);
+        const currentSenderBalance = senderSnap.exists() ? (senderSnap.data().excoin_balance || 0) : 0;
+        if (currentSenderBalance < amt) {
+          throw new Error('Transaction execution block: Insufficient wallet balance!');
+        }
+
+        // Get recipient balance
+        const recipientSnap = await transaction.get(recipientWalletRef);
+        const currentRecipientBalance = recipientSnap.exists() ? (recipientSnap.data().excoin_balance || 0) : 0;
+
+        // Perform balance adjustments
+        transaction.update(senderWalletRef, {
+          excoin_balance: currentSenderBalance - amt,
+          last_transaction: serverTimestamp()
+        });
+
+        if (recipientSnap.exists()) {
+          transaction.update(recipientWalletRef, {
+            excoin_balance: currentRecipientBalance + amt,
+            last_transaction: serverTimestamp()
+          });
+        } else {
+          transaction.set(recipientWalletRef, {
+            excoin_balance: amt,
+            last_transaction: serverTimestamp()
+          });
+        }
+
+        // Append histories
+        const sHistRef = doc(collection(db, `wallets/${user.uid}/history`));
+        const rHistRef = doc(collection(db, `wallets/${verifiedRecipient.uid}/history`));
+
+        transaction.set(sHistRef, {
+          amount: amt,
+          type: 'debit',
+          currency: 'excoins',
+          description: `Direct wallet transfer to ${verifiedRecipient.displayName}. Note: ${transferNote || 'None'}`,
+          timestamp: serverTimestamp()
+        });
+
+        transaction.set(rHistRef, {
+          amount: amt,
+          type: 'credit',
+          currency: 'excoins',
+          description: `Direct wallet transfer from ${userDoc?.displayName || user.email || 'Exona Peer'}. Note: ${transferNote || 'None'}`,
+          timestamp: serverTimestamp()
+        });
+      });
+
+      showNotification(`Successfully transferred ${amt} EX to ${verifiedRecipient.displayName}!`, 'success');
+      
+      // Cleanup transfer state
+      setTransferAmount('');
+      setTransferNote('');
+      setTargetUid('');
+      setVerifiedRecipient(null);
+    } catch (err: any) {
+      console.error(err);
+      showNotification(err.message || 'Direct UID transfer failed.', 'error');
+    } finally {
+      setIsSubmittingTransfer(false);
+    }
+  };
+
+  const handleCopyUid = () => {
+    if (!user?.uid) return;
+    navigator.clipboard.writeText(user.uid);
+    setIsCopied(true);
+    showNotification('System User ID copied to clipboard!', 'success');
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   // Filter listings based on criteria
   const filteredOffers = offers.filter(ad => {
     // 1. Filter type: 
@@ -575,6 +735,12 @@ export default function ExcoinP2PCentre({
           >
             <Clock size={14} /> Orders ({trades.length})
           </button>
+          <button
+            onClick={() => setActiveTab('transfer')}
+            className={`flex-1 lg:flex-none px-4 py-2.5 rounded-xl font-extrabold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${activeTab === 'transfer' ? 'bg-white text-orange-600 shadow-sm' : 'text-muted hover:text-ink'}`}
+          >
+            <Send size={14} /> Send & Receive
+          </button>
         </div>
 
         {/* Directory Search & Filter fields */}
@@ -617,6 +783,181 @@ export default function ExcoinP2PCentre({
 
       {/* Main List Rendering */}
       <div className="space-y-4">
+        {activeTab === 'transfer' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
+            {/* Left side: Receive Excoin & Copy UID Card */}
+            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-12 w-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-500">
+                    <ArrowDownLeft size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-xl font-bold text-ink">Receive Excoin</h4>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.1em]">Share your UID to receive payments</p>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 border border-gray-100 p-6 rounded-[2rem] gap-4 mb-6">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-muted block mb-3">Your Secure Wallet Address</span>
+                  
+                  <div className="flex items-center gap-3 bg-white p-3.5 border border-gray-100 rounded-xl relative">
+                    <div className="bg-orange-500/10 text-orange-600 font-mono text-xs font-bold px-2 py-1.5 rounded-lg select-all max-w-[12rem] sm:max-w-xs overflow-x-auto whitespace-nowrap scrollbar-none">
+                      {user?.uid || 'Unknown Address'}
+                    </div>
+                    <button 
+                      onClick={handleCopyUid}
+                      className="ml-auto h-9 px-4 bg-gray-50 hover:bg-gray-100 text-ink rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all border border-gray-200/50"
+                    >
+                      {isCopied ? <Check size={14} className="text-green-600" /> : <Copy size={13} />}
+                      {isCopied ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+
+                  <div className="mt-5 space-y-3.5 border-t border-gray-100 pt-5">
+                    <div className="flex items-center gap-2 text-xs text-muted">
+                      <div className="h-1.5 w-1.5 bg-green-500 rounded-full" />
+                      <span>Transfers are fully instant and settlement is done automatically.</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted">
+                      <div className="h-1.5 w-1.5 bg-green-500 rounded-full" />
+                      <span>Funds are pulled directly from sender's excoin balance.</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* FAQ Tips */}
+                <div className="bg-amber-50/40 border border-amber-50 p-6 rounded-[2rem]">
+                  <div className="flex gap-3">
+                    <ShieldCheck size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h5 className="font-extrabold text-[11px] uppercase tracking-widest text-amber-800 mb-1">Direct Transfer Security</h5>
+                      <p className="text-xs text-amber-700/80 leading-relaxed font-normal">
+                        Every direct peer transfer is written into the secure Exona dual-currency ledger. Make sure the sender double-checks the display name before releasing any volume.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side: Send Excoin Form */}
+            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 flex flex-col">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="h-12 w-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500">
+                  <Send size={20} />
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-ink">Send Excoin via UID</h4>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.1em]">Instant secure peer-to-peer sending</p>
+                </div>
+              </div>
+
+              <div className="space-y-5 flex-1">
+                {/* Beneficiary UID Input */}
+                <div>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-2">Recipient UID (User ID)</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      placeholder="e.g. kJu87yUjH764G6g..."
+                      value={targetUid}
+                      onChange={(e) => {
+                        setTargetUid(e.target.value);
+                        setVerifiedRecipient(null); // Clear previous if input changes
+                      }}
+                      className="flex-1 px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-xs font-bold text-ink outline-none focus:bg-white focus:border-gray-200 transition-all font-mono"
+                    />
+                    <button
+                      onClick={handleVerifyUid}
+                      disabled={isVerifying || !targetUid.trim()}
+                      className="px-4 bg-ink hover:bg-ink/90 disabled:bg-gray-200 disabled:text-muted text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                    >
+                      {isVerifying ? 'Checking...' : 'Verify'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Verified Recipient Card */}
+                {verifiedRecipient && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+                        <UserCheck size={18} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-extrabold text-sm text-ink leading-tight">{verifiedRecipient.displayName}</p>
+                          <CheckCircle2 size={14} className="text-emerald-500" />
+                        </div>
+                        <p className="text-[10px] text-muted font-mono tracking-tight mt-0.5">{verifiedRecipient.email}</p>
+                        {verifiedRecipient.institution && (
+                          <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider mt-0.5">{verifiedRecipient.institution}</p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Transfer Amount */}
+                <div>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-2">Transfer Amount (EX)</label>
+                  <div className="relative">
+                    <input 
+                      type="number" 
+                      placeholder="0.00"
+                      value={transferAmount}
+                      onChange={(e) => setTransferAmount(e.target.value)}
+                      className="w-full pl-5 pr-12 py-3 bg-gray-50 border border-transparent rounded-xl text-xs font-bold text-ink outline-none focus:bg-white focus:border-gray-200 transition-all font-mono"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted uppercase tracking-wider">EX</span>
+                  </div>
+                  <div className="flex justify-between items-center mt-1.5 px-1">
+                    <span className="text-[9px] text-muted font-bold block">Available Balance: {excoinBalance} EX</span>
+                    {excoinBalance > 0 && (
+                      <button 
+                        onClick={() => setTransferAmount(excoinBalance.toString())}
+                        className="text-[9px] font-extrabold text-orange-500 hover:text-orange-600 uppercase"
+                      >
+                        Send Max
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Optional description note */}
+                <div>
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-2">Description Note (Optional)</label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. Reimbursement for lunch"
+                    value={transferNote}
+                    onChange={(e) => setTransferNote(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-xs font-bold text-ink outline-none focus:bg-white focus:border-gray-200 transition-all"
+                  />
+                </div>
+
+                <div className="pt-4 border-t border-gray-150">
+                  <button
+                    onClick={handleExecuteTransfer}
+                    disabled={isSubmittingTransfer || !verifiedRecipient || !transferAmount || parseFloat(transferAmount) <= 0}
+                    className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-100 disabled:text-muted text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/10"
+                  >
+                    {isSubmittingTransfer ? 'Processing Transfer...' : 'Execute Instant Transfer'} <ArrowRightLeft size={14} />
+                  </button>
+                  <p className="text-[9px] text-center text-muted font-bold uppercase tracking-wider mt-3">
+                    ⚠ Warning: Peer-to-peer transfers are non-refundable once committed.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'my-ads' && (
           <div className="bg-white rounded-[2rem] border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-50 flex justify-between items-center bg-gray-50/20">

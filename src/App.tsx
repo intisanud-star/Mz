@@ -3478,6 +3478,13 @@ function ExonaApp() {
   const [isGhostIdentityEnabled, setIsGhostIdentityEnabled] = useState(false);
   const [isBiometricGuardEnabled, setIsBiometricGuardEnabled] = useState(true);
   const [isExonWealthOpen, setIsExonWealthOpen] = useState(false);
+  const [wealthTargetUid, setWealthTargetUid] = useState('');
+  const [wealthVerifiedRecipient, setWealthVerifiedRecipient] = useState<any>(null);
+  const [wealthIsVerifying, setWealthIsVerifying] = useState(false);
+  const [wealthTransferAmount, setWealthTransferAmount] = useState('');
+  const [wealthTransferNote, setWealthTransferNote] = useState('');
+  const [wealthIsSubmitting, setWealthIsSubmitting] = useState(false);
+  const [wealthIsCopied, setWealthIsCopied] = useState(false);
   const [exonWallet, setExonWallet] = useState<ExonWallet | null>(null);
   const [exonHistory, setExonHistory] = useState<ExonTransaction[]>([]);
   const [excoinBalance, setExcoinBalance] = useState(0);
@@ -5246,6 +5253,117 @@ function ExonaApp() {
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-ink">Exchange Gate</span>
                 </button>
+              </div>
+
+              {/* Send & Receive Excoins via UID Section */}
+              <div className="mb-12 p-6 bg-orange-500/[0.03] rounded-[2.5rem] border border-orange-500/10">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-10 w-10 bg-orange-500/15 text-orange-600 rounded-2xl flex items-center justify-center">
+                    <Repeat size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-ink uppercase tracking-wider">Direct P2P Excoin Gate</h4>
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-wider mt-0.5">Send and Receive via UID</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Receive Panel */}
+                  <div className="bg-white p-5 rounded-2xl border border-gray-100">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted block mb-2.5">Your Receiving ID</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-gray-50 border border-gray-100 px-3.5 py-2.5 rounded-xl font-mono text-[10px] text-orange-600 font-bold overflow-x-auto whitespace-nowrap scrollbar-none select-all">
+                        {user?.uid || 'Unknown UID'}
+                      </div>
+                      <button 
+                        onClick={handleWealthCopyUid}
+                        className="bg-gray-50 border border-gray-100 p-2.5 rounded-xl hover:bg-gray-100 transition-all text-muted hover:text-ink active:scale-95 flex items-center justify-center"
+                        title="Copy UID to clipboard"
+                      >
+                        {wealthIsCopied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Send Panel */}
+                  <div className="space-y-4">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-muted block">Transfer Excoins</span>
+                    
+                    {/* Recipient Input & Verify */}
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Paste recipient UID here..."
+                        value={wealthTargetUid}
+                        onChange={(e) => {
+                          setWealthTargetUid(e.target.value);
+                          setWealthVerifiedRecipient(null);
+                        }}
+                        className="flex-1 px-4 py-3 bg-gray-50 border border-transparent rounded-xl text-[11px] font-bold text-ink outline-none focus:bg-white focus:border-gray-150 transition-all font-mono"
+                      />
+                      <button
+                        onClick={handleWealthVerifyUid}
+                        disabled={wealthIsVerifying || !wealthTargetUid.trim()}
+                        className="px-4 bg-ink text-white disabled:bg-gray-100 disabled:text-muted rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-black"
+                      >
+                        {wealthIsVerifying ? 'Checking' : 'Verify'}
+                      </button>
+                    </div>
+
+                    {/* Verified Card */}
+                    {wealthVerifiedRecipient && (
+                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-8 w-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center">
+                            <UserCheck size={14} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <p className="font-extrabold text-xs text-ink">{wealthVerifiedRecipient.displayName}</p>
+                              <CheckCircle2 size={12} className="text-emerald-500" />
+                            </div>
+                            <p className="text-[9px] text-muted font-mono leading-tight mt-0.5">{wealthVerifiedRecipient.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Transfer Amount Input */}
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        placeholder="0.00 EX"
+                        value={wealthTransferAmount}
+                        onChange={(e) => setWealthTransferAmount(e.target.value)}
+                        className="w-full pl-4 pr-16 py-3 bg-gray-50 border border-transparent rounded-xl text-[11px] font-bold text-ink outline-none focus:bg-white focus:border-gray-150 transition-all font-mono"
+                      />
+                      <button
+                        onClick={() => setWealthTransferAmount(excoinBalance.toString())}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-orange-500 hover:text-orange-600 uppercase tracking-widest"
+                      >
+                        Send Max
+                      </button>
+                    </div>
+
+                    {/* Note Input */}
+                    <input 
+                      type="text" 
+                      placeholder="Add an optional memo..."
+                      value={wealthTransferNote}
+                      onChange={(e) => setWealthTransferNote(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-transparent rounded-xl text-[11px] font-bold text-ink outline-none focus:bg-white focus:border-gray-150 transition-all"
+                    />
+
+                    {/* Submit Button */}
+                    <button
+                      onClick={handleWealthExecuteTransfer}
+                      disabled={wealthIsSubmitting || !wealthVerifiedRecipient || !wealthTransferAmount || parseFloat(wealthTransferAmount) <= 0}
+                      className="w-full py-3 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-100 disabled:text-muted text-white rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shadow-md shadow-orange-500/10"
+                    >
+                      {wealthIsSubmitting ? 'Transferring...' : 'Send Excoins'} <Send size={12} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* History */}
@@ -8004,6 +8122,157 @@ function ExonaApp() {
         handleFirestoreError(error, OperationType.UPDATE, `wallets/${user.uid}`);
       }
     }
+  };
+
+  const handleWealthVerifyUid = async () => {
+    const trimmed = wealthTargetUid.trim();
+    if (!trimmed) {
+      showNotification('Please enter a UID to verify.', 'error');
+      return;
+    }
+    if (trimmed === user?.uid) {
+      showNotification('You cannot transfer Excoins to yourself!', 'error');
+      setWealthVerifiedRecipient(null);
+      return;
+    }
+    setWealthIsVerifying(true);
+    try {
+      const userRef = doc(db, 'users', trimmed);
+      const userSnap = await getDoc(userRef);
+      if (userSnap.exists()) {
+        const d = userSnap.data();
+        setWealthVerifiedRecipient({
+          uid: trimmed,
+          displayName: d.displayName || d.username || d.name || 'Exona User',
+          email: d.email || 'Private Workspace User',
+          institution: d.institutionName || d.school || ''
+        });
+        showNotification('Recipient workspace profile verified!', 'success');
+      } else {
+        const walletRef = doc(db, 'wallets', trimmed);
+        const walletSnap = await getDoc(walletRef);
+        if (walletSnap.exists()) {
+          setWealthVerifiedRecipient({
+            uid: trimmed,
+            displayName: 'Exona Wallet Holder',
+            email: 'Registered Wallet Address',
+            institution: ''
+          });
+          showNotification('Recipient Wallet verified!', 'success');
+        } else {
+          showNotification('System found no wallet or profile with this user ID.', 'error');
+          setWealthVerifiedRecipient(null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Verification error. Please confirm ID spelling.', 'error');
+    } finally {
+      setWealthIsVerifying(false);
+    }
+  };
+
+  const handleWealthExecuteTransfer = async () => {
+    if (!user) {
+      showNotification('Please authenticate your workspace first.', 'error');
+      return;
+    }
+    if (!wealthVerifiedRecipient) {
+      showNotification('You must verify the beneficiary UID first!', 'error');
+      return;
+    }
+    
+    const amt = parseFloat(wealthTransferAmount);
+    if (isNaN(amt) || amt <= 0) {
+      showNotification('Please state a valid transfer volume higher than 0 EX.', 'error');
+      return;
+    }
+
+    if (excoinBalance < amt) {
+      showNotification(`Insufficient funds. Your transfer balance is ${excoinBalance} EX.`, 'error');
+      return;
+    }
+
+    setWealthIsSubmitting(true);
+    try {
+      const senderWalletRef = doc(db, 'wallets', user.uid);
+      const recipientWalletRef = doc(db, 'wallets', wealthVerifiedRecipient.uid);
+
+      await runTransaction(db, async (transaction) => {
+        // Double check sender balance in transaction
+        const senderSnap = await transaction.get(senderWalletRef);
+        const currentSenderBalance = senderSnap.exists() ? (senderSnap.data().excoin_balance || 0) : 0;
+        if (currentSenderBalance < amt) {
+          throw new Error('Transaction execution block: Insufficient wallet balance!');
+        }
+
+        // Get recipient balance
+        const recipientSnap = await transaction.get(recipientWalletRef);
+        const currentRecipientBalance = recipientSnap.exists() ? (recipientSnap.data().excoin_balance || 0) : 0;
+
+        // Perform balance adjustments
+        transaction.update(senderWalletRef, {
+          excoin_balance: currentSenderBalance - amt,
+          last_transaction: serverTimestamp()
+        });
+
+        if (recipientSnap.exists()) {
+          transaction.update(recipientWalletRef, {
+            excoin_balance: currentRecipientBalance + amt,
+            last_transaction: serverTimestamp()
+          });
+        } else {
+          transaction.set(recipientWalletRef, {
+            excoin_balance: amt,
+            last_transaction: serverTimestamp()
+          });
+        }
+
+        // Append histories
+        const sHistRef = doc(collection(db, `wallets/${user.uid}/history`));
+        const rHistRef = doc(collection(db, `wallets/${wealthVerifiedRecipient.uid}/history`));
+
+        transaction.set(sHistRef, {
+          amount: amt,
+          type: 'debit',
+          currency: 'excoins',
+          description: `Direct wallet transfer to ${wealthVerifiedRecipient.displayName}. Note: ${wealthTransferNote || 'None'}`,
+          timestamp: serverTimestamp()
+        });
+
+        transaction.set(rHistRef, {
+          amount: amt,
+          type: 'credit',
+          currency: 'excoins',
+          description: `Direct wallet transfer from ${userDoc?.displayName || user.email || 'Exona Peer'}. Note: ${wealthTransferNote || 'None'}`,
+          timestamp: serverTimestamp()
+        });
+      });
+
+      showNotification(`Successfully transferred ${amt} EX to ${wealthVerifiedRecipient.displayName}!`, 'success');
+      
+      // Update local wallet balance state
+      setExcoinBalance(prev => prev - amt);
+      
+      // Cleanup transfer state
+      setWealthTransferAmount('');
+      setWealthTransferNote('');
+      setWealthTargetUid('');
+      setWealthVerifiedRecipient(null);
+    } catch (err: any) {
+      console.error(err);
+      showNotification(err.message || 'Direct UID transfer failed.', 'error');
+    } finally {
+      setWealthIsSubmitting(false);
+    }
+  };
+
+  const handleWealthCopyUid = () => {
+    if (!user?.uid) return;
+    navigator.clipboard.writeText(user.uid);
+    setWealthIsCopied(true);
+    showNotification('System User ID copied to clipboard!', 'success');
+    setTimeout(() => setWealthIsCopied(false), 2000);
   };
 
   const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string) => {
