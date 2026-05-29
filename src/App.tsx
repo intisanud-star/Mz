@@ -1585,6 +1585,8 @@ interface Classroom {
     presents: string[];
   }[];
   coAdmins?: string[];
+  paidUsers?: string[];
+  paidSessions?: { [uid: string]: number };
 }
 
 interface School {
@@ -3624,8 +3626,8 @@ function ExonaApp() {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
-      // Set initial color based on user preference or default to white
-      const initialColor = userDoc?.telegramHeaderColor || '#2481CC';
+      // Set initial color based on user preference or default to black
+      const initialColor = (userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC') ? userDoc.telegramHeaderColor : '#000000';
       if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
         window.Telegram.WebApp.setHeaderColor(initialColor);
         window.Telegram.WebApp.setBackgroundColor(initialColor);
@@ -5755,8 +5757,7 @@ function ExonaApp() {
         });
       }
       
-      setSelectedClassroom(classData);
-      setClassroomActiveTab('stream');
+      await handleEnterClassroom(classData);
       showNotification(`Redirected to ${classData.name}!`, 'success');
     } catch (err) {
       console.error('Error navigating to classroom:', err);
@@ -6064,11 +6065,11 @@ function ExonaApp() {
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#ffffff');
+  const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#000000');
 
   useEffect(() => {
     if (window.Telegram?.WebApp) {
-      const activeColor = userDoc?.telegramHeaderColor || '#2481CC';
+      const activeColor = (userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC') ? userDoc.telegramHeaderColor : '#000000';
       if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
         window.Telegram.WebApp.setHeaderColor(activeColor);
         window.Telegram.WebApp.setBackgroundColor(activeColor);
@@ -7978,6 +7979,90 @@ function ExonaApp() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
       return false;
+    }
+  };
+
+  const handleEnterClassroom = async (c: Classroom) => {
+    if (!user) {
+      showNotification('You must be logged in to access classrooms.', 'error');
+      return;
+    }
+    const isOwner = c.createdByUid === user.uid;
+    if (isOwner) {
+      setSelectedClassroom(c);
+      setClassroomActiveTab('stream');
+      return;
+    }
+    
+    const paidSessions = c.paidSessions || {};
+    const subscriptionTimestamp = paidSessions[user.uid];
+    const now = Date.now();
+    const fourHoursInMs = 4 * 60 * 60 * 1000;
+    const isSubscriptionActive = subscriptionTimestamp && (now - subscriptionTimestamp < fourHoursInMs);
+    
+    if (isSubscriptionActive) {
+      const remainingMs = fourHoursInMs - (now - subscriptionTimestamp);
+      const remainingMins = Math.ceil(remainingMs / (60 * 1000));
+      const hours = Math.floor(remainingMins / 60);
+      const mins = remainingMins % 60;
+      const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+      showNotification(`Your 4-hour access subscription is active. Time remaining: ${timeStr}`, 'info');
+      setSelectedClassroom(c);
+      setClassroomActiveTab('stream');
+      return;
+    }
+    
+    const hasPriorSession = !!subscriptionTimestamp;
+    const confirmMessage = hasPriorSession
+      ? `Your previous 4-hour subscription to "${c.name}" has expired.\n\nDo you want to burn another 10 Excoins to renew your subscription for another 4 hours?`
+      : `Access to "${c.name}" classroom requires a 10 Excoin access fee. This coin will be collected and permanently burned.\n\nDo you want to burn 10 Excoins to get a 4-hour access pass?`;
+      
+    const confirmPay = window.confirm(confirmMessage);
+    if (!confirmPay) return;
+    
+    if (excoinBalance < 10) {
+      showNotification(`Insufficient Excoin. You need 10 EX. Your balance: ${excoinBalance} EX.`, 'error');
+      return;
+    }
+    
+    const success = await handleDebitExcoin(10, `Exona Classroom Entry Access: ${c.name} (10 EX Burned)`);
+    if (success) {
+      try {
+        const updatedSessions = {
+          ...paidSessions,
+          [user.uid]: now
+        };
+        const paidUsers = c.paidUsers || [];
+        const updatedPaidUsers = paidUsers.includes(user.uid) ? paidUsers : [...paidUsers, user.uid];
+        
+        await updateDoc(doc(db, 'classrooms', c.id), {
+          paidUsers: updatedPaidUsers,
+          paidSessions: updatedSessions
+        });
+        
+        showNotification('10 Excoin successfully collected and burned! 4-hour access pass activated.', 'success');
+        setSelectedClassroom({
+          ...c,
+          paidUsers: updatedPaidUsers,
+          paidSessions: updatedSessions
+        });
+        setClassroomActiveTab('stream');
+      } catch (err) {
+        console.error('Error updating classroom paid status:', err);
+        // Still allow them to enter since we successfully debited their wallet
+        const updatedSessions = {
+          ...paidSessions,
+          [user.uid]: now
+        };
+        const paidUsers = c.paidUsers || [];
+        const updatedPaidUsers = paidUsers.includes(user.uid) ? paidUsers : [...paidUsers, user.uid];
+        setSelectedClassroom({
+          ...c,
+          paidUsers: updatedPaidUsers,
+          paidSessions: updatedSessions
+        });
+        setClassroomActiveTab('stream');
+      }
     }
   };
 
@@ -13296,8 +13381,7 @@ function ExonaApp() {
             const isEnrolled = targetClass.students?.includes(user?.uid || '');
             if (isEnrolled) {
               showNotification(`You are already enrolled in ${targetClass.name}!`, 'info');
-              setSelectedClassroom(targetClass);
-              setClassroomActiveTab('stream');
+              await handleEnterClassroom(targetClass);
               setClassJoinCodeInput('');
               return;
             }
@@ -13305,8 +13389,7 @@ function ExonaApp() {
               students: arrayUnion(user.uid)
             });
             showNotification(`Successfully joined ${targetClass.name}!`, 'success');
-            setSelectedClassroom(targetClass);
-            setClassroomActiveTab('stream');
+            await handleEnterClassroom(targetClass);
             setClassJoinCodeInput('');
           } catch (err) {
             console.error('Error joining class by code:', err);
@@ -14251,7 +14334,7 @@ function ExonaApp() {
                               <>
                                 {isEnrolled || isManager ? (
                                   <button 
-                                    onClick={() => { setSelectedClassroom(c); setClassroomActiveTab('stream'); }}
+                                    onClick={() => handleEnterClassroom(c)}
                                     className="flex-1 py-3 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
                                   >
                                     Enter Classroom
@@ -14449,6 +14532,47 @@ function ExonaApp() {
                     </p>
                   </div>
 
+                  {/* Access Subscription remaining card */}
+                  {selectedClassroom.createdByUid !== user?.uid && (
+                    <div className="border-t border-gray-100 pt-5 mt-4 space-y-2">
+                      <p className="text-[10px] text-muted font-black uppercase tracking-widest block">Access Subscription</p>
+                      {(() => {
+                        const paidSessions = selectedClassroom.paidSessions || {};
+                        const ts = paidSessions[user?.uid || ''];
+                        const now = Date.now();
+                        const fourHoursInMs = 4 * 60 * 60 * 1000;
+                        const hasActive = ts && (now - ts < fourHoursInMs);
+                        
+                        if (hasActive) {
+                          const remainingMs = fourHoursInMs - (now - ts);
+                          const remainingMins = Math.ceil(remainingMs / (60 * 1000));
+                          const hours = Math.floor(remainingMins / 60);
+                          const mins = remainingMins % 60;
+                          return (
+                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                              <div className="flex items-center gap-1.5 mb-1 text-emerald-700">
+                                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                                <span className="text-[10px] font-black uppercase tracking-wider">Pass Active</span>
+                              </div>
+                              <p className="text-[11px] text-emerald-800 font-bold">
+                                Expires in: {hours > 0 ? `${hours}h ${mins}m` : `${mins}m`}
+                              </p>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className="p-3 bg-red-50 border border-red-100 rounded-2xl">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-red-600 block mb-1">Pass Expired</span>
+                              <p className="text-[9px] text-red-700 font-semibold leading-relaxed">
+                                Please purchase a new 4hr pass for 10 Excoins (permanently burned) to interact with this room.
+                              </p>
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
+                  )}
+
                   <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
                     <button 
                       onClick={() => setSelectedClassroom(null)}
@@ -14497,7 +14621,57 @@ function ExonaApp() {
 
                 {/* Right Side Working Panel */}
                 <div className="lg:col-span-3 min-h-[60vh]">
-                  {classroomActiveTab === 'tasks' && !isClassStaff && (
+                  {(() => {
+                    const isOwner = selectedClassroom.createdByUid === user?.uid;
+                    const paidSessions = selectedClassroom.paidSessions || {};
+                    const ts = paidSessions[user?.uid || ''];
+                    const now = Date.now();
+                    const fourHoursInMs = 4 * 60 * 60 * 1000;
+                    const hasActive = ts && (now - ts < fourHoursInMs);
+                    
+                    if (!isOwner && !isClassStaff && !hasActive) {
+                      return (
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 text-center space-y-6 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
+                          <div className="h-14 w-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center font-black animate-pulse shadow-sm">
+                            <Clock size={28} />
+                          </div>
+                          <div className="space-y-1 max-w-sm">
+                            <h3 className="text-lg font-black text-ink">Access Pass Required</h3>
+                            <p className="text-xs text-muted leading-relaxed">
+                              Access to the classroom <strong className="text-ink">"{selectedClassroom.name}"</strong> requires a 10 Excoin access pass valid for 4 hours. All collected coins are permanently burned.
+                            </p>
+                          </div>
+                          
+                          <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl max-w-xs w-full text-left">
+                            <div className="flex justify-between items-center text-xs font-bold text-ink mb-1.5">
+                              <span className="text-muted">Your Balance:</span>
+                              <span className="text-accent font-black">{excoinBalance} EX</span>
+                            </div>
+                            <div className="h-px bg-gray-100 mb-1.5" />
+                            <div className="flex justify-between items-center text-xs font-bold text-ink mb-1.5">
+                              <span className="text-muted">Pass Duration:</span>
+                              <span className="text-slate-600 font-extrabold">4 Hours</span>
+                            </div>
+                            <div className="h-px bg-gray-100 mb-1.5" />
+                            <div className="flex justify-between items-center text-xs font-bold text-ink">
+                              <span className="text-muted">Fee:</span>
+                              <span className="text-red-500 font-extrabold">10 Excoins (Burned)</span>
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleEnterClassroom(selectedClassroom)}
+                            className="px-8 py-3.5 bg-accent hover:opacity-95 active:scale-95 text-white text-[11px] font-black uppercase tracking-widest rounded-2xl shadow-sm transition-all"
+                          >
+                            Burn 10 Excoins to Enter
+                          </button>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        {classroomActiveTab === 'tasks' && !isClassStaff && (
                     <div className="space-y-6">
                       {/* Interactive Header with progress */}
                       <div className="bg-gradient-to-tr from-accent/90 to-accent text-white rounded-[2.5rem] p-8 shadow-sm">
@@ -15738,6 +15912,9 @@ function ExonaApp() {
                       )}
                     </div>
                   )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -22864,7 +23041,7 @@ function ExonaApp() {
                       <p className="text-[9px] text-muted font-medium">Customize the top bar color</p>
                     </div>
                     <div className="flex items-center gap-2">
-                       {['#2481CC', '#FFFFFF', '#000000', '#F28B82', '#FBBC04', '#34A853'].map((color) => (
+                       {['#000000', '#FFFFFF', '#2481CC', '#F28B82', '#FBBC04', '#34A853'].map((color) => (
                          <button
                            key={color}
                            onClick={async () => {
@@ -22886,14 +23063,14 @@ function ExonaApp() {
                              }
                            }}
                            className={`h-6 w-6 rounded-full border border-border transition-transform active:scale-95 ${
-                             (userDoc?.telegramHeaderColor || '#2481CC') === color ? 'ring-2 ring-accent ring-offset-2' : ''
+                             ((userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC') ? userDoc.telegramHeaderColor : '#000000') === color ? 'ring-2 ring-accent ring-offset-2' : ''
                            }`}
                            style={{ backgroundColor: color }}
                          />
                        ))}
                        <input 
                          type="color" 
-                         value={userDoc?.telegramHeaderColor || '#2481CC'}
+                         value={(userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC') ? userDoc.telegramHeaderColor : '#000000'}
                          onChange={async (e) => {
                            const color = e.target.value;
                            if (!user) return;
