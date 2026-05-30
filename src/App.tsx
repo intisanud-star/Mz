@@ -8108,9 +8108,11 @@ function ExonaApp() {
     }
     
     const hasPriorSession = !!subscriptionTimestamp;
+    const kind = selectedSchool?.type === 'place' ? 'hub' : 'classroom';
+    const kindTitle = selectedSchool?.type === 'place' ? 'Exona Hub' : 'Exona Classroom';
     const confirmMessage = hasPriorSession
       ? `Your previous 4-hour subscription to "${c.name}" has expired.\n\nDo you want to burn another 10 Excoins to renew your subscription for another 4 hours?`
-      : `Access to "${c.name}" classroom requires a 10 Excoin access fee. This coin will be collected and permanently burned.\n\nDo you want to burn 10 Excoins to get a 4-hour access pass?`;
+      : `Access to "${c.name}" ${kind} requires a 10 Excoin access fee. This coin will be collected and permanently burned.\n\nDo you want to burn 10 Excoins to get a 4-hour access pass?`;
       
     const confirmPay = window.confirm(confirmMessage);
     if (!confirmPay) return;
@@ -8124,7 +8126,7 @@ function ExonaApp() {
     setIsEnteringClassroom(true);
     
     try {
-      const success = await handleDebitExcoin(10, `Exona Classroom Entry Access: ${c.name} (10 EX Burned)`);
+      const success = await handleDebitExcoin(10, `${kindTitle} Entry Access: ${c.name} (10 EX Burned)`);
       if (success) {
         try {
           const updatedSessions = {
@@ -11078,7 +11080,7 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
                     </button>
-                    {selectedSchool?.type === 'school' && (
+                    {(selectedSchool?.type === 'school' || selectedSchool?.type === 'place') && (
                       <button 
                         onClick={() => handleNavigateToData('classroom')}
                         className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
@@ -11086,7 +11088,9 @@ function ExonaApp() {
                         <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
                           <GraduationCap size={20} />
                         </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Exona Class Room</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                          {selectedSchool?.type === 'place' ? 'Exona Hub' : 'Exona Class Room'}
+                        </span>
                       </button>
                     )}
                     <button 
@@ -13335,7 +13339,7 @@ function ExonaApp() {
               </div>
               <h2 className="text-xl font-bold text-ink mb-2">Institution Required</h2>
               <p className="text-muted text-xs max-w-xs mb-8 leading-relaxed font-semibold uppercase tracking-wider">
-                Select an institution first to access Exona Classroom.
+                Select an institution first to access Exona Classroom / Hub.
               </p>
               <button 
                 onClick={() => setView('schools')}
@@ -13347,25 +13351,7 @@ function ExonaApp() {
           );
         }
 
-        if (selectedSchool.type !== 'school') {
-          return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] p-12 text-center bg-card">
-              <div className="h-20 w-20 bg-accent/5 text-accent rounded-3xl flex items-center justify-center mb-6">
-                <GraduationCap size={40} />
-              </div>
-              <h2 className="text-xl font-bold text-ink mb-2">Unavailable for Places</h2>
-              <p className="text-muted text-xs max-w-xs mb-8 leading-relaxed font-semibold uppercase tracking-wider">
-                Exona Classroom is only available for school institutions, not for places.
-              </p>
-              <button 
-                onClick={() => setView('tools')}
-                className="px-8 py-3.5 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
-              >
-                Go to Institutional Hub
-              </button>
-            </div>
-          );
-        }
+        // Gating bypassed to support Exona Hubs for places in addition to Classrooms for schools
 
         const isManager = canManageInstitution(selectedSchool);
         const isClassStaff = isManager || 
@@ -14036,7 +14022,7 @@ function ExonaApp() {
                 <div>
                   <h2 className="text-xl font-black text-ink tracking-tight flex items-center gap-2">
                     <GraduationCap className="text-accent" size={24} />
-                    {selectedClassroom ? selectedClassroom.name : "Exona Classroom"}
+                    {selectedClassroom ? selectedClassroom.name : (selectedSchool?.type === 'place' ? 'Exona Hub' : 'Exona Classroom')}
                   </h2>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{selectedSchool.name}</p>
                 </div>
@@ -14048,7 +14034,7 @@ function ExonaApp() {
                   className="flex items-center gap-2 px-5 py-3.5 bg-accent text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-sm"
                 >
                   <Plus size={16} />
-                  Add Class Room
+                  {selectedSchool?.type === 'place' ? 'Create Hub Space' : 'Add Class Room'}
                 </button>
               )}
             </div>
@@ -14063,8 +14049,12 @@ function ExonaApp() {
                 >
                   <div className="px-8 py-6 bg-slate-50 border-b border-gray-100 flex items-center justify-between sticky top-0 z-10">
                     <div>
-                      <h3 className="font-extrabold text-[16px]">Create Classroom</h3>
-                      <p className="text-[10px] text-muted font-black uppercase tracking-widest">School & Organisation Classroom</p>
+                      <h3 className="font-extrabold text-[16px]">
+                        {selectedSchool?.type === 'place' ? 'Create Hub' : 'Create Classroom'}
+                      </h3>
+                      <p className="text-[10px] text-muted font-black uppercase tracking-widest">
+                        {selectedSchool?.type === 'place' ? 'Organization & Business Hub' : 'School & Organisation Classroom'}
+                      </p>
                     </div>
                     <button 
                       onClick={() => setIsCreateClassroomOpen(false)}
@@ -14076,10 +14066,12 @@ function ExonaApp() {
 
                   <div className="p-8 space-y-4">
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Name*</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">
+                        {selectedSchool?.type === 'place' ? 'Hub Name*' : 'Classroom Name*'}
+                      </label>
                       <input 
                         type="text"
-                        placeholder="e.g. Grade 11 - Advanced Algebra"
+                        placeholder={selectedSchool?.type === 'place' ? 'e.g. Design Team Hub' : 'e.g. Grade 11 - Advanced Algebra'}
                         value={classroomName}
                         onChange={(e) => setClassroomName(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
@@ -14088,20 +14080,24 @@ function ExonaApp() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Subject / Course*</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">
+                          {selectedSchool?.type === 'place' ? 'Purpose / Department*' : 'Subject / Course*'}
+                        </label>
                         <input 
                           type="text"
-                          placeholder="Mathematics"
+                          placeholder={selectedSchool?.type === 'place' ? 'Creative & Design' : 'Mathematics'}
                           value={classroomSubject}
                           onChange={(e) => setClassroomSubject(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Instructor / Teacher</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">
+                          {selectedSchool?.type === 'place' ? 'Moderator / Lead' : 'Instructor / Teacher'}
+                        </label>
                         <input 
                           type="text"
-                          placeholder="Mr. Musa"
+                          placeholder={selectedSchool?.type === 'place' ? 'Musa' : 'Mr. Musa'}
                           value={classroomTeacher}
                           onChange={(e) => setClassroomTeacher(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
@@ -14121,7 +14117,9 @@ function ExonaApp() {
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Student Capacity</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">
+                          {selectedSchool?.type === 'place' ? 'Member Capacity' : 'Student Capacity'}
+                        </label>
                         <input 
                           type="number"
                           value={classroomCapacity}
@@ -14135,7 +14133,7 @@ function ExonaApp() {
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Brief Description</label>
                       <textarea 
                         rows={3}
-                        placeholder="Outline course objectives and materials"
+                        placeholder={selectedSchool?.type === 'place' ? 'Outline topics and schedule details for this hub' : 'Outline course objectives and materials'}
                         value={classroomDesc}
                         onChange={(e) => setClassroomDesc(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm resize-none"
@@ -14143,7 +14141,9 @@ function ExonaApp() {
                     </div>
 
                     <div>
-                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Classroom Profile Picture / Banner</label>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">
+                        {selectedSchool?.type === 'place' ? 'Hub Profile Picture / Banner' : 'Classroom Profile Picture / Banner'}
+                      </label>
                       
                       {/* Drag and Drop Zone */}
                       <div 
@@ -14440,8 +14440,12 @@ function ExonaApp() {
               <div className="px-6 py-8 max-w-6xl mx-auto w-full">
                 <div className="mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-2xl font-black text-ink tracking-tight">Active Classrooms</h3>
-                    <p className="text-xs text-muted font-semibold uppercase tracking-wider">Join or manage classroom spaces for this organization</p>
+                    <h3 className="text-2xl font-black text-ink tracking-tight">
+                      {selectedSchool?.type === 'place' ? 'Active Hubs' : 'Active Classrooms'}
+                    </h3>
+                    <p className="text-xs text-muted font-semibold uppercase tracking-wider">
+                      {selectedSchool?.type === 'place' ? 'Join or manage hub spaces for this organization' : 'Join or manage classroom spaces for this organization'}
+                    </p>
                   </div>
                   
                   {/* Join with Class Code Input */}
@@ -14470,14 +14474,18 @@ function ExonaApp() {
                     <div className="h-16 w-16 bg-slate-50 text-muted rounded-full flex items-center justify-center mx-auto mb-4">
                       <GraduationCap size={28} />
                     </div>
-                    <h4 className="font-extrabold text-ink mb-1">No Classrooms Available</h4>
-                    <p className="text-xs text-muted max-w-xs mx-auto mb-6">Classrooms allow schools to hold live assessments, lessons, and schedules.</p>
+                    <h4 className="font-extrabold text-ink mb-1">
+                      {selectedSchool?.type === 'place' ? 'No Hubs Available' : 'No Classrooms Available'}
+                    </h4>
+                    <p className="text-xs text-muted max-w-xs mx-auto mb-6">
+                      {selectedSchool?.type === 'place' ? 'Hubs allow organizations to hold live collaborations, resource sharing, and schedules.' : 'Classrooms allow schools to hold live assessments, lessons, and schedules.'}
+                    </p>
                     {isManager && (
                       <button 
                         onClick={() => setIsCreateClassroomOpen(true)}
                         className="px-6 py-3 bg-accent text-white font-black uppercase tracking-widest text-xs rounded-xl"
                       >
-                        Create Classroom
+                        {selectedSchool?.type === 'place' ? 'Create Hub' : 'Create Classroom'}
                       </button>
                     )}
                   </div>
@@ -14638,7 +14646,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <BookOpen size={16} />
-                        Lesson Notes
+                        {selectedSchool?.type === 'place' ? 'Knowledge & Resources' : 'Lesson Notes'}
                       </button>
 
                       <button 
@@ -14646,7 +14654,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'live' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Trophy size={16} />
-                        Live Assessment
+                        {selectedSchool?.type === 'place' ? 'Live Session' : 'Live Assessment'}
                         {selectedClassroom.liveSession?.isActive && (
                           <span className="h-2 w-2 rounded-full bg-green-500 animate-ping" />
                         )}
@@ -14657,7 +14665,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'attendance' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <CalendarCheck2 size={16} />
-                        Attendance
+                        Participation Sign-In
                       </button>
 
                       <button 
@@ -14665,7 +14673,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Users size={16} />
-                        Class Members
+                        {selectedSchool?.type === 'place' ? 'Hub Members' : 'Class Members'}
                       </button>
 
                       <button 
@@ -14673,7 +14681,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'ai-assistant' ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Sparkles size={16} className="text-indigo-600 animate-pulse" />
-                        AI Moderator
+                        {selectedSchool?.type === 'place' ? 'AI Hub Assistant' : 'AI Moderator'}
                       </button>
                     </>
                   ) : (
@@ -14694,7 +14702,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <MessageSquare size={16} />
-                        Class Stream
+                        {selectedSchool?.type === 'place' ? 'Hub Stream' : 'Class Stream'}
                       </button>
 
                       <button 
@@ -14702,7 +14710,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <BookOpen size={16} />
-                        Lesson Library
+                        {selectedSchool?.type === 'place' ? 'Resource Library' : 'Lesson Library'}
                       </button>
 
                       <button 
@@ -14710,7 +14718,7 @@ function ExonaApp() {
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Users size={16} />
-                        Classmate Directory
+                        {selectedSchool?.type === 'place' ? 'Member Directory' : 'Classmate Directory'}
                       </button>
                     </>
                   )}
@@ -14721,13 +14729,15 @@ function ExonaApp() {
                       className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'settings' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                     >
                       <Settings size={16} />
-                      Class Settings
+                      {selectedSchool?.type === 'place' ? 'Hub Settings' : 'Class Settings'}
                     </button>
                   )}
 
                   {/* Class Code Copy Card */}
                   <div className="border-t border-gray-100 pt-5 mt-4 space-y-2">
-                    <p className="text-[10px] text-muted font-black uppercase tracking-widest block">Class Code Number</p>
+                    <p className="text-[10px] text-muted font-black uppercase tracking-widest block">
+                      {selectedSchool?.type === 'place' ? 'Hub Access Code' : 'Class Code Number'}
+                    </p>
                     <div className="flex items-center gap-1.5 p-2 bg-slate-50 rounded-2xl border border-gray-100 relative">
                       <input 
                         type="text" 
@@ -14739,16 +14749,23 @@ function ExonaApp() {
                         onClick={() => {
                           const code = selectedClassroom.code || selectedClassroom.id.slice(0, 6).toUpperCase();
                           navigator.clipboard.writeText(code);
-                          showNotification('Class code copied! Share this with your students.', 'success');
+                          showNotification(
+                            selectedSchool?.type === 'place'
+                              ? 'Hub access code copied! Share this with your partners.'
+                              : 'Class code copied! Share this with your students.',
+                            'success'
+                          );
                         }}
                         className="h-8 px-2.5 bg-accent hover:opacity-90 text-white rounded-xl flex items-center justify-center active:scale-95 transition-all outline-none"
-                        title="Copy Classroom Code"
+                        title={selectedSchool?.type === 'place' ? 'Copy Hub Entrance Code' : 'Copy Classroom Code'}
                       >
                         <Copy size={12} />
                       </button>
                     </div>
                     <p className="text-[9px] text-muted leading-relaxed font-medium">
-                      Share this custom class code in chat groups. Students can enter this code to join the class.
+                      {selectedSchool?.type === 'place'
+                        ? 'Share this custom hub code in chat groups. Partners and members can enter this code to join the hub.'
+                        : 'Share this custom class code in chat groups. Students can enter this code to join the class.'}
                     </p>
                   </div>
 
@@ -14798,7 +14815,7 @@ function ExonaApp() {
                       onClick={() => setSelectedClassroom(null)}
                       className="w-full flex items-center justify-center gap-2 py-3 bg-gray-50 hover:bg-neutral-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors text-muted"
                     >
-                      All Classrooms
+                      {selectedSchool?.type === 'place' ? 'All Hubs' : 'All Classrooms'}
                     </button>
 
                     {isManager && (
@@ -17538,13 +17555,15 @@ function ExonaApp() {
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
                     </button>
-                    {inst.type === 'school' && (
+                    {(inst.type === 'school' || inst.type === 'place') && (
                       <button 
                         onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
                         className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
                       >
                         <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-black uppercase tracking-widest">Exona Classroom</span>
+                        <span className="text-xs font-black uppercase tracking-widest">
+                          {inst.type === 'place' ? 'Exona Hub' : 'Exona Classroom'}
+                        </span>
                       </button>
                     )}
                   </div>
@@ -24123,10 +24142,10 @@ function ExonaApp() {
                       active={view === 'daily-routine'} 
                       onClick={() => { setView('daily-routine'); setSidebarOpen(false); }} 
                     />
-                    {selectedSchool?.type === 'school' && (
+                    {(selectedSchool?.type === 'school' || selectedSchool?.type === 'place') && (
                       <SidebarItem 
                         icon={GraduationCap} 
-                        label="Exona Class Room" 
+                        label={selectedSchool?.type === 'place' ? 'Exona Hub' : 'Exona Class Room'} 
                         active={view === 'classroom'} 
                         onClick={() => handleNavigateToData('classroom')} 
                       />
