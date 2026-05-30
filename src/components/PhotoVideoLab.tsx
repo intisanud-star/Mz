@@ -238,13 +238,11 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
     }
   };
 
-  // Filter list matching search query
+  // Filter list matching search query to find user by their name and see their posted links
   const filteredSharedVideos = sharedVideos.filter(video => {
-    const term = searchQuery.toLowerCase();
-    const titleMatch = (video.title || '').toLowerCase().includes(term);
-    const nameMatch = (video.displayName || '').toLowerCase().includes(term);
-    const descMatch = (video.description || '').toLowerCase().includes(term);
-    return titleMatch || nameMatch || descMatch;
+    const term = searchQuery.toLowerCase().trim();
+    if (!term) return true;
+    return (video.displayName || '').toLowerCase().includes(term);
   });
 
   // --- Photo Editor States ---
@@ -1394,7 +1392,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by Channel account name or Title..."
+                        placeholder="Search user by name to see their posted channels..."
                         className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-rose-500 transition-all"
                       />
                     </div>
