@@ -5235,25 +5235,41 @@ function ExonaApp() {
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h4 className="text-xs font-black text-ink uppercase tracking-wider">Treasury Conversion Gate</h4>
-                    <p className="text-[10px] text-muted font-medium mt-1">Rate: 100 Exon Stars = 1 Excoin</p>
+                    <p className="text-[10px] text-muted font-medium mt-1">Rate: 10 Exon Stars = 1 Excoin</p>
                   </div>
                   <RefreshCw size={18} className="text-accent/40" />
                 </div>
                 
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1 bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
+                    <div className="flex flex-col gap-3">
+                      <div className="bg-white border border-gray-100 rounded-2xl p-3 flex items-center justify-between">
                          <span className="text-[10px] font-black text-muted uppercase tracking-widest">Available {exonWallet?.balance || 0} Stars</span>
-                         <button 
-                            disabled={(exonWallet?.balance || 0) < 100}
-                            onClick={() => handleConvertStarsToExcoin(100)}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                              (exonWallet?.balance || 0) >= 100 
-                                ? 'bg-ink text-white hover:scale-105 hover:bg-black active:scale-95' 
-                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                         >
-                           Convert 100
-                         </button>
+                         <span className="text-[10px] font-bold text-accent uppercase tracking-widest">
+                           ≈ {Math.floor((exonWallet?.balance || 0) / 10)} EX
+                         </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                           disabled={(exonWallet?.balance || 0) < 10}
+                           onClick={() => handleConvertStarsToExcoin(10)}
+                           className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                             (exonWallet?.balance || 0) >= 10 
+                               ? 'bg-amber-500 text-white hover:scale-[1.02] active:scale-[0.98]' 
+                               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                           }`}
+                        >
+                          Convert 10
+                        </button>
+                        <button 
+                           disabled={(exonWallet?.balance || 0) < 10}
+                           onClick={() => handleConvertStarsToExcoin(exonWallet?.balance || 0)}
+                           className={`flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                             (exonWallet?.balance || 0) >= 10 
+                               ? 'bg-ink text-white hover:scale-[1.02] active:scale-[0.98]' 
+                               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                           }`}
+                        >
+                          Convert All
+                        </button>
                       </div>
                     </div>
               </div>
@@ -8172,9 +8188,9 @@ function ExonaApp() {
   };
 
   const handleConvertStarsToExcoin = async (stars: number) => {
-    if (!user || stars < 100) return;
-    const excoinsToReceive = Math.floor(stars / 100);
-    const starsToDeduct = excoinsToReceive * 100;
+    if (!user || stars < 10) return;
+    const excoinsToReceive = Math.floor(stars / 10);
+    const starsToDeduct = excoinsToReceive * 10;
     
     try {
       const walletRef = doc(db, 'wallets', user.uid);
