@@ -1540,6 +1540,7 @@ interface Classroom {
   description?: string;
   photoUrl?: string;
   capacity?: number;
+  entryFee?: number;
   createdByUid?: string;
   students?: string[];
   lessons?: {
@@ -2595,6 +2596,7 @@ function ExonaApp() {
   const [classroomSchedule, setClassroomSchedule] = useState('');
   const [classroomDesc, setClassroomDesc] = useState('');
   const [classroomCapacity, setClassroomCapacity] = useState<number>(30);
+  const [classroomEntryFee, setClassroomEntryFee] = useState<number>(10);
   const [classroomPhotoUrl, setClassroomPhotoUrl] = useState('');
   const [editClassroomName, setEditClassroomName] = useState('');
   const [editClassroomSubject, setEditClassroomSubject] = useState('');
@@ -2602,6 +2604,7 @@ function ExonaApp() {
   const [editClassroomSchedule, setEditClassroomSchedule] = useState('');
   const [editClassroomDesc, setEditClassroomDesc] = useState('');
   const [editClassroomCapacity, setEditClassroomCapacity] = useState<number>(30);
+  const [editClassroomEntryFee, setEditClassroomEntryFee] = useState<number>(10);
   const [editClassroomPhotoUrl, setEditClassroomPhotoUrl] = useState('');
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
@@ -5853,43 +5856,6 @@ function ExonaApp() {
   }, [user]);
 
   useEffect(() => {
-    if (!selectedClassroom || !selectedClassroom.students) return;
-    const missingUids = selectedClassroom.students.filter(
-      uid => uid !== user?.uid && !pendingFollowerProfilesMap[uid]
-    );
-    if (missingUids.length === 0) return;
-
-    const fetchClassroomStudentProfiles = async () => {
-      const newProfiles: {[uid: string]: { displayName: string, photoURL?: string }} = {};
-      
-      for (let i = 0; i < missingUids.length; i += 10) {
-        const batch = missingUids.slice(i, i + 10);
-        await Promise.all(batch.map(async (uid) => {
-          try {
-            const userRef = doc(db, 'users', uid);
-            const userSnapshot = await getDoc(userRef);
-            if (userSnapshot.exists()) {
-              const data = userSnapshot.data();
-              newProfiles[uid] = {
-                displayName: data.displayName || 'Exona User',
-                photoURL: data.photoURL || ''
-              };
-            }
-          } catch (e) {
-            console.error('Error fetching student profile:', e);
-          }
-        }));
-      }
-
-      if (Object.keys(newProfiles).length > 0) {
-        setPendingFollowerProfilesMap(prev => ({ ...prev, ...newProfiles }));
-      }
-    };
-
-    fetchClassroomStudentProfiles();
-  }, [selectedClassroom?.students]);
-
-  useEffect(() => {
     if (!user?.uid || isQuotaExceeded) return;
     // Listen for calls where user is caller or receiver
     const qCalls = query(
@@ -6151,6 +6117,10 @@ function ExonaApp() {
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
   const [institutionFollowerDocs, setInstitutionFollowerDocs] = useState<UserDoc[]>([]);
+  const institutionFollowerDocsRef = useRef(institutionFollowerDocs);
+  useEffect(() => {
+    institutionFollowerDocsRef.current = institutionFollowerDocs;
+  }, [institutionFollowerDocs]);
   const groupCandidates = useMemo(() => {
     const combined = [...myFollowers];
     institutionFollowerDocs.forEach(doc => {
@@ -6184,7 +6154,7 @@ function ExonaApp() {
     const idsToFetch = Array.from(followerIds).filter(uid => 
       !myFollowers.find(f => f.uid === uid) && 
       !chatUsers.find(u => u.uid === uid) &&
-      !institutionFollowerDocs.find(u => u.uid === uid)
+      !institutionFollowerDocsRef.current.find(u => u.uid === uid)
     );
     
     if (idsToFetch.length === 0) return;
@@ -6198,8 +6168,24 @@ function ExonaApp() {
         for (const chunk of chunks) {
           const q = query(collection(db, 'users'), where('uid', 'in', chunk));
           const snap = await getDocs(q);
-          const newDocs = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDoc));
-          setInstitutionFollowerDocs(prev => [...prev, ...newDocs]);
+          const foundDocs = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserDoc));
+          
+          const finishedDocs = [...foundDocs];
+          chunk.forEach(uid => {
+            if (!foundDocs.find(d => d.uid === uid)) {
+              finishedDocs.push({
+                uid,
+                displayName: `Member ${uid.substring(0, 6)}`,
+                role: 'student'
+              } as any);
+            }
+          });
+
+          setInstitutionFollowerDocs(prev => {
+            const existingIds = new Set(prev.map(p => p.uid));
+            const filteredNew = finishedDocs.filter(d => !existingIds.has(d.uid));
+            return [...prev, ...filteredNew];
+          });
         }
       } catch (err) {
         console.error("Error fetching institution followers:", err);
@@ -6522,8 +6508,24 @@ function ExonaApp() {
         try {
           const q = query(collection(db, 'users'), where('uid', 'in', chunk));
           const snap = await getDocs(q);
-          const newUsers = snap.docs.map(d => d.data() as UserDoc);
-          setChatUsers(prev => [...prev, ...newUsers]);
+          const foundUsers = snap.docs.map(d => d.data() as UserDoc);
+          
+          const finishedUsers = [...foundUsers];
+          chunk.forEach(uid => {
+            if (!foundUsers.find(u => u.uid === uid)) {
+              finishedUsers.push({
+                uid,
+                displayName: `User ${uid.substring(0, 6)}`,
+                role: 'student'
+              } as any);
+            }
+          });
+
+          setChatUsers(prev => {
+            const existingIds = new Set(prev.map(p => p.uid));
+            const filteredNew = finishedUsers.filter(u => !existingIds.has(u.uid));
+            return [...prev, ...filteredNew];
+          });
         } catch (error) {
           console.error('Error fetching chat users:', error);
         }
@@ -6603,7 +6605,58 @@ function ExonaApp() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [uploadingInstitutionId, setUploadingInstitutionId] = useState<string | null>(null);
   const [pendingFollowerProfilesMap, setPendingFollowerProfilesMap] = useState<{[uid: string]: { displayName: string, photoURL?: string }}>({});
+  const profilesMapRef = useRef(pendingFollowerProfilesMap);
+  useEffect(() => {
+    profilesMapRef.current = pendingFollowerProfilesMap;
+  }, [pendingFollowerProfilesMap]);
   const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
+
+  // Load classroom student profiles safely without infinite loop
+  useEffect(() => {
+    if (!selectedClassroom || !selectedClassroom.students) return;
+    const missingUids = selectedClassroom.students.filter(
+      uid => uid !== user?.uid && !profilesMapRef.current[uid]
+    );
+    if (missingUids.length === 0) return;
+
+    const fetchClassroomStudentProfiles = async () => {
+      const newProfiles: {[uid: string]: { displayName: string, photoURL?: string }} = {};
+      
+      for (let i = 0; i < missingUids.length; i += 10) {
+        const batch = missingUids.slice(i, i + 10);
+        await Promise.all(batch.map(async (uid) => {
+          try {
+            const userRef = doc(db, 'users', uid);
+            const userSnapshot = await getDoc(userRef);
+            if (userSnapshot.exists()) {
+              const data = userSnapshot.data();
+              newProfiles[uid] = {
+                displayName: data.displayName || 'Exona User',
+                photoURL: data.photoURL || ''
+              };
+            } else {
+              newProfiles[uid] = {
+                displayName: `Member ${uid.substring(0, 6)}`,
+                photoURL: ''
+              };
+            }
+          } catch (e) {
+            console.error('Error fetching student profile:', e);
+            newProfiles[uid] = {
+              displayName: `Member ${uid.substring(0, 6)}`,
+              photoURL: ''
+            };
+          }
+        }));
+      }
+
+      if (Object.keys(newProfiles).length > 0) {
+        setPendingFollowerProfilesMap(prev => ({ ...prev, ...newProfiles }));
+      }
+    };
+
+    fetchClassroomStudentProfiles();
+  }, [selectedClassroom?.id, selectedClassroom?.students?.join(',')]);
 
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
   const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
@@ -6964,13 +7017,21 @@ function ExonaApp() {
   }, []);
   const managedInstitutions = [...schools, ...places].filter(s => canManageInstitution(s));
 
+  const pendingFollowersTracker = useMemo(() => {
+    return managedInstitutions.map(inst => {
+      const pendingFollowers = (inst.pendingFollowers || []).join(',');
+      const pendingAuditors = ((inst as any).pendingAuditors || []).join(',');
+      return `${inst.id}:${pendingFollowers}:${pendingAuditors}`;
+    }).join('|');
+  }, [schools, places, user?.uid]);
+
   useEffect(() => {
     const fetchProfiles = async () => {
       const pendingUids = managedInstitutions.flatMap(s => [
         ...(s.pendingFollowers || []),
         ...((s as any).pendingAuditors || [])
       ]);
-      const uniqueUids = [...new Set(pendingUids)].filter(uid => !pendingFollowerProfilesMap[uid]);
+      const uniqueUids = [...new Set(pendingUids)].filter(uid => !profilesMapRef.current[uid]);
       
       if (uniqueUids.length === 0) return;
 
@@ -6985,9 +7046,18 @@ function ExonaApp() {
               displayName: data.displayName || 'Anonymous',
               photoURL: data.photoURL 
             };
+          } else {
+            newProfiles[uid as string] = {
+              displayName: `Member ${String(uid).slice(0, 6)}`,
+              photoURL: ''
+            };
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          newProfiles[uid as string] = {
+            displayName: `Member ${String(uid).slice(0, 6)}`,
+            photoURL: ''
+          };
         }
       }
 
@@ -6997,7 +7067,7 @@ function ExonaApp() {
     };
 
     fetchProfiles();
-  }, [managedInstitutions]);
+  }, [pendingFollowersTracker]);
 
   const unifiedFollowRequests = useMemo(() => {
     const list: any[] = [];
@@ -8126,15 +8196,19 @@ function ExonaApp() {
     const hasPriorSession = !!subscriptionTimestamp;
     const kind = selectedSchool?.type === 'place' ? 'hub' : 'classroom';
     const kindTitle = selectedSchool?.type === 'place' ? 'Exona Hub' : 'Exona Classroom';
+    const feeToPay = c.entryFee || 10;
+    const ownerShare = feeToPay / 2;
+    const burnShare = feeToPay / 2;
+
     const confirmMessage = hasPriorSession
-      ? `Your previous 4-hour subscription to "${c.name}" has expired.\n\nDo you want to burn another 10 Excoins to renew your subscription for another 4 hours?`
-      : `Access to "${c.name}" ${kind} requires a 10 Excoin access fee. This coin will be collected and permanently burned.\n\nDo you want to burn 10 Excoins to get a 4-hour access pass?`;
+      ? `Your previous 4-hour subscription to "${c.name}" has expired.\n\nDo you want to pay another ${feeToPay} Excoins to renew your subscription for another 4 hours?`
+      : `Access to "${c.name}" ${kind} requires a ${feeToPay} Excoin access fee.\n\nDo you want to pay ${feeToPay} Excoins to get a 4-hour access pass?`;
       
     const confirmPay = window.confirm(confirmMessage);
     if (!confirmPay) return;
     
-    if (excoinBalance < 10) {
-      showNotification(`Insufficient Excoin. You need 10 EX. Your balance: ${excoinBalance} EX.`, 'error');
+    if (excoinBalance < feeToPay) {
+      showNotification(`Insufficient Excoins. You need ${feeToPay} EX. Your balance: ${excoinBalance} EX.`, 'error');
       return;
     }
     
@@ -8142,8 +8216,68 @@ function ExonaApp() {
     setIsEnteringClassroom(true);
     
     try {
-      const success = await handleDebitExcoin(10, `${kindTitle} Entry Access: ${c.name} (10 EX Burned)`);
-      if (success) {
+      const ownerUid = selectedSchool?.creatorUid;
+      const walletRef = doc(db, 'wallets', user.uid);
+      const historyRef = doc(collection(db, `wallets/${user.uid}/history`));
+
+      const ownerWalletRef = ownerUid ? doc(db, 'wallets', ownerUid) : null;
+      const ownerHistoryRef = ownerUid ? doc(collection(db, `wallets/${ownerUid}/history`)) : null;
+
+      const txResult = await runTransaction(db, async (transaction) => {
+        const walletDoc = await transaction.get(walletRef);
+        if (!walletDoc.exists()) return { success: false, reason: 'uninitialized' };
+        
+        const data = walletDoc.data();
+        const currentBalance = data.excoin_balance || 0;
+
+        if (currentBalance < feeToPay) return { success: false, reason: 'insufficient' };
+
+        // 1. Debit feeToPay from entering user
+        transaction.update(walletRef, {
+          excoin_balance: currentBalance - feeToPay,
+          last_transaction: serverTimestamp()
+        });
+
+        transaction.set(historyRef, {
+          amount: feeToPay,
+          type: 'debit',
+          currency: 'excoins',
+          description: `${kindTitle} Entry Access: ${c.name} (${burnShare} EX Burned, ${ownerShare} EX to Owner)`,
+          timestamp: serverTimestamp()
+        });
+
+        // 2. Credit ownerShare to institution owner if different and exists
+        if (ownerWalletRef && ownerHistoryRef && ownerUid && ownerUid !== user.uid) {
+          const ownerWalletDoc = await transaction.get(ownerWalletRef);
+          if (!ownerWalletDoc.exists()) {
+            transaction.set(ownerWalletRef, {
+              userId: ownerUid,
+              balance: 0,
+              excoin_balance: ownerShare,
+              tier: 'Standard',
+              last_transaction: serverTimestamp()
+            });
+          } else {
+            const ownerBalance = ownerWalletDoc.data().excoin_balance || 0;
+            transaction.update(ownerWalletRef, {
+              excoin_balance: ownerBalance + ownerShare,
+              last_transaction: serverTimestamp()
+            });
+          }
+
+          transaction.set(ownerHistoryRef, {
+            amount: ownerShare,
+            type: 'credit',
+            currency: 'excoins',
+            description: `Earned ${ownerShare} EX from Classroom/Hub Entry Admission (${c.name}) by ${userDoc?.displayName || user.email || 'Member'}`,
+            timestamp: serverTimestamp()
+          });
+        }
+
+        return { success: true };
+      });
+
+      if (txResult.success) {
         try {
           const updatedSessions = {
             ...paidSessions,
@@ -8157,7 +8291,7 @@ function ExonaApp() {
             paidSessions: updatedSessions
           });
           
-          showNotification('10 Excoin successfully collected and burned! 4-hour access pass activated.', 'success');
+          showNotification('10 Excoins processed: 5 EX credited to institution owner, 5 EX permanently burned!', 'success');
           setSelectedClassroom({
             ...c,
             paidUsers: updatedPaidUsers,
@@ -8180,6 +8314,11 @@ function ExonaApp() {
           });
           setClassroomActiveTab('stream');
         }
+      } else {
+        showNotification(
+          txResult.reason === 'insufficient' ? 'Insufficient coins in your wallet!' : 'Error processing Excoin payment. Please try again.',
+          'error'
+        );
       }
     } finally {
       isEnteringClassroomRef.current = false;
@@ -12641,40 +12780,95 @@ function ExonaApp() {
             }
           >
             <div className="space-y-12">
-              {/* OPay Style Balance Card */}
-              <div className="relative bg-ink rounded-[2.5rem] p-10 overflow-hidden text-white h-64 flex flex-col justify-between">
-                <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
-                  <Wallet size={120} />
-                </div>
-                <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">Total Balance</p>
-                    <button className="h-5 w-5 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all">
-                      <Compass size={10} className="text-white/60" />
-                    </button>
+              {/* Balances Grid */}
+              <div className={`grid grid-cols-1 ${selectedSchool.creatorUid === user?.uid ? 'md:grid-cols-2' : ''} gap-6`}>
+                {/* OPay Style Balance Card */}
+                <div className="relative bg-ink rounded-[2.5rem] p-10 overflow-hidden text-white h-64 flex flex-col justify-between shadow-xl shadow-ink/5">
+                  <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
+                    <Wallet size={120} />
                   </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-black text-accent">{currencySymbol}</span>
-                    <h2 className="text-5xl font-black tracking-tighter">{(finance?.institutionBalance || 0).toLocaleString()}</h2>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">Total Balance</p>
+                      <button className="h-5 w-5 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all">
+                        <Compass size={10} className="text-white/60" />
+                      </button>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-black text-accent">{currencySymbol}</span>
+                      <h2 className="text-5xl font-black tracking-tighter">{(finance?.institutionBalance || 0).toLocaleString()}</h2>
+                    </div>
+                  </div>
+
+                  <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-6">
+                    <div className="flex gap-8">
+                      <div>
+                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Incoming</p>
+                        <p className="text-sm font-black text-green-400">+{currencySymbol}0</p>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Outgoing</p>
+                        <p className="text-sm font-black text-red-400">-{currencySymbol}0</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setSettlementStep('deposit')} className="px-5 py-2.5 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all">Deposit</button>
+                      <button onClick={() => setSettlementStep('other')} className="px-5 py-2.5 bg-white/10 text-white border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all">Transfer</button>
+                    </div>
                   </div>
                 </div>
 
-                <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-6">
-                  <div className="flex gap-8">
-                    <div>
-                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Incoming</p>
-                      <p className="text-sm font-black text-green-400">+{currencySymbol}0</p>
+                {/* Excoin Treasury Card for Creator Owner */}
+                {selectedSchool.creatorUid === user?.uid && (
+                  <div className="relative bg-slate-900 rounded-[2.5rem] p-10 overflow-hidden text-white h-64 flex flex-col justify-between border border-white/5 shadow-xl shadow-black/10">
+                    <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 pointer-events-none">
+                      <Repeat size={120} className="text-orange-400" />
                     </div>
-                    <div>
-                      <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Outgoing</p>
-                      <p className="text-sm font-black text-red-400">-{currencySymbol}0</p>
+                    
+                    <div className="relative z-10">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-orange-400">Owner Excoin Treasury</p>
+                        <div className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black text-orange-400">EX</span>
+                        <h2 className="text-5xl font-black tracking-tighter">{excoinBalance}</h2>
+                      </div>
+                      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mt-1">Classroom & Hub Admission Revenue</p>
+                    </div>
+
+                    <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-6">
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={() => {
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(user.uid);
+                              showNotification('Receiving ID (UID) Copied!', 'success');
+                            }
+                          }}
+                          className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-white/60 hover:text-white transition-colors"
+                          title="Copy Receiving ID"
+                        >
+                          <Copy size={11} /> ID: {user.uid.slice(0, 6)}...
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setIsExonWealthOpen(true)} 
+                          className="px-5 py-2.5 bg-orange-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-md shadow-orange-500/15"
+                        >
+                          Send via UID
+                        </button>
+                        <button 
+                          onClick={() => setView('penalty')} 
+                          className="px-5 py-2.5 bg-white/10 text-white border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all"
+                        >
+                          Sell P2P
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setSettlementStep('deposit')} className="px-5 py-2.5 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all">Deposit</button>
-                    <button onClick={() => setSettlementStep('other')} className="px-5 py-2.5 bg-white/10 text-white border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all">Transfer</button>
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -13401,6 +13595,11 @@ function ExonaApp() {
             showNotification('Please fill in Class Name and Subject', 'error');
             return;
           }
+          const fee = Number(classroomEntryFee) || 10;
+          if (fee < 10) {
+            showNotification('Access entry fee must be 10 Excoins or above.', 'error');
+            return;
+          }
           try {
             const newRef = doc(collection(db, 'classrooms'));
             const classCode = newRef.id.slice(0, 6).toUpperCase();
@@ -13415,6 +13614,7 @@ function ExonaApp() {
               schedule: classroomSchedule || 'No schedule set',
               description: classroomDesc || '',
               capacity: Number(classroomCapacity) || 30,
+              entryFee: fee,
               photoUrl: finalPhotoUrl,
               createdByUid: user?.uid || '',
               students: [],
@@ -13431,6 +13631,7 @@ function ExonaApp() {
             setClassroomSchedule('');
             setClassroomDesc('');
             setClassroomPhotoUrl('');
+            setClassroomEntryFee(10);
             showNotification('Classroom successfully created!', 'success');
           } catch (e) {
             console.error(e);
@@ -13563,6 +13764,11 @@ function ExonaApp() {
             showNotification('Class Name and Subject are required', 'error');
             return;
           }
+          const fee = Number(editClassroomEntryFee) || 10;
+          if (fee < 10) {
+            showNotification('Access entry fee must be 10 Excoins or above.', 'error');
+            return;
+          }
           try {
             const finalPhotoUrl = await compressDataUrl(editClassroomPhotoUrl || '', 400, 0.7);
             await updateDoc(doc(db, 'classrooms', targetId), {
@@ -13572,6 +13778,7 @@ function ExonaApp() {
               schedule: editClassroomSchedule,
               description: editClassroomDesc,
               capacity: Number(editClassroomCapacity) || 30,
+              entryFee: fee,
               photoUrl: finalPhotoUrl
             });
             setIsEditClassroomOpen(false);
@@ -14146,6 +14353,23 @@ function ExonaApp() {
                     </div>
 
                     <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-orange-500 block mb-1">
+                        Admission Access Fee (Excoins)*
+                      </label>
+                      <input 
+                        type="number"
+                        min={10}
+                        placeholder="10"
+                        value={classroomEntryFee}
+                        onChange={(e) => setClassroomEntryFee(Math.max(10, Number(e.target.value)))}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-bold text-ink outline-none bg-orange-50/20 focus:bg-white focus:border-orange-300 transition-all font-mono"
+                      />
+                      <p className="text-[9px] text-muted font-bold uppercase tracking-wider mt-1">
+                        Minimum 10 EX. When members access, 50% is credited to you, 50% is burned permanently.
+                      </p>
+                    </div>
+
+                    <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted block mb-1">Brief Description</label>
                       <textarea 
                         rows={3}
@@ -14336,6 +14560,23 @@ function ExonaApp() {
                           className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm"
                         />
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black uppercase tracking-widest text-orange-500 block mb-1">
+                        Admission Access Fee (Excoins)*
+                      </label>
+                      <input 
+                        type="number"
+                        min={10}
+                        placeholder="10"
+                        value={editClassroomEntryFee}
+                        onChange={(e) => setEditClassroomEntryFee(Math.max(10, Number(e.target.value)))}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-bold text-ink outline-none bg-orange-50/20 focus:bg-white focus:border-orange-300 transition-all font-mono"
+                      />
+                      <p className="text-[9px] text-muted font-bold uppercase tracking-wider mt-1">
+                        Minimum 10 EX. When members access, 50% is credited to you, 50% is burned permanently.
+                      </p>
                     </div>
 
                     <div>
@@ -14546,6 +14787,9 @@ function ExonaApp() {
                               <div className="flex items-center gap-2">
                                 <span className="text-accent">●</span> Timing: <strong className="text-ink">{c.schedule}</strong>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-orange-500">●</span> Admission Fee: <strong className="text-orange-600 font-mono font-extrabold">{c.entryFee || 10} EX</strong>
+                              </div>
                               {c.liveSession?.isActive && (
                                 <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-green-50 text-green-700 text-[10px] font-black uppercase mt-2 animate-bounce">
                                   <span>🟢 Active Q&A Quiz Live</span>
@@ -14610,6 +14854,7 @@ function ExonaApp() {
                                       setEditClassroomSchedule(c.schedule || '');
                                       setEditClassroomDesc(c.description || '');
                                       setEditClassroomCapacity(c.capacity || 30);
+                                      setEditClassroomEntryFee(c.entryFee || 10);
                                       setEditClassroomPhotoUrl(c.photoUrl || '');
                                       setIsEditClassroomOpen(true);
                                     }}
