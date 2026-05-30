@@ -2409,6 +2409,7 @@ const FALLBACK_POSTS = [
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
@@ -5543,7 +5544,7 @@ function ExonaApp() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || isQuotaExceeded) return;
     const q = query(
       collection(db, 'cloudFiles'),
       where('ownerUid', '==', user.uid),
@@ -5555,10 +5556,10 @@ function ExonaApp() {
       console.error('Error fetching cloud files:', error);
     });
     return unsubscribe;
-  }, [user]);
+  }, [user?.uid, isQuotaExceeded]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || isQuotaExceeded) return;
     const q = query(
       collection(db, 'chatGroups'),
       where('members', 'array-contains', user.uid)
@@ -5569,10 +5570,10 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, 'chatGroups');
     });
     return unsubscribe;
-  }, [user]);
+  }, [user?.uid, isQuotaExceeded]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || isQuotaExceeded) return;
     const q = query(
       collection(db, 'users'),
       where('following', 'array-contains', user.uid)
@@ -5583,10 +5584,9 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, 'users');
     });
     return unsubscribe;
-  }, [user]);
+  }, [user?.uid, isQuotaExceeded]);
 
   const [showPassword, setShowPassword] = useState(false);
-  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -5710,8 +5710,12 @@ function ExonaApp() {
     const found = schools.find(s => s.id === selectedSchool.id) || 
                   places.find(p => p.id === selectedSchool.id) || 
                   selectedSchool;
-    return `${found.id}:${found.creatorUid}:${(found.followers || []).length}:${(found.administrativeViewers || []).join(',')}`;
-  }, [selectedSchool, schools, places]);
+    const canAccessAdmin = found.creatorUid === user?.uid || 
+                           userDoc?.role === 'admin' || 
+                           (found.administrativeViewers || []).includes(user?.uid || '');
+    const canAccessMemberData = canAccessAdmin || (found.followers || []).includes(user?.uid || '');
+    return `${found.id}:${canAccessAdmin}:${canAccessMemberData}`;
+  }, [selectedSchool?.id, schools, places, user?.uid, userDoc?.role]);
 
   useEffect(() => {
     if (selectedClassroom) {
@@ -5870,7 +5874,7 @@ function ExonaApp() {
   }, [selectedClassroom?.students]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || isQuotaExceeded) return;
     // Listen for calls where user is caller or receiver
     const qCalls = query(
       collection(db, 'calls'),
@@ -5912,10 +5916,10 @@ function ExonaApp() {
     });
 
     return unsubscribe;
-  }, [user]);
+  }, [user?.uid, isQuotaExceeded]);
 
   useEffect(() => {
-    if (userDoc?.role !== 'admin') return;
+    if (userDoc?.role !== 'admin' || isQuotaExceeded) return;
     
     const q = query(collection(db, 'keyRequests'), where('status', '==', 'pending'), orderBy('timestamp', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -5924,10 +5928,10 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, 'keyRequests');
     });
     return unsubscribe;
-  }, [userDoc]);
+  }, [userDoc?.role, isQuotaExceeded]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid || isQuotaExceeded) return;
     
     // Listen for ALL key requests made by current user, globally
     const q = query(
@@ -5953,7 +5957,7 @@ function ExonaApp() {
       console.warn('Key requests listener inhibited:', error);
     });
     return unsubscribe;
-  }, [user, selectedSchool?.id]);
+  }, [user?.uid, selectedSchool?.id, isQuotaExceeded]);
 
   useEffect(() => {
     if (!selectedSchool) return;
@@ -9084,17 +9088,18 @@ function ExonaApp() {
   };
 
   useEffect(() => {
-    if (!activePostForComments) {
+    if (!activePostForComments?.id || isQuotaExceeded) {
       setPostComments([]);
       return;
     }
     const q = query(collection(db, `posts/${activePostForComments.id}/comments`), orderBy('timestamp', 'desc'));
-    return onSnapshot(q, (snapshot) => {
+    const unsub = onSnapshot(q, (snapshot) => {
       setPostComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       console.error('Comments fetching error:', error);
     });
-  }, [activePostForComments]);
+    return unsub;
+  }, [activePostForComments?.id, isQuotaExceeded]);
 
 
   useEffect(() => {
@@ -9225,6 +9230,7 @@ function ExonaApp() {
 
   // Data listeners - Master data (Schools/Places)
   useEffect(() => {
+    if (isQuotaExceeded) return;
     const unsubSchools = onSnapshot(collection(db, 'schools'), (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
     }, (error) => {
@@ -9242,7 +9248,7 @@ function ExonaApp() {
     });
 
     return () => { unsubSchools(); unsubPlaces(); };
-  }, []);
+  }, [isQuotaExceeded]);
 
   // Data listeners - Personalized data (Posts, Admin data, Messages)
   useEffect(() => {
@@ -9256,7 +9262,7 @@ function ExonaApp() {
     let unsubWallet = () => {};
     let unsubWalletHistory = () => {};
 
-    if (user && userDoc) {
+    if (user && userDoc && !isQuotaExceeded) {
       // Wallet
       unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
         if (snap.exists()) {
@@ -9448,7 +9454,7 @@ function ExonaApp() {
       unsubWallet();
       unsubWalletHistory();
     };
-  }, [user?.uid, userDoc?.role, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit]);
+  }, [user?.uid, userDoc?.role, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit, isQuotaExceeded]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMorePosts) return;
@@ -9504,6 +9510,8 @@ function ExonaApp() {
     setDailyRoutines([]);
     setClassrooms([]);
     setAttendancePhotos({});
+
+    if (isQuotaExceeded) return;
 
     const unsubs: (() => void)[] = [];
 
@@ -9584,7 +9592,7 @@ function ExonaApp() {
     return () => {
       unsubs.forEach(unsub => unsub());
     };
-  }, [selectedLatestSchoolTracker, user?.uid, userDoc?.role]);
+  }, [selectedLatestSchoolTracker, user?.uid, userDoc?.role, isQuotaExceeded]);
 
   const renderIconForNotification = (type: Notification['type']) => {
     switch (type) {

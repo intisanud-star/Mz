@@ -99,7 +99,7 @@ export default function ExcoinP2PCentre({
 
   // Subscribe to trade orders where user is buyer or seller
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
     const qTrades = query(
       collection(db, 'p2pTrades'),
       orderBy('timestamp', 'desc')
@@ -110,20 +110,26 @@ export default function ExcoinP2PCentre({
       // Filter clientside to include orders where user is either buyer or seller
       const userTrades = allTrades.filter((t: any) => t.buyerUid === user.uid || t.sellerUid === user.uid);
       setTrades(userTrades);
-      
-      // If we are currently viewing a trade inside details modal, keep it updated
-      if (activeTradeItem) {
-        const updated = userTrades.find((t: any) => t.id === activeTradeItem.id);
-        if (updated) {
-          setActiveTradeItem(updated);
-        }
-      }
     }, (err) => {
       console.error("Failed to load P2P trades:", err);
     });
 
     return () => unsub();
-  }, [user, activeTradeItem]);
+  }, [user?.uid]);
+
+  // Keep activeTradeItem in sync with the trades list
+  useEffect(() => {
+    if (activeTradeItem) {
+      const updated = trades.find((t: any) => t.id === activeTradeItem.id);
+      if (updated) {
+        // Only update if something actually changed to prevent deep recursion
+        const hasChanged = JSON.stringify(updated) !== JSON.stringify(activeTradeItem);
+        if (hasChanged) {
+          setActiveTradeItem(updated);
+        }
+      }
+    }
+  }, [trades, activeTradeItem?.id]);
 
   // Handle post new Ad offer
   const handleCreateAd = async (e: React.FormEvent) => {
