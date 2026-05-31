@@ -19045,6 +19045,7 @@ function ExonaApp() {
             <PhotoVideoLab
               onClose={() => setActiveWorkspaceTool(null)}
               showNotification={showNotification}
+              excoinBalance={excoinBalance}
             />
           );
         }

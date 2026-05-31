@@ -570,5 +570,24 @@ service cloud.firestore {
       );
       allow delete: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
     }
+
+    match /cinemaChannels/{channelId} {
+      allow read, get, list: if true;
+      allow create, update: if isAuthenticated() && channelId == request.auth.uid;
+      allow delete: if isAuthenticated() && (channelId == request.auth.uid || isAdmin());
+    }
+
+    match /cinemaFollowers/{followerId} {
+      allow read, get, list: if true;
+      allow create: if isAuthenticated() && request.resource.data.followerUid == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.followerUid == request.auth.uid || isAdmin());
+    }
+
+    match /cinemaPurchases/{purchaseId} {
+      allow read, get: if isAuthenticated();
+      allow list: if isAuthenticated() && resource.data.userUid == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userUid == request.auth.uid;
+      allow update, delete: if isAdmin();
+    }
   }
 }

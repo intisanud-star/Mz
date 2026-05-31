@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Video, Play, Pause, Download, Upload, Eye, Film, Maximize, SkipBack, SkipForward, 
+  Video, Play, Pause, Download, Upload, Eye, Film, Maximize, Minimize, SkipBack, SkipForward, 
   Volume2, VolumeX, Sparkles, Tv, Clapperboard, MonitorPlay, ChevronLeft, ChevronRight, 
   X, Info, User, Star, ExternalLink, Heart, Trash2, Search, Plus, ThumbsUp,
-  Sun, Moon, Sliders, Captions, Languages, SlidersHorizontal
+  Sun, Moon, Sliders, Captions, Languages, SlidersHorizontal,
+  Lock, Unlock, Users, CreditCard, Settings, Flame, ShieldCheck, HelpCircle
 } from 'lucide-react';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, limit, setDoc, getDoc, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 interface PhotoVideoLabProps {
   onClose: () => void;
   showNotification: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  excoinBalance?: number;
 }
 
 const DEFAULT_MOVIES = [
@@ -77,7 +79,7 @@ const DEFAULT_MOVIES = [
   }
 ];
 
-export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoLabProps) {
+export default function PhotoVideoLab({ onClose, showNotification, excoinBalance = 0 }: PhotoVideoLabProps) {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [sharedVideos, setSharedVideos] = useState<any[]>([]);
   const [activeTheaterVideo, setActiveTheaterVideo] = useState<any>(DEFAULT_MOVIES[0]);
@@ -90,6 +92,21 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   const [newShareCategory, setNewShareCategory] = useState('Trending');
   const [isSubmittingVideo, setIsSubmittingVideo] = useState(false);
 
+  // New Custom states for Channels and Monetization
+  const [myChannel, setMyChannel] = useState<any>(null);
+  const [allChannels, setAllChannels] = useState<any[]>([]);
+  const [purchasedVideos, setPurchasedVideos] = useState<Set<string>>(new Set());
+  const [followingCreators, setFollowingCreators] = useState<Set<string>>(new Set());
+
+  const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
+  const [channelFormName, setChannelFormName] = useState('');
+  const [channelFormDesc, setChannelFormDesc] = useState('');
+  const [isSavingChannel, setIsSavingChannel] = useState(false);
+
+  // Share form settings
+  const [chargeAmount, setChargeAmount] = useState<number>(0);
+  const [audience, setAudience] = useState<'public' | 'followers'>('public');
+
   // Auth sync
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (usr) => {
@@ -97,6 +114,91 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
     });
     return () => unsub();
   }, []);
+
+  // Channel sync
+  useEffect(() => {
+    if (!currentUser) {
+      setMyChannel(null);
+      return;
+    }
+    const unsub = onSnapshot(doc(db, 'cinemaChannels', currentUser.uid), (snap) => {
+      if (snap.exists()) {
+        setMyChannel({ id: snap.id, ...snap.data() });
+      } else {
+        setMyChannel(null);
+      }
+    }, (err) => {
+      console.warn("My channel sync error:", err);
+    });
+    return () => unsub();
+  }, [currentUser]);
+
+  // All Channels sync
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'cinemaChannels'), (snap) => {
+      const list: any[] = [];
+      snap.forEach(d => {
+        list.push({ id: d.id, ...d.data() });
+      });
+      setAllChannels(list);
+    }, (err) => {
+      console.warn("All channels sync error:", err);
+    });
+    return () => unsub();
+  }, []);
+
+  // Purchases sync
+  useEffect(() => {
+    if (!currentUser) {
+      setPurchasedVideos(new Set());
+      return;
+    }
+    const unsub = onSnapshot(collection(db, 'cinemaPurchases'), (snap) => {
+      const pSet = new Set<string>();
+      snap.forEach(d => {
+        const item = d.data();
+        if (item.userUid === currentUser.uid) {
+          pSet.add(item.videoId);
+        }
+      });
+      setPurchasedVideos(pSet);
+    }, (err) => {
+      console.warn("Purchases sync error:", err);
+    });
+    return () => unsub();
+  }, [currentUser]);
+
+  // Followers sync
+  useEffect(() => {
+    if (!currentUser) {
+      setFollowingCreators(new Set());
+      return;
+    }
+    const unsub = onSnapshot(collection(db, 'cinemaFollowers'), (snap) => {
+      const fSet = new Set<string>();
+      snap.forEach(d => {
+        const item = d.data();
+        if (item.followerUid === currentUser.uid) {
+          fSet.add(item.creatorUid);
+        }
+      });
+      setFollowingCreators(fSet);
+    }, (err) => {
+      console.warn("Followers sync error:", err);
+    });
+    return () => unsub();
+  }, [currentUser]);
+
+  // Pre-fill channel edit form
+  useEffect(() => {
+    if (myChannel) {
+      setChannelFormName(myChannel.name || '');
+      setChannelFormDesc(myChannel.description || '');
+    } else if (currentUser) {
+      setChannelFormName(currentUser.displayName ? `${currentUser.displayName}'s Cinema` : 'My YouTube Cinema Channel');
+      setChannelFormDesc('Curated educational movies, academy documentaries, and high-fidelity video streams.');
+    }
+  }, [myChannel, currentUser, isChannelModalOpen]);
 
   // Shared videos snapshot listener
   useEffect(() => {
@@ -162,14 +264,33 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   const [audioPreset, setAudioPreset] = useState<string>('Cinema Surround'); // Audio equalizer presets
   const [ambientGlowType, setAmbientGlowType] = useState<string>('Dynamic matches Category'); // Backdrop illumination type
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const videoContainerRef = useRef<HTMLDivElement>(null);
+
+  // Sync fullscreen state with document state change
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // Cross-browser fullscreen request
   const handleToggleFullscreen = () => {
     if (!videoContainerRef.current) return;
     try {
       if (!document.fullscreenElement) {
+        setIsFullscreen(true);
         let p: any;
         if (videoContainerRef.current.requestFullscreen) {
           p = videoContainerRef.current.requestFullscreen();
@@ -182,30 +303,23 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
         if (p && typeof p.catch === 'function') {
           p.catch((err: any) => {
             console.warn("Fullscreen permission rejected in sandbox mode:", err);
-            showNotification("Native Fullscreen restricted in sandbox! Open App in a new tab for native full screen.", "info");
           });
-        } else {
-          showNotification("Entering Cinema Fullscreen Mode!", "info");
         }
       } else {
-        let p: any;
+        setIsFullscreen(false);
         if (document.exitFullscreen) {
-          p = document.exitFullscreen();
+          document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
-          p = (document as any).webkitExitFullscreen();
+          (document as any).webkitExitFullscreen();
         } else if ((document as any).msExitFullscreen) {
-          p = (document as any).msExitFullscreen();
-        }
-        
-        if (p && typeof p.catch === 'function') {
-          p.catch((err: any) => {
-            console.warn("Exit fullscreen failure:", err);
-          });
+          (document as any).msExitFullscreen();
         }
       }
     } catch (err) {
-      console.error("Fullscreen error outside promise:", err);
-      showNotification("Fullscreen was blocked, please run the app in a new tab!", "error");
+      console.error("Fullscreen error:", err);
+      // Fallback state-only toggle
+      setIsFullscreen(!isFullscreen);
+      showNotification(isFullscreen ? "Exited Cinema Screen" : "Entered Cinema Fullscreen Mode!", "info");
     }
   };
 
@@ -298,14 +412,22 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
         createdAt: new Date().toISOString(),
         likes: 0,
         likedBy: [],
-        rating: '98% Match'
+        rating: '98% Match',
+        excoinCharge: chargeAmount,
+        audience: audience,
+        channelName: myChannel ? myChannel.name : (currentUser?.displayName || 'Exona Guest')
       };
-      await addDoc(collection(db, 'cinemaVideos'), videoData);
+      const docRef = await addDoc(collection(db, 'cinemaVideos'), videoData);
       showNotification('Stream successfully broadcasted to Cinema Room!', 'success');
-      setActiveTheaterVideo(videoData);
+      
+      // Update with generated id
+      setActiveTheaterVideo({ id: docRef.id, ...videoData });
+      
       setNewShareUrl('');
       setNewShareTitle('');
       setNewShareDesc('');
+      setChargeAmount(0);
+      setAudience('public');
       setIsSharingModalOpen(false);
     } catch (err) {
       console.error(err);
@@ -313,6 +435,193 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
     } finally {
       setIsSubmittingVideo(false);
     }
+  };
+
+  // Save current user cinema channel config
+  const handleSaveChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser) {
+      showNotification('Please sign in to establish a custom channel!', 'error');
+      return;
+    }
+    if (!channelFormName.trim()) {
+      showNotification('Channel name is required!', 'error');
+      return;
+    }
+
+    setIsSavingChannel(true);
+    try {
+      await setDoc(doc(db, 'cinemaChannels', currentUser.uid), {
+        name: channelFormName.trim(),
+        description: channelFormDesc.trim(),
+        creatorUid: currentUser.uid,
+        creatorPhoto: currentUser.photoURL || '',
+        createdAt: myChannel?.createdAt || new Date().toISOString(),
+        subscriberCount: myChannel?.subscriberCount || 0
+      });
+      showNotification('Your custom Cinema Channel configuration has been saved!', 'success');
+      setIsChannelModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      showNotification('Failed to configure Channel.', 'error');
+    } finally {
+      setIsSavingChannel(false);
+    }
+  };
+
+  // Follow/subscribe to a creator
+  const handleFollowChannel = async (creatorUid: string, creatorName: string) => {
+    if (!currentUser) {
+      showNotification('Please login to subscribe to channels!', 'error');
+      return;
+    }
+    if (currentUser.uid === creatorUid) {
+      showNotification('You cannot follow your own channel!', 'info');
+      return;
+    }
+    try {
+      const followId = `${currentUser.uid}_${creatorUid}`;
+      await setDoc(doc(db, 'cinemaFollowers', followId), {
+        followerUid: currentUser.uid,
+        creatorUid: creatorUid,
+        followerName: currentUser.displayName || 'Exona User',
+        createdAt: new Date().toISOString()
+      });
+      showNotification(`Successfully followed ${creatorName}!`, 'success');
+    } catch (err) {
+      console.error("Follow error:", err);
+      showNotification('Failed to process subscription link.', 'error');
+    }
+  };
+
+  // Unfollow a creator's channel
+  const handleUnfollowChannel = async (creatorUid: string) => {
+    if (!currentUser) return;
+    try {
+      const followId = `${currentUser.uid}_${creatorUid}`;
+      await deleteDoc(doc(db, 'cinemaFollowers', followId));
+      showNotification('Subscription canceled.', 'info');
+    } catch (err) {
+      console.error("Unfollow error:", err);
+    }
+  };
+
+  // Process secure Excoin ticket purchase to unlock stream
+  const handleUnlockVideoByPayment = async (video: any) => {
+    if (!currentUser) {
+      showNotification('Please sign in to purchase tickets!', 'error');
+      return;
+    }
+    const feeToPay = video.excoinCharge || 0;
+    if (feeToPay <= 0) return;
+
+    if (excoinBalance < feeToPay) {
+      showNotification(`Insufficient Balance. You need ${feeToPay} EX. Your current: ${excoinBalance} EX.`, 'error');
+      return;
+    }
+
+    try {
+      const userWalletRef = doc(db, 'wallets', currentUser.uid);
+      const creatorWalletRef = doc(db, 'wallets', video.uid);
+      const purchaseRef = doc(db, 'cinemaPurchases', `${currentUser.uid}_${video.id}`);
+
+      const result = await runTransaction(db, async (transaction) => {
+        const userWalletSnap = await transaction.get(userWalletRef);
+        const userCoins = userWalletSnap.exists() ? (userWalletSnap.data().excoin_balance || 0) : 0;
+        if (userCoins < feeToPay) {
+          throw new Error('Transaction execution blocked: Insufficient wallet balance!');
+        }
+
+        const creatorWalletSnap = await transaction.get(creatorWalletRef);
+        const creatorCoins = creatorWalletSnap.exists() ? (creatorWalletSnap.data().excoin_balance || 0) : 0;
+
+        // Perform balance update
+        transaction.update(userWalletRef, {
+          excoin_balance: userCoins - feeToPay,
+          last_transaction: serverTimestamp()
+        });
+
+        if (creatorWalletSnap.exists()) {
+          transaction.update(creatorWalletRef, {
+            excoin_balance: creatorCoins + feeToPay,
+            last_transaction: serverTimestamp()
+          });
+        } else {
+          transaction.set(creatorWalletRef, {
+            userId: video.uid,
+            balance: 0,
+            excoin_balance: feeToPay,
+            tier: 'Standard',
+            last_transaction: serverTimestamp()
+          });
+        }
+
+        // Save purchase document
+        transaction.set(purchaseRef, {
+          userUid: currentUser.uid,
+          videoId: video.id,
+          creatorUid: video.uid,
+          amountPaid: feeToPay,
+          createdAt: new Date().toISOString()
+        });
+
+        // Set logging history entries
+        const userHistRef = doc(collection(db, `wallets/${currentUser.uid}/history`));
+        const creatorHistRef = doc(collection(db, `wallets/${video.uid}/history`));
+
+        transaction.set(userHistRef, {
+          amount: feeToPay,
+          type: 'debit',
+          currency: 'excoins',
+          description: `Locked streaming unlock ticket for: "${video.title}"`,
+          timestamp: serverTimestamp()
+        });
+
+        transaction.set(creatorHistRef, {
+          amount: feeToPay,
+          type: 'credit',
+          currency: 'excoins',
+          description: `Ticket purchase revenue of video "${video.title}" from ${currentUser.displayName || 'Exona Critic'}`,
+          timestamp: serverTimestamp()
+        });
+
+        return true;
+      });
+
+      if (result) {
+        showNotification(`Streaming access unlocked! Deducted ${feeToPay} EX.`, 'success');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showNotification('Failed to process digital lock ticket.', 'error');
+    }
+  };
+
+  // Video validation helpers
+  const isVideoUnlocked = (): boolean => {
+    if (!activeTheaterVideo) return true;
+    if (activeTheaterVideo.id?.startsWith('default-')) return true;
+    if (activeTheaterVideo.uid === currentUser?.uid) return true;
+    if (currentUser?.email === 'admin@exona.com') return true;
+
+    const charge = activeTheaterVideo.excoinCharge || 0;
+    if (charge > 0) {
+      return purchasedVideos.has(activeTheaterVideo.id);
+    }
+    return true;
+  };
+
+  const isVideoFollowingAllowed = (): boolean => {
+    if (!activeTheaterVideo) return true;
+    if (activeTheaterVideo.id?.startsWith('default-')) return true;
+    if (activeTheaterVideo.uid === currentUser?.uid) return true;
+    if (currentUser?.email === 'admin@exona.com') return true;
+
+    const audienceType = activeTheaterVideo.audience || 'public';
+    if (audienceType === 'followers') {
+      return followingCreators.has(activeTheaterVideo.uid);
+    }
+    return true;
   };
 
   // Like video
@@ -434,6 +743,15 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
           </div>
 
           {/* Share Movie Trigger */}
+          {currentUser && (
+            <button
+              onClick={() => setIsChannelModalOpen(true)}
+              className="px-4 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm active:scale-95 text-nowrap"
+            >
+              <Settings size={13} /> {myChannel ? 'My Channel Hub' : 'Create Channel'}
+            </button>
+          )}
+
           <button
             onClick={() => setIsSharingModalOpen(true)}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-full font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm hover:shadow active:scale-95"
@@ -475,25 +793,89 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
           
           {/* Active Cinema Watch Board with Relative z-index to sit above the dimming shroud */}
           <div className="lg:col-span-8 flex flex-col gap-4 relative z-40">
-            <div className="bg-zinc-950 rounded-[2rem] p-6 text-white overflow-hidden shadow-2xl border border-zinc-900 relative">
+            <div 
+              ref={videoContainerRef}
+              className={`bg-zinc-950 text-white shadow-2xl border border-zinc-900 relative transition-all duration-300 ${
+                isFullscreen 
+                  ? 'fixed inset-0 z-[100] rounded-none p-6 sm:p-10 overflow-y-auto w-screen h-screen flex flex-col gap-6 bg-zinc-950' 
+                  : 'rounded-[2rem] p-6 overflow-hidden'
+              }`}
+            >
               
               {/* Actual Video Frame */}
               <div 
-                ref={videoContainerRef}
-                className="w-full relative rounded-2xl overflow-hidden bg-black border border-zinc-800 transition-all duration-500"
+                className={`relative overflow-hidden bg-black border border-zinc-800 transition-all duration-500 shrink-0 ${
+                  isFullscreen ? 'w-full max-w-5xl mx-auto rounded-3xl shadow-2xl' : 'w-full rounded-2xl'
+                }`}
                 style={{ 
                   boxShadow: getAmbientGlowStyle(),
-                  aspectRatio: aspectRatio === '21:9' ? '21/9' : aspectRatio === '4:3' ? '4/3' : '16/9'
+                  aspectRatio: aspectRatio === '21:9' ? '21/9' : aspectRatio === '4:3' ? '4/3' : '16/9',
+                  maxHeight: isFullscreen ? '70vh' : '450px'
                 }}
               >
                 {activeTheaterVideo ? (
-                  <iframe
-                    src={getCleanStreamUrl(activeTheaterVideo.embedUrl)}
-                    title={activeTheaterVideo.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                    className="w-full h-full border-0 absolute inset-0"
-                  />
+                  (() => {
+                    if (!isVideoUnlocked()) {
+                      const charge = activeTheaterVideo.excoinCharge || 0;
+                      return (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950 text-zinc-350 gap-4">
+                          <div className="h-14 w-14 bg-red-950 text-red-500 rounded-full flex items-center justify-center animate-pulse border border-red-800">
+                            <Lock size={26} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-white uppercase tracking-widest">Premium Cinema Screening</p>
+                            <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
+                              This projection is monetized by the author. Purchase a standard ticket for <strong className="text-red-400">{charge} EX</strong> to unlock streaming.
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-center gap-2 mt-2 w-full max-w-xs">
+                            <button
+                              type="button"
+                              onClick={() => handleUnlockVideoByPayment(activeTheaterVideo)}
+                              className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-red-600/10 active:scale-95"
+                            >
+                              <CreditCard size={14} /> Buy Unlock Ticket ({charge} EX)
+                            </button>
+                            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                              Your wallet: <span className="text-zinc-300">{excoinBalance} EX</span>
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (!isVideoFollowingAllowed()) {
+                      const channelName = activeTheaterVideo.channelName || activeTheaterVideo.displayName || 'this channel';
+                      return (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-zinc-950 text-zinc-350 gap-4">
+                          <div className="h-14 w-14 bg-blue-950 text-blue-450 rounded-full flex items-center justify-center border border-blue-800">
+                            <Users size={26} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-black text-white uppercase tracking-widest">Followers Exclusive Stream</p>
+                            <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
+                              Viewing is exclusive to followers of <strong className="text-blue-400">{channelName}</strong>. Subscribe to unlock instant streaming!
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleFollowChannel(activeTheaterVideo.uid, channelName)}
+                            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-blue-600/10 active:scale-95"
+                          >
+                            <Plus size={14} strokeWidth={2.5} /> Follow Channel to Unlock
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <iframe
+                        src={getCleanStreamUrl(activeTheaterVideo.embedUrl)}
+                        title={activeTheaterVideo.title}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="w-full h-full border-0 absolute inset-0"
+                      />
+                    );
+                  })()
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-zinc-950 text-zinc-500 gap-3">
                     <Tv size={48} className="text-zinc-700 animate-pulse" />
@@ -617,10 +999,10 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                       <button
                         onClick={handleToggleFullscreen}
                         className="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-all flex items-center gap-1.5 py-1 text-[10px] font-bold uppercase tracking-wider"
-                        title="Maximize projection block"
+                        title={isFullscreen ? "Exit fullscreen block" : "Maximize projection block"}
                       >
-                        <Maximize size={12} />
-                        <span className="hidden sm:inline">Theater IMAX</span>
+                        {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
+                        <span className="hidden sm:inline">{isFullscreen ? 'Exit IMAX' : 'Theater IMAX'}</span>
                       </button>
                     </div>
                   </div>
@@ -797,17 +1179,59 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                   <div className="h-px bg-zinc-900 my-4" />
 
                   {/* Channel uploader badge */}
-                  <div className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-[10px] font-black uppercase ring-2 ring-red-500/10 overflow-hidden">
-                      {activeTheaterVideo.photoURL ? (
-                        <img src={activeTheaterVideo.photoURL} className="h-full w-full object-cover animate-fade-in" referrerPolicy="no-referrer" />
-                      ) : (
-                        <span>{activeTheaterVideo.displayName?.charAt(0) || 'E'}</span>
-                      )}
+                  <div className="flex items-center justify-between bg-zinc-900/40 p-4 rounded-2xl border border-zinc-800/40 mt-1 text-left">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-zinc-800 text-zinc-300 flex items-center justify-center text-xs font-black uppercase ring-2 ring-red-500/10 overflow-hidden shrink-0">
+                        {activeTheaterVideo.photoURL ? (
+                          <img src={activeTheaterVideo.photoURL} className="h-full w-full object-cover animate-fade-in" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span>{activeTheaterVideo.channelName?.charAt(0) || activeTheaterVideo.displayName?.charAt(0) || 'E'}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-black text-zinc-100 uppercase tracking-wide">
+                          {activeTheaterVideo.channelName || activeTheaterVideo.displayName || 'Exona Studios'}
+                        </p>
+                        <p className="text-[10px] text-zinc-550 font-bold uppercase tracking-widest mt-0.5 text-zinc-400">
+                          Uploader: {activeTheaterVideo.displayName || 'Anonymous'}
+                          {activeTheaterVideo.audience === 'followers' && (
+                            <span className="ml-2 text-[9px] text-blue-450 border border-blue-900 bg-blue-950/40 px-1 py-0.5 rounded font-black uppercase">Followers Only</span>
+                          )}
+                          {activeTheaterVideo.excoinCharge > 0 && (
+                            <span className="ml-2 text-[9px] text-red-400 border border-red-950 bg-red-950/40 px-1 py-0.5 rounded font-black uppercase">{activeTheaterVideo.excoinCharge} EX</span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-zinc-400 font-medium">
-                      Projected in cinema by <span className="font-extrabold text-zinc-200">{activeTheaterVideo.displayName || 'Exona Studios'}</span>
-                    </p>
+
+                    {/* Follow button */}
+                    {currentUser && activeTheaterVideo.uid && activeTheaterVideo.uid !== currentUser.uid && !activeTheaterVideo.id?.startsWith('default-') && (
+                      (() => {
+                        const isFollowing = followingCreators.has(activeTheaterVideo.uid);
+                        const parentName = activeTheaterVideo.channelName || activeTheaterVideo.displayName || 'this channel';
+                        if (isFollowing) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleUnfollowChannel(activeTheaterVideo.uid)}
+                              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg font-black text-[10px] uppercase tracking-wider transition-all"
+                            >
+                              Following
+                            </button>
+                          );
+                        } else {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleFollowChannel(activeTheaterVideo.uid, parentName)}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-1"
+                            >
+                              <Plus size={10} strokeWidth={2.5} /> Follow
+                            </button>
+                          );
+                        }
+                      })()
+                    )}
                   </div>
                 </div>
               )}
@@ -1058,6 +1482,38 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                 />
               </div>
 
+              {/* Monetization and Audience grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-zinc-100 pt-4 text-left">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1 flex items-center gap-1">
+                    <Lock size={11} className="text-zinc-400" /> Ticket Price (Excoins)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    placeholder="0 = Free projection"
+                    value={chargeAmount === 0 ? '' : chargeAmount}
+                    onChange={(e) => setChargeAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-gray-200 focus:border-red-500 rounded-2xl text-xs font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500/10 placeholder:text-zinc-400 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1 flex items-center gap-1">
+                    <Users size={11} className="text-zinc-400" /> Share Audience
+                  </label>
+                  <select
+                    value={audience}
+                    onChange={(e) => setAudience(e.target.value as 'public' | 'followers')}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-gray-200 focus:border-red-500 rounded-2xl text-xs font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500/10"
+                  >
+                    <option value="public">🌍 Public Space (Anyone)</option>
+                    <option value="followers">👥 Followers Space Only</option>
+                  </select>
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -1072,6 +1528,86 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                   className="flex-1 py-3 bg-red-600 hover:bg-red-700 disabled:bg-zinc-300 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-red-500/10"
                 >
                   {isSubmittingVideo ? 'Projecting...' : 'Stream Trailer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 5. MODAL - MANAGE CHANNEL MODAL */}
+      {isChannelModalOpen && (
+        <div className="fixed inset-0 bg-zinc-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-[2.5rem] border border-gray-150 p-6 sm:p-8 w-full max-w-lg shadow-2xl animate-scale-up space-y-6 text-zinc-900">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 bg-zinc-900 text-white rounded-xl flex items-center justify-center">
+                  <Play size={18} className="text-red-500 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-zinc-950 leading-tight">Personal Creator Studio</h3>
+                  <p className="text-xs text-zinc-500 font-bold mt-0.5">Customize your cinema broadcast label and channel bio.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsChannelModalOpen(false)}
+                className="h-10 w-10 bg-zinc-100 hover:bg-zinc-200 text-zinc-500 rounded-full flex items-center justify-center transition-colors active:scale-95"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveChannel} className="space-y-4 text-left">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Channel Brand Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Paramount Elite, Sci-Fi Nexus, Tech Talk Academy..."
+                  value={channelFormName}
+                  onChange={(e) => setChannelFormName(e.target.value)}
+                  className="w-full px-4 py-3 bg-zinc-50 border border-gray-200 focus:border-red-500 rounded-2xl text-xs font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500/10 placeholder:text-zinc-400"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Channel Story & Biography</label>
+                <textarea
+                  placeholder="Explain what topics or genres your cinema broadcasts specialize in..."
+                  value={channelFormDesc}
+                  onChange={(e) => setChannelFormDesc(e.target.value)}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-zinc-50 border border-gray-200 focus:border-red-500 rounded-2xl text-xs font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-red-500/10 placeholder:text-zinc-400 resize-none"
+                />
+              </div>
+
+              {myChannel && (
+                <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-150 flex items-center justify-between text-zinc-500 text-xs">
+                  <div className="flex items-center gap-2 font-bold select-none">
+                    <Users size={14} className="text-zinc-400" />
+                    <span>Subscriber Base:</span>
+                    <span className="text-zinc-800 font-extrabold">{myChannel.subscriberCount || 0} Followers</span>
+                  </div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded">
+                    Active System Channel
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsChannelModalOpen(false)}
+                  className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingChannel}
+                  className="flex-1 py-3 bg-zinc-950 hover:bg-zinc-800 disabled:bg-zinc-300 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 shadow-md"
+                >
+                  {isSavingChannel ? 'Saving Studio...' : 'Activate Studio'}
                 </button>
               </div>
             </form>
