@@ -2516,7 +2516,7 @@ function ExonaApp() {
           // Silent retry in background
           setTimeout(fetchBroadcastHistory, 15000);
         } else {
-          console.error('[Presidential Broadcasts] Error:', err);
+          console.warn('[Presidential Broadcasts] Non-fatal load issue:', err.message || err);
         }
       });
   }, [serverReady]);
@@ -2589,7 +2589,7 @@ function ExonaApp() {
             // Silently retry stats in 15s if it's a network/proxy issue
             setTimeout(fetchStats, 15000);
           } else {
-            console.error('[Presidential Stats] Error:', err);
+            console.warn('[Presidential Stats] Non-fatal load issue:', err.message || err);
           }
         });
     };
@@ -18857,7 +18857,7 @@ function ExonaApp() {
           'file-share': { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
           'storage': { id: 'storage', name: 'Cloud Storage', description: "Secure cloud storage for your institution's important assets.", icon: HardDrive, color: 'emerald-600' },
           'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
-          'e-exam': { id: 'e-exam', name: 'Cinema', description: 'Stream shared videos, educational trailers, and cinema posts in an immersive Netflix-inspired theater layout.', icon: Video, color: 'red-600' }
+          'e-exam': { id: 'e-exam', name: 'YouTube Cinema', description: 'Stream shared videos, educational trailers, and YouTube cinema posts in an immersive Netflix-inspired theater layout.', icon: Video, color: 'red-600' }
         };
 
         const workspaceFeatures = [

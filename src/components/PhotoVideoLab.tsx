@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Video, Play, Pause, Download, Upload, Eye, Film, Maximize, SkipBack, SkipForward, 
   Volume2, VolumeX, Sparkles, Tv, Clapperboard, MonitorPlay, ChevronLeft, ChevronRight, 
-  X, Info, User, Star, ExternalLink, Heart, Trash2, Search, Plus, ThumbsUp
+  X, Info, User, Star, ExternalLink, Heart, Trash2, Search, Plus, ThumbsUp,
+  Sun, Moon, Sliders, Captions, Languages, SlidersHorizontal
 } from 'lucide-react';
 import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -16,61 +17,61 @@ interface PhotoVideoLabProps {
 const DEFAULT_MOVIES = [
   {
     id: 'default-1',
-    title: 'Cosmic Journey: The Infinite Horizon',
-    description: 'A cinematic voyage through interstellar systems, active black holes, nebula clouds, and extreme gravitational space objects in glorious ultra high-definition.',
-    youtubeUrl: 'https://www.youtube.com/watch?v=9Xq9Xv282O8',
-    embedUrl: 'https://www.youtube.com/embed/9Xq9Xv282O8',
-    category: 'Sci-Fi & Space',
+    title: 'Sintel: Legend of the Dawn Dragon',
+    description: 'A spectacular, legendary cinematic CGI fantasy narrative created by the Blender Foundation. Follow the epic, heart-wrenching voyage of a brave explorer on a quest to rescue her mystical dragon companion.',
+    youtubeUrl: 'https://www.youtube.com/watch?v=eRsGy_Q889Y',
+    embedUrl: 'https://www.youtube.com/embed/eRsGy_Q889Y',
+    category: 'Sci-Fi & Fantasy',
     duration: '14 mins',
-    matchPercentage: '98% Match',
-    thumbnail: 'https://images.unsplash.com/photo-1454789548928-9efd52dc4031?q=80&w=800',
-    likes: 124,
-    displayName: 'Exona Studios',
+    matchPercentage: '99% Match',
+    thumbnail: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?q=80&w=800',
+    likes: 412,
+    displayName: 'Blender Foundation',
     createdAt: new Date().toISOString(),
     isYouTube: true
   },
   {
     id: 'default-2',
-    title: 'Secrets of the Deep Ocean Abyss',
-    description: 'Explore the bizarre alien ecosystems of the ocean floor. Filmed using military-grade exploration submersibles around deep volcanic vents.',
-    youtubeUrl: 'https://www.youtube.com/watch?v=b1XGPvbWn0A',
-    embedUrl: 'https://www.youtube.com/embed/b1XGPvbWn0A',
+    title: 'Scenic Flight: Majestic High Alps',
+    description: 'Breathtaking 4K aerial flyovers and panoramic vistas of towering snow-capped alpine peaks, lush valleys, and sweeping glacial lakes of northern Europe.',
+    youtubeUrl: 'https://www.youtube.com/watch?v=Cx8K8VvK_U4',
+    embedUrl: 'https://www.youtube.com/embed/Cx8K8VvK_U4',
     category: 'Nature & Science',
     duration: '11 mins',
     matchPercentage: '96% Match',
-    thumbnail: 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=800',
-    likes: 87,
-    displayName: 'Exona Studios',
+    thumbnail: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=800',
+    likes: 289,
+    displayName: 'AirCinema International',
     createdAt: new Date().toISOString(),
     isYouTube: true
   },
   {
     id: 'default-3',
-    title: 'Aesthetic Rain & Tokyo Lights',
-    description: 'An immersive cyberpunk journey through Tokyo and Mount Fuji under deep neon monsoon rain. Accompanied by soothing modular low-fidelity synth scores.',
-    youtubeUrl: 'https://www.youtube.com/watch?v=5Wq69E_tVMI',
-    embedUrl: 'https://www.youtube.com/embed/5Wq69E_tVMI',
+    title: 'Lofi Neon Tokyo Rain & Cozy Beats',
+    description: 'Immerse your senses in neon-soaked Tokyo street aesthetics under tranquil evening rainfall. Paired with relaxing, slow-tempo modular synth beats for study and focus.',
+    youtubeUrl: 'https://www.youtube.com/watch?v=n61ULEU7CO0',
+    embedUrl: 'https://www.youtube.com/embed/n61ULEU7CO0',
     category: 'Aesthetic & Lo-Fi',
-    duration: '22 mins',
-    matchPercentage: '94% Match',
-    thumbnail: 'https://images.unsplash.com/photo-1515621061946-eff1c2a352bd?q=80&w=800',
-    likes: 153,
-    displayName: 'Exona Studios',
+    duration: '25 mins',
+    matchPercentage: '95% Match',
+    thumbnail: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800',
+    likes: 531,
+    displayName: 'Chillwave Station',
     createdAt: new Date().toISOString(),
     isYouTube: true
   },
   {
     id: 'default-4',
-    title: 'The Rise of Quantum Computing',
-    description: 'A comprehensive investigation into how cryogenic processing registers are altering the future of human cybernetics, structural medicine, and intelligence models.',
-    youtubeUrl: 'https://www.youtube.com/watch?v=QuR876JA1pI',
-    embedUrl: 'https://www.youtube.com/embed/QuR876JA1pI',
+    title: 'Tears of Steel: Future Cybernetics',
+    description: 'A cyber-thriller exploring cybernetics and artificial intelligence in a futuristic Amsterdam. Merges live-action actors with stellar CGI mechanical tracking.',
+    youtubeUrl: 'https://www.youtube.com/watch?v=R6MlUcmO1Mc',
+    embedUrl: 'https://www.youtube.com/embed/R6MlUcmO1Mc',
     category: 'Technology',
-    duration: '18 mins',
-    matchPercentage: '97% Match',
+    duration: '12 mins',
+    matchPercentage: '98% Match',
     thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=800',
-    likes: 210,
-    displayName: 'Exona Studios',
+    likes: 310,
+    displayName: 'Exona Studios CC',
     createdAt: new Date().toISOString(),
     isYouTube: true
   }
@@ -150,10 +151,124 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   };
 
   // Convert embed links to have modestbranding, hide related videos, hide logos, hide annotations, hide youtube titles, etc.
+  // Immersive Cinema Player States
+  const [lightsDim, setLightsDim] = useState<number>(0); // 0 (bright) to 100 (pitch black)
+  const [playerVolume, setPlayerVolume] = useState<number>(85); // 0 to 100 volume slider
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState<boolean>(false);
+  const [subtitleLang, setSubtitleLang] = useState<string>('en');
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [aspectRatio, setAspectRatio] = useState<string>('16:9'); // 16:9, 21:9, 4:3 size format
+  const [audioPreset, setAudioPreset] = useState<string>('Cinema Surround'); // Audio equalizer presets
+  const [ambientGlowType, setAmbientGlowType] = useState<string>('Dynamic matches Category'); // Backdrop illumination type
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
+
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+
+  // Cross-browser fullscreen request
+  const handleToggleFullscreen = () => {
+    if (!videoContainerRef.current) return;
+    try {
+      if (!document.fullscreenElement) {
+        let p: any;
+        if (videoContainerRef.current.requestFullscreen) {
+          p = videoContainerRef.current.requestFullscreen();
+        } else if ((videoContainerRef.current as any).webkitRequestFullscreen) {
+          p = (videoContainerRef.current as any).webkitRequestFullscreen();
+        } else if ((videoContainerRef.current as any).msRequestFullscreen) {
+          p = (videoContainerRef.current as any).msRequestFullscreen();
+        }
+        
+        if (p && typeof p.catch === 'function') {
+          p.catch((err: any) => {
+            console.warn("Fullscreen permission rejected in sandbox mode:", err);
+            showNotification("Native Fullscreen restricted in sandbox! Open App in a new tab for native full screen.", "info");
+          });
+        } else {
+          showNotification("Entering Cinema Fullscreen Mode!", "info");
+        }
+      } else {
+        let p: any;
+        if (document.exitFullscreen) {
+          p = document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          p = (document as any).webkitExitFullscreen();
+        } else if ((document as any).msExitFullscreen) {
+          p = (document as any).msExitFullscreen();
+        }
+        
+        if (p && typeof p.catch === 'function') {
+          p.catch((err: any) => {
+            console.warn("Exit fullscreen failure:", err);
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Fullscreen error outside promise:", err);
+      showNotification("Fullscreen was blocked, please run the app in a new tab!", "error");
+    }
+  };
+
+  // Compute layered backlight ambient glow shadow to immerse user
+  const getAmbientGlowStyle = () => {
+    if (ambientGlowType === 'None') return 'none';
+    
+    let color = 'rgba(239, 68, 68, 0.45)'; // Default cinematic red
+    if (ambientGlowType === 'Dynamic matches Category') {
+      const cat = activeTheaterVideo?.category?.toLowerCase() || '';
+      if (cat.includes('space') || cat.includes('sci-fi')) {
+        color = 'rgba(59, 130, 246, 0.55)'; // Deep indigo space
+      } else if (cat.includes('nature') || cat.includes('science')) {
+        color = 'rgba(16, 185, 129, 0.55)'; // Emerald forest
+      } else if (cat.includes('aesthetic') || cat.includes('lo-fi')) {
+        color = 'rgba(168, 85, 247, 0.6)'; // Dreamy lavender
+      } else if (cat.includes('tech')) {
+        color = 'rgba(6, 182, 212, 0.6)'; // Cyber cyan
+      }
+    } else if (ambientGlowType === 'Neon Purple') {
+      color = 'rgba(168, 85, 247, 0.6)';
+    } else if (ambientGlowType === 'Crimson Red') {
+      color = 'rgba(239, 68, 68, 0.6)';
+    } else if (ambientGlowType === 'Cyber Cyan') {
+      color = 'rgba(6, 182, 212, 0.6)';
+    } else if (ambientGlowType === 'Golden Aurora') {
+      color = 'rgba(245, 158, 11, 0.6)';
+    }
+    
+    // Live calculated brightness multiplier: glow shines brighter is the theater room is pitch dark (more contrast)!
+    const dimMultiplier = (lightsDim / 100) * 0.8 + 0.2;
+    const baseGlow = `0 4px 30px -5px ${color.replace('0.55', `${dimMultiplier * 0.45}`).replace('0.6', `${dimMultiplier * 0.5}`)}`;
+    const bloomGlow = `0 12px 70px -15px ${color.replace('0.55', `${dimMultiplier * 0.3}`).replace('0.6', `${dimMultiplier * 0.35}`)}`;
+    const roomGlow = `0 25px 120px -25px ${color.replace('0.55', `${dimMultiplier * 0.15}`).replace('0.6', `${dimMultiplier * 0.2}`)}`;
+    
+    return `${baseGlow}, ${bloomGlow}, ${roomGlow}`;
+  };
+
   const getCleanStreamUrl = (url: string) => {
     if (!url) return '';
     const cleanUrl = url.split('?')[0];
-    return `${cleanUrl}?autoplay=1&mute=0&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&disablekb=1&controls=1&fs=0&widget_referrer=1&showinfo=0&origin=${window.location.origin}`;
+    
+    const params = new URLSearchParams();
+    params.set('autoplay', isPlaying ? '1' : '0');
+    params.set('mute', isMuted ? '1' : '0');
+    params.set('modestbranding', '1');
+    params.set('rel', '0');
+    params.set('iv_load_policy', '3');
+    params.set('showinfo', '0');
+    params.set('disablekb', '1');
+    params.set('controls', '1');
+    params.set('fs', '1');
+    params.set('widget_referrer', '1');
+    params.set('origin', window.location.origin);
+    
+    // Subtitles (cc_load_policy: 1 = force subtitles ON, 3 = force OFF)
+    params.set('cc_load_policy', subtitlesEnabled ? '1' : '3');
+    if (subtitlesEnabled) {
+      params.set('hl', subtitleLang);
+      params.set('cc_lang_pref', subtitleLang);
+    }
+    
+    return `${cleanUrl}?${params.toString()}`;
   };
 
   // Submit shared film channel stream
@@ -278,6 +393,14 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   return (
     <div className="flex-1 flex flex-col bg-white text-zinc-900 overflow-hidden relative min-h-screen">
       
+      {/* Immersive Theater Dimming Mask overlay */}
+      {lightsDim > 0 && (
+        <div 
+          className="absolute inset-0 bg-zinc-950 pointer-events-none transition-all duration-700 z-30"
+          style={{ opacity: `${(lightsDim / 100) * 0.90}` }}
+        />
+      )}
+      
       {/* 1. Header Bar - Pristine White Background */}
       <div className="sticky top-0 bg-white border-b border-gray-150 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 z-40">
         <div className="flex items-center gap-3">
@@ -286,13 +409,13 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
           </div>
           <div className="text-left">
             <h1 className="text-xl font-extrabold tracking-tight text-zinc-950 flex items-center gap-2">
-              Cinema Room
+              YouTube Cinema Room
               <span className="text-[9px] bg-red-100 text-red-600 font-black px-2 py-0.5 rounded uppercase font-sans tracking-wider border border-red-200">
-                Cinema View
+                YouTube Cinema
               </span>
             </h1>
             <p className="text-xs text-zinc-500 font-bold">
-              Immersive cinematic hub featuring class-curated streams, documentaries, and community posts.
+              Immersive cinematic hub featuring curated YouTube streams, documentaries, and community posts.
             </p>
           </div>
         </div>
@@ -350,12 +473,19 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
         {/* Dynamic Netflix-style Theater view block */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Active Cinema Watch Board (Netflix Red accents & Black screen) */}
-          <div className="lg:col-span-8 flex flex-col gap-4">
+          {/* Active Cinema Watch Board with Relative z-index to sit above the dimming shroud */}
+          <div className="lg:col-span-8 flex flex-col gap-4 relative z-40">
             <div className="bg-zinc-950 rounded-[2rem] p-6 text-white overflow-hidden shadow-2xl border border-zinc-900 relative">
               
               {/* Actual Video Frame */}
-              <div className="w-full aspect-video relative rounded-2xl overflow-hidden bg-black shadow-lg border border-zinc-800 group/screen">
+              <div 
+                ref={videoContainerRef}
+                className="w-full relative rounded-2xl overflow-hidden bg-black border border-zinc-800 transition-all duration-500"
+                style={{ 
+                  boxShadow: getAmbientGlowStyle(),
+                  aspectRatio: aspectRatio === '21:9' ? '21/9' : aspectRatio === '4:3' ? '4/3' : '16/9'
+                }}
+              >
                 {activeTheaterVideo ? (
                   <iframe
                     src={getCleanStreamUrl(activeTheaterVideo.embedUrl)}
@@ -374,6 +504,245 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                   </div>
                 )}
               </div>
+
+              {/* 📺 ULTIMATE CINEMA COMMAND STRIP & CONTROLLER DECK */}
+              {activeTheaterVideo && (
+                <div className="mt-4 p-4 bg-zinc-900/60 border border-zinc-800/60 rounded-2xl space-y-4 shadow-sm">
+                  {/* Row 1: Direct Play, Volume, and Fullscreen Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800/40 pb-3">
+                    <div className="flex items-center gap-3">
+                      {/* Play/Pause state */}
+                      <button
+                        onClick={() => {
+                          setIsPlaying(!isPlaying);
+                          showNotification(isPlaying ? "Projection paused!" : "Projection resumed!", "info");
+                        }}
+                        className="h-8 w-8 bg-white text-zinc-900 rounded-lg hover:bg-zinc-200 transition-all flex items-center justify-center shadow-sm"
+                        title={isPlaying ? "Pause Stream" : "Play Stream"}
+                      >
+                        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                      </button>
+
+                      {/* Sound Control Mute/Unmute */}
+                      <div className="flex items-center gap-2 bg-zinc-950 px-2.5 py-1.5 rounded-lg border border-zinc-800/80">
+                        <button
+                          onClick={() => {
+                            setIsMuted(!isMuted);
+                            showNotification(isMuted ? "Audio Unmuted" : "Audio Muted", "info");
+                          }}
+                          className="text-zinc-400 hover:text-white transition-all duration-150"
+                        >
+                          {isMuted ? <VolumeX size={15} className="text-red-500" /> : <Volume2 size={15} className="text-emerald-500" />}
+                        </button>
+                        
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={isMuted ? 0 : playerVolume}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value);
+                            setPlayerVolume(val);
+                            if (val === 0) {
+                              setIsMuted(true);
+                            } else {
+                              setIsMuted(false);
+                            }
+                          }}
+                          className="w-16 accent-red-500 h-1 rounded-lg bg-zinc-800 focus:outline-none appearance-none"
+                          title="Cinema Volume Link"
+                        />
+                        <span className="text-[10px] font-mono text-zinc-400 font-bold w-6 text-right">
+                          {isMuted ? 'Mute' : `${playerVolume}%`}
+                        </span>
+                      </div>
+
+                      {/* Animated EQ Frequency visualizer */}
+                      <div className="hidden sm:flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/40 px-3 py-1.5 rounded-lg">
+                        <span className="text-[9px] uppercase tracking-widest font-black text-zinc-500 font-mono">
+                          {audioPreset}
+                        </span>
+                        <div className="flex items-end gap-0.5 h-4 w-9 pb-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <div 
+                              key={i} 
+                              className={`w-1 rounded-2xl transition-all duration-300 ${isMuted ? 'bg-zinc-700 h-1' : 'bg-red-500 animate-bounce'}`}
+                              style={isMuted ? {} : {
+                                height: `${[40, 90, 50, 100, 30][i]}%`,
+                                animationDuration: `${[1.1, 0.8, 1.3, 0.9, 1.4][i]}s`,
+                                animationDelay: `${[0.2, 0.1, 0.4, 0, 0.3][i]}s`
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {/* Audio Preset Dial */}
+                      <select
+                        value={audioPreset}
+                        onChange={(e) => {
+                          setAudioPreset(e.target.value);
+                          showNotification(`Aura Equalizer adjusted to: ${e.target.value}`, 'success');
+                        }}
+                        className="bg-zinc-950 border border-zinc-800 text-[10px] font-bold text-zinc-300 px-2 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500"
+                        title="Equalizer Profile"
+                      >
+                        <option value="Cinema Surround">🎬 Dolby Cinema Pro</option>
+                        <option value="3D Spatial">🎧 3D IMAX Space</option>
+                        <option value="Dialogue Boost">🎤 True Dialogue</option>
+                        <option value="Extra Bass Blast">🎵 Subwoofer Heavy</option>
+                        <option value="Flat Studio">🎚️ Master Flat</option>
+                      </select>
+
+                      {/* Toggle Subtitles Switch */}
+                      <button
+                        onClick={() => {
+                          setSubtitlesEnabled(!subtitlesEnabled);
+                          showNotification(subtitlesEnabled ? "Subtitles Disabled" : "Subtitles Enabled", "info");
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
+                          subtitlesEnabled 
+                            ? 'bg-red-600/15 text-red-500 border-red-500/30' 
+                            : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white'
+                        }`}
+                        title="Toggle Captions"
+                      >
+                        <Captions size={12} />
+                        <span>CC {subtitlesEnabled ? 'ON' : 'OFF'}</span>
+                      </button>
+
+                      {/* Fullscreen maximize launcher */}
+                      <button
+                        onClick={handleToggleFullscreen}
+                        className="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white rounded-lg transition-all flex items-center gap-1.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+                        title="Maximize projection block"
+                      >
+                        <Maximize size={12} />
+                        <span className="hidden sm:inline">Theater IMAX</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Lighting, Captions Lang, Aspect Ratio, Speed Details Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-1">
+                    {/* A. Lighting Dimmer */}
+                    <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                          <Sun size={10} className="text-amber-500" /> Adjust Room Lights
+                        </span>
+                        <span className="text-[10px] font-mono text-zinc-400 font-bold">
+                          {lightsDim === 0 ? 'Day' : lightsDim === 100 ? 'Dark' : `${lightsDim}%`}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={lightsDim}
+                          onChange={(e) => setLightsDim(parseInt(e.target.value))}
+                          className="w-full accent-amber-500 h-1 rounded-lg bg-zinc-800 focus:outline-none appearance-none"
+                        />
+                      </div>
+                      <div className="flex justify-between text-[8px] font-bold text-zinc-500">
+                        <button onClick={() => setLightsDim(0)} className="hover:text-white uppercase">Bright</button>
+                        <button onClick={() => setLightsDim(55)} className="hover:text-white uppercase">Cozy</button>
+                        <button onClick={() => setLightsDim(100)} className="hover:text-white uppercase">Max pitch</button>
+                      </div>
+                    </div>
+
+                    {/* B. Caption Language Selector */}
+                    <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                          <Languages size={10} className="text-indigo-400" /> CC Language
+                        </span>
+                      </div>
+                      <select
+                        disabled={!subtitlesEnabled}
+                        value={subtitleLang}
+                        onChange={(e) => {
+                          setSubtitleLang(e.target.value);
+                          showNotification(`Captions altered to translation: ${e.target.value.toUpperCase()}`, 'success');
+                        }}
+                        className={`w-full bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-zinc-300 px-2 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500 ${!subtitlesEnabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+                        title="Subtitle Lang preference"
+                      >
+                        <option value="en">English (Original)</option>
+                        <option value="es">Español (Spanish)</option>
+                        <option value="fr">Français (French)</option>
+                        <option value="ja">日本語 (Japanese)</option>
+                        <option value="de">Deutsch (German)</option>
+                        <option value="ar">العربية (Arabic)</option>
+                      </select>
+                      <p className="text-[8px] text-zinc-500 font-bold leading-none">
+                        {!subtitlesEnabled ? '💡 Turn CC standard state ON' : '🔄 CC is actively sync-routing track'}
+                      </p>
+                    </div>
+
+                    {/* C. Interactive Sizer / Layout Ratio */}
+                    <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                          <Film size={10} className="text-cyan-400" /> Screen Scale Ratio
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {['16:9', '21:9', '4:3'].map((ratio) => (
+                          <button
+                            key={ratio}
+                            onClick={() => {
+                              setAspectRatio(ratio);
+                              showNotification(`Aspect frame adjusted to ${ratio}`, 'success');
+                            }}
+                            className={`flex-1 py-1.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-all border ${
+                              aspectRatio === ratio
+                                ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
+                                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white'
+                            }`}
+                          >
+                            {ratio}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[8px] text-zinc-500 font-semibold text-center leading-none">
+                        {aspectRatio === '21:9' ? '🎬 Cinemascope Format' : aspectRatio === '4:3' ? '📺 Vintage Tube Model' : '💻 Standard Widescreen'}
+                      </p>
+                    </div>
+
+                    {/* D. Backlight Aura Ambient Glow */}
+                    <div className="bg-zinc-950/80 p-2.5 rounded-xl border border-zinc-800/70 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                          <Sparkles size={10} className="text-purple-400" /> Ambient Backdrop Glow
+                        </span>
+                      </div>
+                      <select
+                        value={ambientGlowType}
+                        onChange={(e) => {
+                          setAmbientGlowType(e.target.value);
+                          showNotification(`Theater Ambient aura matches: ${e.target.value}`, 'success');
+                        }}
+                        className="w-full bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-zinc-300 px-2 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500"
+                        title="Backlighting Glow Preset select"
+                      >
+                        <option value="Dynamic matches Category">🌈 Dynamic Category Bloom</option>
+                        <option value="Neon Purple">🔮 Neon Midnight Purple</option>
+                        <option value="Crimson Red">🔥 Crimson Pop Red</option>
+                        <option value="Cyber Cyan">🛸 Science Cyber Cyan</option>
+                        <option value="Golden Aurora">🌞 Golden Firelight</option>
+                        <option value="None">❌ Turn Glow Off</option>
+                      </select>
+                      <p className="text-[8px] text-zinc-500 font-bold leading-none">
+                        {ambientGlowType === 'None' ? 'Backlights off' : '✨ Aura dynamically intensifies inside pitch dark!'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Movie Description HUD underneath Video player */}
               {activeTheaterVideo && (
@@ -431,7 +800,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                   <div className="flex items-center gap-2">
                     <div className="h-7 w-7 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-[10px] font-black uppercase ring-2 ring-red-500/10 overflow-hidden">
                       {activeTheaterVideo.photoURL ? (
-                        <img src={activeTheaterVideo.photoURL} className="h-full w-full object-cover animate-fade-in" referrerpolicy="no-referrer" />
+                        <img src={activeTheaterVideo.photoURL} className="h-full w-full object-cover animate-fade-in" referrerPolicy="no-referrer" />
                       ) : (
                         <span>{activeTheaterVideo.displayName?.charAt(0) || 'E'}</span>
                       )}
@@ -502,12 +871,12 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
           </div>
         </div>
 
-        {/* 3. Immersive Cinema Rows Catalog */}
+        {/* 3. Immersive YouTube Cinema Rows Catalog */}
         <div className="space-y-6 pt-4">
           <div className="flex items-center justify-between border-b border-gray-200 pb-3">
             <h3 className="text-base font-black text-zinc-950 tracking-tight flex items-center gap-2">
               <span className="w-1.5 h-6 bg-red-600 rounded" />
-              Exona Cinema Catalog Feed
+              YouTube Cinema Catalog Feed
               <span className="text-xs font-bold text-zinc-400 font-sans">({filteredMovies.length} Videos)</span>
             </h3>
             
@@ -558,7 +927,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
 
                       {/* Top left Cinema Badge */}
                       <div className="absolute top-2 left-2 bg-red-600 text-white font-sans font-black text-[9px] px-2 py-0.5 uppercase tracking-wider rounded-md border border-red-700 shadow-sm">
-                        🍿 CINEMA VIEW
+                        🍿 YOUTUBE CINEMA
                       </div>
 
                       {/* Match percentage bottom left */}
@@ -614,8 +983,8 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                   <Film size={18} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-zinc-950 leading-tight">Share Cinema Trailer</h3>
-                  <p className="text-xs text-zinc-500 font-bold mt-0.5">Stream shared movie links directly on Cinema View.</p>
+                  <h3 className="text-lg font-black text-zinc-950 leading-tight">Share YouTube Cinema Video</h3>
+                  <p className="text-xs text-zinc-500 font-bold mt-0.5">Stream shared movie links directly on YouTube Cinema View.</p>
                 </div>
               </div>
               <button 
