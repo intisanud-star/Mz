@@ -5903,7 +5903,7 @@ function ExonaApp() {
   useEffect(() => {
     if (userDoc?.role !== 'admin' || isQuotaExceeded) return;
     
-    const q = query(collection(db, 'keyRequests'), where('status', '==', 'pending'), orderBy('timestamp', 'desc'));
+    const q = query(collection(db, 'keyRequests'), where('status', '==', 'pending'), orderBy('timestamp', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPendingKeyRequests(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
@@ -9388,7 +9388,8 @@ function ExonaApp() {
   // Data listeners - Master data (Schools/Places)
   useEffect(() => {
     if (isQuotaExceeded) return;
-    const unsubSchools = onSnapshot(collection(db, 'schools'), (snap) => {
+    const qSchools = query(collection(db, 'schools'), limit(30));
+    const unsubSchools = onSnapshot(qSchools, (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
@@ -9396,7 +9397,8 @@ function ExonaApp() {
       }
     });
 
-    const unsubPlaces = onSnapshot(collection(db, 'places'), (snap) => {
+    const qPlaces = query(collection(db, 'places'), limit(30));
+    const unsubPlaces = onSnapshot(qPlaces, (snap) => {
       setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as Place)));
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
@@ -9407,211 +9409,229 @@ function ExonaApp() {
     return () => { unsubSchools(); unsubPlaces(); };
   }, [isQuotaExceeded]);
 
-  // Data listeners - Personalized data (Posts, Admin data, Messages)
+  // 1. Wallet and Wallet History Listener
   useEffect(() => {
-    let unsubPosts = () => {};
+    if (isQuotaExceeded || !user) return;
+
+    const unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setExonWallet({ 
+          userId: snap.id, 
+          ...data, 
+          excoinBalance: data.excoin_balance || 0 
+        } as ExonWallet);
+        setExcoinBalance(data.excoin_balance || 0);
+      } else {
+        setExonWallet({
+          userId: user.uid,
+          balance: 0,
+          excoinBalance: 0,
+          tier: 'Standard',
+          last_transaction: null
+        });
+        setExcoinBalance(0);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}`);
+    });
+
+    const qHistory = query(
+      collection(db, `wallets/${user.uid}/history`),
+      orderBy('timestamp', 'desc'),
+      limit(20)
+    );
+    const unsubWalletHistory = onSnapshot(qHistory, (snap) => {
+      setExonHistory(snap.docs.map(d => ({ id: d.id, ...d.data() } as ExonTransaction)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}/history`);
+    });
+
+    return () => {
+      unsubWallet();
+      unsubWalletHistory();
+    };
+  }, [user?.uid, isQuotaExceeded]);
+
+  // 2. Notifications Listener
+  useEffect(() => {
+    if (isQuotaExceeded || !user) return;
+
+    let isInitialLoad = true;
+    const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
+    const unsubNotifications = onSnapshot(qNotifications, (snap) => {
+      const newNotifications = snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification));
+      setNotifications(newNotifications);
+      
+      if (!isInitialLoad) {
+        snap.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            triggerSystemNotification(data.title || 'Exona Broadcast', data.text || '', data.category);
+          }
+        });
+      }
+      isInitialLoad = false;
+    }, (error) => {
+      console.error('Notifications listener error:', error);
+      if (user) {
+        handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/notifications`);
+      }
+    });
+
+    return () => unsubNotifications();
+  }, [user?.uid, isQuotaExceeded]);
+
+  // 3. Messages Listener
+  useEffect(() => {
+    if (isQuotaExceeded || !user) return;
+
+    const messagesQuery = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
+    const unsubAllMessages = onSnapshot(messagesQuery, (snap) => {
+      setAllMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'messages');
+    });
+
+    return () => unsubAllMessages();
+  }, [user?.uid, isQuotaExceeded]);
+
+  // 4. Stories Listener
+  useEffect(() => {
+    if (isQuotaExceeded) return;
+
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const qStories = query(collection(db, 'stories'), where('timestamp', '>', yesterday), orderBy('timestamp', 'desc'));
+    const unsubStories = onSnapshot(qStories, (snap) => {
+      setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)));
+    }, (error) => {
+      console.error('Stories listener error:', error);
+    });
+
+    return () => unsubStories();
+  }, [isQuotaExceeded]);
+
+  // 5. Educational and Financial Records Listener
+  useEffect(() => {
+    if (isQuotaExceeded || !user || !userDoc) return;
+
     let unsubAllRecords = () => {};
     let unsubAllAttendance = () => {};
     let unsubAllFinance = () => {};
-    let unsubAllMessages = () => {};
-    let unsubNotifications = () => {};
-    let unsubStories = () => {};
-    let unsubWallet = () => {};
-    let unsubWalletHistory = () => {};
 
-    if (user && userDoc && !isQuotaExceeded) {
-      // Wallet
-      unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setExonWallet({ 
-            userId: snap.id, 
-            ...data, 
-            excoinBalance: data.excoin_balance || 0 
-          } as ExonWallet);
-          setExcoinBalance(data.excoin_balance || 0);
-        } else {
-          setExonWallet({
-            userId: user.uid,
-            balance: 0,
-            excoinBalance: 0,
-            tier: 'Standard',
-            last_transaction: null
-          });
-          setExcoinBalance(0);
-        }
+    if (userDoc.role === 'admin') {
+      const qRecs = query(collection(db, 'studentRecords'), limit(100));
+      unsubAllRecords = onSnapshot(qRecs, (snap) => {
+        setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
       }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}`);
+        handleFirestoreError(error, OperationType.LIST, 'studentRecords');
       });
 
-      // Wallet History
-      const qHistory = query(
-        collection(db, `wallets/${user.uid}/history`),
-        orderBy('timestamp', 'desc'),
-        limit(20)
-      );
-      unsubWalletHistory = onSnapshot(qHistory, (snap) => {
-        setExonHistory(snap.docs.map(d => ({ id: d.id, ...d.data() } as ExonTransaction)));
+      const qFin = query(collection(db, 'finance'), limit(100));
+      unsubAllFinance = onSnapshot(qFin, (snap) => {
+        setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       }, (error) => {
-        handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}/history`);
+        handleFirestoreError(error, OperationType.LIST, 'finance');
       });
-      // Notifications
-      let isInitialLoad = true;
-      const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
-      unsubNotifications = onSnapshot(qNotifications, (snap) => {
-        const newNotifications = snap.docs.map(d => ({ id: d.id, ...d.data() } as Notification));
-        setNotifications(newNotifications);
-        
-        if (!isInitialLoad) {
-          snap.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-              const data = change.doc.data();
-              triggerSystemNotification(data.title || 'Exona Broadcast', data.text || '', data.category);
-            }
-          });
-        } else if (newNotifications.length === 0) {
-          // If first time user (no notifications) and we just loaded, send a welcome hint
-          console.log('New user detected or empty archives');
-        }
-        isInitialLoad = false;
-      }, (error) => {
-        console.error('Notifications listener error:', error);
-        if (user) {
-          handleFirestoreError(error, OperationType.LIST, `users/${user.uid}/notifications`);
-        }
-      });
-
-      // Personalized Feed
-      const following = userDoc.following || [];
-      const managedIds = [
-        ...schools.filter(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)).map(s => s.id),
-        ...places.filter(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid)).map(p => p.id)
-      ];
-      const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
+    } else {
+      const ownedIds = [...schools, ...places].filter(s => canManageInstitution(s)).map(s => s.id);
+      const followedIds = [...schools, ...places].filter(s => s.followers?.includes(user.uid)).map(s => s.id);
+      const viewerIds = [...schools, ...places].filter(s => s.administrativeViewers?.includes(user.uid)).map(s => s.id);
       
-      if (relevantIds.length > 0) {
-        const limitedIds = relevantIds.slice(0, 30);
-        
-        const qAuthor = query(collection(db, 'posts'), where('authorUid', 'in', limitedIds), orderBy('timestamp', 'desc'), limit(postsLimit));
-        const qSchool = query(collection(db, 'posts'), where('schoolId', 'in', limitedIds), orderBy('timestamp', 'desc'), limit(postsLimit));
-        
-        const unsubAuthor = onSnapshot(qAuthor, (snap) => {
-          const authorPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
-          setPosts(prev => {
-            const otherPosts = prev.filter(p => !authorPosts.find(ap => ap.id === p.id));
-            const merged = [...otherPosts, ...authorPosts].sort((a, b) => {
-              const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
-              const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
-              return tB - tA;
-            });
-            return merged;
-          });
-          setIsLoadingMore(false);
-          // Simple check for more posts: if we get fewer than limit, we might be at the end
-          if (authorPosts.length < postsLimit) {
-            setHasMorePosts(false);
-          } else {
-            setHasMorePosts(true);
-          }
-        }, (error) => {
-          setIsLoadingMore(false);
-          if (!error.message.includes('insufficient permissions')) {
-            handleFirestoreError(error, OperationType.LIST, 'posts (author)');
-          }
-        });
-
-        const unsubSchool = onSnapshot(qSchool, (snap) => {
-          const schoolPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
-          setPosts(prev => {
-            const otherPosts = prev.filter(p => !schoolPosts.find(sp => sp.id === p.id));
-            const merged = [...otherPosts, ...schoolPosts].sort((a, b) => {
-              const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
-              const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
-              return tB - tA;
-            });
-            return merged;
-          });
-          setIsLoadingMore(false);
-          if (schoolPosts.length < postsLimit && hasMorePosts) {
-            // Only set false if authorPosts was also short (approximated)
-          }
-        }, (error) => {
-          setIsLoadingMore(false);
-          if (!error.message.includes('insufficient permissions')) {
-            handleFirestoreError(error, OperationType.LIST, 'posts (school)');
-          }
-        });
-
-        unsubPosts = () => { unsubAuthor(); unsubSchool(); };
-      }
-
-      // Data for Download Center / Reports
-      if (userDoc.role === 'admin') {
-        unsubAllRecords = onSnapshot(collection(db, 'studentRecords'), (snap) => {
+      const authorizedIds = Array.from(new Set([...ownedIds, ...followedIds, ...viewerIds]));
+      
+      if (authorizedIds.length > 0) {
+        const slicedIds = authorizedIds.slice(0, 30);
+        const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', slicedIds), limit(100));
+        unsubAllRecords = onSnapshot(qRecords, (snap) => {
           setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
         }, (error) => {
           handleFirestoreError(error, OperationType.LIST, 'studentRecords');
         });
-        unsubAllFinance = onSnapshot(collection(db, 'finance'), (snap) => {
-          setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+        const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', slicedIds), limit(100));
+        unsubAllAttendance = onSnapshot(qAttendance, (snap) => {
+          setAllAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
         }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'finance');
+          handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
         });
-      } else {
-        // Non-admins see records for institutions they own, manage, OR follow (for complete access)
-        const ownedIds = [...schools, ...places].filter(s => canManageInstitution(s)).map(s => s.id);
-        const followedIds = [...schools, ...places].filter(s => s.followers?.includes(user.uid)).map(s => s.id);
-        const viewerIds = [...schools, ...places].filter(s => s.administrativeViewers?.includes(user.uid)).map(s => s.id);
-        
-        const authorizedIds = Array.from(new Set([...ownedIds, ...followedIds, ...viewerIds]));
-        
-        if (authorizedIds.length > 0) {
-          const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', authorizedIds));
-          unsubAllRecords = onSnapshot(qRecords, (snap) => {
-            setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-          }, (error) => {
-            handleFirestoreError(error, OperationType.LIST, 'studentRecords');
-          });
-
-          const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', authorizedIds));
-          unsubAllAttendance = onSnapshot(qAttendance, (snap) => {
-            setAllAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
-          }, (error) => {
-            handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
-          });
-        }
       }
-
-      // Messages
-      const messagesQuery = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
-      unsubAllMessages = onSnapshot(messagesQuery, (snap) => {
-        setAllMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'messages');
-      });
-
-      // Stories listener
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const qStories = query(collection(db, 'stories'), where('timestamp', '>', yesterday), orderBy('timestamp', 'desc'));
-      unsubStories = onSnapshot(qStories, (snap) => {
-        setStories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Story)));
-      }, (error) => {
-        console.error('Stories listener error:', error);
-      });
     }
 
-    return () => { 
-      unsubPosts(); 
-      unsubAllRecords(); 
-      unsubAllAttendance(); 
-      unsubAllFinance(); 
-      unsubAllMessages(); 
-      unsubNotifications(); 
-      unsubStories();
-      unsubWallet();
-      unsubWalletHistory();
+    return () => {
+      unsubAllRecords();
+      unsubAllAttendance();
+      unsubAllFinance();
     };
-  }, [user?.uid, userDoc?.role, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit, isQuotaExceeded]);
+  }, [user?.uid, userDoc?.role, isQuotaExceeded, schools, places]);
+
+  // 6. Posts & Personalized Social Feed Listener
+  useEffect(() => {
+    if (isQuotaExceeded || !user || !userDoc) return;
+
+    let unsubPosts = () => {};
+
+    const following = userDoc.following || [];
+    const managedIds = [
+      ...schools.filter(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)).map(s => s.id),
+      ...places.filter(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid)).map(p => p.id)
+    ];
+    const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
+    
+    if (relevantIds.length > 0) {
+      const limitedIds = relevantIds.slice(0, 30);
+      
+      const qAuthor = query(collection(db, 'posts'), where('authorUid', 'in', limitedIds), orderBy('timestamp', 'desc'), limit(postsLimit));
+      const qSchool = query(collection(db, 'posts'), where('schoolId', 'in', limitedIds), orderBy('timestamp', 'desc'), limit(postsLimit));
+      
+      const unsubAuthor = onSnapshot(qAuthor, (snap) => {
+        const authorPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+        setPosts(prev => {
+          const otherPosts = prev.filter(p => !authorPosts.find(ap => ap.id === p.id));
+          const merged = [...otherPosts, ...authorPosts].sort((a, b) => {
+            const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
+            const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
+            return tB - tA;
+          });
+          return merged;
+        });
+        setIsLoadingMore(false);
+        if (authorPosts.length < postsLimit) {
+          setHasMorePosts(false);
+        } else {
+          setHasMorePosts(true);
+        }
+      }, (error) => {
+        setIsLoadingMore(false);
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'posts (author)');
+        }
+      });
+
+      const unsubSchool = onSnapshot(qSchool, (snap) => {
+        const schoolPosts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+        setPosts(prev => {
+          const otherPosts = prev.filter(p => !schoolPosts.find(sp => sp.id === p.id));
+          const merged = [...otherPosts, ...schoolPosts].sort((a, b) => {
+            const tA = (a.timestamp as any)?.toMillis?.() || Date.now();
+            const tB = (b.timestamp as any)?.toMillis?.() || Date.now();
+            return tB - tA;
+          });
+          return merged;
+        });
+        setIsLoadingMore(false);
+      }, (error) => {
+        setIsLoadingMore(false);
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'posts (school)');
+        }
+      });
+
+      unsubPosts = () => { unsubAuthor(); unsubSchool(); };
+    }
+
+    return () => unsubPosts();
+  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit, isQuotaExceeded]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMorePosts) return;
@@ -22235,23 +22255,7 @@ function ExonaApp() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
-      {/* Free Tier Quota Exhausted Warning Banner */}
-      {isQuotaExceeded && (
-        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center justify-between text-amber-900 text-xs sm:text-sm font-semibold z-[999] animate-fade-in shrink-0">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="text-amber-500 animate-pulse shrink-0" size={18} />
-            <span>
-              <strong>Free-Tier Quota Limit Active:</strong> Exona's database has reached its daily free limit of 50,000 read units. The system is in read-only standby and will automatically reactivate fully at midnight.
-            </span>
-          </div>
-          <button 
-            onClick={() => setIsQuotaExceeded(false)}
-            className="text-amber-600 hover:text-amber-900 transition-colors ml-4 text-xs tracking-wider uppercase font-bold shrink-0"
-          >
-            Dimiss
-          </button>
-        </div>
-      )}
+      {/* Free Tier Quota Warning disabled as requested */}
 
       {/* Global Notification */}
       <AnimatePresence>

@@ -4,7 +4,7 @@ import {
   RotateCcw, SlidersHorizontal, Eye, RefreshCw, Layers, Crop, Film, Maximize, Scissors,
   Search, Plus, Heart, Trash2, Shield, User, ExternalLink, SkipBack, SkipForward, Volume2, VolumeX, Sparkles, Tv, Clapperboard, MonitorPlay
 } from 'lucide-react';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, limit } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -38,6 +38,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   // Search and database states
   const [playerTab, setPlayerTab] = useState<'local' | 'cinema'>('cinema');
   const [sharedVideos, setSharedVideos] = useState<any[]>([]);
+  const [cinemaLimit, setCinemaLimit] = useState(15);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSharingModalOpen, setIsSharingModalOpen] = useState(false);
   const [newShareUrl, setNewShareUrl] = useState('');
@@ -96,7 +97,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   useEffect(() => {
     if (labMode !== 'player') return;
 
-    const q = query(collection(db, 'cinemaVideos'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'cinemaVideos'), orderBy('createdAt', 'desc'), limit(cinemaLimit));
     const unsub = onSnapshot(q, (snap) => {
       const list: any[] = [];
       snap.forEach((docSnap) => {
@@ -113,7 +114,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
     });
 
     return () => unsub();
-  }, [labMode]);
+  }, [labMode, cinemaLimit]);
 
   // Handle uploading local player video file
   const handleLocalPlayerVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -444,21 +445,21 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden relative">
+    <div className="flex-1 flex flex-col bg-zinc-950 text-white overflow-hidden relative">
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Header bar */}
-      <div className="sticky top-0 bg-white border-b border-gray-150 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 z-10">
+      <div className="sticky top-0 bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shrink-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center">
+          <div className="h-10 w-10 bg-rose-500/10 text-rose-400 rounded-xl flex items-center justify-center">
             {labMode === 'photo' ? <ImageIcon size={20} /> : labMode === 'video' ? <Video size={20} /> : <Film size={20} />}
           </div>
           <div className="text-left">
-            <h1 className="text-lg font-black text-zinc-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
               Photo & Video Lab
-              <span className="text-[9px] bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded uppercase font-mono tracking-wide">Studio Engine</span>
+              <span className="text-[9px] bg-rose-500/20 text-rose-300 font-extrabold px-1.5 py-0.5 rounded uppercase font-mono tracking-wide border border-rose-500/20">Studio Engine</span>
             </h1>
-            <p className="text-xs text-zinc-500 font-bold">
+            <p className="text-xs text-zinc-400 font-bold">
               {labMode === 'player'
                 ? "Watch local device videos or share and search YouTube cinema streams posted by classroom channels."
                 : "Enhance photos, tweak brightness, add non-destructive overlays and download assets live."}
@@ -468,11 +469,11 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {/* Mode Switcher */}
-          <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-150 flex-1 sm:flex-none">
+          <div className="flex bg-zinc-800 p-1 rounded-xl border border-zinc-700 flex-1 sm:flex-none">
             <button
               onClick={() => setLabMode('photo')}
               className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                labMode === 'photo' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
+                labMode === 'photo' ? 'bg-zinc-700 text-white shadow-xs' : 'text-zinc-400 hover:text-white'
               }`}
             >
               <ImageIcon size={13} /> Photo Lab
@@ -480,7 +481,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
             <button
               onClick={() => setLabMode('video')}
               className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                labMode === 'video' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
+                labMode === 'video' ? 'bg-zinc-700 text-white shadow-xs' : 'text-zinc-400 hover:text-white'
               }`}
             >
               <Video size={13} /> Video Lab
@@ -488,7 +489,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
             <button
               onClick={() => setLabMode('player')}
               className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
-                labMode === 'player' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-500 hover:text-zinc-800'
+                labMode === 'player' ? 'bg-zinc-700 text-white shadow-xs' : 'text-zinc-400 hover:text-white'
               }`}
             >
               <Film size={13} /> Cinema Player
@@ -497,7 +498,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
 
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-850 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-xs"
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-xs"
           >
             Exit Studio
           </button>
@@ -508,17 +509,17 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
         {/* Left Interactive Play Field */}
-        <div className="flex-1 p-6 flex flex-col justify-center items-center overflow-y-auto bg-gray-100/50">
+        <div className="flex-1 p-6 flex flex-col justify-center items-center overflow-y-auto bg-zinc-950">
           
           {/* File Name Info Pill */}
-          <div className="mb-4 bg-white border border-gray-150 rounded-full px-4 py-1.5 flex items-center gap-2 font-mono text-xs font-bold text-zinc-650 shadow-xs">
+          <div className="mb-4 bg-zinc-900 border border-zinc-800 rounded-full px-4 py-1.5 flex items-center gap-2 font-mono text-xs font-bold text-zinc-300 shadow-xs">
             <span className="inline-block w-2.5 h-2.5 bg-rose-500 rounded-full animate-pulse" />
             <span className="truncate max-w-[240px] md:max-w-md">
               {labMode === 'photo' ? photoName : labMode === 'video' ? videoName : (activeTheaterVideo?.title || "No Cinema Stream Loaded")}
             </span>
           </div>
 
-          <div className="w-full max-w-4xl bg-white border border-zinc-200 rounded-[2rem] p-6 shadow-md flex items-center justify-center overflow-hidden min-h-[300px] md:min-h-[420px] relative">
+          <div className="w-full max-w-4xl bg-zinc-900 border border-zinc-800 rounded-[2rem] p-6 shadow-md flex items-center justify-center overflow-hidden min-h-[300px] md:min-h-[420px] relative">
             
             {labMode === 'photo' ? (
               // Photo Preview Canvas Simulation
@@ -738,11 +739,11 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
 
                 {/* Sub-theatre description metadata details */}
                 {activeTheaterVideo && (
-                  <div className="mt-4 w-full max-w-3xl text-left bg-white border border-gray-150 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="mt-4 w-full max-w-3xl text-left bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      <h2 className="text-sm font-black text-zinc-900 tracking-tight leading-tight">{activeTheaterVideo.title}</h2>
+                      <h2 className="text-sm font-black text-white tracking-tight leading-tight">{activeTheaterVideo.title}</h2>
                       {activeTheaterVideo.description && (
-                        <p className="text-[11px] text-zinc-500 mt-1 leading-normal font-medium">{activeTheaterVideo.description}</p>
+                        <p className="text-[11px] text-zinc-400 mt-1 leading-normal font-medium">{activeTheaterVideo.description}</p>
                       )}
                       
                       {/* Creator attribution line */}
@@ -753,15 +754,15 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                               src={activeTheaterVideo.photoURL}
                               alt={activeTheaterVideo.displayName}
                               referrerPolicy="no-referrer"
-                              className="w-4.5 h-4.5 rounded-full object-cover border border-gray-250"
+                              className="w-4.5 h-4.5 rounded-full object-cover border border-zinc-800"
                             />
                           ) : (
-                            <div className="w-4.5 h-4.5 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center text-[8px] font-black uppercase">
+                            <div className="w-4.5 h-4.5 rounded-full bg-zinc-800 text-zinc-350 flex items-center justify-center text-[8px] font-black uppercase">
                               {activeTheaterVideo.displayName.charAt(0)}
                             </div>
                           )}
-                          <span className="text-[10px] text-zinc-500 font-bold">
-                            Posted by <span className="font-extrabold text-zinc-700">{activeTheaterVideo.displayName}</span>
+                          <span className="text-[10px] text-zinc-400 font-bold">
+                            Posted by <span className="font-extrabold text-zinc-200">{activeTheaterVideo.displayName}</span>
                           </span>
                         </div>
                       )}
@@ -845,12 +846,12 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
         </div>
 
         {/* Right Pane Controls Panel */}
-        <div className="w-full lg:w-[400px] shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-200 bg-white flex flex-col overflow-y-auto">
+        <div className="w-full lg:w-[400px] shrink-0 border-t lg:border-t-0 lg:border-l border-zinc-800 bg-zinc-900 flex flex-col overflow-y-auto text-zinc-100">
           
           {labMode !== 'player' ? (
             <>
               {/* Top Panel Actions: Upload local files directly */}
-              <div className="p-6 border-b border-gray-150 bg-gray-50/50">
+              <div className="p-6 border-b border-zinc-800 bg-zinc-950/40">
                 <input 
                   type="file" 
                   ref={fileInputRef}
@@ -860,11 +861,11 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                 />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-4 px-6 border-2 border-dashed border-gray-300 hover:border-rose-500 rounded-2xl flex flex-col items-center justify-center gap-1 bg-white hover:bg-rose-50/10 transition-all text-center"
+                  className="w-full py-4 px-6 border-2 border-dashed border-zinc-700 hover:border-rose-500 rounded-2xl flex flex-col items-center justify-center gap-1 bg-zinc-900 hover:bg-rose-500/10 transition-all text-center"
                 >
                   <Upload size={18} className="text-rose-500" />
-                  <span className="text-xs font-black text-zinc-900 uppercase tracking-widest leading-none mt-1">Upload Own {labMode === 'photo' ? 'Photo' : 'Video'}</span>
-                  <span className="text-[10px] text-zinc-500 font-bold">Import from local phone / desktop storage</span>
+                  <span className="text-xs font-black text-white uppercase tracking-widest leading-none mt-1">Upload Own {labMode === 'photo' ? 'Photo' : 'Video'}</span>
+                  <span className="text-[10px] text-zinc-400 font-bold">Import from local phone / desktop storage</span>
                 </button>
               </div>
 
@@ -1304,8 +1305,8 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                       </div>
                     )}
 
-                    <div className="bg-zinc-50 border rounded-2xl p-4 space-y-2.5 text-zinc-650">
-                      <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Device Video Guidance:</h4>
+                    <div className="bg-zinc-950/40 border border-zinc-800 rounded-2xl p-4 space-y-2.5 text-zinc-300">
+                      <h4 className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Device Video Guidance:</h4>
                       <p className="text-[11px] leading-tight font-medium">1. Select your film from internal storage or camera rolls.</p>
                       <p className="text-[11px] leading-tight font-medium">2. Enjoy high fidelity playback controls with custom rewinds and triggers.</p>
                       <p className="text-[11px] leading-tight font-medium">3. Data remains strictly private on your phone.</p>
@@ -1336,8 +1337,8 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
 
                     {/* Sharing Modal/Form Overlay */}
                     {isSharingModalOpen && (
-                      <form onSubmit={handleShareVideo} className="bg-gray-50 border border-gray-250 rounded-2xl p-4 space-y-3 shadow-inner">
-                        <span className="text-[10px] font-extrabold text-rose-600 uppercase tracking-widest block">New Shared Channel Post</span>
+                      <form onSubmit={handleShareVideo} className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 space-y-3 shadow-inner">
+                        <span className="text-[10px] font-extrabold text-rose-400 uppercase tracking-widest block">New Shared Channel Post</span>
                         
                         <div className="space-y-1">
                           <label className="text-[9px] font-black uppercase text-zinc-400 block">Video Title *</label>
@@ -1347,7 +1348,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                             value={newShareTitle}
                             onChange={(e) => setNewShareTitle(e.target.value)}
                             placeholder="e.g. Science Class Lesson Explained"
-                            className="w-full px-3 py-2 bg-white border border-gray-250 rounded-lg text-xs font-bold text-zinc-900 focus:outline-none focus:border-rose-500"
+                            className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500"
                           />
                         </div>
 
@@ -1359,7 +1360,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                             value={newShareUrl}
                             onChange={(e) => setNewShareUrl(e.target.value)}
                             placeholder="e.g. https://www.youtube.com/watch?v=..."
-                            className="w-full px-3 py-2 bg-white border border-gray-250 rounded-lg text-xs font-bold text-zinc-900 focus:outline-none focus:border-rose-500"
+                            className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500"
                           />
                         </div>
 
@@ -1369,14 +1370,14 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                             value={newShareDesc}
                             onChange={(e) => setNewShareDesc(e.target.value)}
                             placeholder="Provide details about the video clip..."
-                            className="w-full px-3 py-2 bg-white border border-gray-250 rounded-lg text-xs font-bold text-zinc-900 focus:outline-none focus:border-rose-500 h-16 resize-none"
+                            className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:border-rose-500 h-16 resize-none"
                           />
                         </div>
 
                         <button
                           type="submit"
                           disabled={isSubmittingVideo}
-                          className="w-full py-2 bg-zinc-950 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-zinc-800 transition-all disabled:opacity-50"
+                          className="w-full py-2 bg-rose-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-wider hover:bg-rose-700 transition-all disabled:opacity-50"
                         >
                           {isSubmittingVideo ? 'Publishing...' : 'Publish to Class Channels'}
                         </button>
@@ -1393,7 +1394,7 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search user by name to see their posted channels..."
-                        className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-zinc-800 placeholder-zinc-400 focus:outline-none focus:bg-white focus:border-rose-500 transition-all"
+                        className="w-full pl-9 pr-3 py-2 bg-zinc-950 border border-zinc-800 rounded-xl text-xs font-bold text-white placeholder-zinc-500 focus:outline-none focus:bg-zinc-900 focus:border-rose-500 transition-all"
                       />
                     </div>
 
@@ -1419,16 +1420,16 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                                 }}
                                 className={`group p-3 rounded-xl border transition-all cursor-pointer text-left flex gap-3 relative overflow-hidden select-none ${
                                   active 
-                                    ? 'bg-rose-50 border-rose-300 ring-1 ring-rose-200' 
-                                    : 'bg-white border-zinc-200 hover:border-rose-400 shadow-2xs'
+                                    ? 'bg-rose-500/10 border-rose-500/50 ring-1 ring-rose-500/20' 
+                                    : 'bg-zinc-950 border-zinc-800 hover:border-rose-500/50 text-white shadow-2xs'
                                 }`}
                               >
-                                <div className="w-12 h-10 bg-zinc-950 rounded-lg flex items-center justify-center text-rose-500 overflow-hidden relative shrink-0">
+                                <div className="w-12 h-10 bg-zinc-900 rounded-lg flex items-center justify-center text-rose-500 overflow-hidden relative shrink-0">
                                   <Film size={14} className="text-rose-500 scale-100 group-hover:scale-110 transition-transform" />
                                 </div>
 
                                 <div className="flex-1 min-w-0">
-                                  <h5 className="font-extrabold text-[11px] text-zinc-900 truncate leading-tight group-hover:text-rose-600 transition-colors">{video.title}</h5>
+                                  <h5 className="font-extrabold text-[11px] text-white truncate leading-tight group-hover:text-rose-400 transition-colors">{video.title}</h5>
                                   
                                   <div className="flex items-center justify-between mt-1.5">
                                     <div className="flex items-center gap-1 min-w-0">
@@ -1437,14 +1438,14 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                                           src={video.photoURL}
                                           alt={video.displayName}
                                           referrerPolicy="no-referrer"
-                                          className="w-3.5 h-3.5 rounded-full object-cover border border-zinc-200"
+                                          className="w-3.5 h-3.5 rounded-full object-cover border border-zinc-800"
                                         />
                                       ) : (
-                                        <div className="w-3.5 h-3.5 rounded-full bg-zinc-200 text-zinc-650 flex items-center justify-center text-[7px] font-black uppercase">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-zinc-800 text-zinc-300 flex items-center justify-center text-[7px] font-black uppercase">
                                           {(video.displayName || 'G').charAt(0)}
                                         </div>
                                       )}
-                                      <span className="text-[9px] text-zinc-500 font-bold truncate max-w-[80px]">
+                                      <span className="text-[9px] text-zinc-400 font-bold truncate max-w-[80px]">
                                         {video.displayName || 'Guest User'}
                                       </span>
                                     </div>
@@ -1455,8 +1456,8 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                                         onClick={(e) => handleLikeVideo(video.id, e)}
                                         className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded border text-[8px] font-black tracking-tight transition-all ${
                                           hasLiked
-                                            ? 'bg-rose-50 border-rose-300 text-rose-500'
-                                            : 'bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400'
+                                            ? 'bg-rose-500/20 border-rose-500/50 text-rose-400'
+                                            : 'bg-zinc-900 border-zinc-750 text-zinc-400 hover:border-rose-500/50'
                                         }`}
                                       >
                                         <Heart size={7} fill={hasLiked ? "currentColor" : "none"} />
@@ -1480,9 +1481,21 @@ export default function PhotoVideoLab({ onClose, showNotification }: PhotoVideoL
                             );
                           })
                         ) : (
-                          <div className="text-center py-10 border border-dashed rounded-xl bg-gray-50/50 text-zinc-400">
-                            <Clapperboard size={20} className="mx-auto text-zinc-300 animate-pulse" />
+                          <div className="text-center py-10 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/40 text-zinc-500">
+                            <Clapperboard size={20} className="mx-auto text-zinc-600 animate-pulse" />
                             <p className="text-[10px] font-bold mt-1 uppercase text-zinc-500">No active streams match search</p>
+                          </div>
+                        )}
+
+                        {filteredSharedVideos.length >= cinemaLimit && (
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => setCinemaLimit(prev => prev + 15)}
+                              className="w-full py-2.5 px-4 bg-zinc-950/80 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all text-center cursor-pointer shadow-md"
+                            >
+                              Load More Channels
+                            </button>
                           </div>
                         )}
                       </div>
