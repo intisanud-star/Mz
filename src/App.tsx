@@ -13977,7 +13977,7 @@ function ExonaApp() {
             "Syncing with Gemini educational networks...",
             "Analyzing subject parameters & grade alignment...",
             "Curating comprehensive text blocks & study guides...",
-            "Sourcing premium visual materials & YouTube embeds...",
+            "Sourcing premium visual materials & video course embeds...",
             "Running Imagen pipeline to render custom scientific diagrams...",
             "Validating and polishing final lesson layout..."
           ];
@@ -14045,7 +14045,7 @@ function ExonaApp() {
             }
             if (aiLessonResult.videoUrl) {
               const ytSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(aiLessonResult.lessonTitle + ' tutorial help')}`;
-              finalContent += `\n\n---\n\n### 📹 Recommended Study Video \n*[Video Summary]: ${aiLessonResult.videoExplanation}*\n\n*(YouTube blocks active direct embedding sometimes: [Click here to find active clips on YouTube](${ytSearchUrl}))*\n\n<!--youtube: ${aiLessonResult.videoUrl}-->`;
+              finalContent += `\n\n---\n\n### 📹 Recommended Study Video \n*[Video Summary]: ${aiLessonResult.videoExplanation}*\n\n*(Direct embedding may restrict preview: [Click here to find active clips on study channels](${ytSearchUrl}))*\n\n<!--stream: ${aiLessonResult.videoUrl}-->`;
             }
 
             if (aiLessonResult.interactiveExplanations && aiLessonResult.interactiveExplanations.length > 0) {
@@ -15804,15 +15804,15 @@ function ExonaApp() {
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">YouTube Video Link (Optional)</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Reference Stream URL (Optional)</label>
                             <input 
                               type="text"
-                              placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                              placeholder="e.g. Paste reference video or movie watch URL"
                               value={newLessonVideoUrl}
                               onChange={(e) => setNewLessonVideoUrl(e.target.value)}
                               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-xs"
                             />
-                            <p className="text-[8px] text-muted font-bold mt-1 uppercase tracking-wider">Pasted YouTube links will automatically convert to playable players for all students.</p>
+                            <p className="text-[8px] text-muted font-bold mt-1 uppercase tracking-wider">Pasted streaming links will automatically convert to playable interactive players for all students.</p>
                           </div>
                           <button 
                             onClick={handleUploadLesson}
@@ -15927,7 +15927,7 @@ function ExonaApp() {
                                         <span className="bg-red-50 text-red-600 p-1.5 rounded-lg border border-red-100">
                                           <VideoIcon size={14} className="text-red-500" />
                                         </span>
-                                        <span className="text-[10px] text-ink font-black uppercase tracking-widest font-sans">Curated Reference Video</span>
+                                        <span className="text-[10px] text-ink font-black uppercase tracking-widest font-sans">Curated Reference Stream</span>
                                       </div>
                                       {(searchWordMatch || activeUiVideoUrl) && (
                                         <a 
@@ -15937,7 +15937,7 @@ function ExonaApp() {
                                           className="text-[9px] font-black text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 uppercase tracking-widest font-sans shrink-0"
                                         >
                                           <Search size={10} />
-                                          Search YouTube
+                                          Search Study Stream
                                         </a>
                                       )}
                                     </div>
@@ -15956,7 +15956,7 @@ function ExonaApp() {
                                       <div className="space-y-3">
                                         <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-150 shadow-sm bg-black">
                                           <iframe 
-                                            src={activeUiVideoUrl}
+                                            src={activeUiVideoUrl ? (activeUiVideoUrl + (activeUiVideoUrl.includes('?') ? '&' : '?') + "modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&disablekb=1&controls=1&fs=0&widget_referrer=1&origin=" + window.location.origin) : ""}
                                             className="absolute top-0 left-0 w-full h-full border-0"
                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                             allowFullScreen
@@ -15965,14 +15965,14 @@ function ExonaApp() {
                                         </div>
                                         <div className="bg-amber-50/50 border border-amber-100/75 rounded-2xl p-3 text-center">
                                           <p className="text-[9px] text-amber-800 leading-normal font-medium leading-relaxed">
-                                            ⚠️ <strong>Video shows "unavailable"?</strong> Inside iframe preview environments, YouTube sometimes restricts local direct embeds. Click the red <strong>Search YouTube</strong> shortcut above to search and play active videos directly!
+                                            ⚠️ <strong>Video shows "unavailable"?</strong> Inside iframe preview environments, some direct streaming feeds restrict direct embedded access. Click the red <strong>Search Study Stream</strong> shortcut above to search and play active streams directly!
                                           </p>
                                         </div>
                                       </div>
                                     ) : (
                                       <div className="p-4 bg-amber-50/20 rounded-2xl border border-dashed border-amber-200 text-center">
                                         <p className="text-[10px] text-amber-800 font-bold leading-normal">
-                                          This is a legacy lesson. Click the red <strong>Search YouTube</strong> button above to load recommended active links for: <strong>"{searchWordMatch || lesson.title}"</strong>!
+                                          This is a legacy lesson. Click the red <strong>Search Study Stream</strong> button above to load recommended active links for: <strong>"{searchWordMatch || lesson.title}"</strong>!
                                         </p>
                                       </div>
                                     )}
@@ -16548,7 +16548,7 @@ function ExonaApp() {
                               >
                                 <VideoIcon size={18} className="mb-1 text-red-500" />
                                 <span className="text-[10px] uppercase tracking-widest block font-black font-sans">Video Only</span>
-                                <span className="text-[8px] text-slate-400 font-medium block mt-0.5">YouTube Embed</span>
+                                <span className="text-[8px] text-slate-400 font-medium block mt-0.5">Media Stream</span>
                               </button>
 
                               <button
@@ -16633,7 +16633,7 @@ function ExonaApp() {
                                       <span className="bg-red-50 text-red-600 p-1.5 rounded-lg border border-red-100">
                                         <Trophy size={14} className="text-red-500" />
                                       </span>
-                                      <span className="text-[10px] text-ink font-black uppercase tracking-widest">Curated Reference Video</span>
+                                      <span className="text-[10px] text-ink font-black uppercase tracking-widest">Curated Reference Stream</span>
                                     </div>
                                     {aiLessonResult.lessonTitle && (
                                       <a 
@@ -16643,7 +16643,7 @@ function ExonaApp() {
                                         className="text-[9px] font-black text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shrink-0 uppercase tracking-widest"
                                       >
                                         <Search size={10} />
-                                        Search YouTube
+                                        Search Study Stream
                                       </a>
                                     )}
                                   </div>
@@ -16656,7 +16656,7 @@ function ExonaApp() {
                                   <div className="space-y-2.5">
                                     <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-gray-100 shadow-md">
                                       <iframe 
-                                        src={aiLessonResult.videoUrl}
+                                        src={aiLessonResult.videoUrl ? (aiLessonResult.videoUrl + (aiLessonResult.videoUrl.includes('?') ? '&' : '?') + "modestbranding=1&rel=0&iv_load_policy=3&showinfo=0&disablekb=1&controls=1&fs=0&widget_referrer=1&origin=" + window.location.origin) : ""}
                                         className="absolute top-0 left-0 w-full h-full border-0"
                                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                         allowFullScreen
@@ -16665,7 +16665,7 @@ function ExonaApp() {
                                     </div>
                                     <div className="bg-amber-50/50 border border-amber-100/75 rounded-2xl p-3 text-center">
                                       <p className="text-[9px] text-amber-800 leading-normal font-medium">
-                                        ⚠️ <strong>Video shows "unavailable"?</strong> Inside iframe preview sandboxes, YouTube sometimes restricts direct embeds of AI-recommended links. Click the red <strong>Search YouTube</strong> shortcut above to search and play active videos directly!
+                                        ⚠️ <strong>Stream shows "unavailable"?</strong> Inside iframe preview sandboxes, direct embeds of study-recommended links sometimes restrict direct embedded access. Click the red <strong>Search Study Stream</strong> shortcut above to search and play active streams directly!
                                       </p>
                                     </div>
                                   </div>
@@ -18857,7 +18857,7 @@ function ExonaApp() {
           'file-share': { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
           'storage': { id: 'storage', name: 'Cloud Storage', description: "Secure cloud storage for your institution's important assets.", icon: HardDrive, color: 'emerald-600' },
           'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
-          'e-exam': { id: 'e-exam', name: 'Photo and Video Lab', description: 'Interactive studio to adjust image brightness, apply filters, manage customized video subtitles, and export modified media formats.', icon: Video, color: 'rose-600' }
+          'e-exam': { id: 'e-exam', name: 'Cinema', description: 'Stream shared videos, educational trailers, and cinema posts in an immersive Netflix-inspired theater layout.', icon: Video, color: 'red-600' }
         };
 
         const workspaceFeatures = [
