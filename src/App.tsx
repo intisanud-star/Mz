@@ -21938,32 +21938,53 @@ function ExonaApp() {
         <motion.div 
           initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }} 
-          transition={{ duration: 2 }}
-          className="relative z-10 flex flex-col items-center"
+          transition={{ duration: 1.5 }}
+          className="relative z-10 flex flex-col items-center px-6 text-center select-none"
         >
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center"
           >
-            <h1 className="text-8xl font-bold tracking-tight text-ink mb-2 font-display">Exona</h1>
-            <div className="h-px w-32 bg-gradient-to-r from-transparent via-ink/10 to-transparent mb-8"></div>
+            {/* Premium sign from Google Anti-gravity */}
+            <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-[#4285F4]/10 via-[#EA4335]/15 to-[#34A853]/10 border border-neutral-200/50 rounded-full shadow-xs mb-6">
+              <Stars size={13} className="text-[#FBBC05] animate-spin [animation-duration:8s]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700">
+                Premium License • Google Anti-gravity
+              </span>
+            </div>
+
+            <h1 className="text-7xl sm:text-8xl font-bold tracking-tight text-ink mb-1 font-display">Exona</h1>
+            <div className="h-px w-32 bg-gradient-to-r from-transparent via-ink/10 to-transparent mb-6"></div>
           </motion.div>
           
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 1 }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 1 }}
             className="flex flex-col items-center"
           >
-            <p className="text-[11px] font-bold uppercase tracking-[0.8em] text-muted mb-12">Mastering AI</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-muted mb-4">Mastering AI & Spatial Media</p>
             
-            <div className="flex items-center gap-3">
-              <div className="h-1 w-1 bg-ink/10 rounded-full animate-bounce"></div>
-              <div className="h-1 w-1 bg-ink/20 rounded-full animate-bounce [animation-delay:0.2s]"></div>
-              <div className="h-1 w-1 bg-ink/10 rounded-full animate-bounce [animation-delay:0.4s]"></div>
+            <div className="flex items-center gap-2 mb-10">
+              <div className="h-1.5 w-1.5 bg-[#4285F4] rounded-full animate-bounce"></div>
+              <div className="h-1.5 w-1.5 bg-[#EA4335] rounded-full animate-bounce [animation-delay:0.15s]"></div>
+              <div className="h-1.5 w-1.5 bg-[#FBBC05] rounded-full animate-bounce [animation-delay:0.3s]"></div>
+              <div className="h-1.5 w-1.5 bg-[#34A853] rounded-full animate-bounce [animation-delay:0.45s]"></div>
             </div>
+
+            {/* Last interactive button styled in Google Colors */}
+            <button 
+              onClick={() => setSplashDone(true)}
+              className="px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl hover:shadow-[#4285F4]/20 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853] border-0 outline-0 select-none cursor-pointer"
+            >
+              <Rocket size={14} className="animate-pulse" /> Launch Premium Workspace
+            </button>
+            
+            <p className="text-[9px] font-extrabold text-muted uppercase tracking-widest mt-3.5 opacity-60">
+              Automatic Handshake in 3s ...
+            </p>
           </motion.div>
         </motion.div>
       </div>
