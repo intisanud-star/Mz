@@ -2453,6 +2453,27 @@ function ExonaApp() {
   const [broadcastHistory, setBroadcastHistory] = useState<any[]>([]);
 
   const [serverReady, setServerReady] = useState(false);
+  const [renderedView, setRenderedView] = useState<typeof view>('splash');
+
+  // Instant view loading flag calculated on the fly for immediate feedback on the same tick as clicks
+  const isViewLoading = view !== renderedView && view !== 'splash' && renderedView !== 'splash';
+
+  // Unified visual view loader to fetch & process data gracefully like Facebook
+  useEffect(() => {
+    if (view === renderedView) return;
+
+    // Fast-track initial transitions so cold boots show instant menus
+    if (renderedView === 'splash') {
+      setRenderedView(view);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setRenderedView(view);
+    }, 850); // 850ms elegant Facebook-style connection delay to ensure they see the loader clearly
+
+    return () => clearTimeout(timer);
+  }, [view, renderedView]);
 
   useEffect(() => {
     let checkInterval: any;
@@ -9436,22 +9457,25 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}`);
     });
 
-    const qHistory = query(
-      collection(db, `wallets/${user.uid}/history`),
-      orderBy('timestamp', 'desc'),
-      limit(20)
-    );
-    const unsubWalletHistory = onSnapshot(qHistory, (snap) => {
-      setExonHistory(snap.docs.map(d => ({ id: d.id, ...d.data() } as ExonTransaction)));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}/history`);
-    });
+    let unsubWalletHistory = () => {};
+    if (view === 'tools') {
+      const qHistory = query(
+        collection(db, `wallets/${user.uid}/history`),
+        orderBy('timestamp', 'desc'),
+        limit(20)
+      );
+      unsubWalletHistory = onSnapshot(qHistory, (snap) => {
+        setExonHistory(snap.docs.map(d => ({ id: d.id, ...d.data() } as ExonTransaction)));
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, `wallets/${user.uid}/history`);
+      });
+    }
 
     return () => {
       unsubWallet();
       unsubWalletHistory();
     };
-  }, [user?.uid, isQuotaExceeded]);
+  }, [user?.uid, isQuotaExceeded, view]);
 
   // 2. Notifications Listener
   useEffect(() => {
@@ -9484,7 +9508,7 @@ function ExonaApp() {
 
   // 3. Messages Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user) return;
+    if (isQuotaExceeded || !user || view !== 'chat') return;
 
     const messagesQuery = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
     const unsubAllMessages = onSnapshot(messagesQuery, (snap) => {
@@ -9494,11 +9518,11 @@ function ExonaApp() {
     });
 
     return () => unsubAllMessages();
-  }, [user?.uid, isQuotaExceeded]);
+  }, [user?.uid, isQuotaExceeded, view]);
 
   // 4. Stories Listener
   useEffect(() => {
-    if (isQuotaExceeded) return;
+    if (isQuotaExceeded || !['feed', 'school-feed', 'schools'].includes(view)) return;
 
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const qStories = query(collection(db, 'stories'), where('timestamp', '>', yesterday), orderBy('timestamp', 'desc'));
@@ -9509,11 +9533,12 @@ function ExonaApp() {
     });
 
     return () => unsubStories();
-  }, [isQuotaExceeded]);
+  }, [isQuotaExceeded, view]);
 
   // 5. Educational and Financial Records Listener
   useEffect(() => {
     if (isQuotaExceeded || !user || !userDoc) return;
+    if (!['records', 'finance', 'attendance', 'daily-routine', 'classroom'].includes(view)) return;
 
     let unsubAllRecords = () => {};
     let unsubAllAttendance = () => {};
@@ -9563,11 +9588,12 @@ function ExonaApp() {
       unsubAllAttendance();
       unsubAllFinance();
     };
-  }, [user?.uid, userDoc?.role, isQuotaExceeded, schools, places]);
+  }, [user?.uid, userDoc?.role, isQuotaExceeded, schools, places, view]);
 
   // 6. Posts & Personalized Social Feed Listener
   useEffect(() => {
     if (isQuotaExceeded || !user || !userDoc) return;
+    if (!['feed', 'school-feed'].includes(view)) return;
 
     let unsubPosts = () => {};
 
@@ -9631,7 +9657,7 @@ function ExonaApp() {
     }
 
     return () => unsubPosts();
-  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit, isQuotaExceeded]);
+  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit, isQuotaExceeded, view]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMorePosts) return;
@@ -10310,7 +10336,7 @@ function ExonaApp() {
 
 
   const renderView = () => {
-    switch (view) {
+    switch (renderedView) {
       case 'admin': {
         if (userDoc?.role !== 'admin') { setView('feed'); return null; }
         const schoolCount = schools.length;
@@ -24572,10 +24598,76 @@ function ExonaApp() {
         </AnimatePresence>
 
         <motion.div
-          className="w-full"
+          className="w-full relative"
           style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
         >
-          {renderView()}
+          {isViewLoading ? (
+            <div className="w-full min-h-[60vh] flex flex-col justify-start pt-16 px-4 md:px-8 max-w-xl mx-auto space-y-8 pb-32">
+              {/* GitHub/Facebook Thin Indeterminate Loading Line on Top */}
+              <div className="fixed top-0 left-0 right-0 h-1 bg-accent/20 z-[999] overflow-hidden">
+                <motion.div 
+                  initial={{ x: '-100%' }}
+                  animate={{ x: '100%' }}
+                  transition={{ 
+                    repeat: Infinity, 
+                    duration: 1.2, 
+                    ease: "easeInOut" 
+                  }}
+                  className="h-full bg-accent w-2/3 rounded-full"
+                />
+              </div>
+
+              {/* Skeleton Banner/Header Row */}
+              <div className="flex items-center gap-4 text-left">
+                <div className="w-14 h-14 bg-gray-100 rounded-2xl flex-shrink-0 animate-pulse border border-gray-200/50" />
+                <div className="space-y-3 flex-1">
+                  <div className="h-4 bg-gray-200 rounded-lg w-1/3 animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded-lg w-1/2 animate-pulse" />
+                </div>
+              </div>
+
+              {/* Skeleton Media/Card Row 1 */}
+              <div className="bg-white border border-gray-100 rounded-3xl p-6 space-y-4 shadow-sm">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-3 bg-gray-200 rounded-md w-1/4 animate-pulse" />
+                    <div className="h-2 bg-gray-100 rounded-md w-1/3 animate-pulse" />
+                  </div>
+                </div>
+                <div className="space-y-2 text-left">
+                  <div className="h-3 bg-gray-100 rounded-md w-full animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded-md w-5/6 animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded-md w-2/3 animate-pulse" />
+                </div>
+              </div>
+
+              {/* Skeleton Media/Card Row 2 */}
+              <div className="bg-white border border-gray-100 rounded-3xl p-6 space-y-4 shadow-sm">
+                <div className="flex items-center gap-3 text-left">
+                  <div className="w-10 h-10 bg-gray-100 rounded-full animate-pulse" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-3 bg-gray-200 rounded-md w-1/5 animate-pulse" />
+                    <div className="h-2 bg-gray-100 rounded-md w-1/4 animate-pulse" />
+                  </div>
+                </div>
+                <div className="space-y-2 text-left">
+                  <div className="h-3 bg-gray-100 rounded-md w-full animate-pulse" />
+                  <div className="h-3 bg-gray-100 rounded-md w-4/5 animate-pulse" />
+                </div>
+              </div>
+
+              {/* Subtle Spinning Indicator with Status */}
+              <div className="flex flex-col items-center justify-center pt-8">
+                <div className="h-8 w-8 border-2 border-accent/20 border-t-accent rounded-full animate-spin mb-3" />
+                <p className="text-[9px] font-black text-muted uppercase tracking-[0.25em] animate-pulse">
+                  Rendering Dynamic Terminal View...
+                </p>
+              </div>
+            </div>
+          ) : (
+            renderView()
+          )}
         </motion.div>
       </main>
 
