@@ -9402,27 +9402,208 @@ function ExonaApp() {
 
   // Data listeners - Master data (Schools/Places)
   useEffect(() => {
-    if (isQuotaExceeded || !splashDone || !isOnline) return;
-    const qSchools = query(collection(db, 'schools'), limit(30));
-    const unsubSchools = onSnapshot(qSchools, (snap) => {
-      setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
+    if (isQuotaExceeded || !splashDone || !isOnline || !user) return;
+
+    let unsubs: (() => void)[] = [];
+
+    // ONLY load a broader list of schools/places if actively searching or if the user is a systems administrator
+    const isBrowsingAll = (view === 'feed' && feedTab === 'institutions') || (globalSearch && globalSearch.trim() !== '') || userDoc?.role === 'admin';
+
+    if (isBrowsingAll) {
+      const qSchools = query(collection(db, 'schools'), limit(30));
+      const unsubSchools = onSnapshot(qSchools, (snap) => {
+        setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'schools');
+        }
+      });
+      unsubs.push(unsubSchools);
+
+      const qPlaces = query(collection(db, 'places'), limit(30));
+      const unsubPlaces = onSnapshot(qPlaces, (snap) => {
+        setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as Place)));
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'places');
+        }
+      });
+      unsubs.push(unsubPlaces);
+    } else {
+      // Lazy targeted Loading: ONLY load user's owned, managed, or followed schools/places!
+      
+      // 1. Created by User
+      const qMySchools = query(collection(db, 'schools'), where('creatorUid', '==', user.uid));
+      const unsubMySchools = onSnapshot(qMySchools, (snap) => {
+        const owned = snap.docs.map(d => ({ id: d.id, ...d.data() } as School));
+        setSchools(prev => {
+          const others = prev.filter(s => s.creatorUid !== user.uid);
+          return [...others, ...owned];
+        });
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'schools_owned');
+        }
+      });
+      unsubs.push(unsubMySchools);
+
+      const qMyPlaces = query(collection(db, 'places'), where('creatorUid', '==', user.uid));
+      const unsubMyPlaces = onSnapshot(qMyPlaces, (snap) => {
+        const owned = snap.docs.map(d => ({ id: d.id, ...d.data() } as Place));
+        setPlaces(prev => {
+          const others = prev.filter(p => p.creatorUid !== user.uid);
+          return [...others, ...owned];
+        });
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'places_owned');
+        }
+      });
+      unsubs.push(unsubMyPlaces);
+
+      // 2. Followed by user (Member/Follower access checking)
+      const qFollowedSchools = query(collection(db, 'schools'), where('followers', 'array-contains', user.uid));
+      const unsubFollowedSchools = onSnapshot(qFollowedSchools, (snap) => {
+        const followed = snap.docs.map(d => ({ id: d.id, ...d.data() } as School));
+        setSchools(prev => {
+          const remaining = prev.filter(s => s.creatorUid === user.uid || !followed.some(f => f.id === s.id));
+          return [...remaining, ...followed];
+        });
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'schools_followed');
+        }
+      });
+      unsubs.push(unsubFollowedSchools);
+
+      const qFollowedPlaces = query(collection(db, 'places'), where('followers', 'array-contains', user.uid));
+      const unsubFollowedPlaces = onSnapshot(qFollowedPlaces, (snap) => {
+        const followed = snap.docs.map(d => ({ id: d.id, ...d.data() } as Place));
+        setPlaces(prev => {
+          const remaining = prev.filter(p => p.creatorUid === user.uid || !followed.some(f => f.id === p.id));
+          return [...remaining, ...followed];
+        });
+      }, (error) => {
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'places_followed');
+        }
+      });
+      unsubs.push(unsubFollowedPlaces);
+    }
+
+    return () => { unsubs.forEach(unsub => unsub()); };
+  }, [isQuotaExceeded, splashDone, isOnline, user?.uid, view, feedTab, globalSearch, userDoc?.role]);
+
+  // 0. Selected School Real-time Listener (dynamic subscription on click/access)
+  useEffect(() => {
+    if (isQuotaExceeded || !selectedSchool || !isOnline) return;
+    
+    const collectionName = selectedSchool.type === 'place' ? 'places' : 'schools';
+    const unsub = onSnapshot(doc(db, collectionName, selectedSchool.id), (snap) => {
+      if (snap.exists()) {
+        const updated = { id: snap.id, ...snap.data() } as any;
+        setSelectedSchool(updated);
+        // Sync back into schools/places lists
+        if (selectedSchool.type === 'place') {
+          setPlaces(prev => {
+            if (prev.some(p => p.id === updated.id)) {
+              return prev.map(p => p.id === updated.id ? updated : p);
+            }
+            return [...prev, updated];
+          });
+        } else {
+          setSchools(prev => {
+            if (prev.some(s => s.id === updated.id)) {
+              return prev.map(s => s.id === updated.id ? updated : s);
+            }
+            return [...prev, updated];
+          });
+        }
+      }
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'schools');
+        console.error("Error listening to selected school:", error);
+      }
+    });
+    
+    return () => unsub();
+  }, [selectedSchool?.id, isOnline, isQuotaExceeded]);
+
+  // 0a. Follower syncing from userDoc.following array
+  useEffect(() => {
+    if (isQuotaExceeded || !user || !userDoc?.following || userDoc.following.length === 0 || !isOnline) return;
+
+    const followingIds = userDoc.following.filter(id => id !== user.uid).slice(0, 30);
+    if (followingIds.length === 0) return;
+
+    // Load following schools
+    const qFollowedSchools = query(collection(db, 'schools'), where('id', 'in', followingIds));
+    const unsubFollowedSchools = onSnapshot(qFollowedSchools, (snap) => {
+      const followed = snap.docs.map(d => ({ id: d.id, ...d.data() } as School));
+      setSchools(prev => {
+        const remaining = prev.filter(s => !followingIds.includes(s.id));
+        return [...remaining, ...followed];
+      });
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        handleFirestoreError(error, OperationType.LIST, 'followedSchools');
       }
     });
 
-    const qPlaces = query(collection(db, 'places'), limit(30));
-    const unsubPlaces = onSnapshot(qPlaces, (snap) => {
-      setPlaces(snap.docs.map(d => ({ id: d.id, ...d.data() } as Place)));
+    // Load following places
+    const qFollowedPlaces = query(collection(db, 'places'), where('id', 'in', followingIds));
+    const unsubFollowedPlaces = onSnapshot(qFollowedPlaces, (snap) => {
+      const followed = snap.docs.map(d => ({ id: d.id, ...d.data() } as Place));
+      setPlaces(prev => {
+        const remaining = prev.filter(p => !followingIds.includes(p.id));
+        return [...remaining, ...followed];
+      });
     }, (error) => {
       if (!error.message.includes('insufficient permissions')) {
-        handleFirestoreError(error, OperationType.LIST, 'places');
+        handleFirestoreError(error, OperationType.LIST, 'followedPlaces');
       }
     });
 
-    return () => { unsubSchools(); unsubPlaces(); };
-  }, [isQuotaExceeded, splashDone, isOnline]);
+    return () => {
+      unsubFollowedSchools();
+      unsubFollowedPlaces();
+    };
+  }, [user?.uid, (userDoc?.following || []).join(','), isOnline, isQuotaExceeded]);
+
+  // 0b. Persistence syncing for selected school (restore "the place he is")
+  useEffect(() => {
+    if (splashDone && !selectedSchool && schools.length > 0) {
+      const savedSchoolId = localStorage.getItem('exona_last_school_id');
+      const savedSchoolType = localStorage.getItem('exona_last_school_type');
+      if (savedSchoolId) {
+        const found = (savedSchoolType === 'place' ? places : schools).find(s => s.id === savedSchoolId);
+        if (found) {
+          setSelectedSchool(found);
+        } else {
+          // Fetch it to restore state
+          const col = savedSchoolType === 'place' ? 'places' : 'schools';
+          getDoc(doc(db, col, savedSchoolId)).then(snap => {
+            if (snap.exists()) {
+              setSelectedSchool({ id: snap.id, ...snap.data() } as any);
+            }
+          }).catch(err => console.error(err));
+        }
+      } else {
+        // Find if they manage exactly 1 school
+        const managed = [...schools, ...places].filter(s => canManageInstitution(s));
+        if (managed.length === 1) {
+          setSelectedSchool(managed[0]);
+        }
+      }
+    }
+  }, [splashDone, schools.length, places.length]);
+
+  useEffect(() => {
+    if (selectedSchool) {
+      localStorage.setItem('exona_last_school_id', selectedSchool.id);
+      localStorage.setItem('exona_last_school_type', selectedSchool.type || 'school');
+    }
+  }, [selectedSchool?.id]);
 
   // 1. Wallet and Wallet History Listener
   useEffect(() => {
@@ -9529,60 +9710,37 @@ function ExonaApp() {
     return () => unsubStories();
   }, [isQuotaExceeded, view]);
 
-  // 5. Educational and Financial Records Listener
+  // 5. Educational and Financial Records Listener (system-wide admin tracking only, standard users lazy load on-click)
   useEffect(() => {
     if (isQuotaExceeded || !user || !userDoc) return;
+    if (userDoc.role !== 'admin') {
+      // Normal users lazy load on-demand when visiting their selected school, bypassing global wide scanning.
+      return;
+    }
     if (!['records', 'finance', 'attendance', 'daily-routine', 'classroom'].includes(view)) return;
 
     let unsubAllRecords = () => {};
-    let unsubAllAttendance = () => {};
     let unsubAllFinance = () => {};
 
-    if (userDoc.role === 'admin') {
-      const qRecs = query(collection(db, 'studentRecords'), limit(100));
-      unsubAllRecords = onSnapshot(qRecs, (snap) => {
-        setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'studentRecords');
-      });
+    const qRecs = query(collection(db, 'studentRecords'), limit(100));
+    unsubAllRecords = onSnapshot(qRecs, (snap) => {
+      setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'studentRecords');
+    });
 
-      const qFin = query(collection(db, 'finance'), limit(100));
-      unsubAllFinance = onSnapshot(qFin, (snap) => {
-        setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, 'finance');
-      });
-    } else {
-      const ownedIds = [...schools, ...places].filter(s => canManageInstitution(s)).map(s => s.id);
-      const followedIds = [...schools, ...places].filter(s => s.followers?.includes(user.uid)).map(s => s.id);
-      const viewerIds = [...schools, ...places].filter(s => s.administrativeViewers?.includes(user.uid)).map(s => s.id);
-      
-      const authorizedIds = Array.from(new Set([...ownedIds, ...followedIds, ...viewerIds]));
-      
-      if (authorizedIds.length > 0) {
-        const slicedIds = authorizedIds.slice(0, 30);
-        const qRecords = query(collection(db, 'studentRecords'), where('schoolId', 'in', slicedIds), limit(100));
-        unsubAllRecords = onSnapshot(qRecords, (snap) => {
-          setAllRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-        }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'studentRecords');
-        });
-
-        const qAttendance = query(collection(db, 'teacherAttendance'), where('schoolId', 'in', slicedIds), limit(100));
-        unsubAllAttendance = onSnapshot(qAttendance, (snap) => {
-          setAllAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
-        }, (error) => {
-          handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
-        });
-      }
-    }
+    const qFin = query(collection(db, 'finance'), limit(100));
+    unsubAllFinance = onSnapshot(qFin, (snap) => {
+      setAllFinance(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'finance');
+    });
 
     return () => {
       unsubAllRecords();
-      unsubAllAttendance();
       unsubAllFinance();
     };
-  }, [user?.uid, userDoc?.role, isQuotaExceeded, schools, places, view]);
+  }, [user?.uid, userDoc?.role, isQuotaExceeded, view]);
 
   // 6. Posts & Personalized Social Feed Listener
   useEffect(() => {
