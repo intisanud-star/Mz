@@ -273,23 +273,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   // Subscription checking helpers (Creator & Administration bypass fee)
   const hasActiveViewAccess = (streamId: string) => {
-    if (userDoc?.role === 'admin') return true;
-    const stream = allBroadcasts.find(b => b.id === streamId);
-    if (stream && stream.creatorUid === user?.uid) return true;
-    
-    const sub = subscriptions[`${streamId}_view`];
-    if (!sub) return false;
-    return sub.expiresAt > Date.now();
+    return true;
   };
 
   const hasActiveParticipationAccess = (streamId: string) => {
-    if (userDoc?.role === 'admin') return true;
-    const stream = allBroadcasts.find(b => b.id === streamId);
-    if (stream && stream.creatorUid === user?.uid) return true;
-    
-    const sub = subscriptions[`${streamId}_participate`];
-    if (!sub) return false;
-    return sub.expiresAt > Date.now();
+    return true;
   };
 
   // Debit Coins and Store Subscription Document
@@ -529,15 +517,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     <MessageSquare size={16} />
                     EXON LIVE COMMUNITY CHAT
                   </h4>
-                  {hasActiveParticipationAccess(activeStream.id) ? (
-                    <span className="text-[9px] uppercase font-black tracking-wider text-green-400 bg-green-950/40 border border-green-900/40 px-3 py-1 rounded-xl flex items-center gap-1 self-start sm:self-auto">
-                      <Unlock size={10} /> Interaction Active
-                    </span>
-                  ) : (
-                    <span className="text-[9px] uppercase font-black tracking-wider text-amber-400 bg-amber-950/40 border border-amber-900/40 px-3 py-1 rounded-xl flex items-center gap-1 self-start sm:self-auto">
-                      <Lock size={10} /> Participation Locked
-                    </span>
-                  )}
+                  <span className="text-[9px] uppercase font-black tracking-wider text-green-400 bg-green-950/40 border border-green-900/40 px-3 py-1 rounded-xl flex items-center gap-1 self-start sm:self-auto">
+                    Active
+                  </span>
                 </div>
 
                 {/* Chat messages box */}
@@ -801,15 +783,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       <div className="h-1 w-1 rounded-full bg-red-600" />
                       Live
                     </span>
-                    {hasActiveViewAccess(stream.id) ? (
-                      <span className="px-2 py-0.5 bg-green-50 text-green-600 border border-green-150 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0">
-                        <Unlock size={8} /> Active Pass
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0">
-                        <Lock size={8} /> 10 EX Fee
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -864,35 +837,19 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   <button
                     onClick={() => {
                       if (!user) {
-                        showNotification("Please sign in or register to purchase Exon stream access passes!", "error");
+                        showNotification("Please sign in or register to join live transmissions!", "error");
                         return;
                       }
-                      if (hasActiveViewAccess(stream.id)) {
-                        setActiveStream(stream);
-                        const element = document.getElementById("youtube_broadcasts_portal");
-                        if (element) {
-                          element.scrollIntoView({ behavior: 'smooth' });
-                        }
-                      } else {
-                        setSelectedPlanId('4h');
-                        setSubscriptionSelector({ streamId: stream.id, type: 'view' });
+                      setActiveStream(stream);
+                      const element = document.getElementById("youtube_broadcasts_portal");
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' });
                       }
                     }}
-                    className={`px-4 py-2 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 hover:scale-[1.02] active:scale-98 shadow-sm ${
-                      hasActiveViewAccess(stream.id) ? 'bg-ink' : 'bg-rose-600 hover:bg-rose-500'
-                    }`}
+                    className="px-4 py-2 text-white bg-ink hover:bg-slate-800 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 hover:scale-[1.02] active:scale-98 shadow-sm"
                   >
-                    {hasActiveViewAccess(stream.id) ? (
-                      <>
-                        <Play size={10} fill="currentColor" />
-                        Play
-                      </>
-                    ) : (
-                      <>
-                        <Lock size={10} />
-                        Unlock Pass
-                      </>
-                    )}
+                    <Play size={10} fill="currentColor" />
+                    Play
                   </button>
                 </div>
               </div>

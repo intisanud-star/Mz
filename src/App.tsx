@@ -10,7 +10,7 @@ import {
   MoreHorizontal, History, ArrowUpRight, CreditCard, Fingerprint, Eye, EyeOff,
    BadgeCheck, AlertTriangle, Smile, TrendingUp, TrendingDown, ShieldAlert,
   UserCheck,
-  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Stars, Shield,
+  DollarSign, Clock, FileText, Upload, LayoutGrid, Database, Sparkles, Stars, Shield, Coins,
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Mic, Play, Pause, PhoneOff, StopCircle, RefreshCw,
   SearchCheck, CalendarCheck2,
@@ -3530,6 +3530,69 @@ function ExonaApp() {
   const [exonHistory, setExonHistory] = useState<ExonTransaction[]>([]);
   const [excoinBalance, setExcoinBalance] = useState(0);
   const [excoinHistory, setExcoinHistory] = useState<any[]>([]);
+  interface InstSubscriptionPlan {
+    id: '4h' | '24h' | 'weekly' | 'monthly';
+    name: string;
+    durationMs: number;
+    cost: number;
+  }
+
+  const INST_VIEW_PLANS: InstSubscriptionPlan[] = [
+    { id: '4h', name: '4 Hours Access', durationMs: 4 * 60 * 60 * 1000, cost: 10 },
+    { id: '24h', name: '24 Hours Access', durationMs: 24 * 60 * 60 * 1000, cost: 40 },
+    { id: 'weekly', name: 'Weekly Access', durationMs: 7 * 24 * 60 * 60 * 1000, cost: 150 },
+    { id: 'monthly', name: 'Monthly Access', durationMs: 30 * 24 * 60 * 60 * 1000, cost: 400 }
+  ];
+  interface InstitutionSubscription {
+    expiresAt: number;
+    plan: string;
+    type: string;
+  }
+  interface InstitutionSubscriptionsMap {
+    [key: string]: InstitutionSubscription;
+  }
+
+  const [institutionSubscriptions, setInstitutionSubscriptions] = useState<InstitutionSubscriptionsMap>({});
+  const [instSubscriptionSelector, setInstSubscriptionSelector] = useState<{ schoolId: string; schoolName: string; type: 'records' | 'attendance'; targetView: string } | null>(null);
+  const [selectedInstPlanId, setSelectedInstPlanId] = useState<'4h' | '24h' | 'weekly' | 'monthly'>('4h');
+  const [isPurchasingInstSub, setIsPurchasingInstSub] = useState(false);
+  const [instPurchaseSuccessMsg, setInstPurchaseSuccessMsg] = useState('');
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setInstitutionSubscriptions({});
+      return;
+    }
+    const q = query(
+      collection(db, 'broadcast_subscriptions'),
+      where('userId', '==', user.uid)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const subs: InstitutionSubscriptionsMap = {};
+      snapshot.forEach((d) => {
+        const data = d.data();
+        let expiresAt = 0;
+        if (data.expiresAt) {
+          if (data.expiresAt.seconds) {
+            expiresAt = data.expiresAt.seconds * 1000;
+          } else if (data.expiresAt.toDate) {
+            expiresAt = data.expiresAt.toDate().getTime();
+          } else {
+            expiresAt = new Date(data.expiresAt).getTime();
+          }
+        }
+        subs[`${data.streamId}_${data.type}`] = {
+          expiresAt,
+          plan: data.plan,
+          type: data.type
+        };
+      });
+      setInstitutionSubscriptions(subs);
+    }, (err) => {
+      console.error("Institution Subscriptions hook error:", err);
+    });
+    return () => unsub();
+  }, [user?.uid]);
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
@@ -5692,9 +5755,18 @@ function ExonaApp() {
 
     // Direct guard for non-administrative members trying to open Records or Attendance
     if (targetView === 'records' || targetView === 'attendance') {
-      if (!canManageInstitution(school)) {
-        showNotification('Permission Denied. You are not permitted to access Student Records or Attendance. This folder is restricted strictly to administrative members.', 'error');
-        return;
+      const isMgmt = canManageInstitution(school) || userDoc?.role === 'admin';
+      if (!isMgmt) {
+        const hasPass = institutionSubscriptions[`${school.id}_${targetView}`]?.expiresAt > Date.now();
+        if (!hasPass) {
+          setInstSubscriptionSelector({
+            schoolId: school.id,
+            schoolName: school.name,
+            type: targetView as 'records' | 'attendance',
+            targetView: targetView
+          });
+          return;
+        }
       }
     }
 
@@ -8179,6 +8251,63 @@ function ExonaApp() {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `wallets/${user.uid}`);
       return false;
+    }
+  };
+
+  const handlePurchaseInstSubscription = async (
+    schoolId: string, 
+    type: 'records' | 'attendance', 
+    planId: '4h' | '24h' | 'weekly' | 'monthly'
+  ) => {
+    if (!user?.uid) {
+      showNotification("Please log in first to purchase subscriptions", "error");
+      return;
+    }
+    
+    // Find the cost
+    const plan = INST_VIEW_PLANS.find(p => p.id === planId);
+    if (!plan) return;
+
+    const school = schools.find(s => s.id === schoolId) || places.find(p => p.id === schoolId);
+    const schoolName = school ? school.name : 'Institution';
+
+    setIsPurchasingInstSub(true);
+    try {
+      const success = await handleDebitExcoin(
+        plan.cost, 
+        `Subscription Pass: ${plan.name} for Space: ${schoolName}`
+      );
+      if (success) {
+        const docId = `${user.uid}_${schoolId}_${type}`;
+        const purchasedAt = new Date();
+        const expiresAt = new Date(Date.now() + plan.durationMs);
+
+        await setDoc(doc(db, 'broadcast_subscriptions', docId), {
+          userId: user.uid,
+          streamId: schoolId,
+          type,
+          plan: planId,
+          cost: plan.cost,
+          purchasedAt,
+          expiresAt,
+          streamTitle: schoolName
+        });
+
+        // Show successful purchase animation state
+        setInstPurchaseSuccessMsg(`Successfully unlocked ${type === 'records' ? 'Member Record' : 'Attendance/Participation'} pass! Duration: ${plan.id === '4h' ? '4 hours' : plan.id === '24h' ? '24 hours' : plan.id === 'weekly' ? '7 days' : '30 days'}.`);
+        showNotification(`${type === 'records' ? 'Member Record' : 'Attendance'} Access Unlocked!`, 'success');
+
+        setTimeout(() => {
+          setInstPurchaseSuccessMsg('');
+          setInstSubscriptionSelector(null);
+          setView(type as any);
+        }, 2200);
+      }
+    } catch (err) {
+      console.error("Purchase failed:", err);
+      showNotification("Purchase transaction error. Please try again.", "error");
+    } finally {
+      setIsPurchasingInstSub(false);
     }
   };
 
@@ -12026,6 +12155,34 @@ function ExonaApp() {
           );
         }
         const labels = getLabels(selectedSchool?.type);
+        const isMgmt = canManageInstitution(selectedSchool) || userDoc?.role === 'admin';
+        const hasRecordsPass = institutionSubscriptions[`${selectedSchool.id}_records`]?.expiresAt > Date.now();
+        
+        if (!isMgmt && !hasRecordsPass) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white border border-gray-150 rounded-[2.5rem] max-w-xl mx-auto my-12 shadow-sm">
+              <div className="h-24 w-24 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-8 animate-pulse">
+                <Lock size={40} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-xl font-black text-ink mb-3 uppercase tracking-tight">Institution Records Locked</h2>
+              <p className="text-slate-500 text-xs font-bold max-w-sm mb-8 leading-relaxed">
+                You require an active Member Record viewing pass to access this institution's files, balances, and records. Administrative management bypasses this fee.
+              </p>
+              <button 
+                onClick={() => setInstSubscriptionSelector({
+                  schoolId: selectedSchool.id,
+                  schoolName: selectedSchool.name,
+                  type: 'records',
+                  targetView: 'records'
+                })}
+                className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2 mx-auto"
+              >
+                <Lock size={12} /> Unlock Records Access Pass
+              </button>
+            </div>
+          );
+        }
+
         const filteredRecords = records
           .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
           .filter(r => !selectedSubFolder || r.subFolder === selectedSubFolder)
@@ -16939,6 +17096,34 @@ function ExonaApp() {
                 className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:scale-105 transition-transform"
               >
                 Open Directory
+              </button>
+            </div>
+          );
+        }
+
+        const isMgmt = canManageInstitution(selectedSchool) || userDoc?.role === 'admin';
+        const hasAttendancePass = institutionSubscriptions[`${selectedSchool.id}_attendance`]?.expiresAt > Date.now();
+        
+        if (!isMgmt && !hasAttendancePass) {
+          return (
+            <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white border border-gray-150 rounded-[2.5rem] max-w-xl mx-auto my-12 shadow-sm">
+              <div className="h-24 w-24 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-8 animate-pulse">
+                <Lock size={40} strokeWidth={1.5} />
+              </div>
+              <h2 className="text-xl font-black text-ink mb-3 uppercase tracking-tight">Institution Attendance Locked</h2>
+              <p className="text-slate-500 text-xs font-bold max-w-sm mb-8 leading-relaxed">
+                You require an active Attendance & Participation viewing/signing pass to interact with this institution's attendance hub. Administrative management bypasses this fee.
+              </p>
+              <button 
+                onClick={() => setInstSubscriptionSelector({
+                  schoolId: selectedSchool.id,
+                  schoolName: selectedSchool.name,
+                  type: 'attendance',
+                  targetView: 'attendance'
+                })}
+                className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2 mx-auto"
+              >
+                <Lock size={12} /> Unlock Attendance & Participation Pass
               </button>
             </div>
           );
@@ -25408,6 +25593,123 @@ function ExonaApp() {
                   ))
                 )}
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Institution Sub-pass Selector Modal */}
+      <AnimatePresence>
+        {instSubscriptionSelector && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[300] flex items-center justify-center p-6"
+            onClick={(e) => e.target === e.currentTarget && !isPurchasingInstSub && setInstSubscriptionSelector(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl border border-gray-150 flex flex-col gap-5 relative"
+            >
+              {!isPurchasingInstSub && (
+                <button 
+                  type="button"
+                  onClick={() => setInstSubscriptionSelector(null)}
+                  className="absolute top-6 right-6 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-muted transition-colors font-bold flex items-center justify-center"
+                >
+                  <X size={16} />
+                </button>
+              )}
+
+              <div>
+                <div className="flex items-center gap-2 text-indigo-950 mb-1">
+                  <Coins size={16} className="text-amber-500 shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                    Exon Pass Terminal
+                  </span>
+                </div>
+                <h4 className="text-base font-black text-ink leading-tight mt-1 uppercase">
+                  Unlock {instSubscriptionSelector.type === 'records' ? 'Member Records' : 'Attendance Hub'}
+                </h4>
+                <p className="text-[11px] text-muted font-bold leading-relaxed mt-2 text-slate-500">
+                  Select a subscription plan to unlock access to the registers in <span className="text-rose-600 font-extrabold">{instSubscriptionSelector.schoolName}</span>. Spent Excoins are burnt from circulation.
+                </p>
+              </div>
+
+              {instPurchaseSuccessMsg ? (
+                <div className="p-6 bg-green-50 rounded-2xl border border-green-150 text-center flex flex-col items-center gap-2">
+                  <CheckCircle2 size={32} className="text-green-500 animate-pulse" strokeWidth={2.5} />
+                  <p className="text-xs font-black text-green-800 uppercase tracking-wider">Purchase Confirmed!</p>
+                  <p className="text-[11px] text-green-600 font-semibold leading-relaxed">{instPurchaseSuccessMsg}</p>
+                </div>
+              ) : (
+                <>
+                  {/* Current Excoin Wallet Balance */}
+                  <div className="p-4 bg-slate-50 border border-slate-100/85 rounded-2xl flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest flex items-center gap-1.5">
+                      <Wallet size={12} /> Your Excoin Balance
+                    </span>
+                    <span className="text-xs font-black text-slate-900 bg-amber-100 border border-amber-200 px-2.5 py-1 rounded-lg">
+                      {excoinBalance} EX
+                    </span>
+                  </div>
+
+                  {/* Plan Grid */}
+                  <div className="flex flex-col gap-2">
+                    {INST_VIEW_PLANS.map((plan) => {
+                      const isSelected = selectedInstPlanId === plan.id;
+                      return (
+                        <button
+                          key={plan.id}
+                          type="button"
+                          onClick={() => setSelectedInstPlanId(plan.id)}
+                          className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                            isSelected 
+                              ? 'bg-ink border-ink text-white shadow-sm' 
+                              : 'bg-white border-gray-150 hover:bg-gray-50 text-slate-850'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`h-4 w-4 rounded-full border flex items-center justify-center shrink-0 ${isSelected ? 'border-white' : 'border-gray-350'}`}>
+                              {isSelected && <div className="h-2 w-2 rounded-full bg-white animate-pulse" />}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-black uppercase tracking-wider">{plan.name}</span>
+                              <span className={`text-[10px] ${isSelected ? 'text-slate-300' : 'text-slate-400'} font-bold`}>
+                                Expires in {plan.id === '4h' ? '4 hours' : plan.id === '24h' ? '24 hours' : plan.id === 'weekly' ? '7 days' : '30 days'}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`text-xs font-extrabold px-3 py-1.5 rounded-xl ${isSelected ? 'bg-white/10 text-white' : 'bg-amber-100 text-amber-700 font-black'}`}>
+                            {plan.cost} EX
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={isPurchasingInstSub || excoinBalance < (INST_VIEW_PLANS.find(p => p.id === selectedInstPlanId)?.cost || 0)}
+                    onClick={() => handlePurchaseInstSubscription(
+                      instSubscriptionSelector.schoolId,
+                      instSubscriptionSelector.type,
+                      selectedInstPlanId
+                    )}
+                    className="w-full py-4 bg-rose-600 hover:bg-rose-500 disabled:bg-gray-200 disabled:text-gray-400 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-rose-900/10 cursor-pointer disabled:cursor-not-allowed transition-all hover:scale-[1.01] active:scale-99 text-center"
+                  >
+                    {isPurchasingInstSub 
+                      ? 'Confirming Transaction...' 
+                      : excoinBalance < (INST_VIEW_PLANS.find(p => p.id === selectedInstPlanId)?.cost || 0)
+                        ? 'Insufficient Balance'
+                        : `Confirm Unlock Pass`
+                    }
+                  </button>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}
