@@ -55,6 +55,14 @@ function parseYoutubeId(urlOrId: string): { type: 'video' | 'channel'; id: strin
   }
 
   try {
+    if (trimmed.includes('youtube.com/live/')) {
+      const parts = trimmed.split('youtube.com/live/');
+      if (parts[1]) {
+        const id = parts[1].split(/[/?#]/)[0];
+        return { type: 'video', id };
+      }
+    }
+
     if (trimmed.includes('youtube.com/channel/')) {
       const parts = trimmed.split('youtube.com/channel/');
       if (parts[1]) {
