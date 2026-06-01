@@ -322,6 +322,15 @@ service cloud.firestore {
       }
     }
 
+    match /youtube_broadcasts/{broadcastId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes'])
+      );
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated() || userId.matches('^tg_.*'); 
       allow list: if true; // Allow backend to query telegram user list

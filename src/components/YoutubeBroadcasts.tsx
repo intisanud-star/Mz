@@ -31,56 +31,7 @@ export interface YoutubeBroadcast {
   isPreset?: boolean;
 }
 
-const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [
-  {
-    id: "preset_lofi_girl",
-    title: "Lofi Girl Study & Chill Beats",
-    type: "video",
-    videoId: "jfKfPfyJRdk",
-    category: "Music & Focus",
-    description: "Relaxing beats to study, work, or focus to. The class-leading active 24/7 Lofi Girl live broadcast.",
-    creatorName: "Exona Featured",
-    isPreset: true,
-    likesCount: 154,
-    likes: []
-  },
-  {
-    id: "preset_nasa_live",
-    title: "NASA TV Livestream",
-    type: "video",
-    videoId: "21X5lGlDOfg",
-    category: "Space & Science",
-    description: "Live views of Earth from the Space Station, rocket launches, and deep space exploration coverage directly from NASA.",
-    creatorName: "Exona Featured",
-    isPreset: true,
-    likesCount: 342,
-    likes: []
-  },
-  {
-    id: "preset_bloomberg",
-    title: "Bloomberg Global Financial News",
-    type: "video",
-    videoId: "dp8PhLsUcFE",
-    category: "Business & Finance",
-    description: "24/7 global financial television coverage, market analysis, business updates, and worldwide news.",
-    creatorName: "Exona Featured",
-    isPreset: true,
-    likesCount: 198,
-    likes: []
-  },
-  {
-    id: "preset_fcc",
-    title: "freeCodeCamp Live Coding & Lessons",
-    type: "channel",
-    channelId: "UC8butISFwT-Wl7EV0hUK0BQ",
-    category: "Programming & Education",
-    description: "Learn to code for free. Interactive developer bootcamps, workshops, and educational programming broadcasts.",
-    creatorName: "Exona Featured",
-    isPreset: true,
-    likesCount: 220,
-    likes: []
-  }
-];
+const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [];
 
 const CATEGORIES = [
   "All",
@@ -306,18 +257,20 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             </p>
           </div>
           
-          <button
-            onClick={() => setIsAddFormOpen(!isAddFormOpen)}
-            className="px-5 py-3 bg-accent text-white rounded-2xl flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wider hover:scale-105 active:scale-95 transition-all self-start sm:self-center shrink-0 shadow-sm"
-          >
-            {isAddFormOpen ? <X size={16} /> : <Plus size={16} />}
-            {isAddFormOpen ? 'Cancel' : 'Add Broadcast'}
-          </button>
+          {userDoc?.role === 'admin' && (
+            <button
+              onClick={() => setIsAddFormOpen(!isAddFormOpen)}
+              className="px-5 py-3 bg-accent text-white rounded-2xl flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wider hover:scale-105 active:scale-95 transition-all self-start sm:self-center shrink-0 shadow-sm"
+            >
+              {isAddFormOpen ? <X size={16} /> : <Plus size={16} />}
+              {isAddFormOpen ? 'Cancel' : 'Add Broadcast'}
+            </button>
+          )}
         </div>
 
         {/* Collapsible Form */}
         <AnimatePresence>
-          {isAddFormOpen && (
+          {isAddFormOpen && userDoc?.role === 'admin' && (
             <motion.form
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
@@ -542,7 +495,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             </div>
             <p className="text-sm font-black text-ink uppercase tracking-wider">No matching broadcasts</p>
             <p className="text-xs text-muted font-bold mt-1 max-w-xs mx-auto leading-relaxed">
-              Register a new live channel link by tapping the "Add Broadcast" button above!
+              {userDoc?.role === 'admin' 
+                ? 'Register a new live channel link by tapping the "Add Broadcast" button above!'
+                : 'No livestream channels are currently broadcasted by the administration.'}
             </p>
           </div>
         )}
