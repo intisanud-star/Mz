@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Youtube, 
@@ -13,8 +13,29 @@ import {
   FileText, 
   ArrowRight,
   Sparkles,
-  Info
+  Info,
+  Lock,
+  Unlock,
+  Clock,
+  Coins,
+  MessageSquare,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
+
+import { db } from '../firebase';
+import { 
+  collection, 
+  doc, 
+  addDoc, 
+  setDoc, 
+  onSnapshot, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  serverTimestamp
+} from 'firebase/firestore';
 
 export interface YoutubeBroadcast {
   id: string;
@@ -102,6 +123,27 @@ function parseYoutubeId(urlOrId: string): { type: 'video' | 'channel'; id: strin
   return null;
 }
 
+interface SubscriptionPlan {
+  id: '4h' | '24h' | 'weekly' | 'monthly';
+  name: string;
+  durationMs: number;
+  cost: number;
+}
+
+const VIEW_PLANS: SubscriptionPlan[] = [
+  { id: '4h', name: '4 Hours Access', durationMs: 4 * 60 * 60 * 1000, cost: 10 },
+  { id: '24h', name: '24 Hours Access', durationMs: 24 * 60 * 60 * 1000, cost: 40 },
+  { id: 'weekly', name: 'Weekly Access', durationMs: 7 * 24 * 60 * 60 * 1000, cost: 150 },
+  { id: 'monthly', name: 'Monthly Access', durationMs: 30 * 24 * 60 * 60 * 1000, cost: 400 }
+];
+
+const PARTICIPATION_PLANS: SubscriptionPlan[] = [
+  { id: '4h', name: '4 Hours Participation', durationMs: 4 * 60 * 60 * 1000, cost: 10 },
+  { id: '24h', name: '24 Hours Participation', durationMs: 24 * 60 * 60 * 1000, cost: 40 },
+  { id: 'weekly', name: 'Weekly Participation', durationMs: 7 * 24 * 60 * 60 * 1000, cost: 150 },
+  { id: 'monthly', name: 'Monthly Participation', durationMs: 30 * 24 * 60 * 60 * 1000, cost: 400 }
+];
+
 interface YoutubeBroadcastsProps {
   user: any;
   userDoc: any;
@@ -109,6 +151,8 @@ interface YoutubeBroadcastsProps {
   onAddBroadcast: (broadcast: Omit<YoutubeBroadcast, 'id' | 'likes'>) => Promise<void>;
   onDeleteBroadcast: (id: string, creatorUid: string) => Promise<void>;
   onLikeBroadcast: (id: string, likes: string[]) => Promise<void>;
+  handleDebitExcoin: (amount: number, description: string) => Promise<boolean>;
+  showNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
 export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
@@ -117,12 +161,242 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   customBroadcasts = [],
   onAddBroadcast,
   onDeleteBroadcast,
-  onLikeBroadcast
+  onLikeBroadcast,
+  handleDebitExcoin,
+  showNotification
 }) => {
   const [activeStream, setActiveStream] = useState<YoutubeBroadcast | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+
+  // Excoin Balance & Real-time Subscriptions State
+  const [excoinBalance, setExcoinBalance] = useState(0);
+  const [subscriptions, setSubscriptions] = useState<Record<string, { expiresAt: number; plan: string; type: string }>>({});
+  
+  // Purchase Modal triggers
+  const [subscriptionSelector, setSubscriptionSelector] = useState<{ streamId: string; type: 'view' | 'participate' } | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState<'4h' | '24h' | 'weekly' | 'monthly'>('4h');
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [purchaseSuccessMsg, setPurchaseSuccessMsg] = useState('');
+
+  // Live Chat Local & Real-time Messages State
+  const [activeChatMessages, setActiveChatMessages] = useState<any[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // 1. Listen to user wallet balance in real-time
+  useEffect(() => {
+    if (!user?.uid) {
+      setExcoinBalance(0);
+      return;
+    }
+    const unsub = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
+      if (snap.exists()) {
+        setExcoinBalance(snap.data().excoin_balance || 0);
+      } else {
+        setExcoinBalance(0);
+      }
+    }, (err) => {
+      console.error("Wallet hook error:", err);
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  // 2. Listen to user broadcast subscriptions in real-time
+  useEffect(() => {
+    if (!user?.uid) {
+      setSubscriptions({});
+      return;
+    }
+    const q = query(
+      collection(db, 'broadcast_subscriptions'),
+      where('userId', '==', user.uid)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const subs: Record<string, { expiresAt: number; plan: string; type: string }> = {};
+      snapshot.forEach((d) => {
+        const data = d.data();
+        const expiresAt = data.expiresAt?.seconds 
+          ? data.expiresAt.seconds * 1000 
+          : (data.expiresAt?.toDate ? data.expiresAt.toDate().getTime() : new Date(data.expiresAt).getTime());
+        subs[`${data.streamId}_${data.type}`] = {
+          expiresAt,
+          plan: data.plan,
+          type: data.type
+        };
+      });
+      setSubscriptions(subs);
+    }, (err) => {
+      console.error("Subscriptions hook error:", err);
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  // 3. Listen to Active Stream Live Comments in real-time
+  useEffect(() => {
+    if (!activeStream?.id) {
+      setActiveChatMessages([]);
+      return;
+    }
+    const q = query(
+      collection(db, 'broadcast_chats'),
+      where('broadcastId', '==', activeStream.id),
+      orderBy('timestamp', 'asc'),
+      limit(100)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const messages: any[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const timestamp = data.timestamp?.seconds 
+          ? data.timestamp.seconds * 1000 
+          : (data.timestamp?.toDate ? data.timestamp.toDate().getTime() : (data.timestamp ? new Date(data.timestamp).getTime() : Date.now()));
+        messages.push({
+          id: doc.id,
+          ...data,
+          timestamp
+        });
+      });
+      messages.sort((a,b) => a.timestamp - b.timestamp);
+      setActiveChatMessages(messages);
+      
+      // Smooth scroll to bottom of chat
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    }, (err) => {
+      console.error("Chats hook error:", err);
+    });
+    return () => unsub();
+  }, [activeStream?.id]);
+
+  // Subscription checking helpers (Creator & Administration bypass fee)
+  const hasActiveViewAccess = (streamId: string) => {
+    if (userDoc?.role === 'admin') return true;
+    const stream = allBroadcasts.find(b => b.id === streamId);
+    if (stream && stream.creatorUid === user?.uid) return true;
+    
+    const sub = subscriptions[`${streamId}_view`];
+    if (!sub) return false;
+    return sub.expiresAt > Date.now();
+  };
+
+  const hasActiveParticipationAccess = (streamId: string) => {
+    if (userDoc?.role === 'admin') return true;
+    const stream = allBroadcasts.find(b => b.id === streamId);
+    if (stream && stream.creatorUid === user?.uid) return true;
+    
+    const sub = subscriptions[`${streamId}_participate`];
+    if (!sub) return false;
+    return sub.expiresAt > Date.now();
+  };
+
+  // Debit Coins and Store Subscription Document
+  const handlePurchaseSubscription = async (
+    streamId: string, 
+    type: 'view' | 'participate', 
+    planId: '4h' | '24h' | 'weekly' | 'monthly'
+  ) => {
+    if (!user?.uid) {
+      showNotification("Please log in first to purchase subscriptions", "error");
+      return;
+    }
+    
+    const plan = (type === 'view' ? VIEW_PLANS : PARTICIPATION_PLANS).find(p => p.id === planId);
+    if (!plan) return;
+
+    const stream = allBroadcasts.find(b => b.id === streamId);
+    const streamTitle = stream ? stream.title : 'Live Stream';
+
+    setIsPurchasing(true);
+    try {
+      const success = await handleDebitExcoin(
+        plan.cost, 
+        `Subscription Pass: ${plan.name} for Block: ${streamTitle}`
+      );
+      if (success) {
+        const docId = `${user.uid}_${streamId}_${type}`;
+        const purchasedAt = new Date();
+        const expiresAt = new Date(Date.now() + plan.durationMs);
+
+        await setDoc(doc(db, 'broadcast_subscriptions', docId), {
+          userId: user.uid,
+          streamId,
+          type,
+          plan: planId,
+          cost: plan.cost,
+          purchasedAt,
+          expiresAt,
+          streamTitle
+        });
+
+        // Show successful purchase animation state
+        setPurchaseSuccessMsg(`Successfully unlocked ${type === 'view' ? 'Streaming' : 'Interaction'} pass! Duration: ${plan.id === '4h' ? '4 hours' : plan.id === '24h' ? '24 hours' : plan.id === 'weekly' ? '7 days' : '30 days'}.`);
+        showNotification(`${type === 'view' ? 'Streaming' : 'Participation'} Access Unlocked!`, 'success');
+
+        setTimeout(() => {
+          setPurchaseSuccessMsg('');
+          setSubscriptionSelector(null);
+          if (type === 'view') {
+            setActiveStream(stream || null);
+            // Scroll up to main player smoothly
+            const element = document.getElementById("youtube_broadcasts_portal");
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        }, 2200);
+      }
+    } catch (err) {
+      console.error("Purchase failed:", err);
+      showNotification("Purchase transaction error. Please try again.", "error");
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
+
+  // Post chat message under participation pass authorization
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !user || !activeStream) return;
+
+    if (!hasActiveParticipationAccess(activeStream.id)) {
+      setSubscriptionSelector({ streamId: activeStream.id, type: 'participate' });
+      showNotification("Participation subscription required to comment/chat.", "error");
+      return;
+    }
+
+    const textPayload = chatInput.trim();
+    setChatInput('');
+
+    try {
+      await addDoc(collection(db, 'broadcast_chats'), {
+        broadcastId: activeStream.id,
+        userId: user.uid,
+        userName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
+        text: textPayload,
+        timestamp: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Post comment error:", err);
+      showNotification("Could not send chat message. Please confirm connection.", "error");
+    }
+  };
+
+  // Like stream with participation pass check
+  const handleLikeClick = (streamId: string, likes: string[]) => {
+    if (!user) {
+      showNotification("Please sign in or register to interact with streams!", "error");
+      return;
+    }
+    if (!hasActiveParticipationAccess(streamId)) {
+      setSubscriptionSelector({ streamId, type: 'participate' });
+      showNotification("Participation subscription required to like broadcasts.", "error");
+      return;
+    }
+    onLikeBroadcast(streamId, likes);
+  };
   
   // Submit state
   const [formTitle, setFormTitle] = useState('');
@@ -234,19 +508,120 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 </span>
                 <button 
                   onClick={() => setActiveStream(null)}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors font-bold text-[10px] uppercase flex items-center gap-1"
                 >
-                  <X size={18} />
+                  <X size={14} /> Close Player
                 </button>
               </div>
               <h3 className="text-lg font-black tracking-tight leading-snug">{activeStream.title}</h3>
               {activeStream.description && (
                 <p className="text-slate-400 text-xs leading-relaxed max-w-2xl">{activeStream.description}</p>
               )}
-              <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold border-t border-slate-900 mt-4 pt-4">
-                <span>Category: <strong className="text-slate-350">{activeStream.category}</strong></span>
-                <span>Registered by: <strong className="text-slate-350">{activeStream.creatorName}</strong></span>
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold border-t border-slate-900 mt-2 pt-3">
+                <span>Category: <strong className="text-slate-300">{activeStream.category}</strong></span>
+                <span>Registered by: <strong className="text-slate-300">{activeStream.creatorName}</strong></span>
               </div>
+
+              {/* Live Chat & Comments Area */}
+              <div className="mt-6 border-t border-slate-900 pt-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <h4 className="text-xs font-black text-rose-500 uppercase tracking-wider flex items-center gap-2">
+                    <MessageSquare size={16} />
+                    EXON LIVE COMMUNITY CHAT
+                  </h4>
+                  {hasActiveParticipationAccess(activeStream.id) ? (
+                    <span className="text-[9px] uppercase font-black tracking-wider text-green-400 bg-green-950/40 border border-green-900/40 px-3 py-1 rounded-xl flex items-center gap-1 self-start sm:self-auto">
+                      <Unlock size={10} /> Interaction Active
+                    </span>
+                  ) : (
+                    <span className="text-[9px] uppercase font-black tracking-wider text-amber-400 bg-amber-950/40 border border-amber-900/40 px-3 py-1 rounded-xl flex items-center gap-1 self-start sm:self-auto">
+                      <Lock size={10} /> Participation Locked
+                    </span>
+                  )}
+                </div>
+
+                {/* Chat messages box */}
+                <div className="h-64 bg-slate-950/60 rounded-2xl border border-slate-900/80 p-4 overflow-y-auto flex flex-col gap-3 scrollbar-thin">
+                  {activeChatMessages.map((msg) => (
+                    <div 
+                      key={msg.id} 
+                      className={`text-xs p-3 rounded-2xl flex flex-col gap-1 max-w-[85%] ${
+                        msg.userId === user?.uid 
+                          ? 'bg-rose-950/40 border border-rose-900/40 self-end' 
+                          : 'bg-slate-900/60 border border-slate-900 self-start'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 justify-between">
+                        <span className={`font-black uppercase tracking-wider text-[10px] ${msg.userId === user?.uid ? 'text-rose-450' : 'text-blue-400'}`}>
+                          {msg.userName} {msg.userId === user?.uid && '(You)'}
+                        </span>
+                        <span className="text-[8px] text-slate-500 font-bold">
+                          {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
+                        </span>
+                      </div>
+                      <p className="text-slate-100 leading-relaxed font-semibold mt-0.5">{msg.text}</p>
+                    </div>
+                  ))}
+                  {activeChatMessages.length === 0 && (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-950/30 rounded-2xl border border-dashed border-slate-900">
+                      <MessageSquare className="text-slate-700 mb-2 animate-bounce" size={24} />
+                      <p className="text-slate-500 font-black text-xs uppercase tracking-wider">No comments yet</p>
+                      <p className="text-slate-600 font-bold text-[10px] mt-1">Be the very first viewer to participate and chat live!</p>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Message input or Subscribe lock option */}
+                <div className="mt-4">
+                  {!user ? (
+                    <button 
+                      type="button"
+                      onClick={() => showNotification("Please sign in or register to get Excoins and join the live workspace!", "error")}
+                      className="w-full py-3 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-white rounded-2xl text-center font-extrabold text-xs uppercase tracking-wider transition-all"
+                    >
+                      Sign in to participate
+                    </button>
+                  ) : !hasActiveParticipationAccess(activeStream.id) ? (
+                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-slate-900/30 border border-slate-900 rounded-3xl gap-4">
+                      <div className="flex items-center gap-2.5 text-amber-500">
+                        <Lock size={16} className="shrink-0" />
+                        <div>
+                          <p className="text-[11px] font-black uppercase tracking-wider">Participation subscription required</p>
+                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">Please unlock an interaction pass to stream comments, live chat and likes on this broadcast.</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlanId('4h');
+                          setSubscriptionSelector({ streamId: activeStream.id, type: 'participate' });
+                        }}
+                        className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all w-full sm:w-auto text-nowrap shadow-sm hover:scale-[1.02] active:scale-98"
+                      >
+                        Unlock Participation
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSendChatMessage} className="flex gap-2">
+                      <input 
+                        type="text"
+                        placeholder="Say something nice to other viewers..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        className="flex-1 bg-slate-900 border border-slate-800 text-white placeholder-slate-500 rounded-2xl px-5 py-3.5 text-xs focus:outline-none focus:border-rose-500/40 font-bold transition-colors"
+                      />
+                      <button 
+                        type="submit"
+                        className="px-6 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-98"
+                      >
+                        Send
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
+
             </div>
           </motion.div>
         )}
@@ -421,11 +796,20 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
                     <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1 shrink-0">
                       <div className="h-1 w-1 rounded-full bg-red-600" />
                       Live
                     </span>
+                    {hasActiveViewAccess(stream.id) ? (
+                      <span className="px-2 py-0.5 bg-green-50 text-green-600 border border-green-150 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0">
+                        <Unlock size={8} /> Active Pass
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 shrink-0">
+                        <Lock size={8} /> 10 EX Fee
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -439,10 +823,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-gray-50 mt-6 pt-4">
+              <div className="flex items-center justify-between border-t border-gray-100 mt-6 pt-4">
                 <div className="flex gap-2">
                   <button
-                    onClick={() => onLikeBroadcast(stream.id, userLikes)}
+                    onClick={() => handleLikeClick(stream.id, userLikes)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
                       hasLiked 
                         ? 'bg-rose-50 border-rose-100 text-rose-600' 
@@ -479,16 +863,36 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
                   <button
                     onClick={() => {
-                      setActiveStream(stream);
-                      const element = document.getElementById("youtube_broadcasts_portal");
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
+                      if (!user) {
+                        showNotification("Please sign in or register to purchase Exon stream access passes!", "error");
+                        return;
+                      }
+                      if (hasActiveViewAccess(stream.id)) {
+                        setActiveStream(stream);
+                        const element = document.getElementById("youtube_broadcasts_portal");
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' });
+                        }
+                      } else {
+                        setSelectedPlanId('4h');
+                        setSubscriptionSelector({ streamId: stream.id, type: 'view' });
                       }
                     }}
-                    className="px-4 py-2 bg-ink hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5"
+                    className={`px-4 py-2 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 hover:scale-[1.02] active:scale-98 shadow-sm ${
+                      hasActiveViewAccess(stream.id) ? 'bg-ink' : 'bg-rose-600 hover:bg-rose-500'
+                    }`}
                   >
-                    <Play size={10} fill="currentColor" />
-                    Play
+                    {hasActiveViewAccess(stream.id) ? (
+                      <>
+                        <Play size={10} fill="currentColor" />
+                        Play
+                      </>
+                    ) : (
+                      <>
+                        <Lock size={10} />
+                        Unlock Pass
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -510,6 +914,117 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           </div>
         )}
       </div>
+
+      {/* Dynamic Excoin Subscription Passes Overlay Modal */}
+      <AnimatePresence>
+        {subscriptionSelector && (
+          <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full shadow-2xl border border-gray-150 flex flex-col gap-6 relative"
+            >
+              <button 
+                type="button"
+                onClick={() => setSubscriptionSelector(null)}
+                className="absolute top-6 right-6 p-2 bg-gray-50 hover:bg-gray-100 rounded-full text-muted transition-colors font-bold flex items-center justify-center"
+              >
+                <X size={16} />
+              </button>
+
+              <div>
+                <div className="flex items-center gap-2 text-indigo-900 mb-1">
+                  <Coins size={20} className="text-amber-500 shrink-0" />
+                  <h3 className="text-xs font-black uppercase tracking-widest leading-none">
+                    Exon Broadcast Pass
+                  </h3>
+                </div>
+                <h4 className="text-lg font-black text-ink leading-tight mt-1.5 uppercase">
+                  {subscriptionSelector.type === 'view' ? 'Streaming Access' : 'Interactive Chat Access'}
+                </h4>
+                <p className="text-xs text-muted font-bold leading-relaxed mt-2 text-slate-500">
+                  {subscriptionSelector.type === 'view' 
+                    ? 'Acquire a streaming pass using Excoins to watch live broadcasts. All coins spent are permanently burned from total supply.' 
+                    : 'Unlock community comment posting, likes and interactive chat rooms for live streams using Excoins.'}
+                </p>
+              </div>
+
+              {purchaseSuccessMsg ? (
+                <div className="p-6 bg-green-50 rounded-2xl border border-green-150 text-center flex flex-col items-center gap-2">
+                  <CheckCircle2 size={32} className="text-green-500 animate-pulse" />
+                  <p className="text-xs font-black text-green-800 uppercase tracking-wider">Purchase Confirmed!</p>
+                  <p className="text-xs text-green-600 font-bold leading-relaxed">{purchaseSuccessMsg}</p>
+                </div>
+              ) : (
+                <>
+                  {/* Current Wallet Balance */}
+                  <div className="p-4 bg-slate-50 border border-slate-100/80 rounded-2xl flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Your Excoin Balance</span>
+                    <strong className="text-xs font-black text-ink flex items-center gap-1 text-slate-800 bg-white border border-slate-200 px-3 py-1 rounded-xl">
+                      <div className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      {excoinBalance.toLocaleString()} EX
+                    </strong>
+                  </div>
+
+                  {/* Subscriptions Options */}
+                  <div className="flex flex-col gap-2">
+                    {(subscriptionSelector.type === 'view' ? VIEW_PLANS : PARTICIPATION_PLANS).map((plan) => {
+                      const isSelected = selectedPlanId === plan.id;
+                      return (
+                        <button
+                          key={plan.id}
+                          onClick={() => setSelectedPlanId(plan.id)}
+                          type="button"
+                          className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all ${
+                            isSelected 
+                              ? 'bg-rose-50/40 border-rose-500 shadow-sm' 
+                              : 'bg-white border-gray-100 hover:border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all ${
+                              isSelected ? 'border-rose-500' : 'border-gray-300'
+                            }`}>
+                              {isSelected && <div className="h-2 w-2 rounded-full bg-rose-500" />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-black text-slate-800 uppercase tracking-wider">{plan.name}</p>
+                              <p className="text-[10px] text-slate-500 font-bold mt-0.5">Valid for {plan.id === '4h' ? '4 Hours' : plan.id === '24h' ? '24 Hours' : plan.id === 'weekly' ? '7 Days' : '30 Days'}</p>
+                            </div>
+                          </div>
+                          <strong className="text-xs font-black text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1 rounded-xl shrink-0">{plan.cost} EX</strong>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Buy Button & Alerts */}
+                  <div className="flex flex-col gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePurchaseSubscription(subscriptionSelector.streamId, subscriptionSelector.type, selectedPlanId)}
+                      disabled={isPurchasing || (excoinBalance < (subscriptionSelector.type === 'view' ? VIEW_PLANS : PARTICIPATION_PLANS).find(p => p.id === selectedPlanId)!.cost)}
+                      className="w-full py-4 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs uppercase tracking-widest rounded-2xl transition-all disabled:opacity-50 hover:scale-[1.01] active:scale-99 shadow-md flex items-center justify-center gap-1.5"
+                    >
+                      {isPurchasing ? 'Processing Transaction...' : (
+                        excoinBalance >= (subscriptionSelector.type === 'view' ? VIEW_PLANS : PARTICIPATION_PLANS).find(p => p.id === selectedPlanId)!.cost 
+                          ? `Confirm Purchase & Spend ${ (subscriptionSelector.type === 'view' ? VIEW_PLANS : PARTICIPATION_PLANS).find(p => p.id === selectedPlanId)!.cost } EX`
+                          : 'Insufficient Balance in Wallet'
+                      )}
+                    </button>
+                    {excoinBalance < (subscriptionSelector.type === 'view' ? VIEW_PLANS : PARTICIPATION_PLANS).find(p => p.id === selectedPlanId)!.cost && (
+                      <p className="text-[10px] text-red-500 font-extrabold text-center uppercase tracking-wider bg-red-50 border border-red-100 p-2.5 rounded-xl leading-relaxed mt-1">
+                        ⚠️ Please acquire additional Excoins via Excoin P2P transaction board first!
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

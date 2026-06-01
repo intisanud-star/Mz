@@ -331,6 +331,16 @@ service cloud.firestore {
       );
     }
 
+    match /broadcast_subscriptions/{subId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    match /broadcast_chats/{chatId} {
+      allow read: if true;
+      allow create, delete: if isAuthenticated();
+    }
+
     match /users/{userId} {
       allow read: if isAuthenticated() || userId.matches('^tg_.*'); 
       allow list: if true; // Allow backend to query telegram user list

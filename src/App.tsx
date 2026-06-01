@@ -11139,6 +11139,8 @@ function ExonaApp() {
                 onAddBroadcast={handleAddYoutubeBroadcast}
                 onDeleteBroadcast={handleDeleteYoutubeBroadcast}
                 onLikeBroadcast={handleLikeYoutubeBroadcast}
+                handleDebitExcoin={handleDebitExcoin}
+                showNotification={showNotification}
               />
             )}
             </div>
