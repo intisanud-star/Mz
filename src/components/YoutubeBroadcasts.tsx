@@ -20,7 +20,9 @@ import {
   Coins,
   MessageSquare,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Compass,
+  ArrowUpRight
 } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -153,6 +155,7 @@ interface YoutubeBroadcastsProps {
   onLikeBroadcast: (id: string, likes: string[]) => Promise<void>;
   handleDebitExcoin: (amount: number, description: string) => Promise<boolean>;
   showNotification: (message: string, type?: 'success' | 'error') => void;
+  onOpenPlace?: (creatorUid: string, creatorName?: string) => void;
 }
 
 export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
@@ -163,7 +166,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   onDeleteBroadcast,
   onLikeBroadcast,
   handleDebitExcoin,
-  showNotification
+  showNotification,
+  onOpenPlace
 }) => {
   const [activeStream, setActiveStream] = useState<YoutubeBroadcast | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -510,97 +514,37 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 <span>Registered by: <strong className="text-slate-300">{activeStream.creatorName}</strong></span>
               </div>
 
-              {/* Live Chat & Comments Area */}
-              <div className="mt-6 border-t border-slate-900 pt-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                  <h4 className="text-xs font-black text-rose-500 uppercase tracking-wider flex items-center gap-2">
-                    <MessageSquare size={16} />
-                    EXON LIVE COMMUNITY CHAT
-                  </h4>
-                  <span className="text-[9px] uppercase font-black tracking-wider text-green-400 bg-green-950/40 border border-green-900/40 px-3 py-1 rounded-xl flex items-center gap-1 self-start sm:self-auto">
-                    Active
-                  </span>
-                </div>
+              {/* Live Chat & Comments Area - replaced with Institution Workspace redirection card as requested */}
+              <div className="mt-8 border-t border-slate-900 pt-8">
+                <div 
+                  onClick={() => onOpenPlace?.(activeStream.creatorUid || '', activeStream.creatorName)}
+                  className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-indigo-950 border border-slate-800 hover:border-slate-750 rounded-3xl p-6 sm:p-8 text-center flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-indigo-950/20 hover:scale-[1.01]"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition-colors animate-pulse" />
+                  <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors animate-pulse" />
 
-                {/* Chat messages box */}
-                <div className="h-64 bg-slate-950/60 rounded-2xl border border-slate-900/80 p-4 overflow-y-auto flex flex-col gap-3 scrollbar-thin">
-                  {activeChatMessages.map((msg) => (
-                    <div 
-                      key={msg.id} 
-                      className={`text-xs p-3 rounded-2xl flex flex-col gap-1 max-w-[85%] ${
-                        msg.userId === user?.uid 
-                          ? 'bg-rose-950/40 border border-rose-900/40 self-end' 
-                          : 'bg-slate-900/60 border border-slate-900 self-start'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4 justify-between">
-                        <span className={`font-black uppercase tracking-wider text-[10px] ${msg.userId === user?.uid ? 'text-rose-450' : 'text-blue-400'}`}>
-                          {msg.userName} {msg.userId === user?.uid && '(You)'}
-                        </span>
-                        <span className="text-[8px] text-slate-500 font-bold">
-                          {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Just now'}
-                        </span>
-                      </div>
-                      <p className="text-slate-100 leading-relaxed font-semibold mt-0.5">{msg.text}</p>
-                    </div>
-                  ))}
-                  {activeChatMessages.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-950/30 rounded-2xl border border-dashed border-slate-900">
-                      <MessageSquare className="text-slate-700 mb-2 animate-bounce" size={24} />
-                      <p className="text-slate-500 font-black text-xs uppercase tracking-wider">No comments yet</p>
-                      <p className="text-slate-600 font-bold text-[10px] mt-1">Be the very first viewer to participate and chat live!</p>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
+                  <div className="h-14 w-14 rounded-2xl bg-indigo-950 border border-indigo-900/60 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-md">
+                    <Compass size={24} className="animate-pulse" />
+                  </div>
 
-                {/* Message input or Subscribe lock option */}
-                <div className="mt-4">
-                  {!user ? (
-                    <button 
-                      type="button"
-                      onClick={() => showNotification("Please sign in or register to get Excoins and join the live workspace!", "error")}
-                      className="w-full py-3 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-slate-400 hover:text-white rounded-2xl text-center font-extrabold text-xs uppercase tracking-wider transition-all"
-                    >
-                      Sign in to participate
-                    </button>
-                  ) : !hasActiveParticipationAccess(activeStream.id) ? (
-                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 bg-slate-900/30 border border-slate-900 rounded-3xl gap-4">
-                      <div className="flex items-center gap-2.5 text-amber-500">
-                        <Lock size={16} className="shrink-0" />
-                        <div>
-                          <p className="text-[11px] font-black uppercase tracking-wider">Participation subscription required</p>
-                          <p className="text-[10px] text-slate-400 font-bold mt-0.5">Please unlock an interaction pass to stream comments, live chat and likes on this broadcast.</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPlanId('4h');
-                          setSubscriptionSelector({ streamId: activeStream.id, type: 'participate' });
-                        }}
-                        className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl transition-all w-full sm:w-auto text-nowrap shadow-sm hover:scale-[1.02] active:scale-98"
-                      >
-                        Unlock Participation
-                      </button>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSendChatMessage} className="flex gap-2">
-                      <input 
-                        type="text"
-                        placeholder="Say something nice to other viewers..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        className="flex-1 bg-slate-900 border border-slate-800 text-white placeholder-slate-500 rounded-2xl px-5 py-3.5 text-xs focus:outline-none focus:border-rose-500/40 font-bold transition-colors"
-                      />
-                      <button 
-                        type="submit"
-                        className="px-6 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-98"
-                      >
-                        Send
-                      </button>
-                    </form>
-                  )}
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-rose-500 tracking-widest bg-rose-950/45 border border-rose-900/30 px-3 py-1 rounded-full">
+                      Institution Live Community
+                    </span>
+                    <h4 className="text-sm font-black text-white uppercase tracking-tight mt-3">
+                      Join the interaction hub at {activeStream.creatorName || 'the registered workspace'}
+                    </h4>
+                    <p className="text-[11px] text-slate-400 font-bold max-w-md mx-auto mt-2 leading-relaxed">
+                      To keep communications centered and aligned, the live chat and community features reside within the official institution space. Click here to open and join.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 group-hover:bg-rose-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md group-hover:shadow-rose-600/10 flex items-center gap-1.5"
+                  >
+                    Open Space <ArrowUpRight size={12} strokeWidth={2.5} />
+                  </button>
                 </div>
               </div>
 

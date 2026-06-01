@@ -1789,11 +1789,7 @@ class ErrorBoundary extends Component<any, any> {
     if (this.state.hasError) {
       return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 text-center">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="max-w-md bg-white p-12 rounded-[3rem] border border-gray-100"
-          >
+          <div className="max-w-md bg-white p-12 rounded-[3rem] border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
             <div className="h-20 w-20 bg-red-50 text-red-600 rounded-[1.5rem] flex items-center justify-center mx-auto mb-8">
               <AlertTriangle size={32} />
             </div>
@@ -1806,7 +1802,7 @@ class ErrorBoundary extends Component<any, any> {
             >
               Restart Core
             </button>
-          </motion.div>
+          </div>
         </div>
       );
     }
@@ -3627,12 +3623,13 @@ function ExonaApp() {
 
   const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
     const errorStr = error instanceof Error ? error.message : String(error);
-    if (
+    const isQuota = 
       errorStr.toLowerCase().includes('quota') || 
       errorStr.toLowerCase().includes('resource_exhausted') || 
       errorStr.toLowerCase().includes('limit exceeded') ||
-      errorStr.toLowerCase().includes('exhausted')
-    ) {
+      errorStr.toLowerCase().includes('exhausted');
+
+    if (isQuota) {
       setIsQuotaExceeded(true);
     }
 
@@ -3653,7 +3650,11 @@ function ExonaApp() {
       path
     };
     console.error('Firestore Error: ', JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
+    
+    // Only throw non-quota errors to prevent background listener errors from crashing the main UI thread.
+    if (!isQuota) {
+      throw new Error(JSON.stringify(errInfo));
+    }
   };
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
   const [isDataStorageModalOpen, setIsDataStorageModalOpen] = useState(false);
@@ -11270,6 +11271,16 @@ function ExonaApp() {
                 onLikeBroadcast={handleLikeYoutubeBroadcast}
                 handleDebitExcoin={handleDebitExcoin}
                 showNotification={showNotification}
+                onOpenPlace={(creatorUid, creatorName) => {
+                  const foundSchool = schools.find(s => s.creatorUid === creatorUid || s.name.toLowerCase() === creatorName?.toLowerCase());
+                  if (foundSchool) {
+                    setSelectedSchool(foundSchool);
+                    setView('school-feed');
+                    showNotification(`Welcome to ${foundSchool.name}!`, 'success');
+                  } else {
+                    showNotification("The associated institution/place could not be found.", "error");
+                  }
+                }}
               />
             )}
             </div>
@@ -22670,7 +22681,23 @@ function ExonaApp() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
-      {/* Free Tier Quota Warning disabled as requested */}
+      {/* Free Tier Quota Warning banner */}
+      {isQuotaExceeded && userDoc?.role === 'admin' && (
+        <div className="bg-red-500 text-white text-xs font-bold px-4 py-2.5 text-center flex flex-col sm:flex-row items-center justify-center gap-1.5 z-[999] transition-all">
+          <div className="flex items-center gap-1.5">
+            <AlertCircle size={14} />
+            <span>Firestore Free Tier Daily Quota Exceeded. Database operations are paused until reset tomorrow (or upon upgrade).</span>
+          </div>
+          <a 
+            href="https://console.firebase.google.com/project/studio-438355495-26bec/firestore/databases/ai-studio-c3ea759e-c369-4b6c-babb-5352435dc336/data?openUpgradeDialog=true" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="underline ml-0 sm:ml-2 hover:opacity-80 transition-all font-extrabold flex items-center gap-0.5"
+          >
+            Upgrade or Manage Quotas
+          </a>
+        </div>
+      )}
 
       {/* Global Notification */}
       <AnimatePresence>

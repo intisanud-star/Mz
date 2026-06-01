@@ -90,8 +90,15 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorStr = error instanceof Error ? error.message : String(error);
+  const isQuota = 
+    errorStr.toLowerCase().includes('quota') || 
+    errorStr.toLowerCase().includes('resource_exhausted') || 
+    errorStr.toLowerCase().includes('limit exceeded') ||
+    errorStr.toLowerCase().includes('exhausted');
+
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorStr,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -107,9 +114,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     },
     operationType,
     path
-  }
+  };
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  
+  if (!isQuota) {
+    throw new Error(JSON.stringify(errInfo));
+  }
 }
 
 export async function ensureUserDocument(user: User, referredBy?: string | null, additionalData?: { country?: string, currency?: string }) {
