@@ -3549,6 +3549,8 @@ function ExonaApp() {
   }
 
   const [institutionSubscriptions, setInstitutionSubscriptions] = useState<InstitutionSubscriptionsMap>({});
+  const [recordsBypassed, setRecordsBypassed] = useState<{[key: string]: boolean}>({});
+  const [attendanceBypassed, setAttendanceBypassed] = useState<{[key: string]: boolean}>({});
   const [instSubscriptionSelector, setInstSubscriptionSelector] = useState<{ schoolId: string; schoolName: string; type: 'records' | 'attendance'; targetView: string } | null>(null);
   const [selectedInstPlanId, setSelectedInstPlanId] = useState<'4h' | '24h' | 'weekly' | 'monthly'>('4h');
   const [isPurchasingInstSub, setIsPurchasingInstSub] = useState(false);
@@ -5757,17 +5759,17 @@ function ExonaApp() {
     // Direct guard for non-administrative members trying to open Records or Attendance
     if (targetView === 'records' || targetView === 'attendance') {
       const isMgmt = canManageInstitution(school) || userDoc?.role === 'admin';
-      if (!isMgmt) {
-        const hasPass = institutionSubscriptions[`${school.id}_${targetView}`]?.expiresAt > Date.now();
-        if (!hasPass) {
-          setInstSubscriptionSelector({
-            schoolId: school.id,
-            schoolName: school.name,
-            type: targetView as 'records' | 'attendance',
-            targetView: targetView
-          });
-          return;
-        }
+      const hasPass = institutionSubscriptions[`${school.id}_${targetView}`]?.expiresAt > Date.now();
+      const isBypassed = targetView === 'records' ? !!recordsBypassed[school.id] : !!attendanceBypassed[school.id];
+
+      if (!hasPass && (!isMgmt || !isBypassed)) {
+        setInstSubscriptionSelector({
+          schoolId: school.id,
+          schoolName: school.name,
+          type: targetView as 'records' | 'attendance',
+          targetView: targetView
+        });
+        return;
       }
     }
 
@@ -12168,8 +12170,9 @@ function ExonaApp() {
         const labels = getLabels(selectedSchool?.type);
         const isMgmt = canManageInstitution(selectedSchool) || userDoc?.role === 'admin';
         const hasRecordsPass = institutionSubscriptions[`${selectedSchool.id}_records`]?.expiresAt > Date.now();
+        const isBypassed = !!recordsBypassed[selectedSchool.id];
         
-        if (!isMgmt && !hasRecordsPass) {
+        if (!hasRecordsPass && (!isMgmt || !isBypassed)) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white border border-gray-150 rounded-[2.5rem] max-w-xl mx-auto my-12 shadow-sm">
               <div className="h-24 w-24 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-8 animate-pulse">
@@ -12177,19 +12180,33 @@ function ExonaApp() {
               </div>
               <h2 className="text-xl font-black text-ink mb-3 uppercase tracking-tight">Institution Records Locked</h2>
               <p className="text-slate-500 text-xs font-bold max-w-sm mb-8 leading-relaxed">
-                You require an active Member Record viewing pass to access this institution's files, balances, and records. Administrative management bypasses this fee.
+                You require an active Member Record viewing pass to access this institution's files, balances, and records. Administrative management can bypass this fee.
               </p>
-              <button 
-                onClick={() => setInstSubscriptionSelector({
-                  schoolId: selectedSchool.id,
-                  schoolName: selectedSchool.name,
-                  type: 'records',
-                  targetView: 'records'
-                })}
-                className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2 mx-auto"
-              >
-                <Lock size={12} /> Unlock Records Access Pass
-              </button>
+              
+              <div className="flex flex-col gap-3 w-full items-center">
+                <button 
+                  type="button"
+                  onClick={() => setInstSubscriptionSelector({
+                    schoolId: selectedSchool.id,
+                    schoolName: selectedSchool.name,
+                    type: 'records',
+                    targetView: 'records'
+                  })}
+                  className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2"
+                >
+                  <Lock size={12} /> Unlock Records Access Pass
+                </button>
+                
+                {isMgmt && (
+                  <button 
+                    type="button"
+                    onClick={() => setRecordsBypassed(prev => ({ ...prev, [selectedSchool.id]: true }))}
+                    className="px-10 py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-150 text-slate-700 hover:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2"
+                  >
+                    ⚡ Administrative Free Bypass
+                  </button>
+                )}
+              </div>
             </div>
           );
         }
@@ -17114,28 +17131,43 @@ function ExonaApp() {
 
         const isMgmt = canManageInstitution(selectedSchool) || userDoc?.role === 'admin';
         const hasAttendancePass = institutionSubscriptions[`${selectedSchool.id}_attendance`]?.expiresAt > Date.now();
+        const isBypassed = !!attendanceBypassed[selectedSchool.id];
         
-        if (!isMgmt && !hasAttendancePass) {
+        if (!hasAttendancePass && (!isMgmt || !isBypassed)) {
           return (
             <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white border border-gray-150 rounded-[2.5rem] max-w-xl mx-auto my-12 shadow-sm">
               <div className="h-24 w-24 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-8 animate-pulse">
                 <Lock size={40} strokeWidth={1.5} />
               </div>
-              <h2 className="text-xl font-black text-ink mb-3 uppercase tracking-tight">Institution Attendance Locked</h2>
+              <h2 className="text-xl font-black text-ink mb-3 uppercase tracking-tight">Institution Attendance & Participation Locked</h2>
               <p className="text-slate-500 text-xs font-bold max-w-sm mb-8 leading-relaxed">
-                You require an active Attendance & Participation viewing/signing pass to interact with this institution's attendance hub. Administrative management bypasses this fee.
+                You require an active Attendance & Participation viewing/signing pass to interact with this institution's attendance hub. Administrative management can bypass this fee.
               </p>
-              <button 
-                onClick={() => setInstSubscriptionSelector({
-                  schoolId: selectedSchool.id,
-                  schoolName: selectedSchool.name,
-                  type: 'attendance',
-                  targetView: 'attendance'
-                })}
-                className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2 mx-auto"
-              >
-                <Lock size={12} /> Unlock Attendance & Participation Pass
-              </button>
+              
+              <div className="flex flex-col gap-3 w-full items-center">
+                <button 
+                  type="button"
+                  onClick={() => setInstSubscriptionSelector({
+                    schoolId: selectedSchool.id,
+                    schoolName: selectedSchool.name,
+                    type: 'attendance',
+                    targetView: 'attendance'
+                  })}
+                  className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2"
+                >
+                  <Lock size={12} /> Unlock Attendance & Participation Pass
+                </button>
+                
+                {isMgmt && (
+                  <button 
+                    type="button"
+                    onClick={() => setAttendanceBypassed(prev => ({ ...prev, [selectedSchool.id]: true }))}
+                    className="px-10 py-3.5 bg-gray-50 hover:bg-gray-100 border border-gray-150 text-slate-700 hover:text-slate-900 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-2"
+                  >
+                    ⚡ Administrative Free Bypass
+                  </button>
+                )}
+              </div>
             </div>
           );
         }
@@ -25735,6 +25767,31 @@ function ExonaApp() {
                         : `Confirm Unlock Pass`
                     }
                   </button>
+
+                  {(userDoc?.role === 'admin' || canManageInstitution(schools.find(item => item.id === instSubscriptionSelector.schoolId) || places.find(item => item.id === instSubscriptionSelector.schoolId) || null)) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (instSubscriptionSelector.type === 'records') {
+                          setRecordsBypassed(prev => ({ ...prev, [instSubscriptionSelector.schoolId]: true }));
+                        } else {
+                          setAttendanceBypassed(prev => ({ ...prev, [instSubscriptionSelector.schoolId]: true }));
+                        }
+                        const targetV = instSubscriptionSelector.targetView;
+                        const targetId = instSubscriptionSelector.schoolId;
+                        setInstSubscriptionSelector(null);
+                        
+                        setTimeout(() => {
+                          const s = schools.find(item => item.id === targetId) ||
+                                    places.find(item => item.id === targetId);
+                          handleNavigateToData(targetV, s);
+                        }, 50);
+                      }}
+                      className="w-full py-3 bg-gray-50 hover:bg-gray-100 border border-gray-150 text-slate-700 font-extrabold text-[10px] uppercase tracking-widest rounded-2xl transition-all hover:scale-[1.01] active:scale-99 text-center flex items-center justify-center gap-1.5"
+                    >
+                      ⚡ Administrative Bypass (Free Entry)
+                    </button>
+                  )}
                 </>
               )}
             </motion.div>
