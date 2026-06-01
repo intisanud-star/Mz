@@ -9281,6 +9281,7 @@ function ExonaApp() {
 
 
   useEffect(() => {
+    if (!splashDone) return;
     let userUnsubscribe: (() => void) | null = null;
     const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
@@ -9383,18 +9384,11 @@ function ExonaApp() {
       authUnsubscribe();
       if (userUnsubscribe) userUnsubscribe();
     };
-  }, []);
+  }, [splashDone]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', currentTheme);
   }, [currentTheme]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSplashDone(true);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (splashDone && !loading && view === 'splash') {
@@ -9408,7 +9402,7 @@ function ExonaApp() {
 
   // Data listeners - Master data (Schools/Places)
   useEffect(() => {
-    if (isQuotaExceeded) return;
+    if (isQuotaExceeded || !splashDone) return;
     const qSchools = query(collection(db, 'schools'), limit(30));
     const unsubSchools = onSnapshot(qSchools, (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
@@ -9428,11 +9422,11 @@ function ExonaApp() {
     });
 
     return () => { unsubSchools(); unsubPlaces(); };
-  }, [isQuotaExceeded]);
+  }, [isQuotaExceeded, splashDone]);
 
   // 1. Wallet and Wallet History Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user) return;
+    if (isQuotaExceeded || !user || !splashDone) return;
 
     const unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
       if (snap.exists()) {
@@ -9475,11 +9469,11 @@ function ExonaApp() {
       unsubWallet();
       unsubWalletHistory();
     };
-  }, [user?.uid, isQuotaExceeded, view]);
+  }, [user?.uid, isQuotaExceeded, view, splashDone]);
 
   // 2. Notifications Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user) return;
+    if (isQuotaExceeded || !user || !splashDone) return;
 
     let isInitialLoad = true;
     const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
@@ -9504,7 +9498,7 @@ function ExonaApp() {
     });
 
     return () => unsubNotifications();
-  }, [user?.uid, isQuotaExceeded]);
+  }, [user?.uid, isQuotaExceeded, splashDone]);
 
   // 3. Messages Listener
   useEffect(() => {
@@ -21947,14 +21941,6 @@ function ExonaApp() {
             transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col items-center"
           >
-            {/* Premium sign from Google Anti-gravity */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-gradient-to-r from-[#4285F4]/10 via-[#EA4335]/15 to-[#34A853]/10 border border-neutral-200/50 rounded-full shadow-xs mb-6">
-              <Stars size={13} className="text-[#FBBC05] animate-spin [animation-duration:8s]" />
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-700">
-                Premium License • Google Anti-gravity
-              </span>
-            </div>
-
             <h1 className="text-7xl sm:text-8xl font-bold tracking-tight text-ink mb-1 font-display">Exona</h1>
             <div className="h-px w-32 bg-gradient-to-r from-transparent via-ink/10 to-transparent mb-6"></div>
           </motion.div>
@@ -21982,8 +21968,8 @@ function ExonaApp() {
               <Rocket size={14} className="animate-pulse" /> Launch Premium Workspace
             </button>
             
-            <p className="text-[9px] font-extrabold text-muted uppercase tracking-widest mt-3.5 opacity-60">
-              Automatic Handshake in 3s ...
+            <p className="text-[9px] font-black tracking-widest mt-4 uppercase text-[#4285F4]/90 animate-pulse bg-neutral-100/30 px-3 py-1 rounded-full">
+              System Ready • Click Launch to Establish Connection
             </p>
           </motion.div>
         </motion.div>
