@@ -37,6 +37,7 @@ import PhotoVideoLab from './components/PhotoVideoLab';
 import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
 import CustomAppSandbox from './components/CustomAppSandbox';
 import ExcoinP2PCentre from './components/ExcoinP2PCentre';
+import { YoutubeBroadcasts } from './components/YoutubeBroadcasts';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 declare global {
@@ -2439,6 +2440,7 @@ function ExonaApp() {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [youtubeBroadcasts, setYoutubeBroadcasts] = useState<any[]>([]);
   const [postsLimit, setPostsLimit] = useState(10);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -9605,6 +9607,83 @@ function ExonaApp() {
     }
   }, [selectedSchool?.id]);
 
+  // 0c. YouTube Broadcasts Listener & Handlers
+  useEffect(() => {
+    if (isQuotaExceeded || !isOnline) return;
+
+    const q = query(collection(db, 'youtube_broadcasts'), orderBy('timestamp', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setYoutubeBroadcasts(items);
+    }, (error) => {
+      if (!error.message.includes('insufficient permissions')) {
+        console.error("Error listening to youtube_broadcasts:", error);
+      }
+    });
+
+    return () => unsub();
+  }, [isOnline, isQuotaExceeded]);
+
+  const handleAddYoutubeBroadcast = async (broadcast: any) => {
+    try {
+      await addDoc(collection(db, 'youtube_broadcasts'), {
+        ...broadcast,
+        timestamp: serverTimestamp(),
+        likes: [],
+      });
+      showNotification('Broadcast stream added successfully!', 'success');
+    } catch (e) {
+      console.error("Error adding YouTube broadcast:", e);
+      showNotification('Failed to add broadcast stream. Please try again.', 'error');
+    }
+  };
+
+  const handleDeleteYoutubeBroadcast = async (id: string, creatorUid: string) => {
+    if (!user) return;
+    const canDelete = user.uid === creatorUid || userDoc?.role === 'admin';
+    if (!canDelete) return;
+
+    if (!window.confirm('Are you sure you want to remove this YouTube Broadcast Channel?')) return;
+
+    try {
+      await deleteDoc(doc(db, 'youtube_broadcasts', id));
+      showNotification('YouTube Broadcast Channel removed.', 'success');
+    } catch (e) {
+      console.error("Error deleting YouTube broadcast:", e);
+      showNotification('Failed to delete stream.', 'error');
+    }
+  };
+
+  const handleLikeYoutubeBroadcast = async (id: string, currentLikes: string[]) => {
+    if (!user) {
+      showNotification('Please log in online to like broadcast channels.', 'error');
+      return;
+    }
+
+    if (id.startsWith('preset_')) {
+      showNotification('You liked this featured broadcast channel!', 'success');
+      return;
+    }
+
+    const likesArray = currentLikes || [];
+    const hasLiked = likesArray.includes(user.uid);
+    const docRef = doc(db, 'youtube_broadcasts', id);
+
+    try {
+      if (hasLiked) {
+        await updateDoc(docRef, {
+          likes: arrayRemove(user.uid)
+        });
+      } else {
+        await updateDoc(docRef, {
+          likes: arrayUnion(user.uid)
+        });
+      }
+    } catch (e) {
+      console.error("Error toggling like on YouTube broadcast:", e);
+    }
+  };
+
   // 1. Wallet and Wallet History Listener
   useEffect(() => {
     if (isQuotaExceeded || !user || !splashDone || !isOnline) return;
@@ -10970,7 +11049,7 @@ function ExonaApp() {
                   Broadcasts
                 </button>
               </div>
-              {user && (
+              {user && feedTab === 'institutions' && (
                 <button 
                   onClick={() => setIsSchoolModalOpen(true)}
                   className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 transition-transform"
@@ -11053,109 +11132,14 @@ function ExonaApp() {
                 </div>
               </>
             ) : (
-              <div className="flex flex-col gap-2">
-                {user && (
-                  <div className="bg-white rounded-[2rem] p-6 mb-6 border border-gray-100 shadow-sm">
-                    <div className="flex gap-4 items-center">
-                      <div className="h-12 w-12 rounded-2xl overflow-hidden bg-accent/5 flex items-center justify-center text-accent font-black text-lg shrink-0 border border-gray-100">
-                        {user.photoURL ? (
-                          <img src={user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <span>{user.displayName?.charAt(0)}</span>
-                        )}
-                      </div>
-                      <button 
-                        onClick={() => openNewPostModal()}
-                        className="flex-1 text-left px-6 py-4 bg-gray-50 rounded-[1.5rem] text-muted font-medium hover:bg-gray-100 transition-all text-[14px]"
-                      >
-                        Share something with Horizon...
-                      </button>
-                      <button 
-                        onClick={() => {
-                          openNewPostModal();
-                          // Small hack to trigger click on hidden file input in next tick
-                          setTimeout(() => {
-                            const fileInput = document.querySelector('input[type="file"][accept="image/*"]') as HTMLInputElement;
-                            if (fileInput) fileInput.click();
-                          }, 100);
-                        }}
-                        className="h-12 w-12 bg-white text-muted hover:text-accent hover:bg-accent/5 rounded-2xl flex items-center justify-center transition-all border border-gray-100 active:scale-95 group shadow-sm"
-                        title="Upload Photo"
-                      >
-                        <ImageIcon size={20} className="group-hover:scale-110 transition-transform" />
-                      </button>
-                      <button 
-                        onClick={() => {
-                          openNewPostModal();
-                          setTimeout(() => {
-                            const fileInput = document.querySelector('input[type="file"][capture="environment"]') as HTMLInputElement;
-                            if (fileInput) fileInput.click();
-                          }, 100);
-                        }}
-                        className="h-12 w-12 bg-white text-muted hover:text-accent hover:bg-accent/5 rounded-2xl flex items-center justify-center transition-all border border-gray-100 active:scale-95 group shadow-sm hidden sm:flex"
-                        title="Take Photo"
-                      >
-                        <Camera size={20} className="group-hover:scale-110 transition-transform" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {posts.length === 0 ? (
-                  <div className="py-20 text-center">
-                    <div className="h-20 w-20 bg-white rounded-[2.5rem] border border-gray-100 flex items-center justify-center mx-auto mb-6">
-                      <MessageSquare size={32} className="text-gray-200" />
-                    </div>
-                    <p className="text-[12px] font-black uppercase tracking-widest text-muted">No broadcasts yet</p>
-                  </div>
-                ) : (
-                  posts.map(post => {
-                    const school = schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId);
-                    return (
-                      <FeedPost 
-                        key={post.id} 
-                        post={post} 
-                        onUserClick={handleUserClick}
-                        onInstitutionClick={handleInstitutionClick}
-                        onLike={handleLikePost}
-                        onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                        onMessage={handleMessageAuthor}
-                        onReshare={handleResharePost}
-                        onForward={handleForwardPost}
-                        onEdit={handleEditPost}
-                        onDelete={onDeletePostClick}
-                        currentUserId={user?.uid}
-                        canManage={userDoc?.role === 'admin' || (post.schoolId && [...schools, ...places].find(s => s.id === post.schoolId)?.creatorUid === user?.uid)}
-                        canReply={canUserReply(post, school)}
-                      />
-                    );
-                  })
-                )}
-
-                {posts.length > 0 && hasMorePosts && (
-                  <div className="py-12 flex flex-col items-center">
-                    <button
-                      onClick={handleLoadMore}
-                      disabled={isLoadingMore}
-                      className={`px-10 py-5 bg-white border border-gray-100 text-ink rounded-3xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 transition-all flex items-center gap-3 disabled:opacity-50 ${isLoadingMore ? 'cursor-not-allowed' : 'hover:scale-105 active:scale-95'}`}
-                    >
-                      {isLoadingMore ? (
-                        <div className="h-4 w-4 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
-                      ) : (
-                        <ChevronDown size={18} />
-                      )}
-                      {isLoadingMore ? 'Synchronizing...' : 'Show More Broadcasts'}
-                    </button>
-                  </div>
-                )}
-
-                {!hasMorePosts && posts.length > 0 && (
-                  <div className="py-16 text-center">
-                    <div className="h-1 w-12 bg-gray-100 mx-auto rounded-full mb-6" />
-                    <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em]">End of Transmission</p>
-                  </div>
-                )}
-              </div>
+              <YoutubeBroadcasts
+                user={user}
+                userDoc={userDoc}
+                customBroadcasts={youtubeBroadcasts}
+                onAddBroadcast={handleAddYoutubeBroadcast}
+                onDeleteBroadcast={handleDeleteYoutubeBroadcast}
+                onLikeBroadcast={handleLikeYoutubeBroadcast}
+              />
             )}
             </div>
           </div>
