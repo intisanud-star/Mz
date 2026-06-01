@@ -9402,7 +9402,7 @@ function ExonaApp() {
 
   // Data listeners - Master data (Schools/Places)
   useEffect(() => {
-    if (isQuotaExceeded || !splashDone) return;
+    if (isQuotaExceeded || !splashDone || !isOnline) return;
     const qSchools = query(collection(db, 'schools'), limit(30));
     const unsubSchools = onSnapshot(qSchools, (snap) => {
       setSchools(snap.docs.map(d => ({ id: d.id, ...d.data() } as School)));
@@ -9422,11 +9422,11 @@ function ExonaApp() {
     });
 
     return () => { unsubSchools(); unsubPlaces(); };
-  }, [isQuotaExceeded, splashDone]);
+  }, [isQuotaExceeded, splashDone, isOnline]);
 
   // 1. Wallet and Wallet History Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user || !splashDone) return;
+    if (isQuotaExceeded || !user || !splashDone || !isOnline) return;
 
     const unsubWallet = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
       if (snap.exists()) {
@@ -9469,11 +9469,11 @@ function ExonaApp() {
       unsubWallet();
       unsubWalletHistory();
     };
-  }, [user?.uid, isQuotaExceeded, view, splashDone]);
+  }, [user?.uid, isQuotaExceeded, view, splashDone, isOnline]);
 
   // 2. Notifications Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user || !splashDone) return;
+    if (isQuotaExceeded || !user || !splashDone || !isOnline) return;
 
     let isInitialLoad = true;
     const qNotifications = query(collection(db, `users/${user.uid}/notifications`), orderBy('timestamp', 'desc'), limit(50));
@@ -9498,7 +9498,7 @@ function ExonaApp() {
     });
 
     return () => unsubNotifications();
-  }, [user?.uid, isQuotaExceeded, splashDone]);
+  }, [user?.uid, isQuotaExceeded, splashDone, isOnline]);
 
   // 3. Messages Listener
   useEffect(() => {
@@ -21919,6 +21919,58 @@ function ExonaApp() {
       default: return null;
     }
   };
+
+  if (!isOnline) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#F8F9FA] text-[#1F2937] overflow-hidden relative select-none">
+        {/* Ambient style background blobs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#4285F4]/5 blur-[120px] rounded-full animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#EA4335]/5 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
+        </div>
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="relative z-10 max-w-sm w-full mx-6 bg-white border border-neutral-100 p-8 sm:p-12 rounded-[2.5rem] shadow-2xl flex flex-col items-center text-center"
+        >
+          <div className="h-16 w-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 relative border border-red-100 shadow-xs">
+            <Globe size={28} className="animate-pulse" />
+            <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white border-2 border-white text-[10px] font-black">!</span>
+          </div>
+          
+          <h2 className="text-2xl font-black text-[#1F2937] mb-2 tracking-tight font-display">No Connection</h2>
+          <p className="text-[9px] font-extrabold text-red-500 uppercase tracking-widest mb-6">Synchronization Interrupted</p>
+          
+          <p className="text-[#4B5563] text-xs font-semibold leading-relaxed mb-8 px-2">
+            Exona is a secure real-time system. To prevent mock data loading or caching issues, access is restricted while offline. The application will immediately restore when your network connection is back.
+          </p>
+
+          <div className="relative flex items-center justify-center gap-2 px-4 py-3.5 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-4">
+            <span className="h-1.5 w-1.5 bg-red-500 rounded-full"></span>
+            Waiting for network...
+          </div>
+          
+          <button 
+            type="button"
+            onClick={() => {
+              const currentStatus = navigator.onLine;
+              setIsOnline(currentStatus);
+              if (currentStatus) {
+                showNotification('Connection restored! Re-initializing database channels.', 'success');
+              } else {
+                showNotification('Still offline. Please check your network cables or Wi-Fi settings.', 'error');
+              }
+            }}
+            className="w-full py-4 bg-gradient-to-r from-[#4285F4] to-[#34A853] hover:opacity-95 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 border-0 outline-0 select-none cursor-pointer shadow-lg"
+          >
+            <RefreshCw size={14} className="animate-spin [animation-duration:3s]" /> Network Scan Check
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (view === 'splash') {
     return (
