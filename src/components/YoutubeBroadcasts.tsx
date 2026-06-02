@@ -22,7 +22,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Compass,
-  ArrowUpRight
+  ArrowUpRight,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -54,7 +56,30 @@ export interface YoutubeBroadcast {
   isPreset?: boolean;
 }
 
-const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [];
+const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [
+  {
+    id: 'preset_lofi',
+    title: 'Lofi Girl - Ambient Focus & Coding Beats',
+    type: 'video',
+    videoId: 'jfKfPfyJRdk',
+    category: 'Music & Focus',
+    description: 'Chilled beats for studying, relaxing, coders, and system builders.',
+    creatorName: 'Exona Featured',
+    isPreset: true,
+    likesCount: 142
+  },
+  {
+    id: 'preset_nasa',
+    title: 'NASA Live - Official Space Broadcast',
+    type: 'video',
+    videoId: '21X5lGlDOfg',
+    category: 'Space & Science',
+    description: 'Live views of Earth from orbit, space walks, and technical briefings from NASA.',
+    creatorName: 'Exona Featured',
+    isPreset: true,
+    likesCount: 94
+  }
+];
 
 const CATEGORIES = [
   "All",
@@ -169,7 +194,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   showNotification,
   onOpenPlace
 }) => {
-  const [activeStream, setActiveStream] = useState<YoutubeBroadcast | null>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
@@ -188,6 +214,41 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [activeChatMessages, setActiveChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const allBroadcasts = useMemo(() => {
+    // Merge preset ones with database ones, avoiding duplicates if any
+    const customs = customBroadcasts.map(b => ({ ...b, isPreset: false }));
+    return [...customs, ...PRESET_YOUTUBE_BROADCASTS];
+  }, [customBroadcasts]);
+
+  const filteredBroadcasts = useMemo(() => {
+    return allBroadcasts.filter(b => {
+      const matchesSearch = b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                            (b.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = categoryFilter === 'All' || b.category === categoryFilter;
+      return matchesSearch && matchesCategory;
+    });
+  }, [allBroadcasts, searchQuery, categoryFilter]);
+
+  // Derive active stream synchronously from current index
+  const activeStream = useMemo(() => {
+    if (filteredBroadcasts.length > 0 && currentIdx >= 0 && currentIdx < filteredBroadcasts.length) {
+      return filteredBroadcasts[currentIdx];
+    }
+    return null;
+  }, [filteredBroadcasts, currentIdx]);
+
+  // Compatibility wrapper for manually setting activeStream
+  const setActiveStream = (stream: YoutubeBroadcast | null) => {
+    if (!stream) {
+      scrollToIdx(0);
+      return;
+    }
+    const idx = filteredBroadcasts.findIndex(b => b.id === stream.id);
+    if (idx !== -1) {
+      scrollToIdx(idx);
+    }
+  };
 
   // 1. Listen to user wallet balance in real-time
   useEffect(() => {
@@ -398,20 +459,35 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [parsingError, setParsingError] = useState('');
 
-  const allBroadcasts = useMemo(() => {
-    // Merge preset ones with database ones, avoiding duplicates if any
-    const customs = customBroadcasts.map(b => ({ ...b, isPreset: false }));
-    return [...customs, ...PRESET_YOUTUBE_BROADCASTS];
-  }, [customBroadcasts]);
+  // Reset active scroll station to top when filters or queries change
+  useEffect(() => {
+    setCurrentIdx(0);
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0;
+    }
+  }, [categoryFilter, searchQuery]);
 
-  const filteredBroadcasts = useMemo(() => {
-    return allBroadcasts.filter(b => {
-      const matchesSearch = b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            (b.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = categoryFilter === 'All' || b.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const scrollTop = container.scrollTop;
+    const height = container.clientHeight;
+    if (height === 0) return;
+    const newIdx = Math.round(scrollTop / height);
+    if (newIdx !== currentIdx && newIdx >= 0 && newIdx < filteredBroadcasts.length) {
+      setCurrentIdx(newIdx);
+    }
+  };
+
+  const scrollToIdx = (idx: number) => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    container.scrollTo({
+      top: idx * container.clientHeight,
+      behavior: 'smooth'
     });
-  }, [allBroadcasts, searchQuery, categoryFilter]);
+    setCurrentIdx(idx);
+  };
 
   const handleFormUrlChange = (val: string) => {
     setFormUrl(val);
@@ -466,103 +542,30 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   const getEmbedUrl = (item: YoutubeBroadcast) => {
     if (item.type === 'channel') {
-      return `https://www.youtube.com/embed/live_stream?channel=${item.channelId}&autoplay=1&mute=0&rel=0&showinfo=0&modestbranding=1`;
+      return `https://www.youtube.com/embed/live_stream?channel=${item.channelId}&autoplay=1&mute=1&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
     }
-    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&mute=0&rel=0&showinfo=0&modestbranding=1`;
+    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&mute=1&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
+  };
+
+  const getCoverImageUrl = (item: YoutubeBroadcast) => {
+    if (item.type === 'video' && item.videoId) {
+      return `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
+    }
+    return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop`;
   };
 
   return (
-    <div className="w-full flex flex-col gap-6" id="youtube_broadcasts_portal">
-      {/* Dynamic Main Player (Glow frame) */}
-      <AnimatePresence mode="wait">
-        {activeStream && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="w-full bg-slate-950 text-white rounded-[2rem] overflow-hidden border border-slate-900 shadow-2xl relative"
-          >
-            <div className="relative aspect-video w-full bg-black">
-              <iframe
-                src={getEmbedUrl(activeStream)}
-                title={activeStream.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            </div>
-            <div className="p-6 flex flex-col gap-3 bg-gradient-to-b from-slate-900/40 to-slate-950">
-              <div className="flex items-center justify-between">
-                <span className="px-3 py-1 bg-red-600 rounded-full text-[10px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1.5 shrink-0">
-                  <div className="h-2 w-2 rounded-full bg-white" />
-                  Broadcast Live
-                </span>
-                <button 
-                  onClick={() => setActiveStream(null)}
-                  className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors font-bold text-[10px] uppercase flex items-center gap-1"
-                >
-                  <X size={14} /> Close Player
-                </button>
-              </div>
-              <h3 className="text-lg font-black tracking-tight leading-snug">{activeStream.title}</h3>
-              {activeStream.description && (
-                <p className="text-slate-400 text-xs leading-relaxed max-w-2xl">{activeStream.description}</p>
-              )}
-              <div className="flex items-center justify-between text-[11px] text-slate-500 font-bold border-t border-slate-900 mt-2 pt-3">
-                <span>Category: <strong className="text-slate-300">{activeStream.category}</strong></span>
-                <span>Registered by: <strong className="text-slate-300">{activeStream.creatorName}</strong></span>
-              </div>
-
-              {/* Live Chat & Comments Area - replaced with Institution Workspace redirection card as requested */}
-              <div className="mt-8 border-t border-slate-900 pt-8">
-                <div 
-                  onClick={() => onOpenPlace?.(activeStream.creatorUid || '', activeStream.creatorName)}
-                  className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-indigo-950 border border-slate-800 hover:border-slate-750 rounded-3xl p-6 sm:p-8 text-center flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-indigo-950/20 hover:scale-[1.01]"
-                >
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition-colors animate-pulse" />
-                  <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors animate-pulse" />
-
-                  <div className="h-14 w-14 rounded-2xl bg-indigo-950 border border-indigo-900/60 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-md">
-                    <Compass size={24} className="animate-pulse" />
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] font-black uppercase text-rose-500 tracking-widest bg-rose-950/45 border border-rose-900/30 px-3 py-1 rounded-full">
-                      Institution Live Community
-                    </span>
-                    <h4 className="text-sm font-black text-white uppercase tracking-tight mt-3">
-                      Join the interaction hub at {activeStream.creatorName || 'the registered workspace'}
-                    </h4>
-                    <p className="text-[11px] text-slate-400 font-bold max-w-md mx-auto mt-2 leading-relaxed">
-                      To keep communications centered and aligned, the live chat and community features reside within the official institution space. Click here to open and join.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="mt-2 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 group-hover:bg-rose-500 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md group-hover:shadow-rose-600/10 flex items-center gap-1.5"
-                  >
-                    Open Space <ArrowUpRight size={12} strokeWidth={2.5} />
-                  </button>
-                </div>
-              </div>
-
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="w-full flex flex-col gap-6 animate-fade-in" id="youtube_broadcasts_portal">
       {/* Main Container Info card */}
       <div className="bg-white rounded-[2rem] p-6 sm:p-8 border border-gray-100 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-black text-ink flex items-center gap-2">
-              <Youtube className="text-red-600" size={24} />
-              EXONA BROADCAST LIVE
+              <Youtube className="text-red-655" size={24} />
+              EXONA TV BROADCASTS
             </h2>
             <p className="text-xs text-muted font-bold mt-1 max-w-md">
-              Watch official livestreams, interactive tutorials, science logs, or focus loops directly from YouTube.
+              Watch official livestreams, interactive tutorials, science logs, or focus loops directly. Scroll or swipe to switch channels automatically.
             </p>
           </div>
           
@@ -689,132 +692,223 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         </div>
       </div>
 
-      {/* Broadcast Stream Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredBroadcasts.map((stream) => {
-          const userLikes = stream.likes || [];
-          const hasLiked = user ? userLikes.includes(user.uid) : false;
-          const displayLikes = stream.isPreset 
-            ? (stream.likesCount || 0) 
-            : userLikes.length;
+      {/* Elegant TikTok-style Snapping Vertical Video Player Container */}
+      <div className="w-full flex justify-center py-2 relative">
+        <div className="w-full max-w-sm sm:max-w-md aspect-[9/16] min-h-[580px] h-[75vh] md:h-[680px] bg-black rounded-[2.5rem] border-[8px] border-slate-900 shadow-2xl relative overflow-hidden flex flex-col">
+          
+          {/* Status bar notch simulation */}
+          <div className="absolute top-0 inset-x-0 h-7 bg-gradient-to-b from-black/80 to-transparent z-40 flex items-center justify-between px-6 pointer-events-none select-none text-[9px] font-mono tracking-wider text-slate-400">
+            <span>EXONA TV</span>
+            <div className="h-4 w-16 bg-slate-900 rounded-full border border-slate-800" />
+            <div className="flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>STATION {filteredBroadcasts.length > 0 ? `${currentIdx + 1}/${filteredBroadcasts.length}` : '0/0'}</span>
+            </div>
+          </div>
 
-          const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
-
-          return (
-            <motion.div
-              layout
-              key={stream.id}
-              className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 overflow-hidden flex flex-col justify-between hover:border-slate-200 transition-all group"
+          {filteredBroadcasts.length > 0 ? (
+            <div 
+              ref={containerRef}
+              onScroll={handleScroll}
+              className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-slate-950"
             >
-              <div className="flex flex-col gap-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="h-9 w-9 rounded-xl bg-slate-50 flex items-center justify-center text-red-600 border border-gray-100">
-                      <Tv size={18} />
-                    </span>
-                    <div>
-                      <span className="text-[10px] font-bold text-accent uppercase tracking-widest leading-none">
-                        {stream.category}
+              {filteredBroadcasts.map((stream, idx) => {
+                const isActive = idx === currentIdx;
+                const userLikes = stream.likes || [];
+                const hasLiked = user ? userLikes.includes(user.uid) : false;
+                const displayLikes = stream.isPreset 
+                  ? (stream.likesCount || 0) 
+                  : userLikes.length;
+
+                const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
+
+                return (
+                  <div 
+                    key={stream.id} 
+                    className="w-full h-full min-h-[564px] snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                  >
+                    {isActive ? (
+                      <iframe
+                        src={getEmbedUrl(stream)}
+                        title={stream.title}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
+                        <img 
+                          src={getCoverImageUrl(stream)} 
+                          alt={stream.title} 
+                          className="absolute inset-0 w-full h-full object-cover opacity-30 select-none pointer-events-none filter blur-sm"
+                        />
+                        <div className="z-10 flex flex-col items-center gap-3">
+                          <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
+                            <Tv size={24} />
+                          </div>
+                          <p className="text-white text-xs font-black uppercase tracking-widest px-4 text-center">{stream.title}</p>
+                          <p className="text-slate-400 text-[10px] font-bold">Scroll or use buttons to switch station</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TikTok Overlay Controls */}
+                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none flex flex-col gap-2 z-20">
+                      <span className="px-2.5 py-0.5 bg-red-600 rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
+                        <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        Live Broadcast
                       </span>
-                      <p className="text-[10px] text-muted/60 font-bold leading-none mt-1">
-                        By {stream.creatorName}
+                      <h3 className="text-white text-sm sm:text-base font-black tracking-tight leading-snug drop-shadow-md select-text pointer-events-auto">
+                        {stream.title}
+                      </h3>
+                      <p className="text-slate-300 text-[10px] sm:text-xs font-semibold max-w-[85%] line-clamp-2 drop-shadow-sm select-text pointer-events-auto leading-relaxed">
+                        {stream.description || "Tune in to explore live feeds, study sessions, and academic logs."}
                       </p>
+                      <div className="flex items-center gap-2 mt-1 py-1 text-[9px] font-bold text-slate-400">
+                        <span className="bg-white/10 px-2 py-0.5 rounded-md text-white border border-white/5">{stream.category}</span>
+                        <span>• By {stream.creatorName}</span>
+                      </div>
+                    </div>
+
+                    {/* Right Floating Actions Column */}
+                    <div className="absolute right-3.5 bottom-16 z-30 flex flex-col items-center gap-4">
+                      
+                      {/* Creator Profile Shortcut */}
+                      <div className="relative group">
+                        <div 
+                          onClick={() => onOpenPlace?.(stream.creatorUid || '', stream.creatorName)}
+                          className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-indigo-950 border-2 border-indigo-500 flex items-center justify-center text-white text-[10px] sm:text-xs font-black select-none shadow-lg cursor-pointer transform hover:scale-115 transition-transform"
+                          title={`Open ${stream.creatorName}'s Space`}
+                        >
+                          {stream.creatorName?.slice(0, 2).toUpperCase() || "EX"}
+                        </div>
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-indigo-500 text-white rounded-full p-0.5 border border-black flex items-center justify-center shadow-md">
+                          <Compass size={8} className="animate-pulse" />
+                        </div>
+                      </div>
+
+                      {/* Like button */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLikeClick(stream.id, userLikes);
+                          }}
+                          className={`h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center transition-all shadow-lg border ${
+                            hasLiked 
+                              ? 'bg-rose-600 border-rose-500 text-white' 
+                              : 'bg-black/60 border-white/20 text-white hover:bg-black/80'
+                          }`}
+                          title="Like Live Stream"
+                        >
+                          <Heart size={18} fill={hasLiked ? "currentColor" : "none"} className={hasLiked ? "animate-pulse" : ""} />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
+                      </div>
+
+                      {/* External YouTube Link Button */}
+                      <a
+                        href={stream.type === 'channel' 
+                          ? `https://www.youtube.com/channel/${stream.channelId}`
+                          : `https://www.youtube.com/watch?v=${stream.videoId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white hover:bg-black/80 transition-all shadow-lg"
+                        title="Watch on official YouTube"
+                      >
+                        <ExternalLink size={16} />
+                      </a>
+
+                      {/* Admin Delete Trigger */}
+                      {isCreatorOrAdmin && !stream.isPreset && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteBroadcast(stream.id, stream.creatorUid || '');
+                          }}
+                          className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse"
+                          title="Remove Stream Channel"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                    <span className="px-2 py-0.5 bg-red-50 text-red-600 border border-red-100 rounded-full text-[9px] font-black uppercase tracking-widest animate-pulse flex items-center gap-1 shrink-0">
-                      <div className="h-1 w-1 rounded-full bg-red-600" />
-                      Live
-                    </span>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-base font-black text-ink group-hover:text-amber-500 leading-snug transition-colors line-clamp-1">
-                    {stream.title}
-                  </h3>
-                  <p className="text-xs text-muted font-bold tracking-tight line-clamp-2 mt-2 leading-relaxed">
-                    {stream.description || "Tune in to explore live feeds, study sessions, and broadcast logs on YouTube."}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-gray-100 mt-6 pt-4">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleLikeClick(stream.id, userLikes)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all ${
-                      hasLiked 
-                        ? 'bg-rose-50 border-rose-100 text-rose-600' 
-                        : 'bg-white border-gray-100 text-muted hover:border-gray-200'
-                    }`}
-                  >
-                    <Heart size={14} fill={hasLiked ? "currentColor" : "none"} className={hasLiked ? "animate-pulse" : ""} />
-                    {displayLikes}
-                  </button>
-
-                  {isCreatorOrAdmin && !stream.isPreset && (
-                    <button
-                      onClick={() => onDeleteBroadcast(stream.id, stream.creatorUid || '')}
-                      className="px-2.5 py-1.5 rounded-xl border border-red-100 text-red-500 hover:bg-red-50 transition-all flex items-center justify-center shrink-0"
-                      title="Remove Broadcast channel"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <a
-                    href={stream.type === 'channel' 
-                      ? `https://www.youtube.com/channel/${stream.channelId}`
-                      : `https://www.youtube.com/watch?v=${stream.videoId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="p-2 border border-gray-100 text-muted hover:text-ink rounded-xl transition-all"
-                    title="Watch on official YouTube App"
-                  >
-                    <ExternalLink size={14} />
-                  </a>
-
-                  <button
-                    onClick={() => {
-                      if (!user) {
-                        showNotification("Please sign in or register to join live transmissions!", "error");
-                        return;
-                      }
-                      setActiveStream(stream);
-                      const element = document.getElementById("youtube_broadcasts_portal");
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
-                    className="px-4 py-2 text-white bg-ink hover:bg-slate-800 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 hover:scale-[1.02] active:scale-98 shadow-sm"
-                  >
-                    <Play size={10} fill="currentColor" />
-                    Play
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
-
-        {filteredBroadcasts.length === 0 && (
-          <div className="col-span-full py-16 text-center bg-white border border-gray-100 rounded-[2.5rem]">
-            <div className="h-16 w-16 rounded-2xl bg-gray-50 flex items-center justify-center border border-gray-150 text-muted mx-auto mb-4">
-              <Youtube size={28} />
+                );
+              })}
             </div>
-            <p className="text-sm font-black text-ink uppercase tracking-wider">No matching broadcasts</p>
-            <p className="text-xs text-muted font-bold mt-1 max-w-xs mx-auto leading-relaxed">
-              {userDoc?.role === 'admin' 
-                ? 'Register a new live channel link by tapping the "Add Broadcast" button above!'
-                : 'No livestream channels are currently broadcasted by the administration.'}
-            </p>
-          </div>
-        )}
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white text-center">
+              <div className="h-16 w-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mx-auto mb-4">
+                <Youtube size={28} />
+              </div>
+              <p className="text-sm font-black uppercase tracking-wider">No matching broadcasts</p>
+              <p className="text-xs text-slate-400 font-bold mt-1 max-w-xs mx-auto leading-relaxed">
+                Add special broadcasts or change search filters above.
+              </p>
+            </div>
+          )}
+
+          {/* Floating On-Screen Navigation Controls (Tiktok-Style Back/Next overlays) */}
+          {filteredBroadcasts.length > 1 && (
+            <div className="absolute left-3.5 bottom-24 z-30 flex flex-col gap-2.5">
+              <button
+                disabled={currentIdx === 0}
+                onClick={() => scrollToIdx(currentIdx - 1)}
+                className="h-8 w-8 bg-black/65 border border-white/10 hover:bg-indigo-950 hover:border-indigo-500 hover:text-indigo-400 rounded-full flex items-center justify-center text-white hover:scale-110 active:scale-95 disabled:opacity-30 disabled:scale-100 disabled:pointer-events-none transition-all shadow-lg"
+                title="Previous Live Channel"
+              >
+                <ChevronUp size={16} />
+              </button>
+              <button
+                disabled={currentIdx === filteredBroadcasts.length - 1}
+                onClick={() => scrollToIdx(currentIdx + 1)}
+                className="h-8 w-8 bg-black/65 border border-white/10 hover:bg-indigo-950 hover:border-indigo-500 hover:text-indigo-400 rounded-full flex items-center justify-center text-white hover:scale-110 active:scale-95 disabled:opacity-30 disabled:scale-100 disabled:pointer-events-none transition-all shadow-lg"
+                title="Next Live Channel"
+              >
+                <ChevronDown size={16} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Institution Workspace Redirection card */}
+      {activeStream && (
+        <div className="max-w-md mx-auto w-full mt-2">
+          <div 
+            onClick={() => onOpenPlace?.(activeStream.creatorUid || '', activeStream.creatorName)}
+            className="group relative overflow-hidden bg-gradient-to-br from-slate-900 to-indigo-950 border border-slate-800 hover:border-slate-750 rounded-3xl p-6 text-center flex flex-col items-center justify-center gap-4 cursor-pointer transition-all duration-300 hover:shadow-lg hover:shadow-indigo-950/20 hover:scale-[1.01]"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition-colors animate-pulse" />
+            <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-indigo-500/5 rounded-full blur-3xl group-hover:bg-indigo-500/10 transition-colors animate-pulse" />
+
+            <div className="h-10 w-10 rounded-xl bg-indigo-950 border border-indigo-900/60 flex items-center justify-center text-rose-500 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300 shadow-md">
+              <Compass size={18} className="animate-pulse" />
+            </div>
+
+            <div>
+              <span className="text-[9px] font-black uppercase text-rose-500 tracking-widest bg-rose-950/45 border border-rose-900/30 px-2.5 py-0.5 rounded-full">
+                Institution Live Community
+              </span>
+              <h3 className="text-xs font-black text-white uppercase tracking-tight mt-2">
+                Join the interaction hub at {activeStream.creatorName || 'the registered workspace'}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-bold max-w-sm mx-auto mt-1 leading-relaxed">
+                To keep communications centered and aligned, live communication resides inside the official workspace. Tap to open and join chat boards.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="mt-1 px-5 py-2 bg-rose-600 hover:bg-rose-500 group-hover:bg-rose-500 text-white font-black text-[9px] uppercase tracking-widest rounded-xl transition-all shadow-md group-hover:shadow-rose-600/10 flex items-center gap-1.5"
+            >
+              Open Workspace <ArrowUpRight size={10} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dynamic Excoin Subscription Passes Overlay Modal */}
       <AnimatePresence>
