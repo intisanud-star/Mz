@@ -69,30 +69,6 @@ export interface YoutubeBroadcast {
 
 const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [
   {
-    id: 'preset_arewa24',
-    title: 'Arewa 24 - Live Hausa Entertainment & Culture',
-    type: 'vlc',
-    streamType: 'vlc',
-    streamUrl: 'https://edge.vcloud.com.ng/live/arewa24/playlist.m3u8',
-    category: 'General Live',
-    description: 'Leading Hausa entertainment and lifestyle channel broadcasting 24/7 with quality family-friendly programming and culture lessons from Northern Nigeria.',
-    creatorName: 'VLC SDK Featured',
-    isPreset: true,
-    likesCount: 247
-  },
-  {
-    id: 'preset_makkah',
-    title: 'Makkah Live - Masjid al-Haram 24/7 Channel',
-    type: 'vlc',
-    streamType: 'vlc',
-    streamUrl: 'https://win.holol.com/live/mak/playlist.m3u8',
-    category: 'General Live',
-    description: 'Direct live network stream from the Masjid al-Haram in Makkah, Saudi Arabia. Continuous spiritual feeds and prayers.',
-    creatorName: 'VLC SDK Featured',
-    isPreset: true,
-    likesCount: 512
-  },
-  {
     id: 'preset_lofi',
     title: 'Lofi Girl - Ambient Focus & Coding Beats',
     type: 'video',
@@ -708,6 +684,33 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       scrollToIdx(idx);
     }
   };
+
+  // Save last viewed broadcast stream ID to localStorage
+  useEffect(() => {
+    if (activeStream?.id) {
+      localStorage.setItem('exon_last_viewed_stream_id', activeStream.id);
+    }
+  }, [activeStream?.id]);
+
+  // Restore last viewed broadcast stream ID on mount / when filteredBroadcasts loads
+  const hasRestoredLastViewed = useRef(false);
+  useEffect(() => {
+    if (!hasRestoredLastViewed.current && filteredBroadcasts.length > 0) {
+      const savedId = localStorage.getItem('exon_last_viewed_stream_id');
+      if (savedId) {
+        const idx = filteredBroadcasts.findIndex(b => b.id === savedId);
+        if (idx !== -1) {
+          setCurrentIdx(idx);
+          setTimeout(() => {
+            if (immersiveContainerRef.current) {
+              immersiveContainerRef.current.scrollTop = idx * immersiveContainerRef.current.clientHeight;
+            }
+          }, 200);
+        }
+      }
+      hasRestoredLastViewed.current = true;
+    }
+  }, [filteredBroadcasts]);
 
   // 1. Listen to user wallet balance in real-time
   useEffect(() => {
@@ -1326,9 +1329,20 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
             <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
           </button>
-          {userDoc?.role === 'admin' && (
+          {userDoc?.role === 'admin' ? (
             <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
               <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
+            </button>
+          ) : (
+            <button 
+              onClick={() => { 
+                setCategoryFilter('All'); 
+                showNotification("Exploring all live channels!", "info"); 
+              }} 
+              className="hover:text-white hover:scale-110 transition-all cursor-pointer text-slate-400" 
+              title="Explore Channels"
+            >
+              <Compass size={22} className="hover:text-white" />
             </button>
           )}
           <button 
@@ -2467,9 +2481,20 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
                 <svg className="h-5.5 w-5.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
               </button>
-              {userDoc?.role === 'admin' && (
+              {userDoc?.role === 'admin' ? (
                 <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
                   <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
+                </button>
+              ) : (
+                <button 
+                  onClick={() => { 
+                    setCategoryFilter('All'); 
+                    showNotification("Exploring all live channels!", "info"); 
+                  }} 
+                  className="hover:text-white hover:scale-110 transition-all cursor-pointer text-slate-400" 
+                  title="Explore Channels"
+                >
+                  <Compass size={22} className="hover:text-white" />
                 </button>
               )}
               <button 
