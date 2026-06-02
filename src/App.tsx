@@ -5650,7 +5650,7 @@ function ExonaApp() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   useEffect(() => {
-    if (!user?.uid || isQuotaExceeded) return;
+    if (!user?.uid || isQuotaExceeded || (view !== 'workspace' && view !== 'tools')) return;
     const q = query(
       collection(db, 'cloudFiles'),
       where('ownerUid', '==', user.uid),
@@ -5662,7 +5662,7 @@ function ExonaApp() {
       console.error('Error fetching cloud files:', error);
     });
     return unsubscribe;
-  }, [user?.uid, isQuotaExceeded]);
+  }, [user?.uid, isQuotaExceeded, view]);
 
   useEffect(() => {
     if (!user?.uid || isQuotaExceeded) return;
@@ -5679,7 +5679,7 @@ function ExonaApp() {
   }, [user?.uid, isQuotaExceeded]);
 
   useEffect(() => {
-    if (!user?.uid || isQuotaExceeded) return;
+    if (!user?.uid || isQuotaExceeded || !['chat', 'records', 'attendance', 'school-feed', 'user-profile', 'institution-profile', 'tools'].includes(view)) return;
     const q = query(
       collection(db, 'users'),
       where('following', 'array-contains', user.uid)
@@ -5690,7 +5690,7 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, 'users');
     });
     return unsubscribe;
-  }, [user?.uid, isQuotaExceeded]);
+  }, [user?.uid, isQuotaExceeded, view]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -5997,7 +5997,7 @@ function ExonaApp() {
   }, [user?.uid, isQuotaExceeded]);
 
   useEffect(() => {
-    if (userDoc?.role !== 'admin' || isQuotaExceeded) return;
+    if (userDoc?.role !== 'admin' || isQuotaExceeded || view !== 'admin') return;
     
     const q = query(collection(db, 'keyRequests'), where('status', '==', 'pending'), orderBy('timestamp', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -6006,10 +6006,10 @@ function ExonaApp() {
       handleFirestoreError(error, OperationType.GET, 'keyRequests');
     });
     return unsubscribe;
-  }, [userDoc?.role, isQuotaExceeded]);
+  }, [userDoc?.role, isQuotaExceeded, view]);
 
   useEffect(() => {
-    if (!user?.uid || isQuotaExceeded) return;
+    if (!user?.uid || isQuotaExceeded || view !== 'workspace') return;
     
     // Listen for ALL key requests made by current user, globally
     const q = query(
@@ -6035,7 +6035,7 @@ function ExonaApp() {
       console.warn('Key requests listener inhibited:', error);
     });
     return unsubscribe;
-  }, [user?.uid, selectedSchool?.id, isQuotaExceeded]);
+  }, [user?.uid, selectedSchool?.id, isQuotaExceeded, view]);
 
   useEffect(() => {
     if (!selectedSchool) return;
@@ -9538,8 +9538,8 @@ function ExonaApp() {
 
     let unsubs: (() => void)[] = [];
 
-    // ONLY load a broader list of schools/places if actively searching or if the user is a systems administrator
-    const isBrowsingAll = (view === 'feed' && feedTab === 'institutions') || (globalSearch && globalSearch.trim() !== '') || userDoc?.role === 'admin';
+    // ONLY load a broader list of schools/places if browsing them or if the user is a systems administrator
+    const isBrowsingAll = (view === 'feed' && feedTab === 'institutions') || userDoc?.role === 'admin';
 
     if (isBrowsingAll) {
       const qSchools = query(collection(db, 'schools'), limit(30));
@@ -9624,7 +9624,7 @@ function ExonaApp() {
     }
 
     return () => { unsubs.forEach(unsub => unsub()); };
-  }, [isQuotaExceeded, splashDone, isOnline, user?.uid, view, feedTab, globalSearch, userDoc?.role]);
+  }, [isQuotaExceeded, splashDone, isOnline, user?.uid, view, feedTab, userDoc?.role]);
 
   // 0. Selected School Real-time Listener (dynamic subscription on click/access)
   useEffect(() => {
@@ -9739,7 +9739,7 @@ function ExonaApp() {
 
   // 0c. YouTube Broadcasts Listener & Handlers
   useEffect(() => {
-    if (isQuotaExceeded || !isOnline) return;
+    if (isQuotaExceeded || !isOnline || view !== 'feed' || feedTab !== 'broadcasts') return;
 
     const q = query(collection(db, 'youtube_broadcasts'), orderBy('timestamp', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
@@ -9752,7 +9752,7 @@ function ExonaApp() {
     });
 
     return () => unsub();
-  }, [isOnline, isQuotaExceeded]);
+  }, [isOnline, isQuotaExceeded, view, feedTab]);
 
   const handleAddYoutubeBroadcast = async (broadcast: any) => {
     try {
@@ -10076,6 +10076,7 @@ function ExonaApp() {
     setAttendancePhotos({});
 
     if (isQuotaExceeded) return;
+    if (!['school-feed', 'records', 'attendance', 'classroom', 'finance', 'daily-routine', 'institution-profile'].includes(view)) return;
 
     const unsubs: (() => void)[] = [];
 
