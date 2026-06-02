@@ -18640,7 +18640,7 @@ function ExonaApp() {
                   </button>
                 )}
               </div>
-              <CallOverlay />
+              {CallOverlay()}
 
               {isAddingMember && (
                 <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink/60 backdrop-blur-md">
@@ -25110,13 +25110,13 @@ function ExonaApp() {
         </div>
       )}
 
-      <ExonWealthModal />
-      <SecurityModal />
-      <NotificationsModal />
-      <HelpCentreModal />
-      <LegalModal />
-      <DataStorageModal />
-      <InsufficientStarsAlert />
+      {ExonWealthModal()}
+      {SecurityModal()}
+      {NotificationsModal()}
+      {HelpCentreModal()}
+      {LegalModal()}
+      {DataStorageModal()}
+      {InsufficientStarsAlert()}
 
       {/* Category Manager Modal */}
       <AnimatePresence>
