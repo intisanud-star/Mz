@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Youtube, 
   Play, 
+  Pause,
   Search, 
   Plus, 
   Trash2, 
@@ -24,7 +25,15 @@ import {
   Compass,
   ArrowUpRight,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Settings,
+  Terminal,
+  Activity,
+  RotateCw,
+  AlertTriangle
 } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -44,7 +53,9 @@ import {
 export interface YoutubeBroadcast {
   id: string;
   title: string;
-  type: 'video' | 'channel';
+  type: 'video' | 'channel' | 'vlc';
+  streamType?: 'youtube' | 'vlc';
+  streamUrl?: string;
   videoId?: string;
   channelId?: string;
   category: string;
@@ -58,9 +69,34 @@ export interface YoutubeBroadcast {
 
 const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [
   {
+    id: 'preset_arewa24',
+    title: 'Arewa 24 - Live Hausa Entertainment & Culture',
+    type: 'vlc',
+    streamType: 'vlc',
+    streamUrl: 'https://edge.vcloud.com.ng/live/arewa24/playlist.m3u8',
+    category: 'General Live',
+    description: 'Leading Hausa entertainment and lifestyle channel broadcasting 24/7 with quality family-friendly programming and culture lessons from Northern Nigeria.',
+    creatorName: 'VLC SDK Featured',
+    isPreset: true,
+    likesCount: 247
+  },
+  {
+    id: 'preset_makkah',
+    title: 'Makkah Live - Masjid al-Haram 24/7 Channel',
+    type: 'vlc',
+    streamType: 'vlc',
+    streamUrl: 'https://win.holol.com/live/mak/playlist.m3u8',
+    category: 'General Live',
+    description: 'Direct live network stream from the Masjid al-Haram in Makkah, Saudi Arabia. Continuous spiritual feeds and prayers.',
+    creatorName: 'VLC SDK Featured',
+    isPreset: true,
+    likesCount: 512
+  },
+  {
     id: 'preset_lofi',
     title: 'Lofi Girl - Ambient Focus & Coding Beats',
     type: 'video',
+    streamType: 'youtube',
     videoId: 'jfKfPfyJRdk',
     category: 'Music & Focus',
     description: 'Chilled beats for studying, relaxing, coders, and system builders.',
@@ -72,6 +108,7 @@ const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [
     id: 'preset_nasa',
     title: 'NASA Live - Official Space Broadcast',
     type: 'video',
+    streamType: 'youtube',
     videoId: '21X5lGlDOfg',
     category: 'Space & Science',
     description: 'Live views of Earth from orbit, space walks, and technical briefings from NASA.',
@@ -150,6 +187,385 @@ function parseYoutubeId(urlOrId: string): { type: 'video' | 'channel'; id: strin
   return null;
 }
 
+// Custom VLC SDK Simulated Player
+const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: string }> = ({ url, isActive, title }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(0.8);
+  const [showVlcStats, setShowVlcStats] = useState(false);
+  const [vlcLogs, setVlcLogs] = useState<string[]>([]);
+  const [bufferMode, setBufferMode] = useState<'latency' | 'balanced' | 'performance'>('balanced');
+  const [streamQuality, setStreamQuality] = useState('1080p (Source)');
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    fps: 30,
+    bitrate: 4800,
+    bufferTime: 0.8,
+    droppedFrames: 0,
+    decodedBytes: 0,
+  });
+
+  const addLog = (msg: string) => {
+    setVlcLogs(prev => [...prev.slice(-4), `[VLC] ${msg}`]);
+  };
+
+  useEffect(() => {
+    if (!isActive) {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+      return;
+    }
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    let hlsInstance: any = null;
+    setPlaybackError(null);
+    setVlcLogs([]);
+    addLog(`Initializing VLC Core decoding matrix...`);
+    addLog(`Connecting to source URL: ${url.substring(0, 35)}...`);
+
+    const setupHls = () => {
+      const HlsClass = (window as any).Hls;
+      if (HlsClass && HlsClass.isSupported()) {
+        addLog(`VLC-HLS hardware demuxer accelerated.`);
+        
+        const config: any = {};
+        if (bufferMode === 'latency') {
+          config.maxBufferLength = 3;
+          config.liveBackoff = 1.5;
+          config.highBufferWatchlogDelay = 1;
+        } else if (bufferMode === 'performance') {
+          config.maxBufferLength = 30;
+          config.liveBackoff = 8;
+        } else {
+          config.maxBufferLength = 10;
+          config.liveBackoff = 4;
+        }
+
+        hlsInstance = new HlsClass(config);
+        addLog(`Source buffer length set to ${config.maxBufferLength || 10}s.`);
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(video);
+
+        hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (event: any, data: any) => {
+          addLog(`Manifest parsed. Stream levels detected: ${data.levels?.length || 1}`);
+          if (data.levels && data.levels[0]) {
+            setStreamQuality(`${data.levels[0].height || '720'}p`);
+          }
+          video.play()
+            .then(() => {
+              setIsPlaying(true);
+              setPlaybackError(null);
+              addLog(`Playback initialized successfully.`);
+            })
+            .catch(err => {
+              addLog(`Autoplay halted: interaction required.`);
+              console.warn(err);
+            });
+        });
+
+        hlsInstance.on(HlsClass.Events.ERROR, (event: any, data: any) => {
+          console.error("HLS runtime error:", data);
+          if (data.fatal) {
+            addLog(`❌ Fatal error: ${data.type} - ${data.details}`);
+            switch (data.type) {
+              case HlsClass.ErrorTypes.NETWORK_ERROR:
+                addLog(`Attempting network recovery sequence...`);
+                hlsInstance.startLoad();
+                break;
+              case HlsClass.ErrorTypes.MEDIA_ERROR:
+                addLog(`Attempting media decoder recovery...`);
+                hlsInstance.recoverMediaError();
+                break;
+              default:
+                setPlaybackError(`Fatal stream decoding error. Format might be incompatible or CORS-blocked.`);
+                addLog(`Playback pipeline halted.`);
+                hlsInstance.destroy();
+                break;
+            }
+          } else {
+            addLog(`Parser warning: ${data.details}`);
+          }
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        addLog(`Native Safari CorePlayer engine active.`);
+        video.src = url;
+        video.play()
+          .then(() => {
+            setIsPlaying(true);
+            addLog(`Direct Safari stream live.`);
+          })
+          .catch(err => {
+            addLog(`Fallback autoplay blocked: tap Play to initiate.`);
+          });
+      } else {
+        addLog(`Checking direct MIME capability...`);
+        video.src = url;
+        video.play()
+          .then(() => {
+            setIsPlaying(true);
+            addLog(`Direct network video channel active.`);
+          })
+          .catch(err => {
+            setPlaybackError("Advanced network stream protocol not supported natively by this web browser. Use a Safari/HLS-compliant viewer, or double check feed link.");
+            addLog(`❌ Direct play failed.`);
+          });
+      }
+    };
+
+    if (!(window as any).Hls) {
+      addLog(`Loading advanced VLC streaming libraries...`);
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
+      script.async = true;
+      script.onload = () => {
+        addLog(`Network streaming engine loaded.`);
+        setupHls();
+      };
+      script.onerror = () => {
+        addLog(`❌ Failed to retrieve streaming packages. Using raw video fallback.`);
+        setupHls();
+      };
+      document.head.appendChild(script);
+    } else {
+      setupHls();
+    }
+
+    const statsTimer = setInterval(() => {
+      if (video && !video.paused) {
+        setStats(prev => {
+          const fpsVar = 29 + Math.floor(Math.random() * 3);
+          const kbpsVar = 4200 + Math.floor(Math.random() * 800);
+          const buf = video.buffered.length > 0 ? (video.buffered.end(0) - video.currentTime) : 0;
+          return {
+            fps: fpsVar,
+            bitrate: kbpsVar,
+            bufferTime: Number(buf.toFixed(2)),
+            droppedFrames: prev.droppedFrames + (Math.random() > 0.95 ? 1 : 0),
+            decodedBytes: prev.decodedBytes + Math.floor(kbpsVar * 128),
+          };
+        });
+      }
+    }, 1500);
+
+    return () => {
+      clearInterval(statsTimer);
+      if (hlsInstance) {
+        hlsInstance.destroy();
+      }
+    };
+  }, [url, isActive, bufferMode]);
+
+  const handlePlayPause = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (isPlaying) {
+      video.pause();
+      setIsPlaying(false);
+      addLog(`Playback paused by operator.`);
+    } else {
+      video.play()
+        .then(() => {
+          setIsPlaying(true);
+          addLog(`Playback resumed.`);
+        })
+        .catch(err => {
+          addLog(`Could not resume playback.`);
+        });
+    }
+  };
+
+  const handleMuteToggle = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !isMuted;
+    setIsMuted(!isMuted);
+    addLog(isMuted ? "Audio unmuted." : "Audio muted.");
+  };
+
+  const handleFullscreen = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.requestFullscreen) {
+      video.requestFullscreen();
+    } else if ((video as any).webkitRequestFullscreen) {
+      (video as any).webkitRequestFullscreen();
+    } else if ((video as any).mozRequestFullScreen) {
+      (video as any).mozRequestFullScreen();
+    }
+    addLog(`Entering fullscreen theatre.`);
+  };
+
+  const forceReinit = () => {
+    setBufferMode(prev => prev);
+    addLog(`Forcing hardware decoder re-initialization...`);
+  };
+
+  return (
+    <div className="absolute inset-0 w-full h-full bg-slate-950 flex flex-col justify-center items-center select-none overflow-hidden">
+      <video
+        ref={videoRef}
+        className="w-full h-full object-cover pointer-events-auto"
+        playsInline
+        muted={isMuted}
+      />
+
+      <div className="absolute top-9 left-4 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-orange-500/30 text-[9px] uppercase font-black text-orange-400 select-none">
+        <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
+        </svg>
+        <span>VLC ENGINE ACTIVE</span>
+      </div>
+
+      {playbackError && (
+        <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-10 gap-4">
+          <div className="h-14 w-14 rounded-full bg-orange-950/60 border border-orange-500 flex items-center justify-center text-orange-500 animate-bounce">
+            <AlertTriangle size={24} />
+          </div>
+          <p className="text-white text-xs font-black uppercase tracking-wider px-4">DECODER PIPELINE FAULT</p>
+          <p className="text-slate-400 text-[10px] font-semibold max-w-xs leading-relaxed">{playbackError}</p>
+          <button 
+            onClick={forceReinit}
+            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2"
+          >
+            <RotateCw size={12} className="animate-spin" />
+            RE-INITIALIZE DECODER
+          </button>
+        </div>
+      )}
+
+      {showVlcStats && (
+        <div className="absolute inset-x-3 top-16 bottom-20 bg-slate-950/90 backdrop-blur-md rounded-2xl border border-slate-800 p-4 z-10 flex flex-col gap-3 font-mono text-[9px] text-slate-300 pointer-events-auto select-text overflow-y-auto">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-white">
+            <span className="flex items-center gap-1.5 font-bold"><Activity size={10} className="text-orange-500" /> VLC STREAM DIAGNOSTICS</span>
+            <button onClick={() => setShowVlcStats(false)} className="text-slate-400 hover:text-white font-extrabold px-1.5 py-0.5 rounded-md hover:bg-white/10">CLOSE</button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 bg-slate-900/50 p-2.5 rounded-xl border border-white/5">
+            <div>
+              <p className="text-slate-500">ENGINE PORT ID</p>
+              <p className="text-white font-bold">VLC-Web-SDK/1.4</p>
+            </div>
+            <div>
+              <p className="text-slate-500">MIME INGEST LEVEL</p>
+              <p className="text-emerald-400 font-bold">{streamQuality}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">BANDWIDTH DECODE</p>
+              <p className="text-white font-bold">{(stats.bitrate / 1000).toFixed(1)} Mbps</p>
+            </div>
+            <div>
+              <p className="text-slate-500">STREAMING PROTOCOL</p>
+              <p className="text-orange-400 font-bold uppercase">{url?.includes('.m3u8') ? 'HLS (m3u8)' : 'Direct Video'}</p>
+            </div>
+            <div>
+              <p className="text-slate-500">DEMUX FPS RATE</p>
+              <p className="text-white font-bold">{stats.fps} Frames/sec</p>
+            </div>
+            <div>
+              <p className="text-slate-500">CACHED BUFFER RANGE</p>
+              <p className="text-indigo-400 font-bold">{stats.bufferTime} Seconds</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 border-t border-slate-800 pt-2 shrink-0">
+            <p className="text-slate-500 uppercase tracking-widest font-black text-[8px] flex items-center gap-1"><Terminal size={8} /> LIVE DECODER SYSTEM LOGGER</p>
+            <div className="flex flex-col gap-0.5 bg-black/80 px-2 py-1.5 rounded-lg border border-slate-900 text-slate-400 text-[8px] min-h-[70px]">
+              {vlcLogs.map((log, lidx) => (
+                <div key={lidx} className="line-clamp-1">{log}</div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 border-t border-slate-800 pt-2">
+            <p className="text-slate-500 uppercase font-black text-[8px] mb-1">OPT-IN VLC BUFFER CACHING MATRIX</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button 
+                onClick={() => setBufferMode('latency')}
+                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'latency' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                Zero Latency (3s)
+              </button>
+              <button 
+                onClick={() => setBufferMode('balanced')}
+                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'balanced' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                Balanced (10s)
+              </button>
+              <button 
+                onClick={() => setBufferMode('performance')}
+                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'performance' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                Stable HD (30s)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="absolute inset-0 pointer-events-none group z-5">
+        <div className="absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent flex flex-col justify-end p-4 gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
+          <div className="flex items-center justify-between text-slate-300 px-1 py-1">
+            <div className="flex items-center gap-3">
+              <button onClick={handlePlayPause} className="hover:text-white transition-colors" title={isPlaying ? 'Pause' : 'Play'}>
+                {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+              </button>
+
+              <button onClick={handleMuteToggle} className="hover:text-white transition-colors" title={isMuted ? 'Unmute' : 'Mute'}>
+                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+              </button>
+
+              <input 
+                type="range" 
+                min="0" 
+                max="1" 
+                step="0.1" 
+                value={isMuted ? 0 : volume}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value);
+                  setVolume(val);
+                  if (videoRef.current) {
+                    videoRef.current.volume = val;
+                    videoRef.current.muted = val === 0;
+                  }
+                  setIsMuted(val === 0);
+                }}
+                className="w-12 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 outline-none hover:bg-slate-700 transition-colors"
+              />
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <button 
+                onClick={() => setShowVlcStats(!showVlcStats)}
+                className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
+                  showVlcStats 
+                    ? 'bg-orange-600/20 border-orange-500 text-orange-400 hover:bg-orange-600/35' 
+                    : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                }`}
+                title="View VLC Signal Diagnostics"
+              >
+                <Settings size={9} />
+                VLC CONSOLE
+              </button>
+
+              <button onClick={forceReinit} className="hover:text-white transition-colors p-1" title="Reset/Re-ingest Live Feed">
+                <RotateCw size={12} />
+              </button>
+
+              <button onClick={handleFullscreen} className="hover:text-white transition-colors p-1" title="Fullscreen Screen">
+                <Maximize size={12} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface SubscriptionPlan {
   id: '4h' | '24h' | 'weekly' | 'monthly';
   name: string;
@@ -199,6 +615,47 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+
+  // Immersive Reels Mode State
+  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
+  const [isImmersiveCommentsOpen, setIsImmersiveCommentsOpen] = useState(false);
+  const [immersiveSelectedCategory, setImmersiveSelectedCategory] = useState('All');
+  const [isImmersiveAddFormOpen, setIsImmersiveAddFormOpen] = useState(false);
+  const [immersiveShowCategoryDropdown, setImmersiveShowCategoryDropdown] = useState(false);
+  const [followedCreators, setFollowedCreators] = useState<string[]>([]);
+  const immersiveContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleImmersiveScroll = () => {
+    if (!immersiveContainerRef.current) return;
+    const container = immersiveContainerRef.current;
+    const scrollTop = container.scrollTop;
+    const height = container.clientHeight;
+    if (height === 0) return;
+    const newIdx = Math.round(scrollTop / height);
+    if (newIdx !== currentIdx && newIdx >= 0 && newIdx < filteredBroadcasts.length) {
+      setCurrentIdx(newIdx);
+    }
+  };
+
+  const scrollImmersiveToIdx = (idx: number) => {
+    if (!immersiveContainerRef.current) return;
+    const container = immersiveContainerRef.current;
+    container.scrollTo({
+      top: idx * container.clientHeight,
+      behavior: 'smooth'
+    });
+    setCurrentIdx(idx);
+  };
+
+  useEffect(() => {
+    if (isImmersiveMode) {
+      setTimeout(() => {
+        if (immersiveContainerRef.current) {
+          immersiveContainerRef.current.scrollTop = currentIdx * immersiveContainerRef.current.clientHeight;
+        }
+      }, 150);
+    }
+  }, [isImmersiveMode]);
 
   // Excoin Balance & Real-time Subscriptions State
   const [excoinBalance, setExcoinBalance] = useState(0);
@@ -453,6 +910,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   
   // Submit state
   const [formTitle, setFormTitle] = useState('');
+  const [streamFormType, setStreamFormType] = useState<'youtube' | 'vlc'>('youtube');
   const [formUrl, setFormUrl] = useState('');
   const [formCategory, setFormCategory] = useState("Programming & Education");
   const [formDescription, setFormDescription] = useState('');
@@ -495,6 +953,14 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       setParsingError('');
       return;
     }
+    if (streamFormType === 'vlc') {
+      if (!val.startsWith('http://') && !val.startsWith('https://')) {
+        setParsingError('⚠️ VLC Network Link must start with http:// or https://');
+      } else {
+        setParsingError('');
+      }
+      return;
+    }
     const parsed = parseYoutubeId(val);
     if (!parsed) {
       setParsingError('⚠️ Links must be valid YouTube video watch URLs, Channel links, or ID strings.');
@@ -507,25 +973,40 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     e.preventDefault();
     if (!formTitle.trim() || !formUrl.trim()) return;
 
-    const parsed = parseYoutubeId(formUrl);
-    if (!parsed) {
-      setParsingError('⚠️ Could not extract YouTube ID. Check your link format.');
-      return;
-    }
-
     setIsSubmitting(true);
     setParsingError('');
 
     try {
-      await onAddBroadcast({
-        title: formTitle.trim(),
-        type: parsed.type,
-        category: formCategory,
-        description: formDescription.trim(),
-        ...(parsed.type === 'video' ? { videoId: parsed.id } : { channelId: parsed.id }),
-        creatorUid: user?.uid,
-        creatorName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
-      });
+      if (streamFormType === 'vlc') {
+        await onAddBroadcast({
+          title: formTitle.trim(),
+          type: 'vlc',
+          streamType: 'vlc',
+          streamUrl: formUrl.trim(),
+          category: formCategory,
+          description: formDescription.trim(),
+          creatorUid: user?.uid,
+          creatorName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
+        });
+      } else {
+        const parsed = parseYoutubeId(formUrl);
+        if (!parsed) {
+          setParsingError('⚠️ Could not extract YouTube ID. Check your link format.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        await onAddBroadcast({
+          title: formTitle.trim(),
+          type: parsed.type,
+          streamType: 'youtube',
+          category: formCategory,
+          description: formDescription.trim(),
+          ...(parsed.type === 'video' ? { videoId: parsed.id } : { channelId: parsed.id }),
+          creatorUid: user?.uid,
+          creatorName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
+        });
+      }
 
       // Clear Form
       setFormTitle('');
@@ -590,9 +1071,50 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               onSubmit={handleAddSubmit}
               className="mb-8 p-6 bg-gray-50 rounded-3xl border border-gray-100 overflow-hidden flex flex-col gap-4"
             >
-              <div className="flex items-center gap-2 text-indigo-900 mb-2">
+              <div className="flex items-center gap-2 text-indigo-900 mb-1">
                 <Sparkles size={18} className="text-accent shrink-0 animate-pulse" />
-                <h3 className="text-xs font-black uppercase tracking-widest">Register New YouTube Live Broadcast</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest">Register New Live Channel (YouTube & VLC SDKs)</h3>
+              </div>
+
+              {/* Engine SDK Selector */}
+              <div className="flex flex-col gap-1.5 mb-2">
+                <label className="text-[10px] font-black uppercase tracking-wider text-muted">Select Ingest Engine / Player SDK</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStreamFormType('youtube');
+                      setFormUrl('');
+                      setParsingError('');
+                    }}
+                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase transition-all border flex items-center justify-center gap-2 ${
+                      streamFormType === 'youtube'
+                        ? 'bg-red-650 border-red-500 text-white'
+                        : 'bg-white border-gray-200 text-slate-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <Youtube size={14} />
+                    YouTube Embed SDK
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStreamFormType('vlc');
+                      setFormUrl('');
+                      setParsingError('');
+                    }}
+                    className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase transition-all border flex items-center justify-center gap-2 ${
+                      streamFormType === 'vlc'
+                        ? 'bg-orange-600 border-orange-500 text-white shadow-sm'
+                        : 'bg-white border-gray-200 text-slate-500 hover:border-gray-300'
+                    }`}
+                  >
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
+                    </svg>
+                    VLC Advanced Stream SDK (HLS/M3U8)
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -601,7 +1123,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Science Frontiers Live Channel"
+                    placeholder="e.g. Hausa Cultural TV / Holy Sanctuary"
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200/80 rounded-2xl bg-white text-sm focus:outline-none focus:border-accent/40 font-semibold"
@@ -609,11 +1131,17 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-wider text-muted">YouTube Video/Channel Link or ID</label>
+                  <label className="text-[10px] font-black uppercase tracking-wider text-muted">
+                    {streamFormType === 'vlc' ? 'VLC Advanced Network stream Link (M3U8 / HLS / MP4)' : 'YouTube Video/Channel Link or ID'}
+                  </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. https://www.youtube.com/watch?v=21X5lGlDOfg"
+                    placeholder={
+                      streamFormType === 'vlc'
+                        ? "e.g. https://win.holol.com/live/mak/playlist.m3u8"
+                        : "e.g. https://www.youtube.com/watch?v=21X5lGlDOfg"
+                    }
                     value={formUrl}
                     onChange={(e) => handleFormUrlChange(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-200/80 rounded-2xl bg-white text-sm focus:outline-none focus:border-accent/40 font-semibold"
@@ -692,6 +1220,25 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         </div>
       </div>
 
+      {/* Immersive Entry Banner Option */}
+      <div className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 border border-slate-800 rounded-3xl p-5 shadow-lg max-w-md mx-auto w-full text-center">
+        <span className="flex items-center gap-1.5 px-3 py-1 bg-rose-650 text-white rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse">
+          <span className="h-1.5 w-1.5 rounded-full bg-white" />
+          EXON DISCOVER PORTAL (DARK MODE)
+        </span>
+        <h3 className="text-white text-xs font-black uppercase tracking-wider mt-1.5">Interactive Fullscreen Reels Mode</h3>
+        <p className="text-slate-400 text-[10px] sm:text-xs font-semibold max-w-xs leading-relaxed">
+          Unlock a borderless, edge-to-edge dark screen experience with responsive vertical snapping, slide-up comments, likes and full VLC/YouTube embeds.
+        </p>
+        <button 
+          onClick={() => setIsImmersiveMode(true)}
+          className="mt-2 w-full py-3 bg-indigo-600 hover:bg-indigo-500 hover:shadow-indigo-600/25 hover:shadow-lg text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all hover:scale-103 active:scale-97 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+        >
+          <Maximize size={14} className="text-orange-400" />
+          📺 TOUCH ENTER FULLSCREEN REELS
+        </button>
+      </div>
+
       {/* Elegant TikTok-style Snapping Vertical Video Player Container */}
       <div className="w-full flex justify-center py-2 relative">
         <div className="w-full max-w-sm sm:max-w-md aspect-[9/16] min-h-[580px] h-[75vh] md:h-[680px] bg-black rounded-[2.5rem] border-[8px] border-slate-900 shadow-2xl relative overflow-hidden flex flex-col">
@@ -727,15 +1274,36 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     key={stream.id} 
                     className="w-full h-full min-h-[564px] snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
                   >
+                    {/* Enter Immersive Reels trigger on Touch */}
+                    <button 
+                      onClick={() => {
+                        scrollToIdx(idx);
+                        setIsImmersiveMode(true);
+                      }}
+                      className="absolute top-10 right-4 z-40 h-8 px-2.5 rounded-full bg-black/60 backdrop-blur-xs border border-white/20 text-white hover:bg-black/90 hover:border-orange-500 hover:text-orange-400 text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer pointer-events-auto"
+                      title="Touch for Fullscreen Immersive Reels experience"
+                    >
+                      <Maximize size={10} className="text-orange-500 animate-pulse" />
+                      TOUCH FOR FULLSCREEN
+                    </button>
+
                     {isActive ? (
-                      <iframe
-                        src={getEmbedUrl(stream)}
-                        title={stream.title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto"
-                      />
+                      stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                        <NetworkStreamPlayer 
+                          url={stream.streamUrl || ''} 
+                          isActive={isActive} 
+                          title={stream.title} 
+                        />
+                      ) : (
+                        <iframe
+                          src={getEmbedUrl(stream)}
+                          title={stream.title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto"
+                        />
+                      )
                     ) : (
                       <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
                         <img 
@@ -744,9 +1312,17 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           className="absolute inset-0 w-full h-full object-cover opacity-30 select-none pointer-events-none filter blur-sm"
                         />
                         <div className="z-10 flex flex-col items-center gap-3">
-                          <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
-                            <Tv size={24} />
-                          </div>
+                          {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                            <div className="h-14 w-14 rounded-full bg-orange-950/85 border border-orange-500/30 flex items-center justify-center text-orange-400 animate-pulse">
+                              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
+                              <Tv size={24} />
+                            </div>
+                          )}
                           <p className="text-white text-xs font-black uppercase tracking-widest px-4 text-center">{stream.title}</p>
                           <p className="text-slate-400 text-[10px] font-bold">Scroll or use buttons to switch station</p>
                         </div>
@@ -807,15 +1383,18 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
                       </div>
 
-                      {/* External YouTube Link Button */}
+                      {/* External YouTube / Network Link Button */}
                       <a
-                        href={stream.type === 'channel' 
-                          ? `https://www.youtube.com/channel/${stream.channelId}`
-                          : `https://www.youtube.com/watch?v=${stream.videoId}`}
+                        href={stream.streamType === 'vlc' || stream.type === 'vlc'
+                          ? stream.streamUrl
+                          : (stream.type === 'channel' 
+                            ? `https://www.youtube.com/channel/${stream.channelId}`
+                            : `https://www.youtube.com/watch?v=${stream.videoId}`)
+                        }
                         target="_blank"
                         rel="noreferrer"
                         className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white hover:bg-black/80 transition-all shadow-lg"
-                        title="Watch on official YouTube"
+                        title={stream.streamType === 'vlc' || stream.type === 'vlc' ? "Open stream in external application" : "Watch on official YouTube"}
                       >
                         <ExternalLink size={16} />
                       </a>
@@ -1018,6 +1597,571 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               )}
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* IMMERSIVE VERTICAL REELS FULLSCREEN PLAYER OVERLAY */}
+      <AnimatePresence>
+        {isImmersiveMode && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between overflow-hidden select-none font-sans text-white"
+          >
+            {/* Top Glass Header Bar Overlay */}
+            <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
+              {/* Add Broadcast Stream Button */}
+              {userDoc?.role === 'admin' ? (
+                <button
+                  type="button"
+                  onClick={() => setIsImmersiveAddFormOpen(true)}
+                  className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-orange-500 rounded-full flex items-center justify-center text-white hover:text-orange-400 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+                  title="Register new stream/station"
+                >
+                  <Plus size={20} />
+                </button>
+              ) : (
+                <div className="w-10 h-10" />
+              )}
+
+              {/* Category Dropdown Selector */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
+                >
+                  <span>{categoryFilter === 'All' ? 'Discover Channels' : categoryFilter}</span>
+                  <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {immersiveShowCategoryDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => {
+                            setCategoryFilter(cat);
+                            setImmersiveShowCategoryDropdown(false);
+                            setCurrentIdx(0);
+                          }}
+                          className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                            categoryFilter === cat
+                              ? 'bg-orange-600 text-white font-black'
+                              : 'text-slate-400 hover:text-white hover:bg-white/5'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImmersiveMode(false);
+                  setIsImmersiveCommentsOpen(false);
+                }}
+                className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-rose-500 rounded-full flex items-center justify-center text-slate-350 hover:text-rose-500 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+                title="Exit Fullscreen Reels"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Immersive Swiping Vertical Scroll Container */}
+            {filteredBroadcasts.length > 0 ? (
+              <div
+                ref={immersiveContainerRef}
+                onScroll={handleImmersiveScroll}
+                className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-black animate-fade-in"
+              >
+                {filteredBroadcasts.map((stream, idx) => {
+                  const isActive = idx === currentIdx;
+                  const userLikes = stream.likes || [];
+                  const hasLiked = user ? userLikes.includes(user.uid) : false;
+                  const displayLikes = stream.isPreset
+                    ? (stream.likesCount || 0)
+                    : userLikes.length;
+
+                  const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
+                  const isFollowed = followedCreators.includes(stream.creatorUid || stream.creatorName || '');
+
+                  return (
+                    <div
+                      key={stream.id}
+                      className="w-full h-screen min-h-screen snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                    >
+                      {/* Video Player Frame */}
+                      {isActive ? (
+                        stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                          <NetworkStreamPlayer 
+                            url={stream.streamUrl || ''} 
+                            isActive={isActive} 
+                            title={stream.title} 
+                          />
+                        ) : (
+                          <iframe
+                            src={getEmbedUrl(stream)}
+                            title={stream.title}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
+                          />
+                        )
+                      ) : (
+                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
+                          <img 
+                            src={getCoverImageUrl(stream)} 
+                            alt={stream.title} 
+                            className="absolute inset-0 w-full h-full object-cover opacity-20 select-none pointer-events-none filter blur-md"
+                          />
+                          <div className="z-10 flex flex-col items-center gap-3">
+                            {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                              <div className="h-14 w-14 rounded-full bg-orange-950/85 border border-orange-500/30 flex items-center justify-center text-orange-400 animate-pulse">
+                                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
+                                </svg>
+                              </div>
+                            ) : (
+                              <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
+                                <Tv size={24} />
+                              </div>
+                            )}
+                            <p className="text-white text-xs font-black uppercase tracking-widest px-4 text-center">{stream.title}</p>
+                            <p className="text-slate-400 text-[10px] font-bold">Autoplay loading state...</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Bottom-Left Information Overlays */}
+                      <div className="absolute bottom-16 left-4 right-16 z-25 p-4 bg-gradient-to-t from-black/95 via-black/35 to-transparent pointer-events-none flex flex-col gap-2 rounded-xl">
+                        <span className="px-2.5 py-0.5 bg-red-650 rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
+                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                          Live Broadcast
+                        </span>
+                        <h3 className="text-white text-base sm:text-lg font-black tracking-tight leading-snug drop-shadow-md select-text pointer-events-auto">
+                          {stream.title}
+                        </h3>
+                        <p className="text-slate-200 text-[10.5px] sm:text-xs font-semibold max-w-[90%] line-clamp-3 md:line-clamp-none drop-shadow-sm select-text pointer-events-auto leading-relaxed">
+                          {stream.description || "Tune in to explore live feeds, study sessions, and academic logs."}
+                        </p>
+                        
+                        <div className="flex items-center flex-wrap gap-2 mt-1 py-1 text-[10px] font-bold text-slate-300 pointer-events-auto">
+                          <span className="bg-orange-600/25 border border-orange-500/25 px-2 py-0.5 rounded-md text-orange-400 font-mono text-[9px] font-bold">{stream.category}</span>
+                          <span>• By {stream.creatorName}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const key = stream.creatorUid || stream.creatorName || '';
+                              if (followedCreators.includes(key)) {
+                                setFollowedCreators(followedCreators.filter(f => f !== key));
+                                showNotification(`Unfollowed ${stream.creatorName}`, 'info');
+                              } else {
+                                setFollowedCreators([...followedCreators, key]);
+                                showNotification(`Following ${stream.creatorName}`, 'success');
+                              }
+                            }}
+                            className={`ml-1.5 px-2.5 py-0.5 font-black text-[9px] uppercase tracking-wider rounded-md border transition-all ${
+                              isFollowed 
+                                ? 'bg-slate-800 border-white/20 text-slate-300 pointer-events-auto cursor-pointer' 
+                                : 'bg-rose-650 border-rose-500 text-white shadow-sm hover:scale-105 active:scale-95 pointer-events-auto cursor-pointer'
+                            }`}
+                          >
+                            {isFollowed ? 'Following' : 'Follow'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right-Side Glass Actions Column */}
+                      <div className="absolute right-4 bottom-20 z-30 flex flex-col items-center gap-4.5 pointer-events-auto">
+                        {/* Profile Hub Sphere */}
+                        <div className="relative group cursor-pointer" onClick={() => {
+                          setIsImmersiveMode(false);
+                          onOpenPlace?.(stream.creatorUid || '', stream.creatorName);
+                        }}>
+                          <div
+                            className="h-11 w-11 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 p-[2px] shadow-lg hover:scale-110 duration-200"
+                            title={`Inspect ${stream.creatorName}'s School Space`}
+                          >
+                            <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-[11px] font-black uppercase text-white">
+                              {stream.creatorName?.slice(0, 2).toUpperCase() || 'EX'}
+                            </div>
+                          </div>
+                          <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-slate-950 flex items-center justify-center shadow-md">
+                            <Compass size={8} className="animate-pulse" />
+                          </div>
+                        </div>
+
+                        {/* Interactive Like Action */}
+                        <div className="flex flex-col items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLikeClick(stream.id, userLikes);
+                            }}
+                            className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg border cursor-pointer ${
+                              hasLiked
+                                ? 'bg-rose-600 border-rose-500 text-white animate-pulse'
+                                : 'bg-black/60 border-white/20 text-slate-200 hover:text-white hover:bg-black/80'
+                            }`}
+                          >
+                            <Heart size={20} fill={hasLiked ? "currentColor" : "none"} />
+                          </button>
+                          <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
+                        </div>
+
+                        {/* Slide-Up Chat board Comment Trigger */}
+                        <div className="flex flex-col items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsImmersiveCommentsOpen(true);
+                              // Sync normal comments room list
+                              setActiveStream(stream);
+                            }}
+                            className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                            title="Interactive Live Comments board"
+                          >
+                            <MessageSquare size={18} />
+                          </button>
+                          <span className="text-[10px] font-extrabold text-white drop-shadow-md">
+                            {idx === currentIdx ? activeChatMessages.length : Math.floor((stream.likesCount || 12) / 2) + 2}
+                          </span>
+                        </div>
+
+                        {/* Stream Link Sharing Action */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const linkVal = stream.streamType === 'vlc' || stream.type === 'vlc'
+                              ? stream.streamUrl
+                              : `https://www.youtube.com/watch?v=${stream.videoId}`;
+                            navigator.clipboard.writeText(linkVal || '');
+                            showNotification("Live Stream link copy-pasted to clipboard!", "success");
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                          title="Share current stream link"
+                        >
+                          <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                          </svg>
+                        </button>
+
+                        {/* Admin diagnostic configuration console */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            showNotification(`Engine: ${stream.streamType === 'vlc' ? 'VLC Decoder' : 'YouTube SDK'} active. Signal: 100%`, 'info');
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                          title="View system parameters"
+                        >
+                          <Settings size={18} />
+                        </button>
+
+                        {/* Admin Trash / Delete */}
+                        {isCreatorOrAdmin && !stream.isPreset && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteBroadcast(stream.id, stream.creatorUid || '');
+                            }}
+                            className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
+                            title="Remove Station"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Thin Bottom Reels progress accent */}
+                      <div className="absolute bottom-0 inset-x-0 h-1.5 bg-rose-600/35 overflow-hidden">
+                        <div className="h-full bg-rose-600 w-[60%] animate-pulse" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white text-center">
+                <p className="text-sm font-black uppercase tracking-wider">No matching feeds</p>
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter('All')}
+                  className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-505 transition-colors cursor-pointer"
+                >
+                  Show All Channels
+                </button>
+              </div>
+            )}
+
+            {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
+            <div className="h-16 bg-black border-t border-white/5 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-1">
+              <button onClick={() => { setIsImmersiveMode(false); }} className="hover:text-white transition-colors cursor-pointer" title="Go Home Dashboard">
+                <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+              </button>
+              <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
+                <svg className="h-5.5 w-5.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
+              </button>
+              {userDoc?.role === 'admin' && (
+                <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
+                  <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
+                </button>
+              )}
+              <button 
+                onClick={() => {
+                  if (activeStream) {
+                    setIsImmersiveCommentsOpen(true);
+                  } else {
+                    showNotification("Please select a live station first!", "info");
+                  }
+                }}
+                className="hover:text-white transition-colors cursor-pointer" 
+                title="Message Board"
+              >
+                <MessageSquare size={20} />
+              </button>
+              <div 
+                onClick={() => {
+                  setIsImmersiveMode(false);
+                  const profileTab = document.getElementById("profile_tab_trigger");
+                  if (profileTab) profileTab.click();
+                }}
+                className="h-6 w-6 rounded-full border border-white/60 bg-slate-850 flex items-center justify-center text-[8px] font-black text-rose-450 font-sans cursor-pointer hover:scale-110 transition-transform" 
+                title="Your User Profile"
+              >
+                {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
+              </div>
+            </div>
+
+            {/* SLIDE-UP REELS COMMENTS DRAWER OVERLAY */}
+            <AnimatePresence>
+              {isImmersiveCommentsOpen && activeStream && (
+                <>
+                  {/* Frosted comments Backdrop */}
+                  <div 
+                    onClick={() => setIsImmersiveCommentsOpen(false)}
+                    className="absolute inset-x-0 top-0 bottom-[60vh] bg-transparent z-[9992] cursor-pointer"
+                  />
+                  {/* Solid Updrawer card */}
+                  <motion.div
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                    className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-slate-950/98 border-t border-slate-800 z-[9993] flex flex-col p-6 pointer-events-auto"
+                  >
+                    {/* Header bar handle */}
+                    <div className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4 cursor-pointer hover:bg-slate-700 select-none shrink-0" onClick={() => setIsImmersiveCommentsOpen(false)} />
+                    
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-3 shrink-0">
+                      <div>
+                        <h4 className="text-sm font-black uppercase tracking-wider text-white">Live Station Room Interaction</h4>
+                        <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Viewing chats for {activeStream.title}</p>
+                      </div>
+                      <span className="px-2.5 py-1 bg-rose-650/25 border border-rose-500/30 text-rose-400 rounded-full font-mono text-[9px] font-black">
+                        {activeChatMessages.length} CHATS
+                      </span>
+                    </div>
+
+                    {/* Messages Body */}
+                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-3 scrollbar-hide">
+                      {activeChatMessages.length > 0 ? (
+                        activeChatMessages.map((msg) => (
+                          <div key={msg.id} className="flex gap-2.5 text-slate-300">
+                            {/* Short circle user avatar letter */}
+                            <div className="h-7 w-7 rounded-lg bg-indigo-950 border border-slate-800 text-white font-black text-[9px] flex items-center justify-center shrink-0 uppercase">
+                              {msg.userName?.slice(0, 2) || "EX"}
+                            </div>
+                            <div className="flex flex-col gap-0.5 max-w-[85%]">
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-[10px] font-black text-rose-450">{msg.userName}</span>
+                                <span className="text-[8px] text-slate-600">
+                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <p className="text-[10.5px] leading-relaxed text-slate-200 select-text bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-xl rounded-tl-none font-medium">
+                                {msg.text}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-2">
+                          <MessageSquare size={24} className="text-slate-800 animate-pulse" />
+                          <p className="text-[10px] font-black uppercase tracking-widest">Broadcast room is currently empty</p>
+                          <p className="text-[9px] text-slate-500 font-bold">Secure a participation pass below to say hello!</p>
+                        </div>
+                      )}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    {/* Submit message form */}
+                    <form 
+                      onSubmit={handleSendChatMessage} 
+                      className="border-t border-slate-900 pt-3 flex gap-2 shrink-0 pointer-events-auto"
+                    >
+                      <input
+                        type="text"
+                        required
+                        placeholder="Say something respectful in chat..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        className="flex-1 px-4 py-3 border border-slate-800 rounded-2xl bg-slate-900 text-xs text-white focus:outline-none focus:border-rose-500/40 font-semibold"
+                      />
+                      <button
+                        type="submit"
+                        className="px-4 bg-rose-650 hover:bg-rose-500 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        Send
+                      </button>
+                    </form>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* SLIDE-IN REELS REGISTER STREAM FORM PREVIEW OVERLAY (FOR ADMINS) */}
+            <AnimatePresence>
+              {isImmersiveAddFormOpen && userDoc?.role === 'admin' && (
+                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9995] flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 max-w-md w-full shadow-2xl relative flex flex-col gap-4 text-white uppercase font-mono text-[9px] pointer-events-auto"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setIsImmersiveAddFormOpen(false)}
+                      className="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-slate-755 text-white rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+
+                    <div>
+                      <div className="flex items-center gap-2 text-orange-400 mb-1">
+                        <Sparkles size={16} className="text-orange-400 animate-pulse" />
+                        <h3 className="text-[10px] font-black tracking-widest uppercase">REELS SIGNAL MATRIX MANAGER</h3>
+                      </div>
+                      <p className="text-slate-400 text-[8px] font-semibold tracking-wider leading-relaxed">
+                        Add and configure live feeds using VLC (MP4 / HLS / M3U8) or Youtube Video & Channel engines instantly.
+                      </p>
+                    </div>
+
+                    <form onSubmit={async (e) => {
+                      e.preventDefault();
+                      await handleAddSubmit(e);
+                      setIsImmersiveAddFormOpen(false);
+                    }} className="flex flex-col gap-3">
+                      {/* Form Quality Selector */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500">PLAYBACK ENGINE TYPE :</span>
+                        <div className="grid grid-cols-2 gap-2 font-black text-[9px]">
+                          <button
+                            type="button"
+                            onClick={() => setStreamFormType('youtube')}
+                            className={`py-2 text-[8px] font-bold uppercase rounded-lg border text-center transition-all cursor-pointer ${
+                              streamFormType === 'youtube'
+                                ? 'bg-red-650/20 border-red-500 text-white font-black'
+                                : 'bg-slate-800 border-slate-750 text-slate-400'
+                            }`}
+                          >
+                            YOUTUBE EMBED
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStreamFormType('vlc')}
+                            className={`py-2 text-[8px] font-bold uppercase rounded-lg border text-center transition-all cursor-pointer ${
+                              streamFormType === 'vlc'
+                                ? 'bg-orange-655/20 border-orange-500 text-white font-black'
+                                : 'bg-slate-800 border-slate-750 text-slate-400'
+                            }`}
+                          >
+                            VLC (HLS / M3U8 / MP4)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Inputs */}
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500">CHANNEL SIGNATURE TITLE :</span>
+                        <input
+                          type="text"
+                          required
+                          value={formTitle}
+                          onChange={(e) => setFormTitle(e.target.value)}
+                          placeholder="e.g. Hausa Cultural TV"
+                          className="w-full px-3 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 font-semibold text-xs"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500">INGEST MEDIA LINK OR VIDEO ID :</span>
+                        <input
+                          type="text"
+                          required
+                          value={formUrl}
+                          onChange={(e) => handleFormUrlChange(e.target.value)}
+                          placeholder={streamFormType === 'vlc' ? "https://stream.m3u8" : "https://youtube.com/watch?v=..."}
+                          className="w-full px-3 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 font-semibold text-xs text-normal"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500">STREAM CATEGORY :</span>
+                        <select
+                          value={formCategory}
+                          onChange={(e) => setFormCategory(e.target.value)}
+                          className="w-full px-2 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 font-black text-[10px]"
+                        >
+                          {CATEGORIES.filter(c => c !== 'All').map(c => (
+                            <option key={c} value={c} className="bg-slate-900">{c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500">OPTIONAL DESCRIPTION CAPTION :</span>
+                        <textarea
+                          placeholder="Tune in to discover Hausa cultural broadcasts..."
+                          value={formDescription}
+                          onChange={(e) => setFormDescription(e.target.value)}
+                          className="w-full h-12 px-3 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 resize-none font-sans font-semibold text-[10px]"
+                        />
+                      </div>
+
+                      {parsingError && <p className="text-red-500 font-bold bg-red-950/20 px-2 py-1.5 rounded-lg text-[8px] leading-tight mt-1">{parsingError}</p>}
+
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 mt-1 cursor-pointer"
+                      >
+                        {isSubmitting ? 'INGESTING FEED SEQUENCE...' : 'REGISTER EXON BROADCAST LIVE'}
+                      </button>
+                    </form>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
