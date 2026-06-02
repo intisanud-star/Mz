@@ -2408,6 +2408,7 @@ const FALLBACK_POSTS = [
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+  const [helpSearchQuery, setHelpSearchQuery] = useState('');
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
@@ -4797,7 +4798,8 @@ function ExonaApp() {
   };
 
   const HelpCentreModal = () => {
-    const [searchQuery, setSearchQuery] = useState('');
+    const searchQuery = helpSearchQuery;
+    const setSearchQuery = setHelpSearchQuery;
     
     return (
       <AnimatePresence>
