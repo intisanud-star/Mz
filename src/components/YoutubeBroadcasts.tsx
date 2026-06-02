@@ -1025,9 +1025,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   const getEmbedUrl = (item: YoutubeBroadcast) => {
     if (item.type === 'channel') {
-      return `https://www.youtube.com/embed/live_stream?channel=${item.channelId}&autoplay=1&mute=1&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
+      return `https://www.youtube.com/embed/live_stream?channel=${item.channelId}&autoplay=1&mute=0&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
     }
-    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&mute=1&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
+    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&mute=0&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
   };
 
   const getCoverImageUrl = (item: YoutubeBroadcast) => {
