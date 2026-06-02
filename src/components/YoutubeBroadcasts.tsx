@@ -597,6 +597,7 @@ interface YoutubeBroadcastsProps {
   handleDebitExcoin: (amount: number, description: string) => Promise<boolean>;
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onOpenPlace?: (creatorUid: string, creatorName?: string) => void;
+  onClose?: () => void;
 }
 
 export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
@@ -608,7 +609,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   onLikeBroadcast,
   handleDebitExcoin,
   showNotification,
-  onOpenPlace
+  onOpenPlace,
+  onClose
 }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -617,7 +619,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
   // Immersive Reels Mode State
-  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
+  const [isImmersiveMode, setIsImmersiveMode] = useState(true);
   const [isImmersiveCommentsOpen, setIsImmersiveCommentsOpen] = useState(false);
   const [immersiveSelectedCategory, setImmersiveSelectedCategory] = useState('All');
   const [isImmersiveAddFormOpen, setIsImmersiveAddFormOpen] = useState(false);
@@ -1035,6 +1037,541 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     return `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=600&auto=format&fit=crop`;
   };
 
+  if (isImmersiveMode) {
+    return (
+      <div className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between overflow-hidden select-none font-sans text-white animate-fade-in" id="youtube_broadcasts_portal">
+        {/* Top Glass Header Bar Overlay */}
+        <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
+          {/* Add Broadcast Stream Button */}
+          {userDoc?.role === 'admin' ? (
+            <button
+              type="button"
+              onClick={() => setIsImmersiveAddFormOpen(true)}
+              className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-orange-500 rounded-full flex items-center justify-center text-white hover:text-orange-400 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer animate-fade-in"
+              title="Register new stream/station"
+            >
+              <Plus size={20} />
+            </button>
+          ) : (
+            <div className="w-10 h-10" />
+          )}
+
+          {/* Category Dropdown Selector */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
+            >
+              <span>{categoryFilter === 'All' ? 'Discover Channels' : categoryFilter}</span>
+              <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
+            </button>
+
+            <AnimatePresence>
+              {immersiveShowCategoryDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setCategoryFilter(cat);
+                        setImmersiveShowCategoryDropdown(false);
+                        setCurrentIdx(0);
+                      }}
+                      className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                        categoryFilter === cat
+                          ? 'bg-orange-600 text-white font-black'
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Close Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsImmersiveMode(false);
+              setIsImmersiveCommentsOpen(false);
+              if (onClose) {
+                onClose();
+              }
+            }}
+            className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-rose-500 rounded-full flex items-center justify-center text-slate-350 hover:text-rose-500 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+            title="Exit Fullscreen Reels"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Immersive Swiping Vertical Scroll Container */}
+        {filteredBroadcasts.length > 0 ? (
+          <div
+            ref={immersiveContainerRef}
+            onScroll={handleImmersiveScroll}
+            className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-black"
+          >
+            {filteredBroadcasts.map((stream, idx) => {
+              const isActive = idx === currentIdx;
+              const userLikes = stream.likes || [];
+              const hasLiked = user ? userLikes.includes(user.uid) : false;
+              const displayLikes = stream.isPreset
+                ? (stream.likesCount || 0)
+                : userLikes.length;
+
+              const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
+              const isFollowed = followedCreators.includes(stream.creatorUid || stream.creatorName || '');
+
+              return (
+                <div
+                  key={stream.id}
+                  className="w-full h-screen min-h-screen snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                >
+                  {/* Video Player Frame */}
+                  {isActive ? (
+                    stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                      <NetworkStreamPlayer 
+                        url={stream.streamUrl || ''} 
+                        isActive={isActive} 
+                        title={stream.title} 
+                      />
+                    ) : (
+                      <iframe
+                        src={getEmbedUrl(stream)}
+                        title={stream.title}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
+                      />
+                    )
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
+                      <img 
+                        src={getCoverImageUrl(stream)} 
+                        alt={stream.title} 
+                        className="absolute inset-0 w-full h-full object-cover opacity-20 select-none pointer-events-none filter blur-md"
+                      />
+                      <div className="z-10 flex flex-col items-center gap-3">
+                        {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                          <div className="h-14 w-14 rounded-full bg-orange-950/85 border border-orange-500/30 flex items-center justify-center text-orange-400 animate-pulse">
+                            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
+                            <Youtube size={26} />
+                          </div>
+                        )}
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">CONNECTING CARRIER MATRIX...</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Right Floating Actions Column */}
+                  <div className="absolute right-4 bottom-24 z-30 flex flex-col items-center gap-4.5 pointer-events-auto">
+                    {/* Profile Hub Sphere */}
+                    <div className="relative group cursor-pointer" onClick={() => {
+                      setIsImmersiveMode(false);
+                      if (onClose) onClose();
+                      onOpenPlace?.(stream.creatorUid || '', stream.creatorName);
+                    }}>
+                      <div
+                        className="h-11 w-11 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 p-[2px] shadow-lg hover:scale-110 duration-200"
+                        title={`Inspect ${stream.creatorName}'s School Space`}
+                      >
+                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-[11px] font-black uppercase text-white">
+                          {stream.creatorName?.slice(0, 2).toUpperCase() || 'EX'}
+                        </div>
+                      </div>
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-slate-950 flex items-center justify-center shadow-md">
+                        <Compass size={8} className="animate-pulse" />
+                      </div>
+                    </div>
+
+                    {/* Interactive Like Action */}
+                    <div className="flex flex-col items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLikeClick(stream.id, userLikes);
+                        }}
+                        className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg border cursor-pointer ${
+                          hasLiked
+                            ? 'bg-rose-600 border-rose-500 text-white animate-pulse'
+                            : 'bg-black/60 border-white/20 text-slate-200 hover:text-white hover:bg-black/80'
+                        }`}
+                      >
+                        <Heart size={20} fill={hasLiked ? "currentColor" : "none"} />
+                      </button>
+                      <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
+                    </div>
+
+                    {/* Slide-Up Chat board Comment Trigger */}
+                    <div className="flex flex-col items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsImmersiveCommentsOpen(true);
+                          setActiveStream(stream);
+                        }}
+                        className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                        title="Interactive Live Comments board"
+                      >
+                        <MessageSquare size={18} />
+                      </button>
+                      <span className="text-[10px] font-extrabold text-white drop-shadow-md">
+                        {idx === currentIdx ? activeChatMessages.length : Math.floor((stream.likesCount || 12) / 2) + 2}
+                      </span>
+                    </div>
+
+                    {/* Stream Link Sharing Action */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const linkVal = stream.streamType === 'vlc' || stream.type === 'vlc'
+                          ? stream.streamUrl
+                          : `https://www.youtube.com/watch?v=${stream.videoId}`;
+                        navigator.clipboard.writeText(linkVal || '');
+                        showNotification("Live Stream link copy-pasted to clipboard!", "success");
+                      }}
+                      className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                      title="Share current stream link"
+                    >
+                      <svg className="h-4.5 w-4.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                    </button>
+
+                    {/* Admin diagnostic parameters */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        showNotification(`Engine: ${stream.streamType === 'vlc' ? 'VLC Decoder' : 'YouTube SDK'} active. Signal: 100%`, 'info');
+                      }}
+                      className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                      title="View system parameters"
+                    >
+                      <Settings size={18} />
+                    </button>
+
+                    {/* Admin Trash / Delete */}
+                    {isCreatorOrAdmin && !stream.isPreset && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteBroadcast(stream.id, stream.creatorUid || '');
+                        }}
+                        className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
+                        title="Remove Station"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Bottom overlay detailed caption description (like mobile reels) */}
+                  <div className="absolute bottom-16 left-0 right-0 p-6 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none flex flex-col gap-2 z-35">
+                    <span className="px-2.5 py-0.5 bg-red-650 text-white rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
+                      <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                      Live Broadcast
+                    </span>
+                    <h3 className="text-white text-sm font-black uppercase tracking-wider leading-tight drop-shadow-md">{stream.title}</h3>
+                    {stream.description && (
+                      <p className="text-slate-200 text-xs font-semibold leading-relaxed drop-shadow-sm max-w-sm line-clamp-2">{stream.description}</p>
+                    )}
+                    <span className="text-[10px] font-bold text-slate-400 tracking-wider">Channel Provider: {stream.creatorName || 'Autonomous Station'}</span>
+                  </div>
+
+                  {/* Thin Bottom Reels progress accent */}
+                  <div className="absolute bottom-16 inset-x-0 h-1 bg-rose-600/35 overflow-hidden">
+                    <div className="h-full bg-rose-600 w-[60%] animate-pulse" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white text-center">
+            <p className="text-sm font-black uppercase tracking-wider">No matching feeds</p>
+            <button
+              type="button"
+              onClick={() => setCategoryFilter('All')}
+              className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-505 transition-colors cursor-pointer"
+            >
+              Show All Channels
+            </button>
+          </div>
+        )}
+
+        {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
+        <div className="h-16 bg-black border-t border-white/5 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-1">
+          <button onClick={() => { if (onClose) onClose(); }} className="hover:text-white transition-colors cursor-pointer" title="Go Home Dashboard">
+            <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          </button>
+          <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
+            <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
+          </button>
+          {userDoc?.role === 'admin' && (
+            <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
+              <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
+            </button>
+          )}
+          <button 
+            onClick={() => {
+              if (activeStream) {
+                setIsImmersiveCommentsOpen(true);
+              } else {
+                showNotification("Please select a live station first!", "info");
+              }
+            }}
+            className="hover:text-white transition-colors cursor-pointer" 
+            title="Message Board"
+          >
+            <MessageSquare size={20} />
+          </button>
+          <div 
+            onClick={() => {
+              if (onClose) onClose();
+              const profileTab = document.getElementById("profile_tab_trigger");
+              if (profileTab) profileTab.click();
+            }}
+            className="h-6 w-6 rounded-full border border-white/60 bg-slate-850 flex items-center justify-center text-[8px] font-black text-rose-450 font-sans cursor-pointer hover:scale-110 transition-transform" 
+            title="Your User Profile"
+          >
+            {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
+          </div>
+        </div>
+
+        {/* SLIDE-UP REELS COMMENTS DRAWER OVERLAY */}
+        <AnimatePresence>
+          {isImmersiveCommentsOpen && activeStream && (
+            <>
+              {/* Frosted comments Backdrop */}
+              <div 
+                onClick={() => setIsImmersiveCommentsOpen(false)}
+                className="absolute inset-x-0 top-0 bottom-[60vh] bg-transparent z-[9992] cursor-pointer"
+              />
+              {/* Solid Updrawer card */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-slate-950/98 border-t border-slate-800 z-[9993] flex flex-col p-6 pointer-events-auto"
+              >
+                {/* Header bar handle */}
+                <div className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4 cursor-pointer hover:bg-slate-700 select-none shrink-0" onClick={() => setIsImmersiveCommentsOpen(false)} />
+                
+                <div className="flex items-center justify-between border-b border-slate-900 pb-3 shrink-0">
+                  <div>
+                    <h4 className="text-sm font-black uppercase tracking-wider text-white">Live Station Room Interaction</h4>
+                    <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Viewing chats for {activeStream.title}</p>
+                  </div>
+                  <span className="px-2.5 py-1 bg-rose-650/25 border border-rose-500/30 text-rose-400 rounded-full font-mono text-[9px] font-black">
+                    {activeChatMessages.length} CHATS
+                  </span>
+                </div>
+
+                {/* Messages Body */}
+                <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-3 scrollbar-hide">
+                  {activeChatMessages.length > 0 ? (
+                    activeChatMessages.map((msg) => (
+                      <div key={msg.id} className="flex gap-2.5 text-slate-300">
+                        {/* Short circle user avatar letter */}
+                        <div className="h-7 w-7 rounded-lg bg-indigo-950 border border-slate-800 text-white font-black text-[9px] flex items-center justify-center shrink-0 uppercase">
+                          {msg.userName?.slice(0, 2) || "EX"}
+                        </div>
+                        <div className="flex flex-col gap-0.5 max-w-[85%]">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-black text-rose-450">{msg.userName}</span>
+                            <span className="text-[8px] text-slate-600">
+                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-[10.5px] leading-relaxed text-slate-200 select-text bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-xl rounded-tl-none font-medium">
+                            {msg.text}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-2">
+                      <MessageSquare size={24} className="text-slate-800 animate-pulse" />
+                      <p className="text-[10px] font-black uppercase tracking-widest">Broadcast room is currently empty</p>
+                      <p className="text-[9px] text-slate-500 font-bold">Secure a participation pass below to say hello!</p>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Submit message form */}
+                <form 
+                  onSubmit={handleSendChatMessage} 
+                  className="border-t border-slate-900 pt-3 flex gap-2 shrink-0 pointer-events-auto"
+                >
+                  <input
+                    type="text"
+                    required
+                    placeholder="Say something respectful in chat..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    className="flex-1 px-4 py-3 border border-slate-800 rounded-2xl bg-slate-900 text-xs text-white focus:outline-none focus:border-rose-500/40 font-semibold"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 bg-rose-650 hover:bg-rose-500 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    Send
+                  </button>
+                </form>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* SLIDE-IN REELS REGISTER STREAM FORM PREVIEW OVERLAY (FOR ADMINS) */}
+        <AnimatePresence>
+          {isImmersiveAddFormOpen && userDoc?.role === 'admin' && (
+            <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9995] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-6 max-w-md w-full shadow-2xl relative flex flex-col gap-4 text-white uppercase font-mono text-[9px] pointer-events-auto"
+              >
+                <button
+                  type="button"
+                  onClick={() => setIsImmersiveAddFormOpen(false)}
+                  className="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-slate-755 text-white rounded-full transition-colors flex items-center justify-center cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+
+                <div>
+                  <div className="flex items-center gap-2 text-orange-400 mb-1">
+                    <Sparkles size={16} className="text-orange-400 animate-pulse" />
+                    <h3 className="text-[10px] font-black tracking-widest uppercase">REELS SIGNAL MATRIX MANAGER</h3>
+                  </div>
+                  <p className="text-slate-400 text-[8px] font-semibold tracking-wider leading-relaxed">
+                    Add and configure live feeds using VLC (MP4 / HLS / M3U8) or Youtube Video & Channel engines instantly.
+                  </p>
+                </div>
+
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  await handleAddSubmit(e);
+                  setIsImmersiveAddFormOpen(false);
+                }} className="flex flex-col gap-3">
+                  {/* Form Quality Selector */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500">PLAYBACK ENGINE TYPE :</span>
+                    <div className="grid grid-cols-2 gap-2 font-black text-[9px]">
+                      <button
+                        type="button"
+                        onClick={() => setStreamFormType('youtube')}
+                        className={`py-2 text-[8px] font-bold uppercase rounded-lg border text-center transition-all cursor-pointer ${
+                          streamFormType === 'youtube'
+                            ? 'bg-red-650/20 border-red-500 text-white font-black'
+                            : 'bg-slate-800 border-slate-750 text-slate-400'
+                        }`}
+                      >
+                        YOUTUBE EMBED
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStreamFormType('vlc')}
+                        className={`py-2 text-[8px] font-bold uppercase rounded-lg border text-center transition-all cursor-pointer ${
+                          streamFormType === 'vlc'
+                            ? 'bg-orange-655/20 border-orange-500 text-white font-black'
+                            : 'bg-slate-800 border-slate-750 text-slate-400'
+                        }`}
+                      >
+                        VLC (HLS / M3U8 / MP4)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Inputs */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500">CHANNEL SIGNATURE TITLE :</span>
+                    <input
+                      type="text"
+                      required
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                      placeholder="e.g. Hausa Cultural TV"
+                      className="w-full px-3 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500">INGEST MEDIA LINK OR VIDEO ID :</span>
+                    <input
+                      type="text"
+                      required
+                      value={formUrl}
+                      onChange={(e) => handleFormUrlChange(e.target.value)}
+                      placeholder={streamFormType === 'vlc' ? "https://stream.m3u8" : "https://youtube.com/watch?v=..."}
+                      className="w-full px-3 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 font-semibold text-xs text-normal"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500">STREAM CATEGORY :</span>
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      className="w-full px-2 py-2.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 font-black text-[10px]"
+                    >
+                      {CATEGORIES.filter(c => c !== 'All').map(c => (
+                        <option key={c} value={c} className="bg-slate-900">{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-slate-500">OPTIONAL DESCRIPTION CAPTION :</span>
+                    <textarea
+                      placeholder="Tune in to discover Hausa cultural broadcasts..."
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      className="w-full h-12 px-3 py-1.5 bg-slate-950 border border-slate-850 rounded-xl text-slate-200 outline-none focus:border-orange-500 resize-none font-sans font-semibold text-[10px]"
+                    />
+                  </div>
+
+                  {parsingError && <p className="text-red-500 font-bold bg-red-950/20 px-2 py-1.5 rounded-lg text-[8px] leading-tight mt-1">{parsingError}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider transition-all disabled:opacity-50 mt-1 cursor-pointer"
+                  >
+                    {isSubmitting ? 'INGESTING FEED SEQUENCE...' : 'REGISTER EXON BROADCAST LIVE'}
+                  </button>
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col gap-6 animate-fade-in" id="youtube_broadcasts_portal">
       {/* Main Container Info card */}
@@ -1329,8 +1866,19 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       </div>
                     )}
 
+                    {/* Full Touch/Click Overlay to open immersive fullscreen dark mood immediately */}
+                    <div 
+                      onClick={() => {
+                        scrollToIdx(idx);
+                        setIsImmersiveMode(true);
+                      }}
+                      className="absolute inset-0 z-25 cursor-pointer"
+                      role="button"
+                      aria-label="Touch for fullscreen immersive experience"
+                    />
+
                     {/* TikTok Overlay Controls */}
-                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none flex flex-col gap-2 z-20">
+                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none flex flex-col gap-2 z-30">
                       <span className="px-2.5 py-0.5 bg-red-600 rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
                         <div className="h-1.5 w-1.5 rounded-full bg-white" />
                         Live Broadcast
@@ -1348,7 +1896,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     </div>
 
                     {/* Right Floating Actions Column */}
-                    <div className="absolute right-3.5 bottom-16 z-30 flex flex-col items-center gap-4">
+                    <div className="absolute right-3.5 bottom-16 z-40 flex flex-col items-center gap-4">
                       
                       {/* Creator Profile Shortcut */}
                       <div className="relative group">

@@ -11284,6 +11284,7 @@ function ExonaApp() {
                     showNotification("The associated institution/place could not be found.", "error");
                   }
                 }}
+                onClose={() => setFeedTab('institutions')}
               />
             )}
             </div>
