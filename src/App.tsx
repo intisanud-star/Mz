@@ -2759,6 +2759,106 @@ function ExonaApp() {
   const [sqliteConsoleResult, setSqliteConsoleResult] = useState<any[] | null>(null);
   const [sqliteConsoleError, setSqliteConsoleError] = useState<string | null>(null);
 
+  // --- DEVICE TO DEVICE OFFLINE DIRECT SYNC STATES & LOGIC ---
+  const [isP2pSyncModalOpen, setIsP2pSyncModalOpen] = useState(false);
+  const [p2pSyncRole, setP2pSyncRole] = useState<'export' | 'import'>('export');
+  const [p2pCopied, setP2pCopied] = useState(false);
+  const [p2pImportPayload, setP2pImportPayload] = useState('');
+
+  const handleP2pExport = () => {
+    if (!selectedSchool) return '';
+    const schoolRecords = localSqliteRecords.filter(r => r.schoolId === selectedSchool.id);
+    const schoolAttendance = localSqliteAttendance.filter(a => a.schoolId === selectedSchool.id);
+    const syncData = {
+      schoolId: selectedSchool.id,
+      exportTime: new Date().toISOString(),
+      records: schoolRecords,
+      attendance: schoolAttendance
+    };
+    try {
+      const jsonStr = JSON.stringify(syncData);
+      const b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+      return b64;
+    } catch (e) {
+      console.error(e);
+      return JSON.stringify(syncData);
+    }
+  };
+
+  const handleP2pImport = (payloadStr: string) => {
+    if (!selectedSchool) {
+      showNotification('Please select an active school before importing data.', 'error');
+      return;
+    }
+    const trimmed = payloadStr.trim();
+    if (!trimmed) {
+      showNotification('Please provide a valid sync key first.', 'error');
+      return;
+    }
+    try {
+      let rawJson = '';
+      if (trimmed.startsWith('{')) {
+        rawJson = trimmed;
+      } else {
+        rawJson = decodeURIComponent(escape(atob(trimmed)));
+      }
+      const parsed = JSON.parse(rawJson);
+      if (!parsed.schoolId) {
+        showNotification('Invalid sync data: Missing institution references.', 'error');
+        return;
+      }
+      let importedRecords = parsed.records || [];
+      let importedAttendance = parsed.attendance || [];
+      
+      let recordsCountAdded = 0;
+      let recordsCountUpdated = 0;
+      let tempRecords = [...localSqliteRecords];
+      
+      importedRecords.forEach((newRec: any) => {
+        const targetRec = { ...newRec, schoolId: selectedSchool.id };
+        const matchIdx = tempRecords.findIndex(r => r.id === targetRec.id || (r.studentName.toLowerCase() === targetRec.studentName.toLowerCase() && (r.studentClass || '').toLowerCase() === (targetRec.studentClass || '').toLowerCase()));
+        if (matchIdx !== -1) {
+          tempRecords[matchIdx] = { ...tempRecords[matchIdx], ...targetRec, id: tempRecords[matchIdx].id };
+          recordsCountUpdated++;
+        } else {
+          if (tempRecords.some(r => r.id === targetRec.id)) {
+            targetRec.id = `sqlite_rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          }
+          tempRecords.unshift(targetRec);
+          recordsCountAdded++;
+        }
+      });
+      
+      let attendanceCountAdded = 0;
+      let attendanceCountUpdated = 0;
+      let tempAttendance = [...localSqliteAttendance];
+      
+      importedAttendance.forEach((newAtt: any) => {
+        const targetAtt = { ...newAtt, schoolId: selectedSchool.id };
+        const matchIdx = tempAttendance.findIndex(a => a.id === targetAtt.id || (a.teacherName.toLowerCase() === targetAtt.teacherName.toLowerCase() && a.date === targetAtt.date));
+        if (matchIdx !== -1) {
+          tempAttendance[matchIdx] = { ...tempAttendance[matchIdx], ...targetAtt, id: tempAttendance[matchIdx].id };
+          attendanceCountUpdated++;
+        } else {
+          if (tempAttendance.some(a => a.id === targetAtt.id)) {
+            targetAtt.id = `sqlite_att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+          }
+          tempAttendance.unshift(targetAtt);
+          attendanceCountAdded++;
+        }
+      });
+      
+      setLocalSqliteRecords(tempRecords);
+      setLocalSqliteAttendance(tempAttendance);
+      showNotification(`Offline Merge Complete! Records: ${recordsCountAdded} added, ${recordsCountUpdated} updated. Attendance: ${attendanceCountAdded} added, ${attendanceCountUpdated} updated.`, 'success');
+      setP2pImportPayload('');
+      setIsP2pSyncModalOpen(false);
+    } catch (e) {
+      console.error(e);
+      showNotification('Could not parse sync key. Ensure you copied the entire key correctly.', 'error');
+    }
+  };
+
   // WebRTC Live state simulation
   const [webrtcPeerCount, setWebrtcPeerCount] = useState(4);
   const [webrtcLatency, setWebrtcLatency] = useState(2); // ms
@@ -2991,6 +3091,78 @@ function ExonaApp() {
     setIsSyncingData(true);
     let updatedCount = 0;
     let addedCount = 0;
+
+    if (recordStorageEngine === 'sqlite_offline') {
+      try {
+        if (scanType === 'records') {
+          let updatedList = [...localSqliteRecords];
+          for (const item of scannedData) {
+            const existingIndex = updatedList.findIndex(r => 
+              r.studentName.toLowerCase() === item.fullName.toLowerCase() && 
+              (r.studentClass || '').toLowerCase() === (item.unit || '').toLowerCase()
+            );
+
+            if (existingIndex !== -1) {
+              const existing = updatedList[existingIndex];
+              updatedList[existingIndex] = {
+                ...existing,
+                paid: (existing.paid || 0) + (item.paid || 0),
+                balance: item.balance !== undefined ? item.balance : existing.balance,
+              };
+              updatedCount++;
+            } else {
+              const newId = `sqlite_rec_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+              updatedList.push({
+                id: newId,
+                schoolId: selectedSchool.id,
+                studentName: item.fullName,
+                studentClass: item.unit || 'General',
+                category: item.category || recordTab,
+                creatorUid: user.uid,
+                addedBy: userDoc?.displayName || user.email || 'Admin',
+                paid: item.paid || 0,
+                balance: item.balance || 0,
+                type: recordTab === 'all' ? 'general' : recordTab,
+                visibility: 'private',
+                sharedWith: [],
+                timestamp: { seconds: Math.floor(Date.now() / 1000) },
+                subFolder: selectedSubFolder || '',
+                photoURL: ''
+              });
+              addedCount++;
+            }
+          }
+          setLocalSqliteRecords(updatedList);
+        } else {
+          // Attendance / Participation Sync
+          let updatedAttendanceList = [...localSqliteAttendance];
+          for (const item of scannedData) {
+            const id = `sqlite_att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+            updatedAttendanceList.push({
+              id,
+              schoolId: selectedSchool.id,
+              teacherName: item.staffName,
+              status: item.status || 'present',
+              date: scannedDate || new Date().toISOString().split('T')[0],
+              time: item.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              category: item.unit || 'General',
+              timestamp: new Date().toISOString()
+            });
+            addedCount++;
+          }
+          setLocalSqliteAttendance(updatedAttendanceList);
+        }
+
+        showNotification(`Offline Sync Complete: ${addedCount} added, ${updatedCount} updated`, 'success');
+        closeScanReview();
+      } catch (error) {
+        console.error('Offline Sync Error:', error);
+        showNotification('Partial local sync failure', 'error');
+      } finally {
+        setIsSyncingData(false);
+      }
+      return;
+    }
 
     try {
       for (const item of scannedData) {
@@ -10498,16 +10670,18 @@ function ExonaApp() {
                           (latestSchool.administrativeViewers && latestSchool.administrativeViewers.includes(user?.uid || ''));
 
     if (canAccessAdmin) {
-      const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
-      const unsubRecords = onSnapshot(q, (snap) => {
-        setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-      }, (error) => {
-        console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
-        if (!error.message.includes('insufficient permissions')) {
-          handleFirestoreError(error, OperationType.LIST, 'studentRecords');
-        }
-      });
-      unsubs.push(unsubRecords);
+      if (recordStorageEngine !== 'sqlite_offline') {
+        const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
+        const unsubRecords = onSnapshot(q, (snap) => {
+          setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+        }, (error) => {
+          console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
+          if (!error.message.includes('insufficient permissions')) {
+            handleFirestoreError(error, OperationType.LIST, 'studentRecords');
+          }
+        });
+        unsubs.push(unsubRecords);
+      }
 
       const unsubFinance = onSnapshot(doc(db, 'finance', selectedSchool.id), (snap) => {
         if (snap.exists()) setFinance(snap.data() as SchoolFinance);
@@ -10516,14 +10690,16 @@ function ExonaApp() {
       });
       unsubs.push(unsubFinance);
 
-      const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
-        setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
-      }, (error) => {
-        if (!error.message.includes('insufficient permissions')) {
-          handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
-        }
-      });
-      unsubs.push(unsubAttendance);
+      if (recordStorageEngine !== 'sqlite_offline') {
+        const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
+          setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
+        }, (error) => {
+          if (!error.message.includes('insufficient permissions')) {
+            handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
+          }
+        });
+        unsubs.push(unsubAttendance);
+      }
     }
 
     // Load routine and classroom data if user has member (approved follower) or manager access
@@ -10539,12 +10715,14 @@ function ExonaApp() {
       });
       unsubs.push(unsubRoutines);
 
-      const unsubClassrooms = onSnapshot(query(collection(db, 'classrooms'), where('schoolId', '==', selectedSchool.id)), (snap) => {
-        setClassrooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as Classroom)));
-      }, (error) => {
-        console.error('Error loading classrooms:', error);
-      });
-      unsubs.push(unsubClassrooms);
+      if (classroomEngine !== 'sqlite_webrtc') {
+        const unsubClassrooms = onSnapshot(query(collection(db, 'classrooms'), where('schoolId', '==', selectedSchool.id)), (snap) => {
+          setClassrooms(snap.docs.map(d => ({ id: d.id, ...d.data() } as Classroom)));
+        }, (error) => {
+          console.error('Error loading classrooms:', error);
+        });
+        unsubs.push(unsubClassrooms);
+      }
 
       const unsubAttendancePhotos = onSnapshot(query(collection(db, 'attendancePhotos'), where('schoolId', '==', selectedSchool.id)), (snap) => {
         const photos: { [name: string]: string } = {};
@@ -12733,6 +12911,15 @@ function ExonaApp() {
                       />
                     </label>
                   )}
+                  <button 
+                    onClick={() => {
+                      setP2pSyncRole('export');
+                      setIsP2pSyncModalOpen(true);
+                    }}
+                    className="px-3 sm:px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider transition-all flex items-center gap-2"
+                  >
+                    <Share2 size={12} /> Device Sync
+                  </button>
                 </div>
                 <div className="relative">
                   <button
@@ -12886,190 +13073,8 @@ function ExonaApp() {
               </div>
             }
           >
-            {/* OFFLINE-FIRST MEMORY-MAPPED DATABASE & SYNC TERMINAL PANEL (MMKV + SQLite) */}
-            <div className="mb-10 bg-slate-900 text-slate-100 p-6 rounded-[2.5rem] border border-slate-800 shadow-xl overflow-hidden relative">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
-              
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-5 mb-5 relative z-10">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 bg-accent/10 border border-accent/20 rounded-xl flex items-center justify-center text-accent">
-                    <Database size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-sm tracking-wide text-white uppercase">Exonasoft Core Database & Stream Node</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">MMKV Storage • Client-side SQLite CLI Emulator</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-3 py-1 bg-green-500/10 text-green-400 border border-green-500/20 text-[9px] font-mono font-black uppercase tracking-widest rounded-full animate-pulse">
-                    WebRTC Signal Standby
-                  </span>
-                  <span className="px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[9px] font-mono font-black uppercase tracking-widest rounded-full">
-                    MMKV Slot Safe
-                  </span>
-                </div>
-              </div>
-
-              {/* ENGINE CONFIGURATION TOGGLES FOR RECORDS & PARTICIPATION REGISTER */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 relative z-10">
-                <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Student Records Storage</span>
-                    <span className="text-[10px] text-accent font-black font-mono uppercase">
-                      {recordStorageEngine === 'sqlite_offline' ? 'Memory SQLite' : 'Firebase Cloud'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        setRecordStorageEngine('sqlite_offline');
-                        showNotification('Switched record strategy to Local SQLite & MMKV memory pool', 'success');
-                      }}
-                      className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all ${recordStorageEngine === 'sqlite_offline' ? 'bg-accent text-white shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'}`}
-                    >
-                      SQLite Offline (Free)
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRecordStorageEngine('firebase');
-                        showNotification('Switched record strategy to Firebase Firestore Cloud DB', 'info');
-                      }}
-                      className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all ${recordStorageEngine === 'firebase' ? 'bg-accent text-white shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'}`}
-                    >
-                      Firebase Cloud Sync
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">Attendance & Participation register</span>
-                    <span className="text-[10px] text-green-400 font-black font-mono uppercase">
-                      {participationEngine === 'webrtc' ? 'SQLite Offline + WebRTC' : 'Firebase Cloud'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => {
-                        setParticipationEngine('webrtc');
-                        setClassroomEngine('sqlite_webrtc');
-                        showNotification('Using offline SQLite & WebRTC direct signaling', 'success');
-                      }}
-                      className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all ${participationEngine === 'webrtc' ? 'bg-accent text-white shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'}`}
-                    >
-                      SQL + WebRTC (Free)
-                    </button>
-                    <button
-                      onClick={() => {
-                        setParticipationEngine('firebase');
-                        setClassroomEngine('firebase');
-                        showNotification('Using traditional Firebase cloud channel', 'info');
-                      }}
-                      className={`py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider text-center transition-all ${participationEngine === 'firebase' ? 'bg-accent text-white shadow-md' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'}`}
-                    >
-                      Firebase Sync Mode
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* SQL CLI QUERY EMULATOR TERMINAL */}
-              {recordStorageEngine === 'sqlite_offline' && (
-                <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800/80 font-mono relative z-10 transition-all duration-300">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest pl-1">SQLite SQL Query Analyzer</span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                      MEMORY_MAPPED_MMKV_SQLITE_3.40
-                    </span>
-                  </div>
-
-                  <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
-                    Query the offline relational virtual tables mapped in memory. Select a precompiled SQL command below or write custom query strings:
-                  </p>
-
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {[
-                      { label: 'View Records Query', query: 'SELECT * FROM student_records;' },
-                      { label: 'Check Debtors Query', query: 'SELECT studentName, balance FROM student_records WHERE balance > 0;' },
-                      { label: 'Group Classes Query', query: 'SELECT COUNT(*) FROM student_records GROUP BY studentClass;' },
-                      { label: 'DB Integrity Check', query: 'PRAGMA integrity_check;' }
-                    ].map((btn, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => {
-                          setSqliteConsoleQuery(btn.query);
-                          handleRunSqliteQuery(btn.query);
-                        }}
-                        className="py-1 px-2.5 bg-slate-900 hover:bg-slate-800 rounded text-[9px] text-slate-300 hover:text-white border border-slate-800 transition-colors"
-                      >
-                        {btn.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={sqliteConsoleQuery}
-                      onChange={(e) => setSqliteConsoleQuery(e.target.value)}
-                      placeholder="SELECT * FROM student_records;"
-                      className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:border-accent transition-all placeholder:text-slate-600"
-                    />
-                    <button
-                      onClick={() => handleRunSqliteQuery(sqliteConsoleQuery)}
-                      className="px-4 py-2 bg-accent hover:opacity-90 active:scale-95 text-white font-mono font-black text-xs uppercase tracking-wider rounded-lg transition-all"
-                    >
-                      Execute
-                    </button>
-                  </div>
-
-                  {/* DISPLAY EMULATED SQLITE RAW QUERY RESULTS IN BEAUTIFUL TABULAR FORMAT / CODE BOX */}
-                  {(sqliteConsoleResult || sqliteConsoleError) && (
-                    <div className="mt-4 bg-slate-900/60 rounded-xl p-4 border border-slate-800 max-h-56 overflow-auto antialiased">
-                      {sqliteConsoleError ? (
-                        <p className="text-red-400 text-xs font-bold font-mono">⚠️ {sqliteConsoleError}</p>
-                      ) : (
-                        <div>
-                          <div className="text-[10px] text-green-400 font-bold mb-2">Query successful. Returning rows from SQLite partition:</div>
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left font-mono text-[10px]">
-                              <thead>
-                                <tr className="border-b border-slate-800 text-slate-400">
-                                  {Object.keys(sqliteConsoleResult![0] || {}).map((colHead) => (
-                                    <th key={colHead} className="pb-1.5 font-bold uppercase pr-4">{colHead}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sqliteConsoleResult!.map((row, rowIdx) => (
-                                  <tr key={rowIdx} className="border-b border-slate-800/40 text-slate-300 hover:text-white hover:bg-slate-800/10">
-                                    {Object.values(row).map((val: any, valIdx) => (
-                                      <td key={valIdx} className="py-1.5 pr-4 whitespace-nowrap">
-                                        {typeof val === 'object' && val !== null ? JSON.stringify(val) : String(val)}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="mb-16 border-b border-gray-100 pb-12">
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{(labels as any)[recordTab] || recordTab} Records ({recordStorageEngine === 'sqlite_offline' ? 'Offline Relational SQLite' : 'Firebase Cloud'}) • {new Date().toLocaleDateString()}</p>
+            <div className="mb-8 border-b border-gray-100 pb-6">
+              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{(labels as any)[recordTab] || recordTab} Records • {new Date().toLocaleDateString()}</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
@@ -18494,6 +18499,15 @@ function ExonaApp() {
                       />
                     </label>
                   )}
+                  <button 
+                    onClick={() => {
+                      setP2pSyncRole('export');
+                      setIsP2pSyncModalOpen(true);
+                    }}
+                    className="flex items-center gap-3 px-6 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-full font-black text-[9px] uppercase tracking-[0.3em] transition-all active:scale-95"
+                  >
+                    <Share2 size={14} /> Device Sync
+                  </button>
                 </div>
               </div>
             }
@@ -23858,6 +23872,168 @@ function ExonaApp() {
                   Abort
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isP2pSyncModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[202] flex items-center justify-center p-6 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-2xl bg-card rounded-[2.5rem] p-6 sm:p-10 border border-gray-100 my-auto shadow-2xl relative"
+            >
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-black text-ink mb-1">Local Device Sync Hub</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Peer-to-Peer Offline Sync Module</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsP2pSyncModalOpen(false);
+                    setP2pImportPayload('');
+                  }} 
+                  className="h-10 w-10 bg-white text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* MODE SELECTOR */}
+              <div className="grid grid-cols-2 gap-2 mb-6 bg-gray-50 p-1.5 rounded-2xl border border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setP2pSyncRole('export')}
+                  className={`py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider text-center transition-all ${p2pSyncRole === 'export' ? 'bg-ink text-white font-black shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Export Sync Key (User A)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setP2pSyncRole('import')}
+                  className={`py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider text-center transition-all ${p2pSyncRole === 'import' ? 'bg-ink text-white font-black shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Import Sync Key (User B)
+                </button>
+              </div>
+
+              {p2pSyncRole === 'export' ? (
+                <div>
+                  <p className="text-xs text-muted mb-6 leading-relaxed font-sans">
+                    Generate an offline sync package containing all student records and participation/attendance logs for <strong className="text-ink">{selectedSchool?.name || 'this school'}</strong>. Share this key with other teachers/devices to sync their apps instantly without cloud dependencies.
+                  </p>
+
+                  <div className="mb-6 relative">
+                    <textarea
+                      readOnly
+                      value={handleP2pExport()}
+                      onClick={(e) => (e.target as any).select()}
+                      className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-[10px] font-mono text-ink leading-relaxed select-all focus:outline-none focus:border-accent"
+                    />
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <span className="text-[8px] bg-indigo-50 text-indigo-600 font-extrabold font-mono tracking-widest px-2 py-1 rounded uppercase border border-indigo-100">
+                        OFFLINE SAFE
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        const syncKey = handleP2pExport();
+                        navigator.clipboard.writeText(syncKey);
+                        setP2pCopied(true);
+                        showNotification('Sync Key Copied to Clipboard!', 'success');
+                        setTimeout(() => setP2pCopied(false), 2000);
+                      }}
+                      className="flex items-center justify-center gap-2 py-4 bg-ink hover:opacity-90 active:scale-[0.98] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all"
+                    >
+                      {p2pCopied ? (
+                        <>
+                          <Check size={14} className="text-emerald-400" /> Key Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} /> Copy Sync Key
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const syncKey = handleP2pExport();
+                        if (!syncKey) return;
+                        const blob = new Blob([syncKey], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${selectedSchool?.id || 'exon'}_offline_sync.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        showNotification('Downloaded offline sync file!', 'success');
+                      }}
+                      className="flex items-center justify-center gap-2 py-4 bg-white hover:bg-gray-50 active:scale-[0.98] text-ink rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-gray-100"
+                    >
+                      <Download size={14} /> Download File
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs text-muted mb-6 leading-relaxed font-sans">
+                    Paste the P2P Sync Key or load a sync file provided by User A. This will map and merge the records and attendance lists directly into your local offline workspace.
+                  </p>
+
+                  <div className="mb-4">
+                    <textarea
+                      placeholder="Paste User A's exported sync key block here..."
+                      value={p2pImportPayload}
+                      onChange={(e) => setP2pImportPayload(e.target.value)}
+                      className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-[10px] font-mono text-ink placeholder:text-slate-400 focus:outline-none focus:border-accent"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-4 mb-6 p-4 bg-indigo-50/50 border border-indigo-100/40 rounded-2xl">
+                    <div className="flex items-center gap-2 text-indigo-700">
+                      <Upload size={16} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Or Load Sync File</span>
+                    </div>
+                    <label className="px-4 py-2 bg-white text-ink text-[10px] font-black uppercase tracking-wider rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-all select-none">
+                      Browse File
+                      <input
+                        type="file"
+                        accept=".txt,.json"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (fe) => {
+                              const text = fe.target?.result as string;
+                              if (text) {
+                                setP2pImportPayload(text);
+                                showNotification('Sync key loaded from file', 'success');
+                              }
+                            };
+                            reader.readAsText(file);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={() => handleP2pImport(p2pImportPayload)}
+                    className="w-full py-4 bg-accent hover:bg-accent/90 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    <Smartphone size={14} /> Import & Merge Offline Data
+                  </button>
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}
