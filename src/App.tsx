@@ -11945,7 +11945,7 @@ function ExonaApp() {
                 </div>
               </div>
 
-              {isManager && (
+              {(isManager || isFollowing || isAdmin) && (
                 <div className="flex bg-white p-1 rounded-xl border border-gray-100">
                   <button 
                     onClick={() => setSchoolFeedTab('feed')}
@@ -11957,7 +11957,7 @@ function ExonaApp() {
                     onClick={() => setSchoolFeedTab('manage')}
                     className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'manage' ? 'bg-ink text-white' : 'text-muted hover:bg-gray-50'}`}
                   >
-                    Manage
+                    {isManager || isAdmin ? 'Manage' : 'Offline Workspace'}
                   </button>
                 </div>
               )}
@@ -12037,98 +12037,120 @@ function ExonaApp() {
               </div>
             ) : schoolFeedTab === 'manage' ? (
               <div className="space-y-8">
-                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xl font-extrabold text-ink">Pending Approvals</h3>
-                    <span className="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px] font-bold uppercase tracking-widest">
-                      {selectedSchool.pendingFollowers?.length || 0} Requests
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {(!selectedSchool.pendingFollowers || selectedSchool.pendingFollowers.length === 0) ? (
-                      <div className="py-10 text-center opacity-30">
-                        <Users size={48} className="mx-auto mb-4" />
-                        <p className="text-sm font-bold">No pending requests</p>
+                {!isManager && !isAdmin && (
+                  <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-[2.5rem] flex flex-col sm:flex-row gap-4 items-center justify-between text-indigo-700">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 shrink-0">
+                        <Repeat size={20} />
                       </div>
-                    ) : (
-                      selectedSchool.pendingFollowers.map(uid => (
-                        <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
-                              {pendingFollowerProfilesMap[uid]?.photoURL ? (
-                                <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
-                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Wants to follow</p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => handleRejectFollower(selectedSchool, uid)}
-                              className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
-                            >
-                              <X size={18} />
-                            </button>
-                            <button 
-                              onClick={() => handleApproveFollower(selectedSchool, uid)}
-                              className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:bg-ink/90 transition-colors"
-                            >
-                              <Check size={18} />
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
+                      <div>
+                        <h4 className="font-extrabold text-xs uppercase tracking-wider mb-0.5">Shared Workspace Active</h4>
+                        <p className="text-[10px] opacity-90 leading-normal font-medium">
+                          You are viewing this workspace as an approved member. Peer-to-peer offline device sync allows you to import and export student files and attendance logs with other teachers and devices!
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {(isManager || isAdmin) && (
+                  <>
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                      <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-xl font-extrabold text-ink">Pending Approvals</h3>
+                        <span className="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px] font-bold uppercase tracking-widest">
+                          {selectedSchool.pendingFollowers?.length || 0} Requests
+                        </span>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {(!selectedSchool.pendingFollowers || selectedSchool.pendingFollowers.length === 0) ? (
+                          <div className="py-10 text-center opacity-30">
+                            <Users size={48} className="mx-auto mb-4" />
+                            <p className="text-sm font-bold">No pending requests</p>
+                          </div>
+                        ) : (
+                          selectedSchool.pendingFollowers.map(uid => (
+                            <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
+                                  {pendingFollowerProfilesMap[uid]?.photoURL ? (
+                                    <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
+                                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Wants to follow</p>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => handleRejectFollower(selectedSchool, uid)}
+                                  className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
+                                >
+                                  <X size={18} />
+                                </button>
+                                <button 
+                                  onClick={() => handleApproveFollower(selectedSchool, uid)}
+                                  className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:bg-ink/90 transition-colors"
+                                >
+                                  <Check size={18} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                      <div className="flex items-center justify-between mb-8">
+                        <h3 className="text-xl font-extrabold text-ink">Approved Members</h3>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {(!selectedSchool.followers || selectedSchool.followers.length === 0) ? (
+                          <div className="py-10 text-center opacity-30">
+                            <Users size={48} className="mx-auto mb-4" />
+                            <p className="text-sm font-bold">No members yet</p>
+                          </div>
+                        ) : (
+                          selectedSchool.followers.map(uid => (
+                            <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                              <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
+                                  {pendingFollowerProfilesMap[uid]?.photoURL ? (
+                                    <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
+                                  )}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
+                                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Member</p>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => handleUnfollowInstitution(selectedSchool, uid)}
+                                className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
+                                title="Remove Member"
+                              >
+                                <UserMinus size={18} />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-xl font-extrabold text-ink">Approved Members</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {(!selectedSchool.followers || selectedSchool.followers.length === 0) ? (
-                      <div className="py-10 text-center opacity-30">
-                        <Users size={48} className="mx-auto mb-4" />
-                        <p className="text-sm font-bold">No members yet</p>
-                      </div>
-                    ) : (
-                      selectedSchool.followers.map(uid => (
-                        <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
-                              {pendingFollowerProfilesMap[uid]?.photoURL ? (
-                                <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
-                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Member</p>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => handleUnfollowInstitution(selectedSchool, uid)}
-                            className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
-                            title="Remove Member"
-                          >
-                            <UserMinus size={18} />
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
-                  <h3 className="text-xl font-extrabold text-ink mb-8">Quick Management</h3>
+                  <h3 className="text-xl font-extrabold text-ink mb-8">
+                    {isManager || isAdmin ? 'Quick Management' : 'Workspace & Devices'}
+                  </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <button 
                       onClick={() => handleNavigateToData('records')}
@@ -12184,110 +12206,112 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
-                  <h3 className="text-xl font-extrabold text-ink mb-8">Institution Controls</h3>
-                  
-                  <div className="mb-8">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Who can reply to posts</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {(['everyone', 'followers', 'none'] as const).map((perm) => (
-                        <button
-                          key={perm}
-                          onClick={() => handleUpdateReplyPermission(selectedSchool.id, perm)}
-                          className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${
-                            (selectedSchool.replyPermission || 'everyone') === perm
-                              ? 'bg-ink text-white border-ink'
-                              : 'bg-white text-muted border-gray-100 hover:border-accent'
-                          }`}
-                        >
-                          {perm}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="mb-8">
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Grant Data Access (Search by name or email)</p>
-                    <div className="relative mb-4">
-                      <input 
-                        type="text" 
-                        placeholder="Type name or email address..."
-                        value={auditorSearch}
-                        onChange={(e) => handleSearchAuditors(e.target.value)}
-                        className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-accent/20"
-                      />
-                      {isAuditorSearching && <div className="absolute right-6 top-1/2 -translate-y-1/2"><Search className="animate-pulse text-muted" size={14} /></div>}
-                    </div>
-
-                    {auditorSearch.length >= 2 && auditorResults.length === 0 && !isAuditorSearching && (
-                      <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl mb-6">
-                        <p className="text-[10px] text-orange-600 font-bold leading-relaxed">
-                          No users found matching "{auditorSearch}". <br/>
-                          <span className="opacity-80">Tip: Try searching by their exact email address or ensure you start with a capital letter if it's a name.</span>
-                        </p>
-                      </div>
-                    )}
-
-                    {auditorResults.length > 0 && (
-                      <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden mb-6">
-                        {auditorResults.map(u => (
+                {(isManager || isAdmin) && (
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
+                    <h3 className="text-xl font-extrabold text-ink mb-8">Institution Controls</h3>
+                    
+                    <div className="mb-8">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Who can reply to posts</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['everyone', 'followers', 'none'] as const).map((perm) => (
                           <button
-                            key={u.uid}
-                            onClick={() => { handleToggleAdminViewer(selectedSchool!.id, u.uid, 'add'); setAuditorResults([]); setAuditorSearch(''); }}
-                            className="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-100 transition-colors border-b border-gray-50 last:border-0"
+                            key={perm}
+                            onClick={() => handleUpdateReplyPermission(selectedSchool.id, perm)}
+                            className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${
+                              (selectedSchool.replyPermission || 'everyone') === perm
+                                ? 'bg-ink text-white border-ink'
+                                : 'bg-white text-muted border-gray-100 hover:border-accent'
+                            }`}
                           >
-                            <img src={u.photoURL} alt="" className="h-8 w-8 rounded-full border border-white" referrerPolicy="no-referrer" />
-                            <div className="text-left flex-1 min-w-0">
-                              <p className="text-[10px] font-bold text-ink mb-0.5">{u.displayName}</p>
-                              <p className="text-[9px] text-muted font-bold truncate">{u.email}</p>
-                            </div>
-                            <Plus size={14} className="ml-auto text-accent" />
+                            {perm}
                           </button>
                         ))}
                       </div>
-                    )}
+                    </div>
 
-                    {selectedSchool.administrativeViewers && selectedSchool.administrativeViewers.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest ml-4">Current Authorized Viewers</p>
-                        {selectedSchool.administrativeViewers.map(uid => (
-                          <div key={uid} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
-                            <span className="text-[10px] font-bold text-ink font-mono">{uid.substring(0, 8)}...</span>
-                            <button 
-                              onClick={() => handleToggleAdminViewer(selectedSchool.id, uid, 'remove')}
-                              className="text-[9px] font-bold text-red-600 uppercase tracking-widest hover:underline"
-                            >
-                              Revoke Access
-                            </button>
-                          </div>
-                        ))}
+                    <div className="mb-8">
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Grant Data Access (Search by name or email)</p>
+                      <div className="relative mb-4">
+                        <input 
+                          type="text" 
+                          placeholder="Type name or email address..."
+                          value={auditorSearch}
+                          onChange={(e) => handleSearchAuditors(e.target.value)}
+                          className="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[10px] font-bold outline-none focus:ring-2 focus:ring-accent/20"
+                        />
+                        {isAuditorSearching && <div className="absolute right-6 top-1/2 -translate-y-1/2"><Search className="animate-pulse text-muted" size={14} /></div>}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <button 
-                      onClick={() => handleEditSchool(selectedSchool)}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-ink group-hover:scale-110 transition-transform">
-                        <Edit2 size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Edit Details</span>
-                    </button>
-                    {(selectedSchool.creatorUid === user?.uid || userDoc?.role === 'admin') && (
-                      <button 
-                        onClick={() => { setSchoolToDelete(selectedSchool.id); setIsDeleteSchoolModalOpen(true); }}
-                        className="flex flex-col items-center gap-3 p-6 bg-red-50/30 rounded-2xl border border-transparent hover:border-red-100 transition-all group"
-                      >
-                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
-                          <Trash2 size={20} />
+                      {auditorSearch.length >= 2 && auditorResults.length === 0 && !isAuditorSearching && (
+                        <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl mb-6">
+                          <p className="text-[10px] text-orange-600 font-bold leading-relaxed">
+                            No users found matching "{auditorSearch}". <br/>
+                            <span className="opacity-80">Tip: Try searching by their exact email address or ensure you start with a capital letter if it's a name.</span>
+                          </p>
                         </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-red-600/70">Delete Space</span>
+                      )}
+
+                      {auditorResults.length > 0 && (
+                        <div className="bg-gray-50 rounded-2xl border border-gray-100 overflow-hidden mb-6">
+                          {auditorResults.map(u => (
+                            <button
+                              key={u.uid}
+                              onClick={() => { handleToggleAdminViewer(selectedSchool!.id, u.uid, 'add'); setAuditorResults([]); setAuditorSearch(''); }}
+                              className="w-full px-6 py-4 flex items-center gap-4 hover:bg-gray-100 transition-colors border-b border-gray-50 last:border-0"
+                            >
+                              <img src={u.photoURL} alt="" className="h-8 w-8 rounded-full border border-white" referrerPolicy="no-referrer" />
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[10px] font-bold text-ink mb-0.5">{u.displayName}</p>
+                                <p className="text-[9px] text-muted font-bold truncate">{u.email}</p>
+                              </div>
+                              <Plus size={14} className="ml-auto text-accent" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {selectedSchool.administrativeViewers && selectedSchool.administrativeViewers.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[9px] font-bold text-muted uppercase tracking-widest ml-4">Current Authorized Viewers</p>
+                          {selectedSchool.administrativeViewers.map(uid => (
+                            <div key={uid} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl">
+                              <span className="text-[10px] font-bold text-ink font-mono">{uid.substring(0, 8)}...</span>
+                              <button 
+                                onClick={() => handleToggleAdminViewer(selectedSchool.id, uid, 'remove')}
+                                className="text-[9px] font-bold text-red-600 uppercase tracking-widest hover:underline"
+                              >
+                                Revoke Access
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <button 
+                        onClick={() => handleEditSchool(selectedSchool)}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-ink group-hover:scale-110 transition-transform">
+                          <Edit2 size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Edit Details</span>
                       </button>
-                    )}
+                      {(selectedSchool.creatorUid === user?.uid || userDoc?.role === 'admin') && (
+                        <button 
+                          onClick={() => { setSchoolToDelete(selectedSchool.id); setIsDeleteSchoolModalOpen(true); }}
+                          className="flex flex-col items-center gap-3 p-6 bg-red-50/30 rounded-2xl border border-transparent hover:border-red-100 transition-all group"
+                        >
+                          <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-red-600 group-hover:scale-110 transition-transform">
+                            <Trash2 size={20} />
+                          </div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-red-600/70">Delete Space</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : (
               <>
@@ -12783,7 +12807,7 @@ function ExonaApp() {
           );
         }
 
-        const activeRecordsForSource = recordStorageEngine === 'sqlite_offline' ? localSqliteRecords : records;
+        const activeRecordsForSource = recordStorageEngine === 'sqlite_offline' ? localSqliteRecords.filter(r => r.schoolId === selectedSchool.id) : records;
         const filteredRecords = activeRecordsForSource
           .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
           .filter(r => !selectedSubFolder || r.subFolder === selectedSubFolder)
@@ -13095,7 +13119,7 @@ function ExonaApp() {
               const currentSchoolLatest = schools.find(s => s.id === selectedSchool?.id) || places.find(p => p.id === selectedSchool?.id) || selectedSchool;
               const currentCategorySubFolders: string[] = (currentSchoolLatest as any).categorySubFolders?.[recordTab] || [];
               const getSubFolderRecordCount = (subName: string) => {
-                const activeRecordsForSource = recordStorageEngine === 'sqlite_offline' ? localSqliteRecords : records;
+                const activeRecordsForSource = recordStorageEngine === 'sqlite_offline' ? localSqliteRecords.filter(r => r.schoolId === selectedSchool.id) : records;
                 return activeRecordsForSource.filter(r => 
                   (recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab) && 
                   r.subFolder === subName
@@ -17911,7 +17935,7 @@ function ExonaApp() {
           );
         }
 
-        const activeAttendanceSrc = recordStorageEngine === 'sqlite_offline' ? localSqliteAttendance : attendance;
+        const activeAttendanceSrc = recordStorageEngine === 'sqlite_offline' ? localSqliteAttendance.filter(a => a.schoolId === selectedSchool.id) : attendance;
         const categories = Array.from(new Set(activeAttendanceSrc.map(a => a.category || '').filter(Boolean)));
         const filteredAttendance = activeAttendanceSrc.filter(r => {
           const nameMatches = r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase());
