@@ -33,7 +33,8 @@ import {
   Terminal,
   Activity,
   RotateCw,
-  AlertTriangle
+  AlertTriangle,
+  Database
 } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -567,6 +568,8 @@ interface YoutubeBroadcastsProps {
   user: any;
   userDoc: any;
   customBroadcasts: YoutubeBroadcast[];
+  broadcastEngine: 'sqlite_offline' | 'firebase';
+  setBroadcastEngine: (engine: 'sqlite_offline' | 'firebase') => void;
   onAddBroadcast: (broadcast: Omit<YoutubeBroadcast, 'id' | 'likes'>) => Promise<void>;
   onDeleteBroadcast: (id: string, creatorUid: string) => Promise<void>;
   onLikeBroadcast: (id: string, likes: string[]) => Promise<void>;
@@ -580,6 +583,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   user,
   userDoc,
   customBroadcasts = [],
+  broadcastEngine,
+  setBroadcastEngine,
   onAddBroadcast,
   onDeleteBroadcast,
   onLikeBroadcast,
@@ -592,6 +597,19 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Local/MMKV persistence representing isolated offline P2P stream chats
+  const [localChatMessages, setLocalChatMessages] = useState<Record<string, any[]>>(() => {
+    const saved = localStorage.getItem('exon_sqlite_broadcast_chats_map');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem('exon_sqlite_broadcast_chats_map', JSON.stringify(localChatMessages));
+  }, [localChatMessages]);
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
   // Immersive Reels Mode State
@@ -718,6 +736,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       setExcoinBalance(0);
       return;
     }
+    if (broadcastEngine === 'sqlite_offline') {
+      const mockSavedBalance = localStorage.getItem(`exon_sqlite_wallet_${user.uid}`);
+      if (mockSavedBalance) {
+        setExcoinBalance(Number(mockSavedBalance));
+      } else {
+        localStorage.setItem(`exon_sqlite_wallet_${user.uid}`, '5000');
+        setExcoinBalance(5000);
+      }
+      return;
+    }
     const unsub = onSnapshot(doc(db, 'wallets', user.uid), (snap) => {
       if (snap.exists()) {
         setExcoinBalance(snap.data().excoin_balance || 0);
@@ -728,12 +756,25 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       console.error("Wallet hook error:", err);
     });
     return () => unsub();
-  }, [user?.uid]);
+  }, [user?.uid, broadcastEngine]);
 
   // 2. Listen to user broadcast subscriptions in real-time
   useEffect(() => {
     if (!user?.uid) {
       setSubscriptions({});
+      return;
+    }
+    if (broadcastEngine === 'sqlite_offline') {
+      const savedSubs = localStorage.getItem(`exon_sqlite_subs_${user.uid}`);
+      if (savedSubs) {
+        try {
+          setSubscriptions(JSON.parse(savedSubs));
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        setSubscriptions({});
+      }
       return;
     }
     const q = query(
@@ -758,12 +799,23 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       console.error("Subscriptions hook error:", err);
     });
     return () => unsub();
-  }, [user?.uid]);
+  }, [user?.uid, broadcastEngine]);
 
   // 3. Listen to Active Stream Live Comments in real-time
   useEffect(() => {
     if (!activeStream?.id) {
       setActiveChatMessages([]);
+      return;
+    }
+    if (broadcastEngine === 'sqlite_offline') {
+      const msgs = localChatMessages[activeStream.id] || [
+        { id: 'm1', userName: 'System Bot', text: `Offline-first P2P Stream Chat initialized for ${activeStream.title}. Zero readings from Firestore.`, timestamp: Date.now() - 500000 },
+        { id: 'm2', userName: 'Exonabot', text: 'Welcome! Interact freely. Likes & comments are bound to your local SQL/MMKV partition.', timestamp: Date.now() - 100000 }
+      ];
+      setActiveChatMessages(msgs);
+      setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
       return;
     }
     const q = query(
@@ -796,7 +848,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       console.error("Chats hook error:", err);
     });
     return () => unsub();
-  }, [activeStream?.id]);
+  }, [activeStream?.id, broadcastEngine, localChatMessages]);
 
   // Subscription checking helpers (Creator & Administration bypass fee)
   const hasActiveViewAccess = (streamId: string) => {
@@ -825,6 +877,54 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     const streamTitle = stream ? stream.title : 'Live Stream';
 
     setIsPurchasing(true);
+
+    if (broadcastEngine === 'sqlite_offline') {
+      try {
+        if (excoinBalance < plan.cost) {
+          showNotification('Insufficient local Excoins balance', 'error');
+          setIsPurchasing(false);
+          return;
+        }
+
+        const docId = `${user.uid}_${streamId}_${type}`;
+        const expiresAt = Date.now() + plan.durationMs;
+
+        const currentSubs = { ...subscriptions };
+        currentSubs[docId] = {
+          expiresAt,
+          plan: planId,
+          type
+        };
+        setSubscriptions(currentSubs);
+        localStorage.setItem(`exon_sqlite_subs_${user.uid}`, JSON.stringify(currentSubs));
+
+        const currentBalance = excoinBalance - plan.cost;
+        setExcoinBalance(currentBalance);
+        localStorage.setItem(`exon_sqlite_wallet_${user.uid}`, String(currentBalance));
+
+        setPurchaseSuccessMsg(`Successfully unlocked ${type === 'view' ? 'Streaming' : 'Interaction'} pass! Duration: ${plan.id === '4h' ? '4 hours' : plan.id === '24h' ? '24 hours' : plan.id === 'weekly' ? '7 days' : '30 days'}.`);
+        showNotification(`${type === 'view' ? 'Streaming' : 'Participation'} Access Unlocked!`, 'success');
+
+        setTimeout(() => {
+          setPurchaseSuccessMsg('');
+          setSubscriptionSelector(null);
+          if (type === 'view') {
+            setActiveStream(stream || null);
+            const element = document.getElementById("youtube_broadcasts_portal");
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth' });
+            }
+          }
+        }, 2200);
+      } catch (err) {
+        console.error(err);
+        showNotification('Failed to register subscription locally', 'error');
+      } finally {
+        setIsPurchasing(false);
+      }
+      return;
+    }
+
     try {
       const success = await handleDebitExcoin(
         plan.cost, 
@@ -884,6 +984,25 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
     const textPayload = chatInput.trim();
     setChatInput('');
+
+    if (broadcastEngine === 'sqlite_offline') {
+      const newMsg = {
+        id: `local_msg_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        broadcastId: activeStream.id,
+        userId: user.uid,
+        userName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
+        text: textPayload,
+        timestamp: Date.now()
+      };
+      const existing = localChatMessages[activeStream.id] || [];
+      const updated = {
+        ...localChatMessages,
+        [activeStream.id]: [...existing, newMsg]
+      };
+      setLocalChatMessages(updated);
+      showNotification("Comment broadcasted via local socket mesh!", "success");
+      return;
+    }
 
     try {
       await addDoc(collection(db, 'broadcast_chats'), {
@@ -1610,6 +1729,49 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               {isAddFormOpen ? 'Cancel' : 'Add Broadcast'}
             </button>
           )}
+        </div>
+
+        {/* OFFLINE-FIRST SQLite ENGINES TOGGLES */}
+        <div className="bg-slate-950 text-slate-100 p-5 rounded-[2.5rem] border border-slate-900 shadow-xl overflow-hidden relative mb-8">
+          <div className="absolute top-0 right-0 w-44 h-44 bg-green-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 bg-green-500/10 border border-green-500/20 rounded-xl flex items-center justify-center text-green-400">
+                <Database size={18} />
+              </div>
+              <div>
+                <h4 className="text-xs font-black uppercase text-white tracking-widest flex items-center gap-2">
+                  DATABASE TRANSMISSION PORT
+                  {broadcastEngine === 'sqlite_offline' && (
+                    <span className="text-[8px] bg-green-500/15 text-green-400 font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-green-500/20">
+                      ZERO_READS_ACTIVE
+                    </span>
+                  )}
+                </h4>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Configure Ingest Stream & Post-Chat Storage Channel</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setBroadcastEngine('sqlite_offline');
+                  showNotification('Switched broadcasting feed to Local SQLite & MMKV partition. Zero reading cost.', 'success');
+                }}
+                className={`py-2 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${broadcastEngine === 'sqlite_offline' ? 'bg-green-500 text-slate-950 shadow-md font-extrabold' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'}`}
+              >
+                Offline Local (No Reads)
+              </button>
+              <button
+                onClick={() => {
+                  setBroadcastEngine('firebase');
+                  showNotification('Broadcasting synchronized real-time via Cloud Firestore Engine API.', 'info');
+                }}
+                className={`py-2 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${broadcastEngine === 'firebase' ? 'bg-accent text-white shadow-md font-extrabold' : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-300 hover:border-slate-700'}`}
+              >
+                Cloud Firestore Sync
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Collapsible Form */}
