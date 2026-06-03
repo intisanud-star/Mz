@@ -68,32 +68,7 @@ export interface YoutubeBroadcast {
   isPreset?: boolean;
 }
 
-const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [
-  {
-    id: 'preset_lofi',
-    title: 'Lofi Girl - Ambient Focus & Coding Beats',
-    type: 'video',
-    streamType: 'youtube',
-    videoId: 'jfKfPfyJRdk',
-    category: 'Music & Focus',
-    description: 'Chilled beats for studying, relaxing, coders, and system builders.',
-    creatorName: 'Exona Featured',
-    isPreset: true,
-    likesCount: 142
-  },
-  {
-    id: 'preset_nasa',
-    title: 'NASA Live - Official Space Broadcast',
-    type: 'video',
-    streamType: 'youtube',
-    videoId: '21X5lGlDOfg',
-    category: 'Space & Science',
-    description: 'Live views of Earth from orbit, space walks, and technical briefings from NASA.',
-    creatorName: 'Exona Featured',
-    isPreset: true,
-    likesCount: 94
-  }
-];
+const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [];
 
 const CATEGORIES = [
   "All",
@@ -669,8 +644,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const allBroadcasts = useMemo(() => {
-    // Merge preset ones with database ones, avoiding duplicates if any
-    const customs = customBroadcasts.map(b => ({ ...b, isPreset: false }));
+    // Merge preset ones with database ones, avoiding duplicates if any and filtering out legacy mock ones
+    const customs = customBroadcasts
+      .filter(b => b && b.id !== 'sqlite_bd_1' && b.id !== 'sqlite_bd_2' && b.id !== 'preset_lofi' && b.id !== 'preset_nasa' && !b.isPreset)
+      .map(b => ({ ...b, isPreset: false }));
     return [...customs, ...PRESET_YOUTUBE_BROADCASTS];
   }, [customBroadcasts]);
 

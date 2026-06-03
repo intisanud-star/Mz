@@ -2670,7 +2670,7 @@ function ExonaApp() {
   const [recordStorageEngine, setRecordStorageEngine] = useState<'sqlite_offline' | 'firebase'>('sqlite_offline');
   const [participationEngine, setParticipationEngine] = useState<'webrtc' | 'firebase'>('webrtc');
   const [classroomEngine, setClassroomEngine] = useState<'sqlite_webrtc' | 'firebase'>('sqlite_webrtc');
-  const [broadcastEngine, setBroadcastEngine] = useState<'sqlite_offline' | 'firebase'>('sqlite_offline');
+  const [broadcastEngine, setBroadcastEngine] = useState<'sqlite_offline' | 'firebase'>('firebase');
 
   // Memory/Local persistence (representing fast MMKV cache)
   const [localSqliteBroadcasts, setLocalSqliteBroadcasts] = useState<any[]>(() => {
@@ -2678,32 +2678,7 @@ function ExonaApp() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return [
-      {
-        id: 'sqlite_bd_1',
-        title: 'Exonasoft Tech & Core Engineering Roundtable',
-        type: 'video',
-        streamType: 'youtube',
-        videoId: 'jfKfPfyJRdk',
-        category: 'Programming & Education',
-        description: 'An offline-safe local P2P broadcast discuss system. Runs 100% on local sqlite & WebRTC streams.',
-        creatorUid: 'sys',
-        creatorName: 'Exona Dev Team',
-        likes: []
-      },
-      {
-        id: 'sqlite_bd_2',
-        title: 'NASA Space Launch & Technical Stream',
-        type: 'video',
-        streamType: 'youtube',
-        videoId: '21X5lGlDOfg',
-        category: 'Space & Science',
-        description: 'Live Space-engineering feeds sync checks. Subscribed via MMKV static pass.',
-        creatorUid: 'sys',
-        creatorName: 'Space Exploration Node',
-        likes: []
-      }
-    ];
+    return [];
   });
 
   const [localSqliteRecords, setLocalSqliteRecords] = useState<any[]>(() => {
