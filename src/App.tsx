@@ -9638,15 +9638,20 @@ function ExonaApp() {
         mediaUrls = newMediaUrls;
       }
   
-      const isOfficial = canManageInstitution(view === 'school-feed' ? selectedSchool : null);
-      const schoolId = (view === 'school-feed' && selectedSchool) ? selectedSchool.id : 'horizon';
+      const activeInst = (view === 'school-feed' && selectedSchool) 
+        ? selectedSchool 
+        : (view === 'institution-profile' && selectedInstitutionForProfile) 
+          ? selectedInstitutionForProfile 
+          : null;
+      const isOfficial = canManageInstitution(activeInst);
+      const schoolId = activeInst ? activeInst.id : 'horizon';
       
       const postData: any = {
         authorUid: user.uid,
-        authorName: isOfficial && selectedSchool ? selectedSchool.name : (user.displayName || 'Anonymous'),
-        authorPhoto: isOfficial && selectedSchool ? selectedSchool.logo : (user.photoURL || ''),
+        authorName: isOfficial && activeInst ? activeInst.name : (user.displayName || 'Anonymous'),
+        authorPhoto: isOfficial && activeInst ? activeInst.logo : (user.photoURL || ''),
         authorRole: userDoc?.role || 'user',
-        schoolName: isOfficial && selectedSchool ? selectedSchool.name : 'Horizon Network',
+        schoolName: isOfficial && activeInst ? activeInst.name : 'Horizon Network',
         content,
         mediaUrls,
         mediaUrl: mediaUrls.length > 0 ? mediaUrls[0] : null, // Fallback for components still using mediaUrl
@@ -23484,6 +23489,12 @@ function ExonaApp() {
     );
   }
 
+  const activeInstForBroadcast = (view === 'school-feed' && selectedSchool) 
+    ? selectedSchool 
+    : (view === 'institution-profile' && selectedInstitutionForProfile) 
+      ? selectedInstitutionForProfile 
+      : null;
+
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
       {/* Free Tier Quota Warning banner */}
@@ -26164,44 +26175,161 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Bottom Nav */}
-      <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[420px] no-print">
-        <NavButton 
-          active={view === 'workspace'} 
-          onClick={() => setView('workspace')} 
-          icon={LayoutGrid} 
-          label="Workspace"
-        />
-        <NavButton 
-          active={view === 'tools'} 
-          onClick={() => setView('tools')} 
-          icon={Cpu} 
-          label="Tools"
-        />
-        <NavButton 
-          active={view === 'chat'} 
-          onClick={() => setView('chat')} 
-          icon={MessageSquare} 
-          label="Chat"
-        />
-        <NavButton 
-          active={view === 'finance'} 
-          onClick={() => {
-            if (user) {
-              setIsExonWalletOpen(true);
-            } else {
-              setView('login');
-            }
-          }} 
-          icon={Wallet} 
-          label="Wallet"
-        />
-        <NavButton 
-          active={view === 'profile'} 
-          onClick={() => user ? setView('profile') : setView('login')} 
-          icon={UserIcon} 
-          label="Settings"
-        />
-      </div>
+      <AnimatePresence mode="wait">
+        {activeInstForBroadcast ? (
+          <motion.div 
+            key="broadcast-bar"
+            initial={{ y: 80, opacity: 0, x: '-50%' }}
+            animate={{ y: 0, opacity: 1, x: '-50%' }}
+            exit={{ y: 80, opacity: 0, x: '-50%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-white/95 backdrop-blur-xl border border-gray-200 p-2.5 rounded-[2.25rem] w-[94%] sm:w-auto sm:min-w-[500px] md:min-w-[620px] shadow-2xl flex flex-col gap-2 no-print"
+          >
+            {/* File Attachments Previews */}
+            {previewPostUrls.length > 0 && (
+              <div className="flex flex-wrap gap-2.5 p-2 bg-gray-50/70 border border-gray-100 rounded-2xl max-h-24 overflow-y-auto no-scrollbar">
+                {previewPostUrls.map((url, idx) => (
+                  <div key={url} className="relative h-14 w-14 rounded-xl overflow-hidden group border border-gray-200 shrink-0 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+                    {selectedPostFiles[idx]?.type.startsWith('image/') ? (
+                      <img src={url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <video src={url} className="h-full w-full object-cover" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newFiles = [...selectedPostFiles];
+                        const newUrls = [...previewPostUrls];
+                        newFiles.splice(idx, 1);
+                        newUrls.splice(idx, 1);
+                        setSelectedPostFiles(newFiles);
+                        setPreviewPostUrls(newUrls);
+                      }}
+                      className="absolute top-1 right-1 h-4 w-4 bg-ink hover:bg-ink/90 text-white rounded-full flex items-center justify-center transition-colors text-[8px] font-bold shadow-md"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input & Call to action */}
+            <div className="flex items-center gap-2.5 pl-1.5">
+              {/* Attachment icon */}
+              <label className="h-11 w-11 bg-gray-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 rounded-full flex items-center justify-center cursor-pointer transition-all shrink-0 active:scale-95 border border-gray-100" title="Attach photos or videos">
+                <Paperclip size={18} />
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  className="hidden"
+                  disabled={isUploading}
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files && files.length > 0) {
+                      const list = Array.from(files);
+                      setSelectedPostFiles(prev => [...prev, ...list]);
+                      const urls = list.map((f: any) => URL.createObjectURL(f));
+                      setPreviewPostUrls(prev => [...prev, ...urls]);
+                    }
+                  }}
+                />
+              </label>
+
+              {/* Content Input field */}
+              <input
+                type="text"
+                value={newPostContent}
+                onChange={(e) => setNewPostContent(e.target.value)}
+                placeholder={`Broadcast to ${activeInstForBroadcast?.name || 'this institution'}...`}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleCreatePost();
+                  }
+                }}
+                disabled={isUploading}
+                className="flex-1 bg-gray-50/75 border-0 outline-none text-xs sm:text-sm font-semibold text-ink placeholder:text-muted/65 py-3.5 px-4 rounded-[1.25rem] focus:bg-gray-50 focus:ring-2 focus:ring-accent/15 transition-all text-left"
+              />
+
+              {/* Interactive Send Button */}
+              <button
+                onClick={handleCreatePost}
+                disabled={(!newPostContent.trim() && selectedPostFiles.length === 0) || isUploading}
+                className={`h-11 px-5 rounded-full font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all shrink-0 ${
+                  (newPostContent.trim() || selectedPostFiles.length > 0) && !isUploading
+                    ? 'bg-ink text-white active:scale-95 hover:shadow-lg shadow-black/10'
+                    : 'bg-gray-100 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                {isUploading ? (
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Send size={12} className="transform -rotate-12 translate-x-0.5" />
+                    <span>Send</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Loading details when posting */}
+            {isUploading && (
+              <div className="px-3 pb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-muted">
+                <span>Uploading media file(s)...</span>
+                <span className="font-mono text-accent">{Math.round(uploadProgress || 0)}%</span>
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="regular-nav"
+            initial={{ y: 80, opacity: 0, x: '-50%' }}
+            animate={{ y: 0, opacity: 1, x: '-50%' }}
+            exit={{ y: 80, opacity: 0, x: '-50%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[420px] no-print"
+          >
+            <NavButton 
+              active={view === 'workspace'} 
+              onClick={() => setView('workspace')} 
+              icon={LayoutGrid} 
+              label="Workspace"
+            />
+            <NavButton 
+              active={view === 'tools'} 
+              onClick={() => setView('tools')} 
+              icon={Cpu} 
+              label="Tools"
+            />
+            <NavButton 
+              active={view === 'chat'} 
+              onClick={() => setView('chat')} 
+              icon={MessageSquare} 
+              label="Chat"
+            />
+            <NavButton 
+              active={view === 'finance'} 
+              onClick={() => {
+                if (user) {
+                  setIsExonWalletOpen(true);
+                } else {
+                  setView('login');
+                }
+              }} 
+              icon={Wallet} 
+              label="Wallet"
+            />
+            <NavButton 
+              active={view === 'profile'} 
+              onClick={() => user ? setView('profile') : setView('login')} 
+              icon={UserIcon} 
+              label="Settings"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Story Viewer */}
       <AnimatePresence>
