@@ -5100,6 +5100,111 @@ function ExonaApp() {
                   </div>
                 </section>
 
+                <section className="bg-gray-50/50 p-8 rounded-[2.5rem] border border-gray-100/60 space-y-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Database size={18} className="text-accent" />
+                    <h4 className="text-[10px] font-black text-ink uppercase tracking-[0.4em]">Database Sync Engines</h4>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* Record & Attendance Engine */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-ink">Records & Attendance Sector</p>
+                        <p className="text-[10px] text-muted font-medium">Controls where student details and registers are saved</p>
+                      </div>
+                      <div className="flex gap-1.5 self-start sm:self-auto">
+                        <button 
+                          onClick={() => {
+                            setRecordStorageEngine('sqlite_offline');
+                            showNotification('Switched Records & Attendance to Local Offline (MMKV SQLite Cache).', 'info');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${recordStorageEngine === 'sqlite_offline' ? 'bg-green-500 text-slate-950 font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
+                        >
+                          Offline
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (excoinBalance < 100) {
+                              showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before activating Cloud Sync Attendance. Switch to Excoin P2P Center to swap stars.', 'error');
+                              return;
+                            }
+                            setRecordStorageEngine('firebase');
+                            showNotification('Records & Attendance connected to Firestore Cloud Sync.', 'success');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${recordStorageEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
+                        >
+                          Cloud Sync (100 EX Req)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Classroom Engine */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-ink">Classrooms Registry</p>
+                        <p className="text-[10px] text-muted font-medium">Configure network mapping for dynamic classes and logs</p>
+                      </div>
+                      <div className="flex gap-1.5 self-start sm:self-auto">
+                        <button 
+                          onClick={() => {
+                            setClassroomEngine('sqlite_webrtc');
+                            showNotification('Classroom registry set to offline memory pool.', 'info');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${classroomEngine === 'sqlite_webrtc' ? 'bg-green-500 text-slate-950 font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
+                        >
+                          Offline
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (excoinBalance < 100) {
+                              showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before starting real-time Cloud Classrooms.', 'error');
+                              return;
+                            }
+                            setClassroomEngine('firebase');
+                            showNotification('Classroom registry synchronized with cloud ledger database.', 'success');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${classroomEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
+                        >
+                          Cloud Sync (100 EX Req)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Broadcast Engine */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 gap-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-wider text-ink">Public Broadcast Transmission</p>
+                        <p className="text-[10px] text-muted font-medium">Controls where public videos and community notifications post</p>
+                      </div>
+                      <div className="flex gap-1.5 self-start sm:self-auto">
+                        <button 
+                          onClick={() => {
+                            setBroadcastEngine('sqlite_offline');
+                            showNotification('Community feeds routed to localized isolated sandbox.', 'info');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${broadcastEngine === 'sqlite_offline' ? 'bg-green-500 text-slate-950 font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
+                        >
+                          Offline
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (excoinBalance < 100) {
+                              showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before enabling Cloud Broadcast synchronization.', 'error');
+                              return;
+                            }
+                            setBroadcastEngine('firebase');
+                            showNotification('Community feeds synchronized globally via Cloud servers.', 'success');
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${broadcastEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
+                        >
+                          Cloud Sync (100 EX Req)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
                 <section>
                   <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.4em] mb-6 px-2 text-center underline decoration-accent/20 underline-offset-8">Registry Activity Log</h4>
                   <div className="space-y-4">
@@ -6429,10 +6534,20 @@ function ExonaApp() {
   useEffect(() => {
     if (!selectedSchool) return;
 
-    const q = query(collection(db, 'settlements'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc'), limit(10));
+    const q = query(collection(db, 'settlements'), where('schoolId', '==', selectedSchool.id));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setSettlements(docs);
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      docs.sort((a, b) => {
+        const getMs = (item: any) => {
+          if (!item || !item.timestamp) return 0;
+          if (typeof item.timestamp.seconds === 'number') return item.timestamp.seconds * 1000;
+          if (item.timestamp instanceof Date) return item.timestamp.getTime();
+          const parsed = Date.parse(item.timestamp);
+          return isNaN(parsed) ? 0 : parsed;
+        };
+        return getMs(b) - getMs(a);
+      });
+      setSettlements(docs.slice(0, 10));
     }, (error) => {
       console.error('Settlements listener error:', error);
     });
@@ -6652,8 +6767,10 @@ function ExonaApp() {
     fetchFollowerDocs();
   }, [user, managedFollowersTracker, myFollowers, chatUsers]);
   const staffCandidates = useMemo(() => {
-    if (!attendance) return [];
-    const recordedNames = Array.from(new Set(attendance.map(a => a.teacherName).filter(Boolean)));
+    const activeAtt = recordStorageEngine === 'sqlite_offline' 
+      ? (selectedSchool ? localSqliteAttendance.filter(a => a.schoolId === selectedSchool.id) : localSqliteAttendance)
+      : attendance;
+    const recordedNames = Array.from(new Set((activeAtt || []).map(a => a.teacherName).filter(Boolean)));
     const allKnown = [...myFollowers, ...institutionFollowerDocs, ...chatUsers, ...connectedUsers, ...auditorResults];
     
     // Also include followers of the current school as candidates
@@ -6671,7 +6788,7 @@ function ExonaApp() {
         photoURL: attendancePhotos[name] || matchedUser?.photoURL || null
       };
     });
-  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults, selectedSchool, attendancePhotos]);
+  }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults, selectedSchool, attendancePhotos, recordStorageEngine, localSqliteAttendance]);
 
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
@@ -10696,8 +10813,19 @@ function ExonaApp() {
       unsubs.push(unsubFinance);
 
       if (recordStorageEngine !== 'sqlite_offline') {
-        const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
-          setAttendance(snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance)));
+        const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id)), (snap) => {
+          const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance));
+          fetched.sort((a, b) => {
+            const getMs = (item: any) => {
+              if (!item || !item.timestamp) return 0;
+              if (typeof item.timestamp.seconds === 'number') return item.timestamp.seconds * 1000;
+              if (item.timestamp instanceof Date) return item.timestamp.getTime();
+              const parsed = Date.parse(item.timestamp);
+              return isNaN(parsed) ? 0 : parsed;
+            };
+            return getMs(b) - getMs(a);
+          });
+          setAttendance(fetched);
         }, (error) => {
           if (!error.message.includes('insufficient permissions')) {
             handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
@@ -10711,8 +10839,19 @@ function ExonaApp() {
     const canAccessMemberData = canAccessAdmin || (latestSchool.followers && latestSchool.followers.includes(user?.uid || ''));
 
     if (canAccessMemberData) {
-      const unsubRoutines = onSnapshot(query(collection(db, 'dailyRoutines'), where('institutionId', '==', selectedSchool.id), orderBy('timestamp', 'desc')), (snap) => {
-        setDailyRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() } as DailyRoutine)));
+      const unsubRoutines = onSnapshot(query(collection(db, 'dailyRoutines'), where('institutionId', '==', selectedSchool.id)), (snap) => {
+        const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as DailyRoutine));
+        fetched.sort((a, b) => {
+          const getMs = (item: any) => {
+            if (!item || !item.timestamp) return 0;
+            if (typeof item.timestamp.seconds === 'number') return item.timestamp.seconds * 1000;
+            if (item.timestamp instanceof Date) return item.timestamp.getTime();
+            const parsed = Date.parse(item.timestamp);
+            return isNaN(parsed) ? 0 : parsed;
+          };
+          return getMs(b) - getMs(a);
+        });
+        setDailyRoutines(fetched);
       }, (error) => {
         if (!error.message.includes('insufficient permissions')) {
           handleFirestoreError(error, OperationType.LIST, 'dailyRoutines');
@@ -18012,7 +18151,41 @@ function ExonaApp() {
                 <h1 className="text-4xl sm:text-5xl font-extrabold text-ink mb-4 tracking-tight">
                   {isPlace ? 'Participation Hub' : 'Attendance Center'}
                 </h1>
-                <p className="text-muted font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.5em]">{selectedSchool.name}</p>
+                <p className="text-muted font-bold text-[10px] sm:text-[11px] uppercase tracking-[0.5em] mb-6">{selectedSchool.name}</p>
+
+                {/* Database Sync Engine Selector directly in page header */}
+                <div className="p-6 bg-white rounded-3xl border border-gray-100/80 shadow-sm inline-flex items-center gap-4 flex-wrap justify-center sm:gap-6">
+                  <div className="flex items-center gap-2">
+                    <Database size={16} className={recordStorageEngine === 'firebase' ? 'text-accent' : 'text-green-500'} />
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider">
+                      Storage Engine: <span className="font-black text-ink">{recordStorageEngine === 'firebase' ? 'Cloud Sync (Firebase)' : 'Offline Local (SQLite)'}</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setRecordStorageEngine('sqlite_offline');
+                        showNotification('Switched register sector to local offline SQLite storage mode. Records will stay on this device.', 'info');
+                      }}
+                      className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${recordStorageEngine === 'sqlite_offline' ? 'bg-green-500 text-slate-950 font-black' : 'bg-gray-100 hover:bg-gray-200 text-muted'}`}
+                    >
+                      Offline Local
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (excoinBalance < 100) {
+                          showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before activating Cloud Sync Attendance. Switch to Excoin P2P block to convert Stars!', 'error');
+                          return;
+                        }
+                        setRecordStorageEngine('firebase');
+                        showNotification('Switched register sector to real-time Firebase cloud ledger mode. Everyone will see the lists!', 'success');
+                      }}
+                      className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${recordStorageEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 hover:bg-gray-200 text-muted'}`}
+                    >
+                      Cloud Sync (100 EX Req)
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className={`grid grid-cols-1 ${features.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 sm:gap-8 mb-16`}>
@@ -18108,7 +18281,7 @@ function ExonaApp() {
 
         if (attendanceViewMode === 'summary') {
           if (selectedAttendanceMember) {
-            const memberRecords = attendance.filter(r => r.teacherName === selectedAttendanceMember)
+            const memberRecords = activeAttendanceSrc.filter(r => r.teacherName === selectedAttendanceMember)
               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             const memberStats = {
@@ -18294,7 +18467,7 @@ function ExonaApp() {
 
           const summaryData: { [key: string]: { present: number; absent: number; late: number; total: number } } = {};
           
-          attendance.forEach(curr => {
+          activeAttendanceSrc.forEach(curr => {
             const name = curr.teacherName;
             if (!summaryData[name]) summaryData[name] = { present: 0, absent: 0, late: 0, total: 0 };
             if (curr.status === 'present') summaryData[name].present++;
@@ -18546,6 +18719,13 @@ function ExonaApp() {
                 {attendanceViewMode === 'manage' ? 'Mark Presence' : (selectedSchool?.type === 'place' ? 'Participation Register' : 'Activity Register')}
               </h1>
               <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">{selectedSchool.name} • {new Date().toLocaleDateString()}</p>
+              {/* Current Ledger Status Indicator */}
+              <div className="flex items-center gap-1.5 mt-2.5">
+                <div className={`h-1.5 w-1.5 rounded-full ${recordStorageEngine === 'firebase' ? 'bg-accent animate-pulse' : 'bg-green-500'}`} />
+                <span className="text-[10px] font-bold text-muted uppercase tracking-widest">
+                  Active Ledger: <span className="font-extrabold text-ink">{recordStorageEngine === 'firebase' ? 'Firebase Cloud Sync (Global)' : 'Local SQLite Database (Offline Device)'}</span>
+                </span>
+              </div>
             </div>
 
             {attendanceViewMode === 'manage' && (
