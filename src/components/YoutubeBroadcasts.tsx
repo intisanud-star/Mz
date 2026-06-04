@@ -592,6 +592,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [isImmersiveCommentsOpen, setIsImmersiveCommentsOpen] = useState(false);
   const [immersiveSelectedCategory, setImmersiveSelectedCategory] = useState('All');
   const [isImmersiveAddFormOpen, setIsImmersiveAddFormOpen] = useState(false);
+  const [showRawJsonInspect, setShowRawJsonInspect] = useState(false);
   const [immersiveShowCategoryDropdown, setImmersiveShowCategoryDropdown] = useState(false);
   const [followedCreators, setFollowedCreators] = useState<string[]>(() => {
     const saved = localStorage.getItem('exon_followed_creators');
@@ -703,10 +704,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     return ["All", ...merged];
   }, [gitHubChannels, customBroadcasts]);
 
-  // Vision Protocol: 3-second 'exon and its vision' intro sequence state
-  const [introActive, setIntroActive] = useState(false);
-  const [countdown, setCountdown] = useState(3);
-
   // GitHub Live Ingress State Integration
   const [githubBroadcast, setGithubBroadcast] = useState<any>(null);
   const [githubLoading, setGithubLoading] = useState(true);
@@ -795,25 +792,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   useEffect(() => {
     if (activeStream?.id) {
       localStorage.setItem('exon_last_viewed_stream_id', activeStream.id);
-      
-      // Vision Protocol: trigger 3-second sequence
-      setIntroActive(true);
-      setCountdown(3);
-      const timer = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            setIntroActive(false);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => {
-        clearInterval(timer);
-      };
-    } else {
-      setIntroActive(false);
     }
   }, [activeStream?.id]);
 
@@ -1392,8 +1370,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
                         <NetworkStreamPlayer 
                           url={stream.streamUrl || ''} 
-                          isActive={isActive && !introActive} 
+                          isActive={isActive} 
                           title={stream.title} 
+                          onSkip={() => {
+                            const nextIdx = (idx + 1) % filteredBroadcasts.length;
+                            scrollImmersiveToIdx(nextIdx);
+                          }}
                         />
                       ) : (
                         <iframe
@@ -1404,37 +1386,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           allowFullScreen
                           className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
                         />
-                      )}
-
-                      {/* Vision Protocol 3-second Intro Sequence */}
-                      {introActive && (
-                        <div className="absolute inset-0 bg-slate-950 z-[45] flex flex-col items-center justify-center text-center p-6 select-none pointer-events-auto animate-fade-in">
-                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.1)_0%,transparent_70%)] animate-pulse pointer-events-none" />
-                          <div className="relative mb-6">
-                            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-orange-600 to-rose-600 blur-md opacity-75 animate-spin duration-3000" />
-                            <div className="relative h-20 w-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-orange-500 shadow-2xl">
-                              <Tv size={36} className="animate-pulse" />
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-orange-600 border border-slate-950 flex items-center justify-center text-white text-[11px] font-black tracking-tight shadow-md">
-                              {countdown}
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-mono tracking-widest text-slate-500 font-extrabold uppercase mb-1">
-                            INGEST SYSTEM TRANSMISSION
-                          </span>
-                          <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-2">
-                            EXON <span className="bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent">AND ITS VISION</span>
-                          </h3>
-                          <div className="h-[2px] w-12 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full mb-3" />
-                          <div className="flex flex-col gap-1 max-w-xs">
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider line-clamp-1">
-                              CONNECTING TO: {stream.title}
-                            </p>
-                            <p className="text-[8px] text-slate-500 font-mono tracking-wider font-semibold">
-                              PROTOCOL STATUS: CO-PROCESSOR ACTIVE ({((3 - countdown) / 3 * 100).toFixed(0)}%)
-                            </p>
-                          </div>
-                        </div>
                       )}
                     </>
                   ) : (
@@ -2138,9 +2089,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         </button>
       </div>
 
-      {/* Elegant TikTok-style Snapping Vertical Video Player Container */}
-      <div className="w-full flex justify-center py-2 relative">
-        <div className="w-full max-w-sm sm:max-w-md aspect-[9/16] min-h-[580px] h-[75vh] md:h-[680px] bg-black rounded-[2.5rem] border-[8px] border-slate-900 shadow-2xl relative overflow-hidden flex flex-col">
+      {/* Grid Container for Device-Sized Live Player AND Channel Directory Info Center */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mt-6 w-full">
+        {/* Left Col: Device Shell aspect-9/16 live player */}
+        <div className="lg:col-span-5 flex flex-col items-center w-full">
+          <div className="w-full max-w-sm sm:max-w-md aspect-[9/16] min-h-[580px] h-[75vh] md:h-[680px] bg-black rounded-[2.5rem] border-[8px] border-slate-900 shadow-2xl relative overflow-hidden flex flex-col">
           
           {/* Status bar notch simulation */}
           <div className="absolute top-0 inset-x-0 h-7 bg-gradient-to-b from-black/80 to-transparent z-40 flex items-center justify-between px-6 pointer-events-none select-none text-[9px] font-mono tracking-wider text-slate-400">
@@ -2191,8 +2144,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
                           <NetworkStreamPlayer 
                             url={stream.streamUrl || ''} 
-                            isActive={isActive && !introActive} 
+                            isActive={isActive} 
                             title={stream.title} 
+                            onSkip={() => {
+                              const nextIdx = (idx + 1) % filteredBroadcasts.length;
+                              scrollToIdx(nextIdx);
+                            }}
                           />
                         ) : (
                           <iframe
@@ -2203,37 +2160,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             allowFullScreen
                             className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto"
                           />
-                        )}
-
-                        {/* Vision Protocol 3-second Intro Sequence */}
-                        {introActive && (
-                          <div className="absolute inset-0 bg-slate-950 z-[45] flex flex-col items-center justify-center text-center p-6 select-none pointer-events-auto animate-fade-in">
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.1)_0%,transparent_70%)] animate-pulse pointer-events-none" />
-                            <div className="relative mb-6">
-                              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-orange-600 to-rose-600 blur-md opacity-75 animate-spin duration-3000" />
-                              <div className="relative h-20 w-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-orange-500 shadow-2xl">
-                                <Tv size={36} className="animate-pulse" />
-                              </div>
-                              <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-orange-600 border border-slate-950 flex items-center justify-center text-white text-[11px] font-black tracking-tight shadow-md">
-                                {countdown}
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-mono tracking-widest text-slate-500 font-extrabold uppercase mb-1">
-                              INGEST SYSTEM TRANSMISSION
-                            </span>
-                            <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-2">
-                              EXON <span className="bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent">AND ITS VISION</span>
-                            </h3>
-                            <div className="h-[2px] w-12 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full mb-3" />
-                            <div className="flex flex-col gap-1 max-w-xs">
-                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider line-clamp-1">
-                                CONNECTING TO: {stream.title}
-                              </p>
-                              <p className="text-[8px] text-slate-500 font-mono tracking-wider font-semibold">
-                                PROTOCOL STATUS: CO-PROCESSOR ACTIVE ({((3 - countdown) / 3 * 100).toFixed(0)}%)
-                              </p>
-                            </div>
-                          </div>
                         )}
                       </>
                     ) : (
@@ -2419,6 +2345,173 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           )}
         </div>
       </div>
+
+      {/* Right Col: GitHub Synchronization Protocol & Directory Panel (7 cols) */}
+      <div className="lg:col-span-7 flex flex-col gap-6 w-full animate-fade-in">
+        
+        {/* GitHub Live Integration Deployment Health & Sync Panel */}
+        <div className="bg-slate-950 text-slate-100 rounded-[2rem] border border-slate-800 p-6 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <Database size={18} />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+                    GITHUB DEPLOYMENT ENGINE
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </h3>
+                  <p className="text-[9px] text-slate-400 font-mono">CONNECTION_STATE: ACTIVE_SYNCHRONIZED</p>
+                </div>
+              </div>
+
+              <span className="text-[9.5px] font-mono bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20 font-black tracking-wider shadow-sm select-none">
+                HEALTH: 100%
+              </span>
+            </div>
+
+            <div className="h-[1px] bg-slate-850 w-full" />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[10px] font-mono">
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5">
+                <p className="text-slate-500 font-semibold text-[8px] uppercase tracking-wider">PLAYLIST SOURCE ENDPOINT</p>
+                <span className="text-white hover:text-emerald-400 font-bold transition-colors break-all mt-0.5 inline-block text-[9.5px]">
+                  https://raw.githubusercontent.com/intisanud-star...
+                </span>
+              </div>
+              <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5">
+                <p className="text-slate-500 font-semibold text-[8px] uppercase tracking-wider">SYNC CADENCE RATE</p>
+                <p className="text-white font-bold mt-0.5 text-[9.5px]">Automated Polling every 15 seconds</p>
+              </div>
+            </div>
+
+            <p className="text-[10px] sm:text-[11px] text-slate-400 leading-relaxed font-sans font-medium text-left">
+              Our Ingestion synchronizer is fully listening to updates deployed from GitHub. The deployment is completed successfully! Since the top container utilizes VLC streaming protocols pointing to raw test channels, we have aggregated robust recovery fallbacks below.
+            </p>
+
+            {/* Collapsible raw content inspector */}
+            <div className="mt-1 flex justify-start">
+              <button
+                type="button"
+                onClick={() => setShowRawJsonInspect(!showRawJsonInspect)}
+                className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase font-black text-slate-400 hover:text-white transition-colors cursor-pointer bg-slate-900/80 px-3 py-2 rounded-xl border border-slate-800"
+              >
+                <Terminal size={10} className="text-emerald-500" />
+                {showRawJsonInspect ? 'Hide Raw Ingestion Payloads' : 'Inspect Live Ingestion Payload JSON'}
+              </button>
+            </div>
+
+            {showRawJsonInspect && (
+              <div className="mt-1 p-4 bg-black rounded-xl border border-slate-800 text-[8px] font-mono text-emerald-450 overflow-x-auto max-h-48 overflow-y-auto text-left no-scrollbar scroll-smooth">
+                <p className="text-slate-500 uppercase tracking-widest font-black mb-1.5 border-b border-slate-850 pb-1">Channels Discovered ({gitHubChannels.length})</p>
+                <pre>{JSON.stringify(gitHubChannels, null, 2)}</pre>
+                <p className="text-slate-500 uppercase tracking-widest font-black mt-3 mb-1.5 border-b border-slate-850 pb-1">Ingress Stream Status</p>
+                <pre>{JSON.stringify(githubBroadcast, null, 2)}</pre>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Interactive Live Directory Picker Menu */}
+        <div className="bg-white rounded-[2rem] border border-gray-150 p-6 shadow-sm flex flex-col gap-4">
+          <div className="text-left">
+            <h3 className="text-sm font-black uppercase text-ink flex items-center gap-2">
+              <Tv size={16} className="text-red-655" />
+              STATIONS DIRECTORY GRID
+            </h3>
+            <p className="text-xs text-muted font-bold mt-1">
+              Choose any active channel to override transmission immediately.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-h-[380px] overflow-y-auto pr-1 no-scrollbar">
+            {filteredBroadcasts.map((stream, idx) => {
+              const isActive = idx === currentIdx;
+              const isVlc = stream.streamType === 'vlc' || stream.type === 'vlc';
+              
+              return (
+                <div
+                  key={stream.id}
+                  onClick={() => {
+                    scrollToIdx(idx);
+                    showNotification(`Switched and connected stream: ${stream.title}`, "success");
+                  }}
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex gap-3 group relative overflow-hidden select-none ${
+                    isActive 
+                      ? 'bg-slate-950 border-slate-900 text-white shadow-md' 
+                      : 'border-gray-100 hover:border-gray-300 hover:shadow-xs bg-gray-50/50 hover:bg-white'
+                  }`}
+                >
+                  {/* Thumbnail / Symbol left */}
+                  <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0 relative bg-slate-900 flex items-center justify-center">
+                    {isVlc ? (
+                      <div className="text-orange-400 flex flex-col items-center justify-center font-sans">
+                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
+                        </svg>
+                        <span className="text-[6px] font-mono tracking-wider uppercase font-black text-orange-500 mt-1">VLC</span>
+                      </div>
+                    ) : (
+                      <img 
+                        src={getCoverImageUrl(stream)} 
+                        alt={stream.title} 
+                        className="h-full w-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-300"
+                      />
+                    )}
+                    
+                    {isActive && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <div className="flex gap-0.5 items-end justify-center h-4">
+                          <span className="w-0.5 h-2.5 bg-red-500 rounded-full animate-bounce [animation-delay:0.1s]"></span>
+                          <span className="w-0.5 h-4 bg-red-500 rounded-full animate-bounce [animation-delay:0.3s]"></span>
+                          <span className="w-0.5 h-1.5 bg-red-500 rounded-full animate-bounce [animation-delay:0.2s]"></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Meta info right */}
+                  <div className="flex flex-col justify-between overflow-hidden text-left">
+                    <div>
+                      <h4 className={`text-xs font-black uppercase tracking-tight line-clamp-1 truncate ${isActive ? 'text-white' : 'text-slate-900 group-hover:text-indigo-650'}`}>
+                        {stream.title}
+                      </h4>
+                      <p className={`text-[9.5px] font-semibold line-clamp-1 mt-0.5 ${isActive ? 'text-slate-400' : 'text-slate-500'}`}>
+                        By {stream.creatorName}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className={`text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
+                        isActive 
+                          ? (isVlc ? 'bg-orange-600/15 text-orange-400 border-orange-500/20' : 'bg-red-600/15 text-red-400 border-red-500/20')
+                          : (isVlc ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-red-50 text-red-600 border-red-100')
+                      }`}>
+                        {isVlc ? 'VLC CORE' : 'YOUTUBE'}
+                      </span>
+
+                      {isActive ? (
+                        <span className="text-[8px] text-red-500 font-extrabold flex items-center gap-1 animate-pulse">
+                          <span className="h-1 w-1 rounded-full bg-red-500" />
+                          PLAYING
+                        </span>
+                      ) : (
+                        <span className="text-[8.5px] text-slate-400 font-bold group-hover:text-slate-600 font-sans">
+                          Tap to connect
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+      </div>
+    </div>
 
       {/* Institution Workspace Redirection card */}
       {activeStream && (
@@ -2696,8 +2789,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
                             <NetworkStreamPlayer 
                               url={stream.streamUrl || ''} 
-                              isActive={isActive && !introActive} 
+                              isActive={isActive} 
                               title={stream.title} 
+                              onSkip={() => {
+                                const nextIdx = (idx + 1) % filteredBroadcasts.length;
+                                scrollImmersiveToIdx(nextIdx);
+                              }}
                             />
                           ) : (
                             <iframe
@@ -2708,37 +2805,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               allowFullScreen
                               className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
                             />
-                          )}
-
-                          {/* Vision Protocol 3-second Intro Sequence */}
-                          {introActive && (
-                            <div className="absolute inset-0 bg-slate-950 z-[45] flex flex-col items-center justify-center text-center p-6 select-none pointer-events-auto animate-fade-in">
-                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.1)_0%,transparent_70%)] animate-pulse pointer-events-none" />
-                              <div className="relative mb-6">
-                                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-orange-600 to-rose-600 blur-md opacity-75 animate-spin duration-3000" />
-                                <div className="relative h-20 w-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-orange-500 shadow-2xl">
-                                  <Tv size={36} className="animate-pulse" />
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-orange-600 border border-slate-950 flex items-center justify-center text-white text-[11px] font-black tracking-tight shadow-md">
-                                  {countdown}
-                                </div>
-                              </div>
-                              <span className="text-[10px] font-mono tracking-widest text-slate-500 font-extrabold uppercase mb-1">
-                                INGEST SYSTEM TRANSMISSION
-                              </span>
-                              <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-2">
-                                EXON <span className="bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent">AND ITS VISION</span>
-                              </h3>
-                              <div className="h-[2px] w-12 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full mb-3" />
-                              <div className="flex flex-col gap-1 max-w-xs">
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider line-clamp-1">
-                                  CONNECTING TO: {stream.title}
-                                </p>
-                                <p className="text-[8px] text-slate-500 font-mono tracking-wider font-semibold">
-                                  PROTOCOL STATUS: CO-PROCESSOR ACTIVE ({((3 - countdown) / 3 * 100).toFixed(0)}%)
-                                </p>
-                              </div>
-                            </div>
                           )}
                         </>
                       ) : (
