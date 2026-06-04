@@ -643,13 +643,58 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // GitHub Live Ingress State Integration
+  const [githubBroadcast, setGithubBroadcast] = useState<any>(null);
+  const [githubLoading, setGithubLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchGithubBroadcast = async () => {
+      try {
+        const BROADCAST_URL = "https://raw.githubusercontent.com/intisanud-star/exon-broadcast-data/refs/heads/main/broadcast.json";
+        const response = await fetch(`${BROADCAST_URL}?t=${Date.now()}`);
+        if (!response.ok) throw new Error("Network response not ok");
+        const result = await response.json();
+        setGithubBroadcast(result);
+      } catch (err) {
+        console.error("EXON GitHub integration sync state error:", err);
+      } finally {
+        setGithubLoading(false);
+      }
+    };
+    fetchGithubBroadcast();
+    // Set a polling timer to sync automatically every 15 seconds
+    const interval = setInterval(fetchGithubBroadcast, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
   const allBroadcasts = useMemo(() => {
     // Merge preset ones with database ones, avoiding duplicates if any and filtering out legacy mock ones
     const customs = customBroadcasts
       .filter(b => b && b.id !== 'sqlite_bd_1' && b.id !== 'sqlite_bd_2' && b.id !== 'preset_lofi' && b.id !== 'preset_nasa' && !b.isPreset)
       .map(b => ({ ...b, isPreset: false }));
-    return [...customs, ...PRESET_YOUTUBE_BROADCASTS];
-  }, [customBroadcasts]);
+    const list = [...customs, ...PRESET_YOUTUBE_BROADCASTS];
+
+    // Add GitHub broadcast at index 0 if it is live
+    if (githubBroadcast?.isLive) {
+      const parsed = githubBroadcast.streamUrl ? parseYoutubeId(githubBroadcast.streamUrl) : null;
+      const ghItem: YoutubeBroadcast = {
+        id: 'github_live_broadcast',
+        title: githubBroadcast.title || 'EXON LIVE TERMINAL',
+        type: githubBroadcast.type === 'vlc' ? 'vlc' : (parsed?.type || 'video'),
+        streamType: githubBroadcast.type === 'vlc' ? 'vlc' : 'youtube',
+        streamUrl: githubBroadcast.streamUrl,
+        videoId: githubBroadcast.type === 'vlc' ? undefined : (parsed?.id || githubBroadcast.streamUrl),
+        channelId: githubBroadcast.type !== 'vlc' && parsed?.type === 'channel' ? parsed.id : undefined,
+        category: githubBroadcast.category || 'General Live',
+        description: githubBroadcast.notice || 'Exon Global Broadcast Center (GitHub Ingestion Mode)',
+        creatorUid: 'github_system',
+        creatorName: 'GitHub Command Center',
+        isPreset: false,
+      };
+      list.unshift(ghItem);
+    }
+    return list;
+  }, [customBroadcasts, githubBroadcast]);
 
   const filteredBroadcasts = useMemo(() => {
     return allBroadcasts.filter(b => {
