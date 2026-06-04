@@ -70,7 +70,7 @@ export interface YoutubeBroadcast {
 
 const PRESET_YOUTUBE_BROADCASTS: YoutubeBroadcast[] = [];
 
-const CATEGORIES = [
+const _LEGACY_CATEGORIES = [
   "All",
   "Programming & Education",
   "Space & Science",
@@ -593,7 +593,19 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [immersiveSelectedCategory, setImmersiveSelectedCategory] = useState('All');
   const [isImmersiveAddFormOpen, setIsImmersiveAddFormOpen] = useState(false);
   const [immersiveShowCategoryDropdown, setImmersiveShowCategoryDropdown] = useState(false);
-  const [followedCreators, setFollowedCreators] = useState<string[]>([]);
+  const [followedCreators, setFollowedCreators] = useState<string[]>(() => {
+    const saved = localStorage.getItem('exon_followed_creators');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('exon_followed_creators', JSON.stringify(followedCreators));
+  }, [followedCreators]);
+
+  const [followedOnly, setFollowedOnly] = useState(false);
   const immersiveContainerRef = useRef<HTMLDivElement>(null);
 
   const handleImmersiveScroll = () => {
@@ -643,6 +655,58 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // GitHub Channels List integration from channels.json Raw URL
+  const [gitHubChannels, setGitHubChannels] = useState<YoutubeBroadcast[]>([]);
+
+  useEffect(() => {
+    const fetchGitHubChannels = async () => {
+      try {
+        const CHANNELS_URL = "https://raw.githubusercontent.com/intisanud-star/exon-broadcast-data/refs/heads/main/channels.json";
+        const response = await fetch(`${CHANNELS_URL}?t=${Date.now()}`);
+        if (!response.ok) throw new Error("Failed to load GitHub channels");
+        const data = await response.json();
+        
+        const mappedData = data.map((item: any, idx: number) => {
+          const parsed = item.streamUrl ? parseYoutubeId(item.streamUrl) : null;
+          const isVlc = item.streamType === 'vlc' || item.type === 'vlc';
+          return {
+            id: item.id || `preset_gh_${idx}`,
+            title: item.title,
+            type: isVlc ? 'vlc' : (parsed?.type || item.type || 'video'),
+            streamType: isVlc ? 'vlc' : 'youtube',
+            streamUrl: item.streamUrl,
+            videoId: isVlc ? undefined : (parsed?.id || item.videoId),
+            channelId: !isVlc && parsed?.type === 'channel' ? parsed.id : undefined,
+            category: item.category || 'General Live',
+            description: item.description || `Live stream from ${item.creatorName || 'registered workspace'}.`,
+            creatorUid: 'github_system',
+            creatorName: item.creatorName || 'Autonomous Station',
+            isPreset: true
+          };
+        });
+        setGitHubChannels(mappedData);
+      } catch (err) {
+        console.error("Error fetching channels list from GitHub Raw:", err);
+      }
+    };
+    fetchGitHubChannels();
+  }, []);
+
+  // Dynamic Categories Memo
+  const CATEGORIES = useMemo(() => {
+    const uniqueCats = Array.from(new Set(gitHubChannels.map(c => c.category).filter(Boolean)));
+    const customCats = Array.from(new Set(customBroadcasts.map(c => c.category).filter(Boolean)));
+    const merged = Array.from(new Set([...uniqueCats, ...customCats]));
+    if (merged.length === 0) {
+      return ["All", "General Live", "Space & Science"];
+    }
+    return ["All", ...merged];
+  }, [gitHubChannels, customBroadcasts]);
+
+  // Vision Protocol: 3-second 'exon and its vision' intro sequence state
+  const [introActive, setIntroActive] = useState(false);
+  const [countdown, setCountdown] = useState(3);
+
   // GitHub Live Ingress State Integration
   const [githubBroadcast, setGithubBroadcast] = useState<any>(null);
   const [githubLoading, setGithubLoading] = useState(true);
@@ -672,7 +736,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     const customs = customBroadcasts
       .filter(b => b && b.id !== 'sqlite_bd_1' && b.id !== 'sqlite_bd_2' && b.id !== 'preset_lofi' && b.id !== 'preset_nasa' && !b.isPreset)
       .map(b => ({ ...b, isPreset: false }));
-    const list = [...customs, ...PRESET_YOUTUBE_BROADCASTS];
+    const list = [...gitHubChannels, ...customs];
 
     // Add GitHub broadcast at index 0 if it is live
     if (githubBroadcast?.isLive) {
@@ -694,16 +758,18 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       list.unshift(ghItem);
     }
     return list;
-  }, [customBroadcasts, githubBroadcast]);
+  }, [customBroadcasts, githubBroadcast, gitHubChannels]);
 
   const filteredBroadcasts = useMemo(() => {
     return allBroadcasts.filter(b => {
       const matchesSearch = b.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             (b.description || '').toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = categoryFilter === 'All' || b.category === categoryFilter;
-      return matchesSearch && matchesCategory;
+      const creatorKey = b.creatorUid || b.creatorName || '';
+      const matchesFollowed = !followedOnly || followedCreators.includes(creatorKey);
+      return matchesSearch && matchesCategory && matchesFollowed;
     });
-  }, [allBroadcasts, searchQuery, categoryFilter]);
+  }, [allBroadcasts, searchQuery, categoryFilter, followedOnly, followedCreators]);
 
   // Derive active stream synchronously from current index
   const activeStream = useMemo(() => {
@@ -729,6 +795,25 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   useEffect(() => {
     if (activeStream?.id) {
       localStorage.setItem('exon_last_viewed_stream_id', activeStream.id);
+      
+      // Vision Protocol: trigger 3-second sequence
+      setIntroActive(true);
+      setCountdown(3);
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            setIntroActive(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => {
+        clearInterval(timer);
+      };
+    } else {
+      setIntroActive(false);
     }
   }, [activeStream?.id]);
 
@@ -1200,45 +1285,65 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             <div className="w-10 h-10" />
           )}
 
-          {/* Category Dropdown Selector */}
-          <div className="relative">
+          {/* Category Dropdown Selector and Follow Switch */}
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
+              >
+                <span>{categoryFilter === 'All' && !followedOnly ? 'Discover Channels' : (followedOnly ? 'Followed Only' : categoryFilter)}</span>
+                <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {immersiveShowCategoryDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
+                  >
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setCategoryFilter(cat);
+                          setFollowedOnly(false);
+                          setImmersiveShowCategoryDropdown(false);
+                          setCurrentIdx(0);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                          categoryFilter === cat && !followedOnly
+                            ? 'bg-orange-600 text-white font-black'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <button
               type="button"
-              onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
+              onClick={() => {
+                setFollowedOnly(!followedOnly);
+                setCurrentIdx(0);
+              }}
+              className={`h-9 px-4 bg-slate-900/80 backdrop-blur-md border rounded-full flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                followedOnly 
+                  ? 'border-rose-500 text-rose-500 bg-rose-950/25 animate-pulse shadow-md' 
+                  : 'border-white/10 text-slate-300 hover:text-white hover:border-white/20'
+              }`}
+              title="Toggle Watching Followed Stations Only"
             >
-              <span>{categoryFilter === 'All' ? 'Discover Channels' : categoryFilter}</span>
-              <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
+              <Heart size={12} fill={followedOnly ? "currentColor" : "none"} />
+              {followedOnly ? 'Watching Followed' : 'Watch Followed'}
             </button>
-
-            <AnimatePresence>
-              {immersiveShowCategoryDropdown && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
-                >
-                  {CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => {
-                        setCategoryFilter(cat);
-                        setImmersiveShowCategoryDropdown(false);
-                        setCurrentIdx(0);
-                      }}
-                      className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                        categoryFilter === cat
-                          ? 'bg-orange-600 text-white font-black'
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           {/* Close Button */}
@@ -1283,22 +1388,55 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 >
                   {/* Video Player Frame */}
                   {isActive ? (
-                    stream.streamType === 'vlc' || stream.type === 'vlc' ? (
-                      <NetworkStreamPlayer 
-                        url={stream.streamUrl || ''} 
-                        isActive={isActive} 
-                        title={stream.title} 
-                      />
-                    ) : (
-                      <iframe
-                        src={getEmbedUrl(stream)}
-                        title={stream.title}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                        className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
-                      />
-                    )
+                    <>
+                      {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                        <NetworkStreamPlayer 
+                          url={stream.streamUrl || ''} 
+                          isActive={isActive && !introActive} 
+                          title={stream.title} 
+                        />
+                      ) : (
+                        <iframe
+                          src={getEmbedUrl(stream)}
+                          title={stream.title}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
+                        />
+                      )}
+
+                      {/* Vision Protocol 3-second Intro Sequence */}
+                      {introActive && (
+                        <div className="absolute inset-0 bg-slate-950 z-[45] flex flex-col items-center justify-center text-center p-6 select-none pointer-events-auto animate-fade-in">
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.1)_0%,transparent_70%)] animate-pulse pointer-events-none" />
+                          <div className="relative mb-6">
+                            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-orange-600 to-rose-600 blur-md opacity-75 animate-spin duration-3000" />
+                            <div className="relative h-20 w-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-orange-500 shadow-2xl">
+                              <Tv size={36} className="animate-pulse" />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-orange-600 border border-slate-950 flex items-center justify-center text-white text-[11px] font-black tracking-tight shadow-md">
+                              {countdown}
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono tracking-widest text-slate-500 font-extrabold uppercase mb-1">
+                            INGEST SYSTEM TRANSMISSION
+                          </span>
+                          <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-2">
+                            EXON <span className="bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent">AND ITS VISION</span>
+                          </h3>
+                          <div className="h-[2px] w-12 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full mb-3" />
+                          <div className="flex flex-col gap-1 max-w-xs">
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider line-clamp-1">
+                              CONNECTING TO: {stream.title}
+                            </p>
+                            <p className="text-[8px] text-slate-500 font-mono tracking-wider font-semibold">
+                              PROTOCOL STATUS: CO-PROCESSOR ACTIVE ({((3 - countdown) / 3 * 100).toFixed(0)}%)
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
                       <img 
@@ -1451,10 +1589,18 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white text-center">
-            <p className="text-sm font-black uppercase tracking-wider">No matching feeds</p>
+            <p className="text-sm font-black uppercase tracking-wider">
+              {followedOnly ? 'No followed feeds live' : 'No matching feeds'}
+            </p>
+            <p className="text-xs text-slate-400 font-bold max-w-sm mt-1">
+              {followedOnly ? "Follow more stations to keep watching live content from them!" : "Change search filters or categories to discover streams."}
+            </p>
             <button
               type="button"
-              onClick={() => setCategoryFilter('All')}
+              onClick={() => {
+                setCategoryFilter('All');
+                setFollowedOnly(false);
+              }}
               className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-505 transition-colors cursor-pointer"
             >
               Show All Channels
@@ -1941,9 +2087,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             {CATEGORIES.map(cat => (
               <button
                 key={cat}
-                onClick={() => setCategoryFilter(cat)}
+                onClick={() => {
+                  setCategoryFilter(cat);
+                  setFollowedOnly(false);
+                }}
                 className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
-                  categoryFilter === cat 
+                  categoryFilter === cat && !followedOnly
                     ? 'bg-ink text-white border-ink' 
                     : 'bg-white text-muted border-gray-100 hover:border-gray-200'
                 }`}
@@ -1951,6 +2100,21 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 {cat}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => {
+                setFollowedOnly(!followedOnly);
+                setCurrentIdx(0);
+              }}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border flex items-center gap-1.5 cursor-pointer ${
+                followedOnly 
+                  ? 'bg-rose-605 text-white border-rose-600 shadow-md animate-pulse' 
+                  : 'bg-white text-rose-500 border-rose-100 hover:bg-rose-50/20'
+              }`}
+            >
+              <Heart size={12} fill={followedOnly ? "currentColor" : "none"} />
+              Following {followedCreators.length > 0 ? `(${followedCreators.length})` : ''}
+            </button>
           </div>
         </div>
       </div>
@@ -2023,22 +2187,55 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     </button>
 
                     {isActive ? (
-                      stream.streamType === 'vlc' || stream.type === 'vlc' ? (
-                        <NetworkStreamPlayer 
-                          url={stream.streamUrl || ''} 
-                          isActive={isActive} 
-                          title={stream.title} 
-                        />
-                      ) : (
-                        <iframe
-                          src={getEmbedUrl(stream)}
-                          title={stream.title}
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                          className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto"
-                        />
-                      )
+                      <>
+                        {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                          <NetworkStreamPlayer 
+                            url={stream.streamUrl || ''} 
+                            isActive={isActive && !introActive} 
+                            title={stream.title} 
+                          />
+                        ) : (
+                          <iframe
+                            src={getEmbedUrl(stream)}
+                            title={stream.title}
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto"
+                          />
+                        )}
+
+                        {/* Vision Protocol 3-second Intro Sequence */}
+                        {introActive && (
+                          <div className="absolute inset-0 bg-slate-950 z-[45] flex flex-col items-center justify-center text-center p-6 select-none pointer-events-auto animate-fade-in">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.1)_0%,transparent_70%)] animate-pulse pointer-events-none" />
+                            <div className="relative mb-6">
+                              <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-orange-600 to-rose-600 blur-md opacity-75 animate-spin duration-3000" />
+                              <div className="relative h-20 w-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-orange-500 shadow-2xl">
+                                <Tv size={36} className="animate-pulse" />
+                              </div>
+                              <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-orange-600 border border-slate-950 flex items-center justify-center text-white text-[11px] font-black tracking-tight shadow-md">
+                                {countdown}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono tracking-widest text-slate-500 font-extrabold uppercase mb-1">
+                              INGEST SYSTEM TRANSMISSION
+                            </span>
+                            <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-2">
+                              EXON <span className="bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent">AND ITS VISION</span>
+                            </h3>
+                            <div className="h-[2px] w-12 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full mb-3" />
+                            <div className="flex flex-col gap-1 max-w-xs">
+                              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider line-clamp-1">
+                                CONNECTING TO: {stream.title}
+                              </p>
+                              <p className="text-[8px] text-slate-500 font-mono tracking-wider font-semibold">
+                                PROTOCOL STATUS: CO-PROCESSOR ACTIVE ({((3 - countdown) / 3 * 100).toFixed(0)}%)
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
                         <img 
@@ -2087,9 +2284,29 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       <p className="text-slate-300 text-[10px] sm:text-xs font-semibold max-w-[85%] line-clamp-2 drop-shadow-sm select-text pointer-events-auto leading-relaxed">
                         {stream.description || "Tune in to explore live feeds, study sessions, and academic logs."}
                       </p>
-                      <div className="flex items-center gap-2 mt-1 py-1 text-[9px] font-bold text-slate-400">
+                      <div className="flex items-center gap-2 mt-1 py-1 text-[9px] font-bold text-slate-400 pointer-events-auto flex-wrap animate-fade-in">
                         <span className="bg-white/10 px-2 py-0.5 rounded-md text-white border border-white/5">{stream.category}</span>
                         <span>• By {stream.creatorName}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const key = stream.creatorUid || stream.creatorName || '';
+                            if (followedCreators.includes(key)) {
+                              setFollowedCreators(followedCreators.filter(f => f !== key));
+                              showNotification(`Unfollowed ${stream.creatorName}`, 'info');
+                            } else {
+                              setFollowedCreators([...followedCreators, key]);
+                              showNotification(`Following ${stream.creatorName}`, 'success');
+                            }
+                          }}
+                          className={`px-2 py-0.5 font-black uppercase text-[8px] tracking-wider rounded-md border transition-all cursor-pointer ${
+                            followedCreators.includes(stream.creatorUid || stream.creatorName || '')
+                              ? 'bg-white/10 border-white/10 text-slate-300'
+                              : 'bg-rose-650 border-rose-500 text-white shadow-sm hover:scale-105 active:scale-95'
+                          }`}
+                        >
+                          {followedCreators.includes(stream.creatorUid || stream.creatorName || '') ? 'Following' : 'Follow'}
+                        </button>
                       </div>
                     </div>
 
@@ -2168,9 +2385,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               <div className="h-16 w-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 mx-auto mb-4">
                 <Youtube size={28} />
               </div>
-              <p className="text-sm font-black uppercase tracking-wider">No matching broadcasts</p>
+              <p className="text-sm font-black uppercase tracking-wider">
+                {followedOnly ? 'No followed channels live' : 'No matching broadcasts'}
+              </p>
               <p className="text-xs text-slate-400 font-bold mt-1 max-w-xs mx-auto leading-relaxed">
-                Add special broadcasts or change search filters above.
+                {followedOnly 
+                  ? "You haven't followed any stations yet or they are offline. Follow a station to keep watching things from it!" 
+                  : 'Add special broadcasts or change search filters above.'}
               </p>
             </div>
           )}
@@ -2371,45 +2592,65 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 <div className="w-10 h-10" />
               )}
 
-              {/* Category Dropdown Selector */}
-              <div className="relative">
+              {/* Category Dropdown Selector and Follow Switch */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
+                  >
+                    <span>{categoryFilter === 'All' && !followedOnly ? 'Discover Channels' : (followedOnly ? 'Followed Only' : categoryFilter)}</span>
+                    <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {immersiveShowCategoryDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
+                      >
+                        {CATEGORIES.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => {
+                              setCategoryFilter(cat);
+                              setFollowedOnly(false);
+                              setImmersiveShowCategoryDropdown(false);
+                              setCurrentIdx(0);
+                            }}
+                            className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              categoryFilter === cat && !followedOnly
+                                ? 'bg-orange-600 text-white font-black'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
                 <button
                   type="button"
-                  onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
+                  onClick={() => {
+                    setFollowedOnly(!followedOnly);
+                    setCurrentIdx(0);
+                  }}
+                  className={`h-9 px-4 bg-slate-900/80 backdrop-blur-md border rounded-full flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                    followedOnly 
+                      ? 'border-rose-500 text-rose-500 bg-rose-950/25 animate-pulse shadow-md' 
+                      : 'border-white/10 text-slate-300 hover:text-white hover:border-white/20'
+                  }`}
+                  title="Toggle Watching Followed Stations Only"
                 >
-                  <span>{categoryFilter === 'All' ? 'Discover Channels' : categoryFilter}</span>
-                  <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
+                  <Heart size={12} fill={followedOnly ? "currentColor" : "none"} />
+                  {followedOnly ? 'Watching Followed' : 'Watch Followed'}
                 </button>
-
-                <AnimatePresence>
-                  {immersiveShowCategoryDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
-                    >
-                      {CATEGORIES.map((cat) => (
-                        <button
-                          key={cat}
-                          onClick={() => {
-                            setCategoryFilter(cat);
-                            setImmersiveShowCategoryDropdown(false);
-                            setCurrentIdx(0);
-                          }}
-                          className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                            categoryFilter === cat
-                              ? 'bg-orange-600 text-white font-black'
-                              : 'text-slate-400 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* Close Button */}
@@ -2451,22 +2692,55 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     >
                       {/* Video Player Frame */}
                       {isActive ? (
-                        stream.streamType === 'vlc' || stream.type === 'vlc' ? (
-                          <NetworkStreamPlayer 
-                            url={stream.streamUrl || ''} 
-                            isActive={isActive} 
-                            title={stream.title} 
-                          />
-                        ) : (
-                          <iframe
-                            src={getEmbedUrl(stream)}
-                            title={stream.title}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                            allowFullScreen
-                            className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
-                          />
-                        )
+                        <>
+                          {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                            <NetworkStreamPlayer 
+                              url={stream.streamUrl || ''} 
+                              isActive={isActive && !introActive} 
+                              title={stream.title} 
+                            />
+                          ) : (
+                            <iframe
+                              src={getEmbedUrl(stream)}
+                              title={stream.title}
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                              className="absolute inset-0 w-full h-full object-cover select-none pointer-events-auto bg-black"
+                            />
+                          )}
+
+                          {/* Vision Protocol 3-second Intro Sequence */}
+                          {introActive && (
+                            <div className="absolute inset-0 bg-slate-950 z-[45] flex flex-col items-center justify-center text-center p-6 select-none pointer-events-auto animate-fade-in">
+                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(249,115,22,0.1)_0%,transparent_70%)] animate-pulse pointer-events-none" />
+                              <div className="relative mb-6">
+                                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-orange-600 to-rose-600 blur-md opacity-75 animate-spin duration-3000" />
+                                <div className="relative h-20 w-20 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-orange-500 shadow-2xl">
+                                  <Tv size={36} className="animate-pulse" />
+                                </div>
+                                <div className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-orange-600 border border-slate-950 flex items-center justify-center text-white text-[11px] font-black tracking-tight shadow-md">
+                                  {countdown}
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-mono tracking-widest text-slate-500 font-extrabold uppercase mb-1">
+                                INGEST SYSTEM TRANSMISSION
+                              </span>
+                              <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-white mb-2">
+                                EXON <span className="bg-gradient-to-r from-orange-400 to-rose-500 bg-clip-text text-transparent">AND ITS VISION</span>
+                              </h3>
+                              <div className="h-[2px] w-12 bg-gradient-to-r from-orange-500 to-rose-500 rounded-full mb-3" />
+                              <div className="flex flex-col gap-1 max-w-xs">
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider line-clamp-1">
+                                  CONNECTING TO: {stream.title}
+                                </p>
+                                <p className="text-[8px] text-slate-500 font-mono tracking-wider font-semibold">
+                                  PROTOCOL STATUS: CO-PROCESSOR ACTIVE ({((3 - countdown) / 3 * 100).toFixed(0)}%)
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       ) : (
                         <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
                           <img 
@@ -2646,10 +2920,18 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               </div>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white text-center">
-                <p className="text-sm font-black uppercase tracking-wider">No matching feeds</p>
+                <p className="text-sm font-black uppercase tracking-wider">
+                  {followedOnly ? 'No followed feeds live' : 'No matching feeds'}
+                </p>
+                <p className="text-xs text-slate-400 font-bold max-w-sm mt-1">
+                  {followedOnly ? "Follow more stations to keep watching live content from them!" : "Change search filters or categories to discover streams."}
+                </p>
                 <button
                   type="button"
-                  onClick={() => setCategoryFilter('All')}
+                  onClick={() => {
+                    setCategoryFilter('All');
+                    setFollowedOnly(false);
+                  }}
                   className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-505 transition-colors cursor-pointer"
                 >
                   Show All Channels
