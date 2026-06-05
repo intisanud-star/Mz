@@ -48,7 +48,8 @@ import {
   where, 
   orderBy, 
   limit, 
-  serverTimestamp
+  serverTimestamp,
+  deleteDoc
 } from 'firebase/firestore';
 
 export interface YoutubeBroadcast {
@@ -656,53 +657,264 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [chatInput, setChatInput] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // GitHub REST API Integration & Secure Config State
+  const [gitHubPat, setGitHubPat] = useState(() => localStorage.getItem('exon_github_pat') || '');
+  const [gitHubOwner, setGitHubOwner] = useState(() => localStorage.getItem('exon_github_owner') || 'intisanud-star');
+  const [gitHubRepo, setGitHubRepo] = useState(() => localStorage.getItem('exon_github_repo') || 'exon-broadcast-data');
+  const [gitHubPath, setGitHubPath] = useState(() => localStorage.getItem('exon_github_path') || 'channels.json');
+  const [gitHubBranch, setGitHubBranch] = useState(() => localStorage.getItem('exon_github_branch') || 'main');
+  const [isSyncingGitHub, setIsSyncingGitHub] = useState(false);
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('exon_github_owner', gitHubOwner);
+  }, [gitHubOwner]);
+
+  useEffect(() => {
+    localStorage.setItem('exon_github_repo', gitHubRepo);
+  }, [gitHubRepo]);
+
+  useEffect(() => {
+    localStorage.setItem('exon_github_path', gitHubPath);
+  }, [gitHubPath]);
+
+  useEffect(() => {
+    localStorage.setItem('exon_github_branch', gitHubBranch);
+  }, [gitHubBranch]);
+
+  const savePat = (token: string) => {
+    setGitHubPat(token);
+    localStorage.setItem('exon_github_pat', token);
+  };
+
   // GitHub Channels List integration from channels.json Raw URL
   const [gitHubChannels, setGitHubChannels] = useState<YoutubeBroadcast[]>([]);
 
-  useEffect(() => {
-    const fetchGitHubChannels = async () => {
-      try {
-        const CHANNELS_URL = "https://raw.githubusercontent.com/intisanud-star/exon-broadcast-data/refs/heads/main/channels.json";
-        const response = await fetch(`${CHANNELS_URL}?t=${Date.now()}`);
-        if (!response.ok) throw new Error("Failed to load GitHub channels");
-        const data = await response.json();
-        
-        const mappedData = data.map((item: any, idx: number) => {
-          const parsed = item.streamUrl ? parseYoutubeId(item.streamUrl) : null;
-          const isVlc = item.streamType === 'vlc' || item.type === 'vlc';
-          return {
-            id: item.id || `preset_gh_${idx}`,
-            title: item.title,
-            type: isVlc ? 'vlc' : (parsed?.type || item.type || 'video'),
-            streamType: isVlc ? 'vlc' : 'youtube',
-            streamUrl: item.streamUrl,
-            videoId: isVlc ? undefined : (parsed?.id || item.videoId),
-            channelId: !isVlc && parsed?.type === 'channel' ? parsed.id : undefined,
-            category: item.category || 'General Live',
-            description: item.description || `Live stream from ${item.creatorName || 'registered workspace'}.`,
-            creatorUid: 'github_system',
-            creatorName: item.creatorName || 'Autonomous Station',
-            isPreset: true
-          };
-        });
-        setGitHubChannels(mappedData);
-      } catch (err) {
-        console.error("Error fetching channels list from GitHub Raw:", err);
-      }
-    };
-    fetchGitHubChannels();
-  }, []);
-
-  // Dynamic Categories Memo
-  const CATEGORIES = useMemo(() => {
-    const uniqueCats = Array.from(new Set(gitHubChannels.map(c => c.category).filter(Boolean)));
-    const customCats = Array.from(new Set(customBroadcasts.map(c => c.category).filter(Boolean)));
-    const merged = Array.from(new Set([...uniqueCats, ...customCats]));
-    if (merged.length === 0) {
-      return ["All", "General Live", "Space & Science"];
+  const fetchGitHubChannels = async () => {
+    try {
+      const owner = gitHubOwner || 'intisanud-star';
+      const repo = gitHubRepo || 'exon-broadcast-data';
+      const path = gitHubPath || 'channels.json';
+      const branch = gitHubBranch || 'main';
+      const CHANNELS_URL = `https://raw.githubusercontent.com/${owner}/${repo}/refs/heads/${branch}/${path}`;
+      const response = await fetch(`${CHANNELS_URL}?t=${Date.now()}`);
+      if (!response.ok) throw new Error("Failed to load GitHub channels");
+      const data = await response.json();
+      
+      const mappedData = data.map((item: any, idx: number) => {
+        const parsed = item.streamUrl ? parseYoutubeId(item.streamUrl) : null;
+        const isVlc = item.streamType === 'vlc' || item.type === 'vlc';
+        return {
+          id: item.id || `preset_gh_${idx}`,
+          title: item.title,
+          type: isVlc ? 'vlc' : (parsed?.type || item.type || 'video'),
+          streamType: isVlc ? 'vlc' : 'youtube',
+          streamUrl: item.streamUrl || item.streamUrl,
+          videoId: isVlc ? undefined : (parsed?.id || item.videoId),
+          channelId: !isVlc && parsed?.type === 'channel' ? parsed.id : undefined,
+          category: item.category || 'General Live',
+          description: item.description || `Live stream from ${item.creatorName || 'registered workspace'}.`,
+          creatorUid: 'github_system',
+          creatorName: item.creatorName || 'Autonomous Station',
+          isPreset: true
+        };
+      });
+      setGitHubChannels(mappedData);
+    } catch (err) {
+      console.error("Error fetching channels list from GitHub Raw:", err);
     }
-    return ["All", ...merged];
-  }, [gitHubChannels, customBroadcasts]);
+  };
+
+  useEffect(() => {
+    fetchGitHubChannels();
+  }, [gitHubOwner, gitHubRepo, gitHubPath, gitHubBranch]);
+
+  // Sync / commit changes to channels.json on GitHub
+  const syncChannelsWithGitHub = async (
+    action: 'add' | 'delete',
+    payload: any,
+    targetNameForCommit: string
+  ): Promise<boolean> => {
+    if (!gitHubPat) {
+      showNotification('⚠️ GitHub Personal Access Token (PAT) is not configured. Go to GITHUB DEPLOYMENT ENGINE to configure it.', 'error');
+      return false;
+    }
+
+    setIsSyncingGitHub(true);
+    try {
+      const owner = gitHubOwner || 'intisanud-star';
+      const repo = gitHubRepo || 'exon-broadcast-data';
+      const path = gitHubPath || 'channels.json';
+      const branch = gitHubBranch || 'main';
+      
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+
+      // 1. GET current file contents and SHA
+      const getResponse = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${gitHubPat.trim()}`,
+          'Accept': 'application/vnd.github.v3+json'
+        },
+        cache: 'no-store'
+      });
+
+      if (!getResponse.ok) {
+        throw new Error(`Failed to fetch file metadata from GitHub. Status: ${getResponse.status}`);
+      }
+
+      const fileData = await getResponse.json();
+      const sha = fileData.sha;
+      
+      // Decode content securely supporting UTF-8 content
+      const decodedContent = decodeURIComponent(
+        escape(window.atob(fileData.content.replace(/\s/g, '')))
+      );
+      
+      let channelsList: any[] = [];
+      try {
+        channelsList = JSON.parse(decodedContent);
+        if (!Array.isArray(channelsList)) {
+          channelsList = [];
+        }
+      } catch (err) {
+        console.warn("Could not parse existing contents of channels.json, starting fresh.", err);
+        channelsList = [];
+      }
+
+      let updatedList: any[] = [];
+      const commitMessage = action === 'add' 
+        ? `Admin Sync: Added [${targetNameForCommit}]`
+        : `Admin Sync: Removed [${targetNameForCommit}]`;
+
+      if (action === 'add') {
+        updatedList = [...channelsList, payload];
+      } else {
+        const targetId = payload.id;
+        const targetUrl = payload.streamUrl;
+        const targetTitle = payload.title;
+
+        updatedList = channelsList.filter((item: any) => {
+          if (targetId && item.id === targetId) return false;
+          if (targetUrl && item.streamUrl === targetUrl) return false;
+          if (targetTitle && item.title === targetTitle) return false;
+          return true;
+        });
+      }
+
+      // Convert updated list to UTF-8 Base64
+      const updatedJsonString = JSON.stringify(updatedList, null, 2);
+      const encodedContent = window.btoa(
+        unescape(encodeURIComponent(updatedJsonString))
+      );
+
+      // 2. PUT updated file back to repo
+      const putResponse = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${gitHubPat.trim()}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: commitMessage,
+          content: encodedContent,
+          sha: sha,
+          branch: branch
+        })
+      });
+
+      if (!putResponse.ok) {
+        const errorDetails = await putResponse.text();
+        throw new Error(`Failed to commit file to GitHub. Status: ${putResponse.status}. Details: ${errorDetails}`);
+      }
+
+      showNotification(`✅ GitHub automated sync succeeded: ${action === 'add' ? 'Added' : 'Removed'} [${targetNameForCommit}]`, 'success');
+      
+      // Proactively refresh
+      await fetchGitHubChannels();
+      return true;
+    } catch (err: any) {
+      console.error("GitHub API communication failed:", err);
+      showNotification(`❌ GitHub Sync Error: ${err.message || err}`, 'error');
+      return false;
+    } finally {
+      setIsSyncingGitHub(false);
+    }
+  };
+
+  const handleAddGitHubChannel = async (formObj: any) => {
+    const isVlc = formObj.streamType === 'vlc';
+    const parsed = formObj.streamUrl ? parseYoutubeId(formObj.streamUrl) : null;
+    
+    const githubChannelObj = {
+      id: `gh_chan_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      title: formObj.title,
+      category: formObj.category,
+      type: isVlc ? 'vlc' : (parsed?.type || formObj.type || 'video'),
+      streamType: isVlc ? 'vlc' : 'youtube',
+      streamUrl: formObj.streamUrl,
+      videoId: isVlc ? undefined : (parsed?.id || formObj.videoId),
+      channelId: !isVlc && parsed?.type === 'channel' ? parsed.id : undefined,
+      description: formObj.description || `Live stream from ${formObj.creatorName || 'registered workspace'}.`,
+      creatorName: formObj.creatorName || 'Autonomous Station'
+    };
+
+    const success = await syncChannelsWithGitHub('add', githubChannelObj, formObj.title);
+    if (!success) {
+      throw new Error("GitHub synchronization aborted/failed.");
+    }
+  };
+
+  const handleDeleteGitHubChannel = async (channel: YoutubeBroadcast) => {
+    if (!window.confirm(`Are you sure you want to remove the channel "${channel.title}" from GitHub repository?`)) return;
+    
+    await syncChannelsWithGitHub('delete', channel, channel.title);
+  };
+
+  const handleDeleteClick = async (stream: YoutubeBroadcast) => {
+    // 1. Check if the channel URL, video ID, or title corresponds to a live stream registered on GitHub
+    const isOnGitHub = gitHubChannels.some(gh => {
+      const ghUrl = (gh.streamUrl || '').toLowerCase().trim();
+      const stUrl = (stream.streamUrl || '').toLowerCase().trim();
+      if (ghUrl && stUrl && ghUrl === stUrl) return true;
+      if (stream.videoId && gh.videoId === stream.videoId) return true;
+      if (stream.channelId && gh.channelId === stream.channelId) return true;
+      if (gh.title && stream.title && gh.title.toLowerCase().trim() === stream.title.toLowerCase().trim()) return true;
+      return false;
+    });
+
+    if (isOnGitHub) {
+      if (!gitHubPat) {
+        showNotification("⚠️ Cannot delete GitHub channel. GitHub Personal Access Token (PAT) is not configured.", "error");
+        return;
+      }
+
+      if (!window.confirm(`Are you sure you want to remove "${stream.title}" from the active GitHub stream registry (channels.json)?`)) {
+        return;
+      }
+
+      // 1. Delete from GitHub repository
+      const success = await syncChannelsWithGitHub('delete', stream, stream.title);
+      if (!success) return;
+
+      // 2. Silently delete companion backing records in database if applicable
+      if (stream.id && !stream.id.startsWith('preset_')) {
+        try {
+          if (broadcastEngine === 'sqlite_offline') {
+            // Clears in next state cycle due to memo
+          } else {
+            await deleteDoc(doc(db, 'youtube_broadcasts', stream.id));
+            console.log(`Silently deleted companion Firestore backing record for GitHub channel: ${stream.title}`);
+          }
+        } catch (e) {
+          console.error("Backing database silent deletion failed:", e);
+        }
+      }
+    } else {
+      // Stream is purely a custom Firestore stream (it has no equivalent in the GitHub repository)
+      await onDeleteBroadcast(stream.id, stream.creatorUid || '');
+    }
+  };
 
   // GitHub Live Ingress State Integration
   const [githubBroadcast, setGithubBroadcast] = useState<any>(null);
@@ -729,13 +941,55 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   }, []);
 
   const allBroadcasts = useMemo(() => {
-    // Merge preset ones with database ones, avoiding duplicates if any and filtering out legacy mock ones
+    // 1. Filter out legacy placeholders from custom feeds
     const customs = customBroadcasts
       .filter(b => b && b.id !== 'sqlite_bd_1' && b.id !== 'sqlite_bd_2' && b.id !== 'preset_lofi' && b.id !== 'preset_nasa' && !b.isPreset)
       .map(b => ({ ...b, isPreset: false }));
-    const list = [...gitHubChannels, ...customs];
 
-    // Add GitHub broadcast at index 0 if it is live
+    let list: YoutubeBroadcast[] = [];
+
+    if (gitHubChannels.length > 0) {
+      // 2. Merge gitHubChannels as source of truth and enrich metadata / metrics (such as likes and DB IDs) from companion database profiles
+      const enrichedGitHubChannels = gitHubChannels.map(gh => {
+        const ghUrl = (gh.streamUrl || '').toLowerCase().trim();
+        const ghVideoId = gh.videoId;
+        const ghChannelId = gh.channelId;
+        const ghTitle = (gh.title || '').toLowerCase().trim();
+
+        // Check if there is a match in customs (Firestore or SQLite)
+        const match = customs.find(cb => {
+          const cbUrl = (cb.streamUrl || '').toLowerCase().trim();
+          if (ghUrl && cbUrl && ghUrl === cbUrl) return true;
+          if (ghVideoId && cb.videoId && ghVideoId === cb.videoId) return true;
+          if (ghChannelId && cb.channelId && ghChannelId === cb.channelId) return true;
+          if (ghTitle && cb.title && ghTitle === (cb.title || '').toLowerCase().trim()) return true;
+          return false;
+        });
+
+        if (match) {
+          // Merge database state (likes list, persistent ID) to ensure interactions function natively
+          return {
+            ...gh,
+            id: match.id,
+            likes: match.likes || [],
+            isPreset: false, // Mark false to unlock liking and deletion capability
+            creatorUid: match.creatorUid,
+            creatorName: match.creatorName,
+            description: match.description || gh.description
+          };
+        }
+
+        return gh;
+      });
+
+      // Align completely with GitHub's channel registry list. Only channels approved on GitHub are preserved.
+      list = [...enrichedGitHubChannels];
+    } else {
+      // Fallback if gitHubChannels list is still empty / fetching
+      list = [...customs];
+    }
+
+    // Add GitHub live broadcast at index 0 if it is live
     if (githubBroadcast?.isLive) {
       const parsed = githubBroadcast.streamUrl ? parseYoutubeId(githubBroadcast.streamUrl) : null;
       const ghItem: YoutubeBroadcast = {
@@ -752,10 +1006,22 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         creatorName: 'GitHub Command Center',
         isPreset: false,
       };
-      list.unshift(ghItem);
+      if (!list.some(item => item.id === 'github_live_broadcast')) {
+        list.unshift(ghItem);
+      }
     }
+
     return list;
   }, [customBroadcasts, githubBroadcast, gitHubChannels]);
+
+  // Dynamic Categories Memo - Derived safely from processed allBroadcasts list
+  const CATEGORIES = useMemo(() => {
+    const uniqueCats = Array.from(new Set(allBroadcasts.map(c => c.category).filter(Boolean)));
+    if (uniqueCats.length === 0) {
+      return ["All", "General Live", "Space & Science"];
+    }
+    return ["All", ...uniqueCats];
+  }, [allBroadcasts]);
 
   const filteredBroadcasts = useMemo(() => {
     return allBroadcasts.filter(b => {
@@ -1186,34 +1452,39 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     setParsingError('');
 
     try {
-      if (streamFormType === 'vlc') {
-        await onAddBroadcast({
-          title: formTitle.trim(),
-          type: 'vlc',
-          streamType: 'vlc',
-          streamUrl: formUrl.trim(),
-          category: formCategory,
-          description: formDescription.trim(),
-          creatorUid: user?.uid,
-          creatorName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
-        });
-      } else {
-        const parsed = parseYoutubeId(formUrl);
+      const isVlc = streamFormType === 'vlc';
+      const parsed = isVlc ? null : parseYoutubeId(formUrl);
+      
+      const channelPayload: any = {
+        title: formTitle.trim(),
+        category: formCategory,
+        streamType: streamFormType,
+        type: isVlc ? 'vlc' : (parsed?.type || 'video'),
+        description: formDescription.trim(),
+        creatorName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
+        streamUrl: formUrl.trim(),
+      };
+
+      if (!isVlc) {
         if (!parsed) {
           setParsingError('⚠️ Could not extract YouTube ID. Check your link format.');
           setIsSubmitting(false);
           return;
         }
+        if (parsed.type === 'video') {
+          channelPayload.videoId = parsed.id;
+        } else {
+          channelPayload.channelId = parsed.id;
+        }
+      }
 
+      if (gitHubPat) {
+        await handleAddGitHubChannel(channelPayload);
+      } else {
+        // Fallback to local firestore/SQLite provider
         await onAddBroadcast({
-          title: formTitle.trim(),
-          type: parsed.type,
-          streamType: 'youtube',
-          category: formCategory,
-          description: formDescription.trim(),
-          ...(parsed.type === 'video' ? { videoId: parsed.id } : { channelId: parsed.id }),
+          ...channelPayload,
           creatorUid: user?.uid,
-          creatorName: userDoc?.displayName || user?.displayName || 'Exona Broadcaster',
         });
       }
 
@@ -1502,12 +1773,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     </button>
 
                     {/* Admin Trash / Delete */}
-                    {isCreatorOrAdmin && !stream.isPreset && (
+                    {isCreatorOrAdmin && (
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDeleteBroadcast(stream.id, stream.creatorUid || '');
+                          handleDeleteClick(stream);
                         }}
                         className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
                         title="Remove Station"
@@ -2289,11 +2560,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       </a>
 
                       {/* Admin Delete Trigger */}
-                      {isCreatorOrAdmin && !stream.isPreset && (
+                      {isCreatorOrAdmin && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDeleteBroadcast(stream.id, stream.creatorUid || '');
+                            handleDeleteClick(stream);
                           }}
                           className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse"
                           title="Remove Stream Channel"
@@ -2363,12 +2634,18 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     GITHUB DEPLOYMENT ENGINE
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                   </h3>
-                  <p className="text-[9px] text-slate-400 font-mono">CONNECTION_STATE: ACTIVE_SYNCHRONIZED</p>
+                  <p className="text-[9px] text-slate-400 font-mono">
+                    CONNECTION_STATE: {gitHubPat ? 'ACTIVE_SYNCHRONIZED' : 'OFFLINE_FALLBACK_MODE'}
+                  </p>
                 </div>
               </div>
 
-              <span className="text-[9.5px] font-mono bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/20 font-black tracking-wider shadow-sm select-none">
-                HEALTH: 100%
+              <span className={`text-[9.5px] font-mono px-2.5 py-1 rounded-full border font-black tracking-wider shadow-sm select-none ${
+                gitHubPat 
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                  : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
+              }`}>
+                {isSyncingGitHub ? 'SYNCING...' : gitHubPat ? 'HEALTH: 100%' : 'CONFIG PENDING'}
               </span>
             </div>
 
@@ -2378,7 +2655,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5">
                 <p className="text-slate-500 font-semibold text-[8px] uppercase tracking-wider">PLAYLIST SOURCE ENDPOINT</p>
                 <span className="text-white hover:text-emerald-400 font-bold transition-colors break-all mt-0.5 inline-block text-[9.5px]">
-                  https://raw.githubusercontent.com/intisanud-star...
+                  https://raw.githubusercontent.com/{gitHubOwner}/{gitHubRepo}/refs/heads/{gitHubBranch}/{gitHubPath}
                 </span>
               </div>
               <div className="p-3 bg-slate-900/60 rounded-xl border border-white/5">
@@ -2391,8 +2668,106 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               Our Ingestion synchronizer is fully listening to updates deployed from GitHub. The deployment is completed successfully! Since the top container utilizes VLC streaming protocols pointing to raw test channels, we have aggregated robust recovery fallbacks below.
             </p>
 
+            {/* Admin GitHub Configuration Controls */}
+            {userDoc?.role === 'admin' && (
+              <div className="mt-2 border-t border-slate-850/60 pt-4 text-left flex flex-col gap-3">
+                <div className="flex justify-start">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfigPanel(!showConfigPanel)}
+                    className="flex items-center gap-1.5 text-[9px] font-mono tracking-widest uppercase font-black text-emerald-400 hover:text-white transition-colors cursor-pointer bg-slate-900/80 px-3 py-2 rounded-xl border border-emerald-800"
+                  >
+                    <Settings size={10} className={isSyncingGitHub ? "animate-spin" : ""} />
+                    {showConfigPanel ? 'Close Synchronization Console' : 'Open GitHub Auth & Repo Control Centre'}
+                  </button>
+                </div>
+
+                {showConfigPanel && (
+                  <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 flex flex-col gap-3 font-mono text-[9px] text-left">
+                    <p className="text-slate-450 text-[8.5px] leading-relaxed uppercase mb-1 flex items-center gap-1.5 font-bold">
+                      <Lock size={11} className="text-emerald-500" />
+                      Configure Repository & Personal Access Token (PAT)
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500 font-bold uppercase text-[8px]">GITHUB OWNER / ORG:</span>
+                        <input
+                          type="text"
+                          value={gitHubOwner}
+                          onChange={(e) => setGitHubOwner(e.target.value)}
+                          placeholder="e.g. intisanud-star"
+                          className="px-2.5 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-slate-200 outline-none focus:border-emerald-500 font-semibold"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500 font-bold uppercase text-[8px]">REPOSITORY NAME:</span>
+                        <input
+                          type="text"
+                          value={gitHubRepo}
+                          onChange={(e) => setGitHubRepo(e.target.value)}
+                          placeholder="e.g. exon-broadcast-data"
+                          className="px-2.5 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-slate-200 outline-none focus:border-emerald-500 font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500 font-bold uppercase text-[8px]">CHANNELS DATA PATH:</span>
+                        <input
+                          type="text"
+                          value={gitHubPath}
+                          onChange={(e) => setGitHubPath(e.target.value)}
+                          placeholder="e.g. channels.json"
+                          className="px-2.5 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-slate-200 outline-none focus:border-emerald-500 font-semibold"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-slate-500 font-bold uppercase text-[8px]">TARGET BRANCH:</span>
+                        <input
+                          type="text"
+                          value={gitHubBranch}
+                          onChange={(e) => setGitHubBranch(e.target.value)}
+                          placeholder="e.g. main"
+                          className="px-2.5 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-slate-200 outline-none focus:border-emerald-500 font-semibold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-slate-500 font-bold uppercase text-[8px] flex items-center gap-1.5">
+                        GITHUB SECURE PERSONAL ACCESS TOKEN (PAT):
+                        {gitHubPat ? (
+                          <span className="text-emerald-400 font-bold uppercase text-[7px] bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">DEPOSITED</span>
+                        ) : (
+                          <span className="text-amber-500 font-bold uppercase text-[7px] bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">REQUIRED</span>
+                        )}
+                      </span>
+                      <div className="relative flex items-center">
+                        <input
+                          type="password"
+                          value={gitHubPat}
+                          onChange={(e) => savePat(e.target.value)}
+                          placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                          className="w-full pl-2.5 pr-8 py-1.5 bg-slate-950 border border-slate-850 rounded-lg text-slate-200 outline-none focus:border-emerald-500 text-xs font-semibold"
+                        />
+                        <div className="absolute right-2.5 pointer-events-none">
+                          {gitHubPat ? <Lock size={12} className="text-emerald-500" /> : <Unlock size={12} className="text-amber-500" />}
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-[7.5px] text-slate-500 leading-normal uppercase">
+                      ⚠️ Stored locally in your client device browser storage. Token requires 'repo' write permissions.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Collapsible raw content inspector */}
-            <div className="mt-1 flex justify-start">
+            <div className="mt-1 flex justify-start gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => setShowRawJsonInspect(!showRawJsonInspect)}
@@ -2961,12 +3336,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         </button>
 
                         {/* Admin Trash / Delete */}
-                        {isCreatorOrAdmin && !stream.isPreset && (
+                        {isCreatorOrAdmin && (
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onDeleteBroadcast(stream.id, stream.creatorUid || '');
+                              handleDeleteClick(stream);
                             }}
                             className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
                             title="Remove Station"
