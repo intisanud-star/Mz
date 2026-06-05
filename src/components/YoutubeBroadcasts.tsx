@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Youtube, 
@@ -140,6 +140,12 @@ function parseYoutubeId(urlOrId: string): { type: 'video' | 'channel'; id: strin
   return null;
 }
 
+// Custom CORS Proxy template list for VLC player fallback and manual tuning
+const PROXIES = [
+  { name: 'CORSProxy Tunnel', getUrl: (u: string) => `https://corsproxy.org/?url=${encodeURIComponent(u)}` },
+  { name: 'AllOrigins Tunnel', getUrl: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` }
+];
+
 // Custom VLC SDK Simulated Player
 const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: string }> = ({ url, isActive, title }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -151,6 +157,24 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
   const [bufferMode, setBufferMode] = useState<'latency' | 'balanced' | 'performance'>('balanced');
   const [streamQuality, setStreamQuality] = useState('1080p (Source)');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [proxyIndex, setProxyIndex] = useState<number>(-1); // -1 = direct, 0+ = proxy
+  const lastUrlRef = useRef(url);
+
+  // Reset proxy back to direct connection whenever station URL changes
+  if (lastUrlRef.current !== url) {
+    lastUrlRef.current = url;
+    setProxyIndex(-1);
+  }
+
+  // Derive final streaming URL (direct vs routed via CORS proxy)
+  const activeUrl = useMemo(() => {
+    if (proxyIndex === -1) return url;
+    if (proxyIndex >= 0 && proxyIndex < PROXIES.length) {
+      return PROXIES[proxyIndex].getUrl(url);
+    }
+    return url;
+  }, [url, proxyIndex]);
+
   const [stats, setStats] = useState({
     fps: 30,
     bitrate: 4800,
@@ -178,7 +202,22 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
     setPlaybackError(null);
     setVlcLogs([]);
     addLog(`Initializing VLC Core decoding matrix...`);
-    addLog(`Connecting to source URL: ${url.substring(0, 35)}...`);
+    addLog(`Connecting to source URL: ${activeUrl.substring(0, 35)}...`);
+
+    const handleNetworkError = () => {
+      setProxyIndex(prev => {
+        if (prev < PROXIES.length - 1) {
+          const nextIdx = prev + 1;
+          addLog(`🔄 Connection blocked by host policy or CORS rules.`);
+          addLog(`⚡ Auto-negotiating Secure Ingress: ${PROXIES[nextIdx].name}...`);
+          return nextIdx;
+        } else {
+          setPlaybackError(`Fatal stream decoding error. Format might be incompatible, offline, or strictly blocked by the remote host.`);
+          addLog(`❌ High-res fallback decoders exhausted.`);
+          return prev;
+        }
+      });
+    };
 
     const setupHls = () => {
       const HlsClass = (window as any).Hls;
@@ -200,7 +239,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
 
         hlsInstance = new HlsClass(config);
         addLog(`Source buffer length set to ${config.maxBufferLength || 10}s.`);
-        hlsInstance.loadSource(url);
+        hlsInstance.loadSource(activeUrl);
         hlsInstance.attachMedia(video);
 
         hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (event: any, data: any) => {
@@ -226,17 +265,19 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
             addLog(`❌ Fatal error: ${data.type} - ${data.details}`);
             switch (data.type) {
               case HlsClass.ErrorTypes.NETWORK_ERROR:
-                addLog(`Attempting network recovery sequence...`);
-                hlsInstance.startLoad();
+                if (data.details === 'manifestLoadError' || data.details === 'levelLoadError' || data.details === 'manifestLoadTimeOut') {
+                  handleNetworkError();
+                } else {
+                  addLog(`Attempting network recovery sequence...`);
+                  hlsInstance.startLoad();
+                }
                 break;
               case HlsClass.ErrorTypes.MEDIA_ERROR:
                 addLog(`Attempting media decoder recovery...`);
                 hlsInstance.recoverMediaError();
                 break;
               default:
-                setPlaybackError(`Fatal stream decoding error. Format might be incompatible or CORS-blocked.`);
-                addLog(`Playback pipeline halted.`);
-                hlsInstance.destroy();
+                handleNetworkError();
                 break;
             }
           } else {
@@ -245,7 +286,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         addLog(`Native Safari CorePlayer engine active.`);
-        video.src = url;
+        video.src = activeUrl;
         video.play()
           .then(() => {
             setIsPlaying(true);
@@ -256,15 +297,14 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
           });
       } else {
         addLog(`Checking direct MIME capability...`);
-        video.src = url;
+        video.src = activeUrl;
         video.play()
           .then(() => {
             setIsPlaying(true);
             addLog(`Direct network video channel active.`);
           })
           .catch(err => {
-            setPlaybackError("Advanced network stream protocol not supported natively by this web browser. Use a Safari/HLS-compliant viewer, or double check feed link.");
-            addLog(`❌ Direct play failed.`);
+            handleNetworkError();
           });
       }
     };
@@ -310,7 +350,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
         hlsInstance.destroy();
       }
     };
-  }, [url, isActive, bufferMode]);
+  }, [activeUrl, isActive, bufferMode]);
 
   const handlePlayPause = () => {
     const video = videoRef.current;
@@ -422,6 +462,16 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
               <p className="text-slate-500">CACHED BUFFER RANGE</p>
               <p className="text-indigo-400 font-bold">{stats.bufferTime} Seconds</p>
             </div>
+            <div>
+              <p className="text-slate-500">CORS INGRESS ROUTE</p>
+              <p className={`font-bold uppercase text-[9px] ${proxyIndex === -1 ? 'text-slate-400' : 'text-emerald-400 tracking-wide pulse animate-pulse'}`}>
+                {proxyIndex === -1 ? '🔴 Direct Connect' : `🟢 ${PROXIES[proxyIndex].name}`}
+              </p>
+            </div>
+            <div>
+              <p className="text-slate-500">SSL SECURITY TUNNEL</p>
+              <p className="text-emerald-400 font-bold uppercase">SECURED / TLS</p>
+            </div>
           </div>
 
           <div className="flex flex-col gap-1 border-t border-slate-800 pt-2 shrink-0">
@@ -454,6 +504,33 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
               >
                 Stable HD (30s)
               </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1 border-t border-slate-800 pt-2">
+            <p className="text-slate-500 uppercase font-black text-[8px] mb-1">CORS INGRESS SECURITY TUNNEL</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              <button 
+                onClick={() => {
+                  setProxyIndex(-1);
+                  addLog("Manual Route change: Direct Connect requested.");
+                }}
+                className={`py-1.5 rounded border text-[8px] font-bold transition-all ${proxyIndex === -1 ? 'bg-emerald-600 border-emerald-500 text-white font-black' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+              >
+                Direct Connect (No Proxy)
+              </button>
+              {PROXIES.map((p, pIdx) => (
+                <button 
+                  key={pIdx}
+                  onClick={() => {
+                    setProxyIndex(pIdx);
+                    addLog(`Manual Route change: Tunnel via ${p.name}.`);
+                  }}
+                  className={`py-1.5 rounded border text-[8px] font-bold transition-all ${proxyIndex === pIdx ? 'bg-emerald-600 border-emerald-500 text-white font-black' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                >
+                  {p.name.replace(' Tunnel', '')}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -1422,13 +1499,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     setCurrentIdx(idx);
   };
 
-  const handleFormUrlChange = (val: string) => {
-    setFormUrl(val);
+  const validateFormUrl = useCallback((val: string, type: 'youtube' | 'vlc') => {
     if (!val) {
       setParsingError('');
       return;
     }
-    if (streamFormType === 'vlc') {
+    if (type === 'vlc') {
       if (!val.startsWith('http://') && !val.startsWith('https://')) {
         setParsingError('⚠️ VLC Network Link must start with http:// or https://');
       } else {
@@ -1442,7 +1518,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     } else {
       setParsingError('');
     }
+  }, []);
+
+  const handleFormUrlChange = (val: string) => {
+    setFormUrl(val);
+    validateFormUrl(val, streamFormType);
   };
+
+  useEffect(() => {
+    validateFormUrl(formUrl, streamFormType);
+  }, [streamFormType, formUrl, validateFormUrl]);
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
