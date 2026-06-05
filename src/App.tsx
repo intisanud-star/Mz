@@ -23324,34 +23324,69 @@ function ExonaApp() {
             {/* Glowing background halo */}
             <div className="absolute -inset-6 bg-[#2563eb]/10 dark:bg-sky-500/10 rounded-full blur-2xl animate-pulse"></div>
             
-            {/* Crisp vector logo element */}
+            {/* Crisp vector logo element matching user's exact design */}
             <svg 
-              className="w-24 h-24 sm:w-28 sm:h-28 drop-shadow-[0_10px_25px_rgba(99,102,241,0.25)]" 
-              viewBox="0 0 120 120" 
+              className="w-48 h-36 sm:w-56 sm:h-42 drop-shadow-[0_12px_30px_rgba(59,130,246,0.3)]" 
+              viewBox="0 0 240 180" 
               fill="none" 
               xmlns="http://www.w3.org/2000/svg"
             >
               <defs>
-                <linearGradient id="exonaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="50%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#06b6d4" />
-                </linearGradient>
-                <linearGradient id="exonaInnerGrad" x1="100%" y1="100%" x2="0%" y2="0%">
-                  <stop offset="0%" stopColor="#ffffff" />
-                  <stop offset="100%" stopColor="#e2e8f0" />
+                <linearGradient id="exonaBlueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#2cb1ff" />
+                  <stop offset="100%" stopColor="#005bf3" />
                 </linearGradient>
               </defs>
-              {/* Main Outer Shield with perfect premium rounded squircles */}
-              <rect x="10" y="10" width="100" height="100" rx="28" fill="url(#exonaGrad)" />
+
+              {/* Left Main Blue Circle */}
+              <circle cx="64" cy="90" r="48" fill="url(#exonaBlueGrad)" />
               
-              {/* Inner glowing core shape resembling a digital infinity network or modular 'E' */}
-              <path 
-                d="M40 38C40 36.8954 40.8954 36 42 36H78C79.1046 36 80 36.8954 80 38V42C80 43.1046 79.1046 44 78 44H54V50H72C73.1046 50 74 50.8954 74 52V56C74 57.1046 73.1046 58 72 58H54V64H78C79.1046 64 80 64.8954 80 66V70C80 71.1046 79.1046 72 78 72H42C40.8954 72 40 71.1046 40 70V38Z" 
-                fill="url(#exonaInnerGrad)" 
+              {/* Inner Circle cutout - responsive background color */}
+              <circle 
+                cx="46" 
+                cy="90" 
+                r="14" 
+                className="fill-white dark:fill-[#0b141a] transition-colors duration-300" 
               />
-              {/* A smart digital node anchor in the emblem */}
-              <circle cx="68" cy="54" r="5" fill="#22c55e" />
+
+              {/* Center overlapping Keyhole Circle with responsive cut/separation stroke */}
+              <circle 
+                cx="118" 
+                cy="90" 
+                r="40" 
+                fill="url(#exonaBlueGrad)" 
+                strokeWidth="6"
+                className="stroke-white dark:stroke-[#0b141a] transition-colors duration-300"
+              />
+
+              {/* Pristine high-fidelity responsive keyhole shape within middle blue circle */}
+              <path 
+                d="M 118 70 A 12 12 0 0 1 127 88 C 125 94 133 110 135 114 A 2 2 0 0 1 133 117 L 103 117 A 2 2 0 0 1 101 114 C 103 110 111 94 109 88 A 12 12 0 0 1 118 70 Z" 
+                className="fill-white dark:fill-[#0b141a] transition-colors duration-300"
+              />
+
+              {/* Dynamic Radiating Communication Waves */}
+              <path 
+                d="M 152.7 48.6 A 54 54 0 0 1 152.7 131.4" 
+                stroke="url(#exonaBlueGrad)" 
+                strokeWidth="9" 
+                strokeLinecap="round" 
+                fill="none"
+              />
+              <path 
+                d="M 165.6 33.3 A 74 74 0 0 1 165.6 146.7" 
+                stroke="url(#exonaBlueGrad)" 
+                strokeWidth="9" 
+                strokeLinecap="round" 
+                fill="none"
+              />
+              <path 
+                d="M 178.4 18.0 A 94 94 0 0 1 178.4 162.0" 
+                stroke="url(#exonaBlueGrad)" 
+                strokeWidth="9" 
+                strokeLinecap="round" 
+                fill="none"
+              />
             </svg>
           </motion.div>
         </div>
