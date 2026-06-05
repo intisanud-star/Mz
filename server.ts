@@ -18,6 +18,19 @@ try {
   console.error('Failed to create uploads directory:', err);
 }
 
+// Copy assets/splash.png to public/splash.png for static client serving
+try {
+  if (fs.existsSync('assets/splash.png')) {
+    if (!fs.existsSync('public')) {
+      fs.mkdirSync('public', { recursive: true });
+    }
+    fs.copyFileSync('assets/splash.png', 'public/splash.png');
+    console.log('Successfully copied assets/splash.png to public/splash.png');
+  }
+} catch (err) {
+  console.error('Failed to copy splash.png to public:', err);
+}
+
 let firebaseConfig = {};
 try {
   const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -463,6 +476,18 @@ async function startServer() {
 
   app.use(cors());
   app.use(express.json());
+
+  // Direct high-performance handler for splash logo
+  app.get('/splash.png', (req, res) => {
+    const splashPath = path.join(process.cwd(), 'assets', 'splash.png');
+    if (fs.existsSync(splashPath)) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.contentType('image/png');
+      res.sendFile(splashPath);
+    } else {
+      res.status(404).send('Not Found');
+    }
+  });
 
   // Basic root health check
   app.get('/ping', (req, res) => res.send('pong'));

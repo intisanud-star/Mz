@@ -10174,6 +10174,16 @@ function ExonaApp() {
     document.documentElement.setAttribute('data-theme', currentTheme);
   }, [currentTheme]);
 
+  // WhatsApp-style automatic splash dismiss timer
+  useEffect(() => {
+    if (view === 'splash' && !splashDone) {
+      const timer = setTimeout(() => {
+        setSplashDone(true);
+      }, 2000); // 2 seconds auto-transition
+      return () => clearTimeout(timer);
+    }
+  }, [view, splashDone]);
+
   useEffect(() => {
     if (splashDone && !loading && view === 'splash') {
       if (userDoc?.role === 'admin') {
@@ -10441,8 +10451,6 @@ function ExonaApp() {
     if (!user) return;
     const canDelete = user.uid === creatorUid || userDoc?.role === 'admin' || creatorUid === 'sys';
     if (!canDelete) return;
-
-    if (!window.confirm('Are you sure you want to remove this YouTube Broadcast Channel?')) return;
 
     if (broadcastEngine === 'sqlite_offline') {
       try {
@@ -23304,56 +23312,59 @@ function ExonaApp() {
 
   if (view === 'splash') {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-paper text-ink overflow-hidden relative">
-        {/* Immersive background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-gray-100 blur-[120px] rounded-full animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-gray-50 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
-        </div>
-        
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          transition={{ duration: 1.5 }}
-          className="relative z-10 flex flex-col items-center px-6 text-center select-none"
-        >
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-white dark:bg-[#0b141a] overflow-hidden relative select-none">
+        {/* Centered High-Fidelity Brand Logo exactly like WhatsApp */}
+        <div className="flex flex-col items-center justify-center flex-1">
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
+            initial={{ scale: 0.85, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col items-center"
+            transition={{ duration: 1.0, ease: [0.16, 1, 0.3, 1] }}
+            className="relative flex items-center justify-center pointer-events-none"
           >
-            <h1 className="text-7xl sm:text-8xl font-bold tracking-tight text-ink mb-1 font-display">Exona</h1>
-            <div className="h-px w-32 bg-gradient-to-r from-transparent via-ink/10 to-transparent mb-6"></div>
-          </motion.div>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 1 }}
-            className="flex flex-col items-center"
-          >
-            <p className="text-[10px] font-black uppercase tracking-[0.6em] text-muted mb-4">Mastering AI & Spatial Media</p>
+            {/* Glowing background halo */}
+            <div className="absolute -inset-6 bg-[#2563eb]/10 dark:bg-sky-500/10 rounded-full blur-2xl animate-pulse"></div>
             
-            <div className="flex items-center gap-2 mb-10">
-              <div className="h-1.5 w-1.5 bg-[#4285F4] rounded-full animate-bounce"></div>
-              <div className="h-1.5 w-1.5 bg-[#EA4335] rounded-full animate-bounce [animation-delay:0.15s]"></div>
-              <div className="h-1.5 w-1.5 bg-[#FBBC05] rounded-full animate-bounce [animation-delay:0.3s]"></div>
-              <div className="h-1.5 w-1.5 bg-[#34A853] rounded-full animate-bounce [animation-delay:0.45s]"></div>
-            </div>
-
-            {/* Last interactive button styled in Google Colors */}
-            <button 
-              onClick={() => setSplashDone(true)}
-              className="px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl hover:shadow-[#4285F4]/20 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 bg-gradient-to-r from-[#4285F4] via-[#EA4335] via-[#FBBC05] to-[#34A853] border-0 outline-0 select-none cursor-pointer"
+            {/* Crisp vector logo element */}
+            <svg 
+              className="w-24 h-24 sm:w-28 sm:h-28 drop-shadow-[0_10px_25px_rgba(99,102,241,0.25)]" 
+              viewBox="0 0 120 120" 
+              fill="none" 
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <Rocket size={14} className="animate-pulse" /> Launch Premium Workspace
-            </button>
-            
-            <p className="text-[9px] font-black tracking-widest mt-4 uppercase text-[#4285F4]/90 animate-pulse bg-neutral-100/30 px-3 py-1 rounded-full">
-              System Ready • Click Launch to Establish Connection
-            </p>
+              <defs>
+                <linearGradient id="exonaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="50%" stopColor="#6366f1" />
+                  <stop offset="100%" stopColor="#06b6d4" />
+                </linearGradient>
+                <linearGradient id="exonaInnerGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="100%" stopColor="#e2e8f0" />
+                </linearGradient>
+              </defs>
+              {/* Main Outer Shield with perfect premium rounded squircles */}
+              <rect x="10" y="10" width="100" height="100" rx="28" fill="url(#exonaGrad)" />
+              
+              {/* Inner glowing core shape resembling a digital infinity network or modular 'E' */}
+              <path 
+                d="M40 38C40 36.8954 40.8954 36 42 36H78C79.1046 36 80 36.8954 80 38V42C80 43.1046 79.1046 44 78 44H54V50H72C73.1046 50 74 50.8954 74 52V56C74 57.1046 73.1046 58 72 58H54V64H78C79.1046 64 80 64.8954 80 66V70C80 71.1046 79.1046 72 78 72H42C40.8954 72 40 71.1046 40 70V38Z" 
+                fill="url(#exonaInnerGrad)" 
+              />
+              {/* A smart digital node anchor in the emblem */}
+              <circle cx="68" cy="54" r="5" fill="#22c55e" />
+            </svg>
           </motion.div>
+        </div>
+
+        {/* Bottom Minimal Signature */}
+        <motion.div 
+          initial={{ opacity: 0, y: 5 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
+          className="absolute bottom-12 flex flex-col items-center pointer-events-none"
+        >
+          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.3em] font-semibold mb-1">from</p>
+          <p className="text-xs font-black tracking-[0.25em] text-zinc-800 dark:text-zinc-200 uppercase font-display">EXONA</p>
         </motion.div>
       </div>
     );
