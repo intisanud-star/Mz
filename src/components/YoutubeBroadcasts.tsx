@@ -147,12 +147,14 @@ export function isHlsStream(stream?: YoutubeBroadcast | null): boolean {
 
 // Custom CORS Proxy template list for native stream routing and connection resilience
 const PROXIES = [
+  { name: 'Global Secure Ingress Proxy', getUrl: (u: string) => `/api/live-proxy?url=${encodeURIComponent(u)}` },
+  { name: 'Direct Link (No Proxy)', getUrl: (u: string) => u },
   { name: 'CORSProxy Tunnel', getUrl: (u: string) => `https://corsproxy.org/?url=${encodeURIComponent(u)}` },
   { name: 'AllOrigins Tunnel', getUrl: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` }
 ];
 
 // Custom Native HLS / MP4 Media Player (AVO TV Method)
-const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: string }> = ({ url, isActive, title }) => {
+const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: string; onSkip?: () => void; isAdmin?: boolean }> = ({ url, isActive, title, onSkip, isAdmin = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
@@ -162,16 +164,15 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
   const [bufferMode, setBufferMode] = useState<'latency' | 'balanced' | 'performance'>('balanced');
   const [streamQuality, setStreamQuality] = useState('1080p (Source)');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
-  const [proxyIndex, setProxyIndex ] = useState<number>(-1); // -1 = direct, 0+ = proxy
+  const [proxyIndex, setProxyIndex ] = useState<number>(0); // 0 = Global Secure Ingress Proxy (Default)
 
-  // Reset proxy back to direct connection whenever station URL changes
+  // Reset proxy back to Global Secure Ingress Proxy whenever station URL changes
   useEffect(() => {
-    setProxyIndex(-1);
+    setProxyIndex(0);
   }, [url]);
 
-  // Derive final streaming URL (direct vs routed via CORS proxy)
+  // Derive final streaming URL (routed via CORS proxy)
   const activeUrl = useMemo(() => {
-    if (proxyIndex === -1) return url;
     if (proxyIndex >= 0 && proxyIndex < PROXIES.length) {
       return PROXIES[proxyIndex].getUrl(url);
     }
@@ -431,7 +432,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
         </div>
       )}
 
-      {showConsoleStats && (
+      {showConsoleStats && isAdmin && (
         <div className="absolute inset-x-3 top-16 bottom-20 bg-slate-950/90 backdrop-blur-md rounded-2xl border border-slate-800 p-4 z-10 flex flex-col gap-3 font-mono text-[9px] text-slate-300 pointer-events-auto select-text overflow-y-auto">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-white">
             <span className="flex items-center gap-1.5 font-bold"><Activity size={10} className="text-emerald-500" /> NATIVE FEED DIAGNOSTICS</span>
@@ -569,18 +570,20 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
             </div>
 
             <div className="flex items-center gap-2.5">
-              <button 
-                onClick={() => setShowConsoleStats(!showConsoleStats)}
-                className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
-                  showConsoleStats 
-                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 hover:bg-emerald-600/35' 
-                    : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-                }`}
-                title="View Signal Diagnostics"
-              >
-                <Settings size={9} />
-                CONSOLESTATS
-              </button>
+              {isAdmin && (
+                <button 
+                  onClick={() => setShowConsoleStats(!showConsoleStats)}
+                  className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
+                    showConsoleStats 
+                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 hover:bg-emerald-600/35' 
+                      : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                  }`}
+                  title="View Signal Diagnostics"
+                >
+                  <Settings size={9} />
+                  CONSOLESTATS
+                </button>
+              )}
 
               <button onClick={forceReinit} className="hover:text-white transition-colors p-1" title="Reset/Re-ingest Live Feed">
                 <RotateCw size={12} />
@@ -753,6 +756,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   // GitHub REST API Integration & Secure Config State
   const [gitHubPat, setGitHubPat] = useState(() => localStorage.getItem('exon_github_pat') || '');
+  const isAdmin = useMemo(() => {
+    return user?.email === 'musstaphamusa@gmail.com' || !!gitHubPat;
+  }, [user?.email, gitHubPat]);
   const [gitHubOwner, setGitHubOwner] = useState(() => localStorage.getItem('exon_github_owner') || 'intisanud-star');
   const [gitHubRepo, setGitHubRepo] = useState(() => localStorage.getItem('exon_github_repo') || 'exon-broadcast-data');
   const [gitHubPath, setGitHubPath] = useState(() => localStorage.getItem('exon_github_path') || 'channels.json');
@@ -1489,7 +1495,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       setParsingError('');
       return;
     }
-    if (type === 'vlc') {
+    const isVlcUrl = val.toLowerCase().includes('.m3u8') || val.toLowerCase().includes('/live/') || val.toLowerCase().includes('/stream/') || val.toLowerCase().includes('iptv') || val.toLowerCase().includes('mkv') || val.toLowerCase().includes('mp4');
+    if (type === 'vlc' || isVlcUrl) {
       if (!val.startsWith('http://') && !val.startsWith('https://')) {
         setParsingError('⚠️ VLC Network Link must start with http:// or https://');
       } else {
@@ -1499,7 +1506,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     }
     const parsed = parseYoutubeId(val);
     if (!parsed) {
-      setParsingError('⚠️ Links must be valid YouTube video watch URLs, Channel links, or ID strings.');
+      const isPotentiallyValid = val.includes('@') || val.includes('/c/') || val.includes('/user/') || val.startsWith('UC') || val.length > 15;
+      if (isPotentiallyValid) {
+        setParsingError('');
+      } else {
+        setParsingError('⚠️ Links must be valid YouTube video watch URLs, Channel links, or ID strings.');
+      }
     } else {
       setParsingError('');
     }
@@ -1507,7 +1519,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   const handleFormUrlChange = (val: string) => {
     setFormUrl(val);
-    validateFormUrl(val, streamFormType);
+    const isVlcUrl = val.toLowerCase().includes('.m3u8') || val.toLowerCase().includes('/live/') || val.toLowerCase().includes('/stream/') || val.toLowerCase().includes('iptv') || val.toLowerCase().includes('mkv') || val.toLowerCase().includes('mp4');
+    if (isVlcUrl && streamFormType !== 'vlc') {
+      setStreamFormType('vlc');
+    }
+    validateFormUrl(val, isVlcUrl ? 'vlc' : streamFormType);
   };
 
   useEffect(() => {
@@ -1522,8 +1538,28 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     setParsingError('');
 
     try {
-      const isVlc = streamFormType === 'vlc';
-      const parsed = isVlc ? null : parseYoutubeId(formUrl);
+      const isVlc = streamFormType === 'vlc' || formUrl.toLowerCase().includes('.m3u8') || formUrl.toLowerCase().includes('/live/') || formUrl.toLowerCase().includes('/stream/') || formUrl.toLowerCase().includes('iptv') || formUrl.toLowerCase().includes('mkv') || formUrl.toLowerCase().includes('mp4');
+      let parsed = isVlc ? null : parseYoutubeId(formUrl);
+
+      if (!isVlc && !parsed) {
+        setParsingError('Resolving channel/video link secure protocols...');
+        try {
+          const res = await fetch('/api/youtube/resolve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: formUrl }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.id) {
+              parsed = { type: data.type, id: data.id };
+              setParsingError('');
+            }
+          }
+        } catch (err) {
+          console.error('Failed to resolve URL on backend:', err);
+        }
+      }
       
       const channelPayload: any = {
         title: formTitle.trim(),
@@ -1537,7 +1573,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
       if (!isVlc) {
         if (!parsed) {
-          setParsingError('⚠️ Could not extract YouTube ID. Check your link format.');
+          setParsingError('⚠️ Could not resolve YouTube ID. Please ensure this is a valid public channel, playlist, or video.');
           setIsSubmitting(false);
           return;
         }
@@ -1591,7 +1627,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         {/* Top Glass Header Bar Overlay */}
         <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
           {/* Add Broadcast Stream Button */}
-          {userDoc?.role === 'admin' ? (
+          {isAdmin ? (
             <button
               type="button"
               onClick={() => setIsImmersiveAddFormOpen(true)}
@@ -1697,7 +1733,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 ? (stream.likesCount || 0)
                 : userLikes.length;
 
-              const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
+              const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || isAdmin);
               const isFollowed = followedCreators.includes(stream.creatorUid || stream.creatorName || '');
 
               return (
@@ -1713,6 +1749,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           url={stream.streamUrl || ''} 
                           isActive={isActive} 
                           title={stream.title} 
+                          isAdmin={isAdmin}
                           onSkip={() => {
                             const nextIdx = (idx + 1) % filteredBroadcasts.length;
                             scrollImmersiveToIdx(nextIdx);
@@ -1906,7 +1943,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
             <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
           </button>
-          {userDoc?.role === 'admin' ? (
+          {isAdmin ? (
             <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
               <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
             </button>
@@ -2037,7 +2074,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
         {/* SLIDE-IN REELS REGISTER STREAM FORM PREVIEW OVERLAY (FOR ADMINS) */}
         <AnimatePresence>
-          {isImmersiveAddFormOpen && userDoc?.role === 'admin' && (
+          {isImmersiveAddFormOpen && isAdmin && (
             <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9995] flex items-center justify-center p-4">
               <motion.div
                 initial={{ scale: 0.95, opacity: 0 }}
@@ -2178,7 +2215,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             </p>
           </div>
           
-          {userDoc?.role === 'admin' && (
+          {isAdmin && (
             <button
               onClick={() => setIsAddFormOpen(!isAddFormOpen)}
               className="px-5 py-3 bg-accent text-white rounded-2xl flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wider hover:scale-105 active:scale-95 transition-all self-start sm:self-center shrink-0 shadow-sm"
@@ -2234,7 +2271,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
         {/* Collapsible Form */}
         <AnimatePresence>
-          {isAddFormOpen && userDoc?.role === 'admin' && (
+          {isAddFormOpen && isAdmin && (
             <motion.form
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
@@ -2456,7 +2493,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   ? (stream.likesCount || 0) 
                   : userLikes.length;
 
-                const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
+                const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || isAdmin);
 
                 return (
                   <div 
@@ -2483,6 +2520,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             url={stream.streamUrl || ''} 
                             isActive={isActive} 
                             title={stream.title} 
+                            isAdmin={isAdmin}
                             onSkip={() => {
                               const nextIdx = (idx + 1) % filteredBroadcasts.length;
                               scrollToIdx(nextIdx);
@@ -2685,7 +2723,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       <div className="lg:col-span-7 flex flex-col gap-6 w-full animate-fade-in">
         
         {/* GitHub Live Integration Deployment Health & Sync Panel */}
-        {userDoc?.role === 'admin' && (
+        {isAdmin && (
           <div className="bg-slate-950 text-slate-100 rounded-[2rem] border border-slate-800 p-6 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
             <div className="flex flex-col gap-4">
@@ -3109,7 +3147,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             {/* Top Glass Header Bar Overlay */}
             <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
               {/* Add Broadcast Stream Button */}
-              {userDoc?.role === 'admin' ? (
+              {isAdmin ? (
                 <button
                   type="button"
                   onClick={() => setIsImmersiveAddFormOpen(true)}
@@ -3212,7 +3250,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     ? (stream.likesCount || 0)
                     : userLikes.length;
 
-                  const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || userDoc?.role === 'admin');
+                  const isCreatorOrAdmin = user && (stream.creatorUid === user.uid || isAdmin);
                   const isFollowed = followedCreators.includes(stream.creatorUid || stream.creatorName || '');
 
                   return (
@@ -3228,6 +3266,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               url={stream.streamUrl || ''} 
                               isActive={isActive} 
                               title={stream.title} 
+                              isAdmin={isAdmin}
                               onSkip={() => {
                                 const nextIdx = (idx + 1) % filteredBroadcasts.length;
                                 scrollImmersiveToIdx(nextIdx);
@@ -3448,7 +3487,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
                 <svg className="h-5.5 w-5.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
               </button>
-              {userDoc?.role === 'admin' ? (
+              {isAdmin ? (
                 <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
                   <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
                 </button>
@@ -3579,7 +3618,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
             {/* SLIDE-IN REELS REGISTER STREAM FORM PREVIEW OVERLAY (FOR ADMINS) */}
             <AnimatePresence>
-              {isImmersiveAddFormOpen && userDoc?.role === 'admin' && (
+              {isImmersiveAddFormOpen && isAdmin && (
                 <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-md z-[9995] flex items-center justify-center p-4">
                   <motion.div
                     initial={{ scale: 0.95, opacity: 0 }}

@@ -522,6 +522,207 @@ async function startServer() {
     });
   });
 
+  // Resilient High-Performance Live HLS/M3U8 Stream Proxy
+  app.get('/api/live-proxy', async (req, res) => {
+    const streamUrl = req.query.url;
+    if (!streamUrl || typeof streamUrl !== 'string') {
+      return res.status(400).send('URL is required');
+    }
+
+    try {
+      const decodedUrl = decodeURIComponent(streamUrl.trim());
+      
+      // Determine if accessing a binary video slice (.ts chunk) or media segment
+      const isSegment = /\.(ts|mp4|aac|mp3|m4s|ts\?|mp4\?)/i.test(decodedUrl);
+      
+      if (isSegment) {
+        const streamResponse = await axios({
+          method: 'get',
+          url: decodedUrl,
+          responseType: 'stream',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+          },
+          timeout: 20000
+        });
+        
+        if (streamResponse.headers['content-type']) {
+          res.setHeader('Content-Type', String(streamResponse.headers['content-type']));
+        } else {
+          res.setHeader('Content-Type', 'video/mp2t');
+        }
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        streamResponse.data.pipe(res);
+        return;
+      }
+      
+      // Otherwise, load, parse, and absolute-path modify .m3u8 manifest playlists
+      const playlistResponse = await axios.get(decodedUrl, {
+        responseType: 'text',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        },
+        timeout: 10000
+      });
+      
+      const m3u8Content = playlistResponse.data;
+      if (typeof m3u8Content !== 'string') {
+        return res.status(500).send('Invalid manifest returned');
+      }
+      
+      const parsedUrl = new URL(decodedUrl);
+      const baseUrl = decodedUrl.substring(0, decodedUrl.lastIndexOf('/') + 1);
+      const origin = parsedUrl.origin;
+      
+      const lines = m3u8Content.split('\n');
+      const processedLines = lines.map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return line;
+        
+        // Pre-resolve URLs in tag attributes (such as encryption keys or subtitles paths)
+        if (trimmed.startsWith('#')) {
+          return line.replace(/URI="([^"]+)"/g, (match, path) => {
+            if (path.startsWith('http://') || path.startsWith('https://')) {
+              return `URI="/api/live-proxy?url=${encodeURIComponent(path)}"`;
+            }
+            let resolved = '';
+            if (path.startsWith('/')) {
+              resolved = origin + path;
+            } else {
+              resolved = baseUrl + path;
+            }
+            return `URI="/api/live-proxy?url=${encodeURIComponent(resolved)}"`;
+          });
+        }
+        
+        // Resolve raw sequence stream lines
+        let resolvedUrl = '';
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+          resolvedUrl = trimmed;
+        } else if (trimmed.startsWith('/')) {
+          resolvedUrl = origin + trimmed;
+        } else {
+          resolvedUrl = baseUrl + trimmed;
+        }
+        
+        return `/api/live-proxy?url=${encodeURIComponent(resolvedUrl)}`;
+      });
+      
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.send(processedLines.join('\n'));
+      
+    } catch (err: any) {
+      console.error(`Live stream proxy error for ${streamUrl}:`, err.message);
+      res.status(500).send(`Stream fetch failed: ${err.message}`);
+    }
+  });
+
+  // YouTube Channel/Video URL Resolver Endpoint
+  app.post('/api/youtube/resolve', async (req, res) => {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
+    }
+
+    try {
+      const trimmed = url.trim();
+      
+      // 1. Direct regex checks for video ID or channel ID
+      if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+        return res.json({ type: 'video', id: trimmed });
+      }
+      if (/^UC[a-zA-Z0-9_-]{22}$/.test(trimmed)) {
+        return res.json({ type: 'channel', id: trimmed });
+      }
+
+      // 2. Direct watch or channel matching if straightforward
+      if (trimmed.includes('youtube.com/watch?v=')) {
+        const urlParams = new URL(trimmed);
+        const v = urlParams.searchParams.get('v');
+        if (v) return res.json({ type: 'video', id: v });
+      } else if (trimmed.includes('youtu.be/')) {
+        const parts = trimmed.split('youtu.be/');
+        if (parts[1]) {
+          const id = parts[1].split(/[/?#]/)[0];
+          return res.json({ type: 'video', id });
+        }
+      } else if (trimmed.includes('youtube.com/live/')) {
+        const parts = trimmed.split('youtube.com/live/');
+        if (parts[1]) {
+          const id = parts[1].split(/[/?#]/)[0];
+          return res.json({ type: 'video', id });
+        }
+      } else if (trimmed.includes('youtube.com/embed/')) {
+        const parts = trimmed.split('youtube.com/embed/');
+        if (parts[1]) {
+          const id = parts[1].split(/[/?#]/)[0];
+          return res.json({ type: 'video', id });
+        }
+      } else if (trimmed.includes('youtube.com/channel/')) {
+        const parts = trimmed.split('youtube.com/channel/');
+        if (parts[1]) {
+          const id = parts[1].split(/[/?#]/)[0];
+          if (id.startsWith('UC')) return res.json({ type: 'channel', id });
+        }
+      }
+
+      // 3. Resolve using HTTP Scraping for handles and nicknames
+      console.log(`Resolving YouTube URL via scraper / fetch: ${trimmed}`);
+      const cleanUrl = trimmed.startsWith('http') ? trimmed : `https://www.youtube.com/${trimmed.startsWith('@') ? '' : '@'}${trimmed}`;
+      
+      const response = await axios.get(cleanUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        timeout: 10000,
+      });
+
+      const html = response.data;
+      if (typeof html === 'string') {
+        const match1 = html.match(/"channelId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/);
+        if (match1) return res.json({ type: 'channel', id: match1[1] });
+
+        const match2 = html.match(/channel\/has_content\/owner\?owner_id=(UC[a-zA-Z0-9_-]{22})/);
+        if (match2) return res.json({ type: 'channel', id: match2[1] });
+
+        const match3 = html.match(/href="https:\/\/www\.youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/);
+        if (match3) return res.json({ type: 'channel', id: match3[1] });
+
+        const match4 = html.match(/"browseId"\s*:\s*"(UC[a-zA-Z0-9_-]{22})"/);
+        if (match4) return res.json({ type: 'channel', id: match4[1] });
+
+        const match5 = html.match(/meta itemProp="channelId" content="(UC[a-zA-Z0-9_-]{22})"/);
+        if (match5) return res.json({ type: 'channel', id: match5[1] });
+      }
+
+      // 4. Try Gemini AI as direct backup if scraper didn't extract it
+      try {
+        console.log(`Scraper didn't find channel ID. Trying Gemini to resolve handle for: ${cleanUrl}`);
+        const prompt = `Identify the YouTube channel ID (which starts with 'UC' and is 24 characters long) or YouTube Video ID (which is 11 characters long) for: "${cleanUrl}". If you are sure of the channel ID or Video ID, return it. Respond ONLY with a valid JSON block of schema: {"type": "channel" | "video", "id": "the_id"}`;
+        const aiResponse = await getAi().models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json" }
+        });
+        const parsed = JSON.parse(aiResponse.text || '{}');
+        if (parsed.type && parsed.id) {
+          return res.json(parsed);
+        }
+      } catch (aiErr) {
+        console.error("Gemini backup resolution error:", aiErr);
+      }
+
+      return res.status(404).json({ error: 'Could not resolve channel ID from YouTube URL' });
+    } catch (err: any) {
+      console.error('YouTube resolution error:', err);
+      return res.status(500).json({ error: `Failed to resolve YouTube URL: ${err.message}` });
+    }
+  });
+
   // AI List Scanning Endpoint
   app.post('/api/ai/scan-list', upload.single('image'), async (req: any, res) => {
     const file = req.file;
