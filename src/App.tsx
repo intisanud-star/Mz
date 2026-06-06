@@ -4157,8 +4157,6 @@ function ExonaApp() {
         window.Telegram.WebApp.setHeaderColor(initialColor);
         window.Telegram.WebApp.setBackgroundColor(initialColor);
       }
-      // Enable vertical swipe down to close if desired, otherwise standard is fine
-      // window.Telegram.WebApp.isVerticalSwipesEnabled = false; 
     }
 
     // Register Service Worker for true background/lock-screen notifications
@@ -4166,7 +4164,6 @@ function ExonaApp() {
       navigator.serviceWorker.register('/sw.js')
         .then(reg => {
           console.log('Communication Core Synced (SW):', reg.scope);
-          // Request notification permission if not already granted
           if (Notification.permission === 'default') {
             Notification.requestPermission().then(permission => {
               if (permission === 'granted') {
@@ -26101,7 +26098,7 @@ function ExonaApp() {
 
               </div>
 
-              <div className="p-4 border-t border-gray-100">
+              <div className="p-4 border-t border-gray-100 flex flex-col gap-1">
                 <button 
                   onClick={() => signOut(auth)}
                   className="w-full flex items-center gap-4 px-6 py-4 text-red-600 hover:bg-red-50 rounded-xl transition-all font-bold text-[11px] uppercase tracking-widest"

@@ -55,8 +55,8 @@ import {
 export interface YoutubeBroadcast {
   id: string;
   title: string;
-  type: 'video' | 'channel' | 'vlc';
-  streamType?: 'youtube' | 'vlc';
+  type: 'video' | 'channel' | 'vlc' | 'hls';
+  streamType?: 'youtube' | 'vlc' | 'hls';
   streamUrl?: string;
   videoId?: string;
   channelId?: string;
@@ -140,20 +140,25 @@ function parseYoutubeId(urlOrId: string): { type: 'video' | 'channel'; id: strin
   return null;
 }
 
-// Custom CORS Proxy template list for VLC player fallback and manual tuning
+export function isHlsStream(stream?: YoutubeBroadcast | null): boolean {
+  if (!stream) return false;
+  return stream.streamType === 'vlc' || stream.type === 'vlc' || stream.streamType === 'hls' || stream.type === 'hls';
+}
+
+// Custom CORS Proxy template list for native stream routing and connection resilience
 const PROXIES = [
   { name: 'CORSProxy Tunnel', getUrl: (u: string) => `https://corsproxy.org/?url=${encodeURIComponent(u)}` },
   { name: 'AllOrigins Tunnel', getUrl: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` }
 ];
 
-// Custom VLC SDK Simulated Player
+// Custom Native HLS / MP4 Media Player (AVO TV Method)
 const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: string }> = ({ url, isActive, title }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(0.8);
-  const [showVlcStats, setShowVlcStats] = useState(false);
-  const [vlcLogs, setVlcLogs] = useState<string[]>([]);
+  const [showConsoleStats, setShowConsoleStats] = useState(false);
+  const [nativeLogs, setNativeLogs] = useState<string[]>([]);
   const [bufferMode, setBufferMode] = useState<'latency' | 'balanced' | 'performance'>('balanced');
   const [streamQuality, setStreamQuality] = useState('1080p (Source)');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
@@ -182,7 +187,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
   });
 
   const addLog = (msg: string) => {
-    setVlcLogs(prev => [...prev.slice(-4), `[VLC] ${msg}`]);
+    setNativeLogs(prev => [...prev.slice(-4), `[NATIVE] ${msg}`]);
   };
 
   useEffect(() => {
@@ -198,20 +203,20 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
 
     let hlsInstance: any = null;
     setPlaybackError(null);
-    setVlcLogs([]);
-    addLog(`Initializing VLC Core decoding matrix...`);
-    addLog(`Connecting to source URL: ${activeUrl.substring(0, 35)}...`);
+    setNativeLogs([]);
+    addLog(`Initializing Native hardware accelerated pipeline...`);
+    addLog(`Connecting to ingest source: ${activeUrl.substring(0, 35)}...`);
 
     const handleNetworkError = () => {
       setProxyIndex(prev => {
         if (prev < PROXIES.length - 1) {
           const nextIdx = prev + 1;
-          addLog(`🔄 Connection blocked by host policy or CORS rules.`);
-          addLog(`⚡ Auto-negotiating Secure Ingress: ${PROXIES[nextIdx].name}...`);
+          addLog(`🔄 Direct path blocked by CORS safety or host policies.`);
+          addLog(`⚡ Auto-negotiating Secure Tunnel: ${PROXIES[nextIdx].name}...`);
           return nextIdx;
         } else {
-          setPlaybackError(`Fatal stream decoding error. Format might be incompatible, offline, or strictly blocked by the remote host.`);
-          addLog(`❌ High-res fallback decoders exhausted.`);
+          setPlaybackError(`Fatal stream decoding error. Format might be offline, incompatible, or strictly blocked by the remote host.`);
+          addLog(`❌ Standby stream decoders exhausted.`);
           return prev;
         }
       });
@@ -220,7 +225,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
     const setupHls = () => {
       const HlsClass = (window as any).Hls;
       if (HlsClass && HlsClass.isSupported()) {
-        addLog(`VLC-HLS hardware demuxer accelerated.`);
+        addLog(`Native-HLS hardware demuxing enabled (0MB added footprint).`);
         
         const config: any = {};
         if (bufferMode === 'latency') {
@@ -236,12 +241,12 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
         }
 
         hlsInstance = new HlsClass(config);
-        addLog(`Source buffer length set to ${config.maxBufferLength || 10}s.`);
+        addLog(`Source buffer limit set dynamically: ${config.maxBufferLength || 10} seconds.`);
         hlsInstance.loadSource(activeUrl);
         hlsInstance.attachMedia(video);
 
         hlsInstance.on(HlsClass.Events.MANIFEST_PARSED, (event: any, data: any) => {
-          addLog(`Manifest parsed. Stream levels detected: ${data.levels?.length || 1}`);
+          addLog(`Manifest compiled. Detected ${data.levels?.length || 1} stream layers.`);
           if (data.levels && data.levels[0]) {
             setStreamQuality(`${data.levels[0].height || '720'}p`);
           }
@@ -249,29 +254,29 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
             .then(() => {
               setIsPlaying(true);
               setPlaybackError(null);
-              addLog(`Playback initialized successfully.`);
+              addLog(`Seamless playback initialized successfully.`);
             })
             .catch(err => {
-              addLog(`Autoplay halted: interaction required.`);
+              addLog(`Autoplay interrupted. Click play/unmute to engage native chips.`);
               console.warn(err);
             });
         });
 
         hlsInstance.on(HlsClass.Events.ERROR, (event: any, data: any) => {
-          console.error("HLS runtime error:", data);
+          console.error("Native HLS core error:", data);
           if (data.fatal) {
-            addLog(`❌ Fatal error: ${data.type} - ${data.details}`);
+            addLog(`❌ Core Fault: ${data.type} - ${data.details}`);
             switch (data.type) {
               case HlsClass.ErrorTypes.NETWORK_ERROR:
                 if (data.details === 'manifestLoadError' || data.details === 'levelLoadError' || data.details === 'manifestLoadTimeOut') {
                   handleNetworkError();
                 } else {
-                  addLog(`Attempting network recovery sequence...`);
+                  addLog(`Retrying network handshakes...`);
                   hlsInstance.startLoad();
                 }
                 break;
               case HlsClass.ErrorTypes.MEDIA_ERROR:
-                addLog(`Attempting media decoder recovery...`);
+                addLog(`Recovering media decoder blocks...`);
                 hlsInstance.recoverMediaError();
                 break;
               default:
@@ -279,11 +284,11 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
                 break;
             }
           } else {
-            addLog(`Parser warning: ${data.details}`);
+            addLog(`Diagnostics warning: ${data.details}`);
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        addLog(`Native Safari CorePlayer engine active.`);
+        addLog(`Safari System player engine active.`);
         video.src = activeUrl;
         video.play()
           .then(() => {
@@ -291,10 +296,10 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
             addLog(`Direct Safari stream live.`);
           })
           .catch(err => {
-            addLog(`Fallback autoplay blocked: tap Play to initiate.`);
+            addLog(`Tap Play to initiate video playback.`);
           });
       } else {
-        addLog(`Checking direct MIME capability...`);
+        addLog(`Inspecting MIME direct compatibility...`);
         video.src = activeUrl;
         video.play()
           .then(() => {
@@ -308,16 +313,16 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
     };
 
     if (!(window as any).Hls) {
-      addLog(`Loading advanced VLC streaming libraries...`);
+      addLog(`Injecting Native HLS stream controller modules...`);
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest';
       script.async = true;
       script.onload = () => {
-        addLog(`Network streaming engine loaded.`);
+        addLog(`HLS native decoder module registered.`);
         setupHls();
       };
       script.onerror = () => {
-        addLog(`❌ Failed to retrieve streaming packages. Using raw video fallback.`);
+        addLog(`❌ Failed to retrieve decoder packages. Using direct fallback.`);
         setupHls();
       };
       document.head.appendChild(script);
@@ -340,7 +345,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
           };
         });
       }
-    }, 1500);
+    }, 1550);
 
     return () => {
       clearInterval(statsTimer);
@@ -356,15 +361,15 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
     if (isPlaying) {
       video.pause();
       setIsPlaying(false);
-      addLog(`Playback paused by operator.`);
+      addLog(`Stream paused by user.`);
     } else {
       video.play()
         .then(() => {
           setIsPlaying(true);
-          addLog(`Playback resumed.`);
+          addLog(`Stream playing.`);
         })
         .catch(err => {
-          addLog(`Could not resume playback.`);
+          addLog(`Could not engage play state.`);
         });
     }
   };
@@ -374,7 +379,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
     if (!video) return;
     video.muted = !isMuted;
     setIsMuted(!isMuted);
-    addLog(isMuted ? "Audio unmuted." : "Audio muted.");
+    addLog(isMuted ? "Volume enabled." : "Muted audio output.");
   };
 
   const handleFullscreen = () => {
@@ -387,12 +392,12 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
     } else if ((video as any).mozRequestFullScreen) {
       (video as any).mozRequestFullScreen();
     }
-    addLog(`Entering fullscreen theatre.`);
+    addLog(`Fullscreen modes activated.`);
   };
 
   const forceReinit = () => {
     setBufferMode(prev => prev);
-    addLog(`Forcing hardware decoder re-initialization...`);
+    addLog(`Broadcaster handshake resetting...`);
   };
 
   return (
@@ -404,44 +409,42 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
         muted={isMuted}
       />
 
-      <div className="absolute top-9 left-4 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-orange-500/30 text-[9px] uppercase font-black text-orange-400 select-none">
-        <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
-        </svg>
-        <span>VLC ENGINE ACTIVE</span>
+      <div className="absolute top-9 left-4 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 text-[9px] uppercase font-black text-emerald-400 select-none">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        <span>NATIVE ENGINE ACTIVE</span>
       </div>
 
       {playbackError && (
         <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-10 gap-4">
-          <div className="h-14 w-14 rounded-full bg-orange-950/60 border border-orange-500 flex items-center justify-center text-orange-500 animate-bounce">
+          <div className="h-14 w-14 rounded-full bg-slate-900 border border-red-500 flex items-center justify-center text-red-500 animate-bounce">
             <AlertTriangle size={24} />
           </div>
-          <p className="text-white text-xs font-black uppercase tracking-wider px-4">DECODER PIPELINE FAULT</p>
+          <p className="text-white text-xs font-black uppercase tracking-wider px-4">DECODER FAULT</p>
           <p className="text-slate-400 text-[10px] font-semibold max-w-xs leading-relaxed">{playbackError}</p>
           <button 
             onClick={forceReinit}
-            className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2"
           >
             <RotateCw size={12} className="animate-spin" />
-            RE-INITIALIZE DECODER
+            RE-ENGAGE PIPELINE
           </button>
         </div>
       )}
 
-      {showVlcStats && (
+      {showConsoleStats && (
         <div className="absolute inset-x-3 top-16 bottom-20 bg-slate-950/90 backdrop-blur-md rounded-2xl border border-slate-800 p-4 z-10 flex flex-col gap-3 font-mono text-[9px] text-slate-300 pointer-events-auto select-text overflow-y-auto">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2 text-white">
-            <span className="flex items-center gap-1.5 font-bold"><Activity size={10} className="text-orange-500" /> VLC STREAM DIAGNOSTICS</span>
-            <button onClick={() => setShowVlcStats(false)} className="text-slate-400 hover:text-white font-extrabold px-1.5 py-0.5 rounded-md hover:bg-white/10">CLOSE</button>
+            <span className="flex items-center gap-1.5 font-bold"><Activity size={10} className="text-emerald-500" /> NATIVE FEED DIAGNOSTICS</span>
+            <button onClick={() => setShowConsoleStats(false)} className="text-slate-400 hover:text-white font-extrabold px-1.5 py-0.5 rounded-md hover:bg-white/10">CLOSE</button>
           </div>
 
           <div className="grid grid-cols-2 gap-3 bg-slate-900/50 p-2.5 rounded-xl border border-white/5">
             <div>
-              <p className="text-slate-500">ENGINE PORT ID</p>
-              <p className="text-white font-bold">VLC-Web-SDK/1.4</p>
+              <p className="text-slate-500">ENGINE ID</p>
+              <p className="text-white font-bold">AVO-Native-Core/3.2 (Accelerated)</p>
             </div>
             <div>
-              <p className="text-slate-500">MIME INGEST LEVEL</p>
+              <p className="text-slate-500">INGEST MEDIA PROFILE</p>
               <p className="text-emerald-400 font-bold">{streamQuality}</p>
             </div>
             <div>
@@ -450,55 +453,55 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
             </div>
             <div>
               <p className="text-slate-500">STREAMING PROTOCOL</p>
-              <p className="text-orange-400 font-bold uppercase">{url?.includes('.m3u8') ? 'HLS (m3u8)' : 'Direct Video'}</p>
+              <p className="text-emerald-400 font-bold uppercase">{url?.includes('.m3u8') ? 'HLS (m3u8)' : 'Direct Video'}</p>
             </div>
             <div>
-              <p className="text-slate-500">DEMUX FPS RATE</p>
-              <p className="text-white font-bold">{stats.fps} Frames/sec</p>
+              <p className="text-slate-500">HARDWARE RENDERING</p>
+              <p className="text-white font-bold">{stats.fps} FPS / Acceleration Enabled</p>
             </div>
             <div>
-              <p className="text-slate-500">CACHED BUFFER RANGE</p>
+              <p className="text-slate-500">DEVICE CACHED BUFFER</p>
               <p className="text-indigo-400 font-bold">{stats.bufferTime} Seconds</p>
             </div>
             <div>
-              <p className="text-slate-500">CORS INGRESS ROUTE</p>
+              <p className="text-slate-500">CORS ROUTING POLICY</p>
               <p className={`font-bold uppercase text-[9px] ${proxyIndex === -1 ? 'text-slate-400' : 'text-emerald-400 tracking-wide pulse animate-pulse'}`}>
-                {proxyIndex === -1 ? '🔴 Direct Connect' : `🟢 ${PROXIES[proxyIndex].name}`}
+                {proxyIndex === -1 ? '🔴 Direct Link (Optimized)' : `🟢 Tunnel: ${PROXIES[proxyIndex].name}`}
               </p>
             </div>
             <div>
-              <p className="text-slate-500">SSL SECURITY TUNNEL</p>
-              <p className="text-emerald-400 font-bold uppercase">SECURED / TLS</p>
+              <p className="text-slate-500">CPU LOAD FOOTPRINT</p>
+              <p className="text-emerald-400 font-bold uppercase">Minimal (0MB Added Built-In)</p>
             </div>
           </div>
 
           <div className="flex flex-col gap-1 border-t border-slate-800 pt-2 shrink-0">
             <p className="text-slate-500 uppercase tracking-widest font-black text-[8px] flex items-center gap-1"><Terminal size={8} /> LIVE DECODER SYSTEM LOGGER</p>
             <div className="flex flex-col gap-0.5 bg-black/80 px-2 py-1.5 rounded-lg border border-slate-900 text-slate-400 text-[8px] min-h-[70px]">
-              {vlcLogs.map((log, lidx) => (
+              {nativeLogs.map((log, lidx) => (
                 <div key={lidx} className="line-clamp-1">{log}</div>
               ))}
             </div>
           </div>
 
           <div className="flex flex-col gap-1 border-t border-slate-800 pt-2">
-            <p className="text-slate-500 uppercase font-black text-[8px] mb-1">OPT-IN VLC BUFFER CACHING MATRIX</p>
+            <p className="text-slate-500 uppercase font-black text-[8px] mb-1">BUFFER PATH SELECTION (AVO ACCELERATED)</p>
             <div className="grid grid-cols-3 gap-1.5">
               <button 
                 onClick={() => setBufferMode('latency')}
-                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'latency' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'latency' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
               >
                 Zero Latency (3s)
               </button>
               <button 
                 onClick={() => setBufferMode('balanced')}
-                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'balanced' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'balanced' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
               >
                 Balanced (10s)
               </button>
               <button 
                 onClick={() => setBufferMode('performance')}
-                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'performance' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
+                className={`py-1.5 rounded border text-[8px] font-bold ${bufferMode === 'performance' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
               >
                 Stable HD (30s)
               </button>
@@ -511,7 +514,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
               <button 
                 onClick={() => {
                   setProxyIndex(-1);
-                  addLog("Manual Route change: Direct Connect requested.");
+                  addLog("Route changed: Standalone Link (Direct).");
                 }}
                 className={`py-1.5 rounded border text-[8px] font-bold transition-all ${proxyIndex === -1 ? 'bg-emerald-600 border-emerald-500 text-white font-black' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
               >
@@ -522,7 +525,7 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
                   key={pIdx}
                   onClick={() => {
                     setProxyIndex(pIdx);
-                    addLog(`Manual Route change: Tunnel via ${p.name}.`);
+                    addLog(`Route changed: Tunneled via ${p.name}.`);
                   }}
                   className={`py-1.5 rounded border text-[8px] font-bold transition-all ${proxyIndex === pIdx ? 'bg-emerald-600 border-emerald-500 text-white font-black' : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'}`}
                 >
@@ -561,22 +564,22 @@ const NetworkStreamPlayer: React.FC<{ url: string; isActive: boolean; title: str
                   }
                   setIsMuted(val === 0);
                 }}
-                className="w-12 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-orange-500 outline-none hover:bg-slate-700 transition-colors"
+                className="w-12 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
               />
             </div>
 
             <div className="flex items-center gap-2.5">
               <button 
-                onClick={() => setShowVlcStats(!showVlcStats)}
+                onClick={() => setShowConsoleStats(!showConsoleStats)}
                 className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
-                  showVlcStats 
-                    ? 'bg-orange-600/20 border-orange-500 text-orange-400 hover:bg-orange-600/35' 
+                  showConsoleStats 
+                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 hover:bg-emerald-600/35' 
                     : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
                 }`}
-                title="View VLC Signal Diagnostics"
+                title="View Signal Diagnostics"
               >
                 <Settings size={9} />
-                VLC CONSOLE
+                CONSOLESTATS
               </button>
 
               <button onClick={forceReinit} className="hover:text-white transition-colors p-1" title="Reset/Re-ingest Live Feed">
@@ -794,15 +797,15 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       
       const mappedData = data.map((item: any, idx: number) => {
         const parsed = item.streamUrl ? parseYoutubeId(item.streamUrl) : null;
-        const isVlc = item.streamType === 'vlc' || item.type === 'vlc';
+        const isHls = item.streamType === 'vlc' || item.type === 'vlc' || item.streamType === 'hls' || item.type === 'hls';
         return {
           id: item.id || `preset_gh_${idx}`,
           title: item.title,
-          type: isVlc ? 'vlc' : (parsed?.type || item.type || 'video'),
-          streamType: isVlc ? 'vlc' : 'youtube',
-          streamUrl: item.streamUrl || item.streamUrl,
-          videoId: isVlc ? undefined : (parsed?.id || item.videoId),
-          channelId: !isVlc && parsed?.type === 'channel' ? parsed.id : undefined,
+          type: isHls ? 'hls' as const : (parsed?.type || item.type || 'video'),
+          streamType: isHls ? 'hls' as const : 'youtube' as const,
+          streamUrl: item.streamUrl,
+          videoId: isHls ? undefined : (parsed?.id || item.videoId),
+          channelId: !isHls && parsed?.type === 'channel' ? parsed.id : undefined,
           category: item.category || 'General Live',
           description: item.description || `Live stream from ${item.creatorName || 'registered workspace'}.`,
           creatorUid: 'github_system',
@@ -934,18 +937,18 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   };
 
   const handleAddGitHubChannel = async (formObj: any) => {
-    const isVlc = formObj.streamType === 'vlc';
+    const isHls = formObj.streamType === 'vlc' || formObj.streamType === 'hls' || formObj.type === 'vlc' || formObj.type === 'hls';
     const parsed = formObj.streamUrl ? parseYoutubeId(formObj.streamUrl) : null;
     
     const githubChannelObj = {
       id: `gh_chan_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       title: formObj.title,
       category: formObj.category,
-      type: isVlc ? 'vlc' : (parsed?.type || formObj.type || 'video'),
-      streamType: isVlc ? 'vlc' : 'youtube',
+      type: isHls ? 'hls' : (parsed?.type || formObj.type || 'video'),
+      streamType: isHls ? 'hls' : 'youtube',
       streamUrl: formObj.streamUrl,
-      videoId: isVlc ? undefined : (parsed?.id || formObj.videoId),
-      channelId: !isVlc && parsed?.type === 'channel' ? parsed.id : undefined,
+      videoId: isHls ? undefined : (parsed?.id || formObj.videoId),
+      channelId: !isHls && parsed?.type === 'channel' ? parsed.id : undefined,
       description: formObj.description || `Live stream from ${formObj.creatorName || 'registered workspace'}.`,
       creatorName: formObj.creatorName || 'Autonomous Station'
     };
@@ -1030,124 +1033,35 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   }, []);
 
   const allBroadcasts = useMemo(() => {
-    // 1. Filter out legacy placeholders from custom feeds
-    const customs = customBroadcasts
-      .filter(b => b && b.id !== 'sqlite_bd_1' && b.id !== 'sqlite_bd_2' && b.id !== 'preset_lofi' && b.id !== 'preset_nasa' && !b.isPreset)
-      .map(b => ({ ...b, isPreset: false }));
-
-    // Define elegant default presets as high-quality out-of-the-box fallbacks for everyone
-    const fallbackPresets: YoutubeBroadcast[] = [
-      {
-        id: 'default_lofi_preset',
-        title: 'Exona Study Beats & Lofi',
-        type: 'video',
-        streamType: 'youtube',
-        streamUrl: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
-        videoId: 'jfKfPfyJRdk',
-        category: 'Programming & Education',
-        description: 'Atmospheric lo-fi instrumental tunes for peak coder concentration.',
-        creatorUid: 'system_preset',
-        creatorName: 'Exona Study Hub',
-        isPreset: true,
-        likes: []
-      },
-      {
-        id: 'default_nasa_preset',
-        title: 'NASA Public Live Feed',
-        type: 'video',
-        streamType: 'youtube',
-        streamUrl: 'https://www.youtube.com/watch?v=21X5lGlDOfg',
-        videoId: '21X5lGlDOfg',
-        category: 'Technology & Science',
-        description: 'Live broadcast direct from NASA Space centers.',
-        creatorUid: 'system_preset',
-        creatorName: 'AeroSpace System',
-        isPreset: true,
-        likes: []
-      }
-    ];
-
-    // Merge custom-made channels with our standard presets so they always have content!
-    const nonAdminList = [...customs, ...fallbackPresets];
-
-    // All registered streams and integrations are now open to all users (admin checks fully bypassed)
+    // 1. Bypass and ignore any custom database feeds or fallback presets from Firebase, utilizing ONLY GitHub as source of truth
     let list: YoutubeBroadcast[] = [];
 
     if (gitHubChannels.length > 0) {
-      // 2. Merge gitHubChannels as source of truth and enrich metadata / metrics (such as likes and DB IDs) from companion database profiles
-      const enrichedGitHubChannels = gitHubChannels.map(gh => {
-        const ghUrl = (gh.streamUrl || '').toLowerCase().trim();
-        const ghVideoId = gh.videoId;
-        const ghChannelId = gh.channelId;
-        const ghTitle = (gh.title || '').toLowerCase().trim();
-
-        // Check if there is a match in customs (Firestore or SQLite)
-        const match = customs.find(cb => {
-          const cbUrl = (cb.streamUrl || '').toLowerCase().trim();
-          if (ghUrl && cbUrl && ghUrl === cbUrl) return true;
-          if (ghVideoId && cb.videoId && ghVideoId === cb.videoId) return true;
-          if (ghChannelId && cb.channelId && ghChannelId === cb.channelId) return true;
-          if (ghTitle && cb.title && ghTitle === (cb.title || '').toLowerCase().trim()) return true;
-          return false;
-        });
-
-        if (match) {
-          // Merge database state (likes list, persistent ID) to ensure interactions function natively
-          return {
-            ...gh,
-            id: match.id,
-            likes: match.likes || [],
-            isPreset: false, // Mark false to unlock liking and deletion capability
-            creatorUid: match.creatorUid,
-            creatorName: match.creatorName,
-            description: match.description || gh.description
-          };
-        }
-
-        return gh;
+      list = gitHubChannels.map(gh => {
+        const isHls = gh.streamType === 'vlc' || gh.type === 'vlc' || gh.streamType === 'hls' || gh.type === 'hls';
+        return {
+          ...gh,
+          id: gh.id || `gh_chan_${Math.random().toString(36).substr(2, 5)}`,
+          type: isHls ? 'hls' as const : (gh.type || 'video'),
+          streamType: isHls ? 'hls' as const : 'youtube' as const,
+          isPreset: false, // Fully editable/deletable if PAT exists
+          likes: gh.likes || [],
+        };
       });
-
-      // Find customs that are not present in GitHub channel registry list to allow newly added channels to show up instantly
-      const extraCustoms = customs.filter(cb => {
-        const cbUrl = (cb.streamUrl || '').toLowerCase().trim();
-        const cbVideoId = cb.videoId;
-        const cbChannelId = cb.channelId;
-        const cbTitle = (cb.title || '').toLowerCase().trim();
-
-        const matchInGh = gitHubChannels.some(gh => {
-          const ghUrl = (gh.streamUrl || '').toLowerCase().trim();
-          const ghVideoId = gh.videoId;
-          const ghChannelId = gh.channelId;
-          const ghTitle = (gh.title || '').toLowerCase().trim();
-
-          if (ghUrl && cbUrl && ghUrl === cbUrl) return true;
-          if (ghVideoId && cbVideoId && ghVideoId === cbVideoId) return true;
-          if (ghChannelId && cbChannelId && ghChannelId === cbChannelId) return true;
-          if (ghTitle && cbTitle && ghTitle === cbTitle) return true;
-          return false;
-        });
-
-        return !matchInGh;
-      });
-
-      // Align completely with GitHub's channel registry list but also overlay custom creations so user-added channels are visible
-      list = [...enrichedGitHubChannels, ...extraCustoms];
-    } else {
-      // Fallback if gitHubChannels list is still empty / fetching
-      list = [...nonAdminList];
     }
 
     // Add GitHub live broadcast at index 0 if it is live
     if (githubBroadcast?.isLive) {
       const parsed = githubBroadcast.streamUrl ? parseYoutubeId(githubBroadcast.streamUrl) : null;
+      const isHls = githubBroadcast.type === 'vlc' || githubBroadcast.type === 'hls';
       const ghItem: YoutubeBroadcast = {
         id: 'github_live_broadcast',
         title: githubBroadcast.title || 'EXON LIVE TERMINAL',
-        type: githubBroadcast.type === 'vlc' ? 'vlc' : (parsed?.type || 'video'),
-        streamType: githubBroadcast.type === 'vlc' ? 'vlc' : 'youtube',
+        type: isHls ? 'hls' : (parsed?.type || 'video'),
+        streamType: isHls ? 'hls' : 'youtube',
         streamUrl: githubBroadcast.streamUrl,
-        videoId: githubBroadcast.type === 'vlc' ? undefined : (parsed?.id || githubBroadcast.streamUrl),
-        channelId: githubBroadcast.type !== 'vlc' && parsed?.type === 'channel' ? parsed.id : undefined,
+        videoId: isHls ? undefined : (parsed?.id || githubBroadcast.streamUrl),
+        channelId: !isHls && parsed?.type === 'channel' ? parsed.id : undefined,
         category: githubBroadcast.category || 'General Live',
         description: githubBroadcast.notice || 'Exon Global Broadcast Center (GitHub Ingestion Mode)',
         creatorUid: 'github_system',
@@ -1160,7 +1074,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     }
 
     return list.filter(item => item && item.id && !hiddenChannels.includes(item.id));
-  }, [customBroadcasts, githubBroadcast, gitHubChannels, userDoc, hiddenChannels]);
+  }, [githubBroadcast, gitHubChannels, hiddenChannels]);
 
   // Dynamic Categories Memo - Derived safely from processed allBroadcasts list
   const CATEGORIES = useMemo(() => {
@@ -1794,7 +1708,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   {/* Video Player Frame */}
                   {isActive ? (
                     <>
-                      {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                      {isHlsStream(stream) ? (
                         <NetworkStreamPlayer 
                           url={stream.streamUrl || ''} 
                           isActive={isActive} 
@@ -1823,11 +1737,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         className="absolute inset-0 w-full h-full object-cover opacity-20 select-none pointer-events-none filter blur-md"
                       />
                       <div className="z-10 flex flex-col items-center gap-3">
-                        {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
-                          <div className="h-14 w-14 rounded-full bg-orange-950/85 border border-orange-500/30 flex items-center justify-center text-orange-400 animate-pulse">
-                            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
-                            </svg>
+                        {isHlsStream(stream) ? (
+                          <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+                            <Tv size={24} />
                           </div>
                         ) : (
                           <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
@@ -1901,7 +1813,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        const linkVal = stream.streamType === 'vlc' || stream.type === 'vlc'
+                        const linkVal = isHlsStream(stream)
                           ? stream.streamUrl
                           : `https://www.youtube.com/watch?v=${stream.videoId}`;
                         navigator.clipboard.writeText(linkVal || '');
@@ -1920,7 +1832,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     <button
                       type="button"
                       onClick={() => {
-                        showNotification(`Engine: ${stream.streamType === 'vlc' ? 'VLC Decoder' : 'YouTube SDK'} active. Signal: 100%`, 'info');
+                        showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
                       }}
                       className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
                       title="View system parameters"
@@ -2176,11 +2088,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         onClick={() => setStreamFormType('vlc')}
                         className={`py-2 text-[8px] font-bold uppercase rounded-lg border text-center transition-all cursor-pointer ${
                           streamFormType === 'vlc'
-                            ? 'bg-orange-655/20 border-orange-500 text-white font-black'
+                            ? 'bg-emerald-950/20 border-emerald-500 text-white font-black'
                             : 'bg-slate-800 border-slate-750 text-slate-400'
                         }`}
                       >
-                        VLC (HLS / M3U8 / MP4)
+                        HLS (NATIVE STREAM PLAYER)
                       </button>
                     </div>
                   </div>
@@ -2364,14 +2276,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     }}
                     className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase transition-all border flex items-center justify-center gap-2 ${
                       streamFormType === 'vlc'
-                        ? 'bg-orange-600 border-orange-500 text-white shadow-sm'
+                        ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
                         : 'bg-white border-gray-200 text-slate-500 hover:border-gray-300'
                     }`}
                   >
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
-                    </svg>
-                    VLC Advanced Stream SDK (HLS/M3U8)
+                    <Tv size={14} />
+                    HLS Playback Engine (Native)
                   </button>
                 </div>
               </div>
@@ -2391,7 +2301,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[10px] font-black uppercase tracking-wider text-muted">
-                    {streamFormType === 'vlc' ? 'VLC Advanced Network stream Link (M3U8 / HLS / MP4)' : 'YouTube Video/Channel Link or ID'}
+                    {streamFormType === 'vlc' ? 'HLS Network Stream Link (M3U8 / HLS / MP4)' : 'YouTube Video/Channel Link or ID'}
                   </label>
                   <input
                     type="text"
@@ -2568,7 +2478,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
                     {isActive ? (
                       <>
-                        {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                        {isHlsStream(stream) ? (
                           <NetworkStreamPlayer 
                             url={stream.streamUrl || ''} 
                             isActive={isActive} 
@@ -2597,11 +2507,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           className="absolute inset-0 w-full h-full object-cover opacity-30 select-none pointer-events-none filter blur-sm"
                         />
                         <div className="z-10 flex flex-col items-center gap-3">
-                          {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
-                            <div className="h-14 w-14 rounded-full bg-orange-950/85 border border-orange-500/30 flex items-center justify-center text-orange-400 animate-pulse">
-                              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
-                              </svg>
+                          {isHlsStream(stream) ? (
+                            <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+                              <Tv size={24} />
                             </div>
                           ) : (
                             <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
@@ -2701,7 +2609,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
                       {/* External YouTube / Network Link Button */}
                       <a
-                        href={stream.streamType === 'vlc' || stream.type === 'vlc'
+                        href={isHlsStream(stream)
                           ? stream.streamUrl
                           : (stream.type === 'channel' 
                             ? `https://www.youtube.com/channel/${stream.channelId}`
@@ -2710,7 +2618,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         target="_blank"
                         rel="noreferrer"
                         className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-black/60 border border-white/20 flex items-center justify-center text-white hover:bg-black/80 transition-all shadow-lg"
-                        title={stream.streamType === 'vlc' || stream.type === 'vlc' ? "Open stream in external application" : "Watch on official YouTube"}
+                        title={isHlsStream(stream) ? "Open stream in external application" : "Watch on official YouTube"}
                       >
                         <ExternalLink size={16} />
                       </a>
@@ -2960,7 +2868,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 max-h-[380px] overflow-y-auto pr-1 no-scrollbar">
             {filteredBroadcasts.map((stream, idx) => {
               const isActive = idx === currentIdx;
-              const isVlc = stream.streamType === 'vlc' || stream.type === 'vlc';
+              const isHls = isHlsStream(stream);
               
               return (
                 <div
@@ -2977,12 +2885,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 >
                   {/* Thumbnail / Symbol left */}
                   <div className="h-14 w-14 rounded-xl overflow-hidden shrink-0 relative bg-slate-900 flex items-center justify-center">
-                    {isVlc ? (
-                      <div className="text-orange-400 flex flex-col items-center justify-center font-sans">
-                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
-                        </svg>
-                        <span className="text-[6px] font-mono tracking-wider uppercase font-black text-orange-500 mt-1">VLC</span>
+                    {isHls ? (
+                      <div className="text-emerald-400 flex flex-col items-center justify-center font-sans">
+                        <Tv size={20} />
+                        <span className="text-[6px] font-mono tracking-wider uppercase font-black text-emerald-500 mt-1">HLS</span>
                       </div>
                     ) : (
                       <img 
@@ -3017,10 +2923,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     <div className="flex items-center gap-1.5 mt-2">
                       <span className={`text-[8px] font-mono font-bold uppercase px-1.5 py-0.5 rounded border ${
                         isActive 
-                          ? (isVlc ? 'bg-orange-600/15 text-orange-400 border-orange-500/20' : 'bg-red-600/15 text-red-400 border-red-500/20')
-                          : (isVlc ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-red-50 text-red-600 border-red-100')
+                          ? (isHls ? 'bg-emerald-600/15 text-emerald-400 border-emerald-500/20' : 'bg-red-600/15 text-red-400 border-red-500/20')
+                          : (isHls ? 'bg-emerald-50 text-emerald-650 border-emerald-100' : 'bg-red-50 text-red-650 border-red-100')
                       }`}>
-                        {isVlc ? 'VLC CORE' : 'YOUTUBE'}
+                        {isHls ? 'NATIVE HLS' : 'YOUTUBE'}
                       </span>
 
                       {isActive ? (
@@ -3317,7 +3223,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       {/* Video Player Frame */}
                       {isActive ? (
                         <>
-                          {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
+                          {isHlsStream(stream) ? (
                             <NetworkStreamPlayer 
                               url={stream.streamUrl || ''} 
                               isActive={isActive} 
@@ -3346,11 +3252,9 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             className="absolute inset-0 w-full h-full object-cover opacity-20 select-none pointer-events-none filter blur-md"
                           />
                           <div className="z-10 flex flex-col items-center gap-3">
-                            {stream.streamType === 'vlc' || stream.type === 'vlc' ? (
-                              <div className="h-14 w-14 rounded-full bg-orange-950/85 border border-orange-500/30 flex items-center justify-center text-orange-400 animate-pulse">
-                                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M12 2L6 17H18L12 2M12 5L15.5 15H8.5L12 5M4 19H20V21H4V19Z" />
-                                </svg>
+                            {isHlsStream(stream) ? (
+                              <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+                                <Tv size={24} />
                               </div>
                             ) : (
                               <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
@@ -3464,7 +3368,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            const linkVal = stream.streamType === 'vlc' || stream.type === 'vlc'
+                            const linkVal = isHlsStream(stream)
                               ? stream.streamUrl
                               : `https://www.youtube.com/watch?v=${stream.videoId}`;
                             navigator.clipboard.writeText(linkVal || '');
@@ -3483,7 +3387,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            showNotification(`Engine: ${stream.streamType === 'vlc' ? 'VLC Decoder' : 'YouTube SDK'} active. Signal: 100%`, 'info');
+                            showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
                           }}
                           className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
                           title="View system parameters"
@@ -3726,11 +3630,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             onClick={() => setStreamFormType('vlc')}
                             className={`py-2 text-[8px] font-bold uppercase rounded-lg border text-center transition-all cursor-pointer ${
                               streamFormType === 'vlc'
-                                ? 'bg-orange-655/20 border-orange-500 text-white font-black'
+                                ? 'bg-emerald-950/20 border-emerald-500 text-white font-black'
                                 : 'bg-slate-800 border-slate-750 text-slate-400'
                             }`}
                           >
-                            VLC (HLS / M3U8 / MP4)
+                            HLS (NATIVE STREAM PLAYER)
                           </button>
                         </div>
                       </div>

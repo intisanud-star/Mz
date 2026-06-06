@@ -1,6 +1,6 @@
 {
   "name": "Exona",
   "description": "A comprehensive institutional management and community platform with AI-powered attendance scanning from paper, secure records, and real-time organization management.",
-  "requestFramePermissions": ["microphone", "camera", "geolocation", "notifications"],
+  "requestFramePermissions": ["microphone", "camera", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
