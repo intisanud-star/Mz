@@ -10399,22 +10399,12 @@ function ExonaApp() {
     }
   }, [selectedSchool?.id]);
 
-  // 0c. YouTube Broadcasts Listener & Handlers
+  // 0c. YouTube Broadcasts Listener & Handlers (Bypassed Firebase Firestore in favor of GitHub Ingestion as requested)
   useEffect(() => {
-    if (broadcastEngine === 'sqlite_offline' || isQuotaExceeded || !isOnline || view !== 'feed' || feedTab !== 'broadcasts') return;
-
-    const q = query(collection(db, 'youtube_broadcasts'), orderBy('timestamp', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setYoutubeBroadcasts(items);
-    }, (error) => {
-      if (!error.message.includes('insufficient permissions')) {
-        console.error("Error listening to youtube_broadcasts:", error);
-      }
-    });
-
-    return () => unsub();
-  }, [isOnline, isQuotaExceeded, view, feedTab, broadcastEngine]);
+    // Disabled Firebase/Firestore youtube_broadcasts listeners to respect user directive.
+    // Online broadcasts will be fetched directly from GitHub (channels.json and broadcast.json).
+    setYoutubeBroadcasts([]);
+  }, [view, feedTab, broadcastEngine]);
 
   const handleAddYoutubeBroadcast = async (broadcast: any) => {
     if (broadcastEngine === 'sqlite_offline') {
@@ -10434,17 +10424,8 @@ function ExonaApp() {
       }
       return;
     }
-    try {
-      await addDoc(collection(db, 'youtube_broadcasts'), {
-        ...broadcast,
-        timestamp: serverTimestamp(),
-        likes: [],
-      });
-      showNotification('Broadcast stream added successfully!', 'success');
-    } catch (e) {
-      console.error("Error adding YouTube broadcast:", e);
-      showNotification('Failed to add broadcast stream. Please try again.', 'error');
-    }
+    // For online mode, Firebase Firestore is bypassed. Broadcasts are managed exclusively via GitHub repository synchronization.
+    showNotification('GitHub-integrated engine active. Broadcasts are committed directly to your repository.', 'success');
   };
 
   const handleDeleteYoutubeBroadcast = async (id: string, creatorUid: string) => {
@@ -10463,13 +10444,8 @@ function ExonaApp() {
       }
       return;
     }
-    try {
-      await deleteDoc(doc(db, 'youtube_broadcasts', id));
-      showNotification('YouTube Broadcast Channel removed.', 'success');
-    } catch (e) {
-      console.error("Error deleting YouTube broadcast:", e);
-      showNotification('Failed to delete stream.', 'error');
-    }
+    // Offline / GitHub bypass - deletion commits directly to GitHub via the YoutubeBroadcasts component
+    showNotification('Stream deletion handled via GitHub commit engine.', 'success');
   };
 
   const handleLikeYoutubeBroadcast = async (id: string, currentLikes: string[]) => {
@@ -10478,8 +10454,16 @@ function ExonaApp() {
       return;
     }
 
-    if (id.startsWith('preset_')) {
-      showNotification('You liked this featured broadcast channel!', 'success');
+    if (id.startsWith('preset_') || id.startsWith('gh_') || id.startsWith('github_') || id.startsWith('default_') || broadcastEngine !== 'sqlite_offline') {
+      const likedKey = `exon_liked_stream_${id}_${user.uid}`;
+      const alreadyLiked = localStorage.getItem(likedKey) === 'true';
+      if (alreadyLiked) {
+        localStorage.removeItem(likedKey);
+        showNotification('Channel unliked.', 'success');
+      } else {
+        localStorage.setItem(likedKey, 'true');
+        showNotification('You liked this broadcast channel!', 'success');
+      }
       return;
     }
 
@@ -10502,24 +10486,6 @@ function ExonaApp() {
         console.error(err);
       }
       return;
-    }
-
-    const likesArray = currentLikes || [];
-    const hasLiked = likesArray.includes(user.uid);
-    const docRef = doc(db, 'youtube_broadcasts', id);
-
-    try {
-      if (hasLiked) {
-        await updateDoc(docRef, {
-          likes: arrayRemove(user.uid)
-        });
-      } else {
-        await updateDoc(docRef, {
-          likes: arrayUnion(user.uid)
-        });
-      }
-    } catch (e) {
-      console.error("Error toggling like on YouTube broadcast:", e);
     }
   };
 

@@ -817,10 +817,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   };
 
   useEffect(() => {
-    if (userDoc?.role === 'admin') {
-      fetchGitHubChannels();
-    }
-  }, [gitHubOwner, gitHubRepo, gitHubPath, gitHubBranch, userDoc?.role]);
+    fetchGitHubChannels();
+  }, [gitHubOwner, gitHubRepo, gitHubPath, gitHubBranch]);
 
   // Sync / commit changes to channels.json on GitHub
   const syncChannelsWithGitHub = async (
@@ -989,16 +987,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         });
       }
 
-      // Also silently delete companion backing record in Firestore/SQLite if applicable
+      // Also handle companion backing record cleanup
       if (stream.id && !stream.id.startsWith('preset_')) {
         try {
-          if (broadcastEngine === 'sqlite_offline') {
-            // Callback handleDelete
-            await onDeleteBroadcast(stream.id, stream.creatorUid || '');
-          } else {
-            await deleteDoc(doc(db, 'youtube_broadcasts', stream.id));
-            await onDeleteBroadcast(stream.id, stream.creatorUid || '');
-          }
+          await onDeleteBroadcast(stream.id, stream.creatorUid || '');
         } catch (e) {
           console.error("Backing database silent deletion failed:", e);
         }
@@ -1018,10 +1010,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [githubLoading, setGithubLoading] = useState(true);
 
   useEffect(() => {
-    if (userDoc?.role !== 'admin') {
-      setGithubLoading(false);
-      return;
-    }
     const fetchGithubBroadcast = async () => {
       try {
         const BROADCAST_URL = "https://raw.githubusercontent.com/intisanud-star/exon-broadcast-data/refs/heads/main/broadcast.json";
@@ -1039,7 +1027,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     // Set a polling timer to sync automatically every 15 seconds
     const interval = setInterval(fetchGithubBroadcast, 15000);
     return () => clearInterval(interval);
-  }, [userDoc?.role]);
+  }, []);
 
   const allBroadcasts = useMemo(() => {
     // 1. Filter out legacy placeholders from custom feeds
@@ -1082,12 +1070,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     // Merge custom-made channels with our standard presets so they always have content!
     const nonAdminList = [...customs, ...fallbackPresets];
 
-    // If the logged-in user is NOT an admin, bypass all GitHub-based streams completely!
-    if (userDoc?.role !== 'admin') {
-      return nonAdminList;
-    }
-
-    // Admins see everything, including GitHub channels
+    // All registered streams and integrations are now open to all users (admin checks fully bypassed)
     let list: YoutubeBroadcast[] = [];
 
     if (gitHubChannels.length > 0) {
