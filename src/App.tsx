@@ -1660,12 +1660,64 @@ interface Story {
   authorName: string;
   authorPhoto: string;
   mediaUrl: string;
-  mediaType: 'image' | 'video';
+  mediaType: 'image' | 'video' | 'text';
   timestamp: any;
   expiresAt: any;
   schoolId?: string;
   viewers?: string[];
+  note?: string;
+  bgColor?: string;
+  isAiStory?: boolean;
+  aiPersonaPrompt?: string;
 }
+
+const PRESET_AI_STORIES: Story[] = [
+  {
+    id: "ai_story_philosopher",
+    authorUid: "ai_philosopher",
+    authorName: "Quantum Philosopher",
+    authorPhoto: "https://api.dicebear.com/7.x/bottts/svg?seed=philosopher",
+    mediaUrl: "",
+    mediaType: "text",
+    note: "The masterpiece is reached not when there is nothing left to add, but when there is nothing left to take away. Build minimal and let design rest.",
+    bgColor: "from-indigo-900 to-purple-950",
+    timestamp: { seconds: Math.floor(Date.now() / 1000 - 3600 * 2), nanoseconds: 0 },
+    expiresAt: null,
+    viewers: [],
+    isAiStory: true,
+    aiPersonaPrompt: "You are the Quantum Philosopher. Answer questions with profound, modern, minimalistic tech wisdom."
+  },
+  {
+    id: "ai_story_coach",
+    authorUid: "ai_coach",
+    authorName: "Mindful Builder",
+    authorPhoto: "https://api.dicebear.com/7.x/bottts/svg?seed=coach",
+    mediaUrl: "",
+    mediaType: "text",
+    note: "Notice your posture. Take 3 slow, deep breaths. A calm, focused mind writes cleaner solutions than a rushed one.",
+    bgColor: "from-rose-500 to-orange-600",
+    timestamp: { seconds: Math.floor(Date.now() / 1000 - 3600 * 5), nanoseconds: 0 },
+    expiresAt: null,
+    viewers: [],
+    isAiStory: true,
+    aiPersonaPrompt: "You are the Mindful Builder. Give warm, calming advice on coding and product creation, encouraging breathing."
+  },
+  {
+    id: "ai_story_trendsetter",
+    authorUid: "ai_trendsetter",
+    authorName: "Future Voyager",
+    authorPhoto: "https://api.dicebear.com/7.x/bottts/svg?seed=trendsetter",
+    mediaUrl: "",
+    mediaType: "text",
+    note: "In the age of recursive self-improvement models, the prompt is the search vector. The architect of questions dictates the future.",
+    bgColor: "from-cyan-900 to-slate-950",
+    timestamp: { seconds: Math.floor(Date.now() / 1000 - 3600 * 12), nanoseconds: 0 },
+    expiresAt: null,
+    viewers: [],
+    isAiStory: true,
+    aiPersonaPrompt: "You are Future Voyager. Speak in futuristic tech-forward, optimistic conceptual terms about AI and the cosmos."
+  }
+];
 
 interface StudentRecord {
   id: string;
@@ -2670,7 +2722,7 @@ function ExonaApp() {
   const [recordStorageEngine, setRecordStorageEngine] = useState<'sqlite_offline' | 'firebase'>('sqlite_offline');
   const [participationEngine, setParticipationEngine] = useState<'webrtc' | 'firebase'>('webrtc');
   const [classroomEngine, setClassroomEngine] = useState<'sqlite_webrtc' | 'firebase'>('sqlite_webrtc');
-  const [broadcastEngine, setBroadcastEngine] = useState<'sqlite_offline' | 'firebase'>('firebase');
+  const [broadcastEngine, setBroadcastEngine] = useState<'sqlite_offline' | 'firebase'>('sqlite_offline');
 
   // Memory/Local persistence (representing fast MMKV cache)
   const [localSqliteBroadcasts, setLocalSqliteBroadcasts] = useState<any[]>(() => {
@@ -6893,6 +6945,10 @@ function ExonaApp() {
   const [selectedStoryGroup, setSelectedStoryGroup] = useState<Story[] | null>(null);
   const [activeStoryIndex, setActiveStoryIndex] = useState(0);
   const [isCreatingStory, setIsCreatingStory] = useState(false);
+  const [aiStoryReplyText, setAiStoryReplyText] = useState('');
+  const [aiResponseText, setAiResponseText] = useState('');
+  const [isReplyingToAi, setIsReplyingToAi] = useState(false);
+  const [isGeneratingAiStory, setIsGeneratingAiStory] = useState(false);
 
   const handleDownloadReceipt = async () => {
     if (!receiptRef.current) return;
@@ -7433,11 +7489,22 @@ function ExonaApp() {
 
   const storyGroups = useMemo(() => {
     const groups: { [key: string]: Story[] } = {};
-    stories.forEach(story => {
-      const key = story.schoolId || story.authorUid;
+    
+    // Add Preset AI Stories first
+    PRESET_AI_STORIES.forEach(story => {
+      const key = story.authorUid;
       if (!groups[key]) groups[key] = [];
       groups[key].push(story);
     });
+
+    // Add user posted stories from db (filtering out institutional ones)
+    stories.forEach(story => {
+      if (story.schoolId) return; // Hide institutions completely
+      const key = story.authorUid;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(story);
+    });
+
     return groups;
   }, [stories]);
 
@@ -12679,7 +12746,7 @@ function ExonaApp() {
                       onClick={() => { setSelectedStoryGroup(group); setActiveStoryIndex(0); setIsStoryViewerOpen(true); }}
                       className="flex-shrink-0 text-center group"
                     >
-                      <div className={`h-20 w-20 p-1 rounded-[2.2rem] border-2 transition-all duration-500 ${hasUnseen ? 'border-accent ring-2 ring-accent/10 sm:ring-4 sm:ring-accent/5' : 'border-gray-100 grayscale-[0.5]'}`}>
+                      <div className={`h-20 w-20 p-1 rounded-[2.2rem] border-2 transition-all duration-500 ${hasUnseen ? 'border-accent ring-2 ring-accent/15 sm:ring-4 sm:ring-accent/5' : 'border-gray-100 grayscale-[0.5]'}`}>
                         <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gray-100 border border-white">
                           <img src={firstStory.authorPhoto || firstStory.mediaUrl} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
                         </div>
@@ -12688,28 +12755,6 @@ function ExonaApp() {
                     </button>
                   );
                 })}
-
-                {/* Followed Institutions without stories */}
-                {[...schools, ...places]
-                  .filter(s => s.followers?.includes(user?.uid || '') && !storyGroups[s.id])
-                  .map(school => (
-                    <button 
-                      key={school.id}
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                      className="flex-shrink-0 text-center opacity-50 hover:opacity-100 grayscale hover:grayscale-0 transition-all group"
-                    >
-                      <div className="h-20 w-20 p-1 rounded-[2.2rem] border-2 border-gray-50 bg-white">
-                        <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gray-50 flex items-center justify-center">
-                          {school.logo ? (
-                            <img src={school.logo} className="h-full w-full object-cover" />
-                          ) : (
-                            <span className="text-sm font-black text-gray-400">{school.name.charAt(0)}</span>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-[11px] font-bold text-muted tracking-tight mt-2.5 truncate w-20 uppercase tracking-[0.05em]">{school.name.split(' ')[0]}</p>
-                    </button>
-                  ))}
               </div>
             </div>
 
@@ -26532,30 +26577,35 @@ function ExonaApp() {
           >
             {/* Progress Bars */}
             <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
-              {selectedStoryGroup.map((_, i) => (
-                <div key={i} className="flex-1 h-0.5 bg-white/20 rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: i === activeStoryIndex ? '100%' : i < activeStoryIndex ? '100%' : '0%' }}
-                    transition={{ duration: i === activeStoryIndex ? 5 : 0, ease: 'linear' }}
-                    onAnimationStart={() => {
-                      if (i === activeStoryIndex) {
-                        handleMarkStoryAsSeen(selectedStoryGroup[i].id);
-                      }
-                    }}
-                    onAnimationComplete={() => {
-                      if (i === activeStoryIndex) {
-                        if (activeStoryIndex < selectedStoryGroup.length - 1) {
-                          setActiveStoryIndex(prev => prev + 1);
-                        } else {
-                          setIsStoryViewerOpen(false);
+              {selectedStoryGroup.map((storyItem, i) => {
+                const isAiStory = storyItem.isAiStory;
+                // AI story has infinite length or much longer duration so user can type responses gracefully
+                const duration = isAiStory ? 999999 : 5;
+                return (
+                  <div key={i} className="flex-1 h-0.5 bg-white/20 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: i === activeStoryIndex ? '100%' : i < activeStoryIndex ? '100%' : '0%' }}
+                      transition={{ duration: i === activeStoryIndex ? duration : 0, ease: 'linear' }}
+                      onAnimationStart={() => {
+                        if (i === activeStoryIndex) {
+                          handleMarkStoryAsSeen(selectedStoryGroup[i].id);
                         }
-                      }
-                    }}
-                    className="h-full bg-white"
-                  />
-                </div>
-              ))}
+                      }}
+                      onAnimationComplete={() => {
+                        if (i === activeStoryIndex && !isAiStory) {
+                          if (activeStoryIndex < selectedStoryGroup.length - 1) {
+                            setActiveStoryIndex(prev => prev + 1);
+                          } else {
+                            setIsStoryViewerOpen(false);
+                          }
+                        }
+                      }}
+                      className="h-full bg-white"
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             {/* Header */}
@@ -26567,12 +26617,18 @@ function ExonaApp() {
                 <div>
                   <p className="text-white font-bold text-sm">{selectedStoryGroup[activeStoryIndex].authorName}</p>
                   <p className="text-white/60 text-[10px] font-medium uppercase tracking-widest">
-                    {new Date(selectedStoryGroup[activeStoryIndex].timestamp?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {selectedStoryGroup[activeStoryIndex].timestamp?.seconds 
+                      ? new Date(selectedStoryGroup[activeStoryIndex].timestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : 'Just Now'}
                   </p>
                 </div>
               </div>
               <button 
-                onClick={() => setIsStoryViewerOpen(false)}
+                onClick={() => {
+                  setAiResponseText('');
+                  setAiStoryReplyText('');
+                  setIsStoryViewerOpen(false);
+                }}
                 className="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white"
               >
                 <X size={20} />
@@ -26618,11 +26674,11 @@ function ExonaApp() {
               
               {/* Navigation Zones */}
               <div 
-                className="absolute inset-y-0 left-0 w-1/3" 
+                className="absolute inset-y-0 left-0 w-1/3 z-10" 
                 onClick={() => setActiveStoryIndex(prev => Math.max(0, prev - 1))}
               />
               <div 
-                className="absolute inset-y-0 right-0 w-1/3" 
+                className="absolute inset-y-0 right-0 w-1/3 z-10" 
                 onClick={() => {
                   if (activeStoryIndex < selectedStoryGroup.length - 1) {
                     setActiveStoryIndex(prev => prev + 1);
@@ -26632,6 +26688,124 @@ function ExonaApp() {
                 }}
               />
             </div>
+
+            {/* Interactive AI Chat Zone for AI Stories */}
+            {selectedStoryGroup[activeStoryIndex].isAiStory && (
+              <div className="absolute bottom-8 left-4 right-4 z-20 max-w-md mx-auto flex flex-col gap-3">
+                {/* AI Speech Bubble */}
+                <AnimatePresence>
+                  {aiResponseText && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="bg-white/10 backdrop-blur-xl border border-white/15 p-4 rounded-2xl text-white text-xs leading-relaxed shadow-xl max-h-32 overflow-y-auto"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-extrabold text-[10px] uppercase text-accent tracking-widest">{selectedStoryGroup[activeStoryIndex].authorName} replies:</span>
+                        <button onClick={() => setAiResponseText('')} className="text-[10px] text-white/50 hover:text-white">Clear</button>
+                      </div>
+                      <p className="font-medium">{aiResponseText}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Pre-suggested quick interactive prompts */}
+                <div className="flex gap-2 py-1 overflow-x-auto no-scrollbar">
+                  {[
+                    "💡 Tell me more",
+                    "✨ Give me interactive steps",
+                    "🔥 How do we build this?"
+                  ].map((quickPrompt) => (
+                    <button
+                      key={quickPrompt}
+                      type="button"
+                      disabled={isReplyingToAi}
+                      onClick={async () => {
+                        setIsReplyingToAi(true);
+                        try {
+                          const res = await fetch('/api/ai/reply-story', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              storyNote: selectedStoryGroup[activeStoryIndex].note,
+                              authorName: selectedStoryGroup[activeStoryIndex].authorName,
+                              authorPrompt: selectedStoryGroup[activeStoryIndex].aiPersonaPrompt,
+                              userReply: quickPrompt
+                            })
+                          });
+                          const data = await res.json();
+                          if (data.success) {
+                            setAiResponseText(data.replyText);
+                          } else {
+                            throw new Error(data.error);
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          setAiResponseText("I'm experiencing high cosmic signal interference. Send another prompt!");
+                        } finally {
+                          setIsReplyingToAi(false);
+                        }
+                      }}
+                      className="px-3 py-1.5 bg-white/15 backdrop-blur-md hover:bg-white/20 rounded-full text-[10px] font-bold text-white shrink-0 border border-white/5 active:scale-95 transition-all"
+                    >
+                      {quickPrompt}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Input text form */}
+                <form 
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!aiStoryReplyText.trim() || isReplyingToAi) return;
+                    setIsReplyingToAi(true);
+                    const userMsg = aiStoryReplyText;
+                    setAiStoryReplyText('');
+                    try {
+                      const res = await fetch('/api/ai/reply-story', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          storyNote: selectedStoryGroup[activeStoryIndex].note,
+                          authorName: selectedStoryGroup[activeStoryIndex].authorName,
+                          authorPrompt: selectedStoryGroup[activeStoryIndex].aiPersonaPrompt,
+                          userReply: userMsg
+                        })
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setAiResponseText(data.replyText);
+                      } else {
+                        throw new Error(data.error);
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      setAiResponseText("I'm experiencing high cosmic signal interference. Send another prompt!");
+                    } finally {
+                      setIsReplyingToAi(false);
+                    }
+                  }}
+                  className="flex gap-2 items-center bg-white/10 backdrop-blur-xl border border-white/10 p-1.5 rounded-full"
+                >
+                  <input 
+                    type="text"
+                    disabled={isReplyingToAi}
+                    value={aiStoryReplyText}
+                    onChange={(e) => setAiStoryReplyText(e.target.value)}
+                    placeholder={`Reply to ${selectedStoryGroup[activeStoryIndex].authorName.split(' ')[0]}...`}
+                    className="flex-1 bg-transparent border-none outline-none font-medium text-xs text-white px-3 placeholder-white/50 z-20"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={isReplyingToAi || !aiStoryReplyText.trim()}
+                    className="h-8 px-4 bg-accent hover:bg-accent/95 disabled:opacity-40 text-white rounded-full text-[10px] font-extrabold uppercase tracking-wider transition-all z-20"
+                  >
+                    {isReplyingToAi ? "Thinking..." : "Send"}
+                  </button>
+                </form>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -26688,7 +26862,45 @@ function ExonaApp() {
                   <>
                     {/* Note / Text Input */}
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest block font-display">Write a Note</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest block font-display">Write a Note</label>
+                        <button
+                          type="button"
+                          disabled={isGeneratingAiStory}
+                          onClick={async () => {
+                            setIsGeneratingAiStory(true);
+                            try {
+                              const topics = ['Wisdom', 'Inspiration', 'Future Tech', 'Minimalist Design', 'Mindfulness'];
+                              const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+                              const res = await fetch('/api/ai/generate-status', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ topic: randomTopic })
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setStoryNoteText(data.note);
+                                setStoryBgColor(data.bgColor);
+                                showNotification(`✨ Generated a thought on ${data.topicTitle}!`, 'success');
+                              } else {
+                                throw new Error(data.error);
+                              }
+                            } catch (err: any) {
+                              console.error(err);
+                              showNotification('Gemini failed to generate status. Try drafting one!', 'error');
+                            } finally {
+                              setIsGeneratingAiStory(false);
+                            }
+                          }}
+                          className="flex items-center gap-1 text-[9px] font-black uppercase text-accent hover:opacity-80 transition-all font-display disabled:opacity-40"
+                        >
+                          {isGeneratingAiStory ? (
+                            <span className="flex items-center gap-1"><span className="h-2 w-2 border-2 border-accent border-t-transparent rounded-full animate-spin" /> Drafting...</span>
+                          ) : (
+                            <span className="flex items-center gap-1">✨ Write with AI</span>
+                          )}
+                        </button>
+                      </div>
                       <textarea
                         value={storyNoteText}
                         onChange={(e) => setStoryNoteText(e.target.value)}

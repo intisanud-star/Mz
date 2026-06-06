@@ -1419,6 +1419,81 @@ User configuration choice: Include Video references? ${includeVideo}. Include cu
     }
   });
 
+  // AI Status / Story Generation
+  app.post('/api/ai/generate-status', async (req, res) => {
+    const { topic, customPrompt } = req.body;
+    try {
+      const promptText = customPrompt 
+        ? `Generate a beautiful social media Status Story based on this custom request: "${customPrompt}".`
+        : `Generate a beautiful daily social media Status Story on the topic: "${topic || 'Wisdom'}".`;
+
+      const systemPrompt = `You are a high-end creative status narrator. Create a beautiful, inspirational, or thought-provoking mini-story or daily thought (3-4 sentences, max 280 characters) suited for a WhatsApp slide. 
+Style: Clean, professional, deep, modern typography vibes. No sales pitch, no hashtags, no emojis.
+Also select one of these background gradients that matches the theme's mood:
+- 'from-indigo-600 to-purple-600' (Deep thoughts, mindfulness, tech)
+- 'from-rose-500 to-orange-500' (Inspiration, energy, startup)
+- 'from-cyan-500 to-blue-600' (Wisdom, focus, oceanic clear)
+- 'from-emerald-500 to-teal-700' (Growth, financial hacks, calm)
+- 'from-gray-900 to-black' (Mystic, minimalism, sleek tech, space)
+Return strict JSON matching the requested schema.`;
+
+      const responseSchema = {
+        type: Type.OBJECT,
+        properties: {
+          note: { type: Type.STRING, description: "The beautiful generated notes, under 280 characters, with high readability." },
+          bgColor: { type: Type.STRING, description: "The chosen background gradient string from the specified options." },
+          topicTitle: { type: Type.STRING, description: "An elegant, punchy title for this status update (1-3 words)." }
+        },
+        required: ["note", "bgColor", "topicTitle"]
+      };
+
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{ parts: [{ text: promptText }] }],
+        config: {
+          systemInstruction: systemPrompt,
+          responseMimeType: "application/json",
+          responseSchema: responseSchema
+        }
+      }));
+
+      const result = JSON.parse(response.text || '{}');
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error('AI Status Generator Error:', error);
+      res.status(500).json({ success: false, error: error.message || 'Failed to generate status' });
+    }
+  });
+
+  // AI Story Reply / Interactive Conversation
+  app.post('/api/ai/reply-story', async (req, res) => {
+    const { storyNote, authorName, authorPrompt, userReply } = req.body;
+    if (!userReply) {
+      return res.status(400).json({ success: false, error: 'No reply provided' });
+    }
+
+    try {
+      const systemInstruction = `You are ${authorName || 'an AI Story Creator'}. 
+You just posted this story update to your status: "${storyNote || 'A beautiful daily thought'}"
+The user read your status and replied with: "${userReply}"
+Respond in character to the user in a deep, helpful, positive, and conversational manner. 
+Keep your response short, warm, and highly engaging (max 2-3 sentences). Do not use hashtags.`;
+
+      const aiResponse = await callAiWithRetry(() => getAi().models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{ parts: [{ text: `Generate your reply to user feedback: "${userReply}"` }] }],
+        config: {
+          systemInstruction
+        }
+      }));
+
+      res.json({ success: true, replyText: aiResponse.text || 'Indeed, a powerful perspective!' });
+    } catch (err: any) {
+      console.error('AI Story Reply Error:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to reply to story' });
+    }
+  });
+
   // Global error handler for API routes (Must be after all routes)
   app.use('/api', (err: any, req: any, res: any, next: any) => {
     console.error(`API Error on ${req.method} ${req.url}:`, err);
