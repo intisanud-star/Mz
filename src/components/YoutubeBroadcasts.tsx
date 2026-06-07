@@ -733,6 +733,31 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [videoSaturate, setVideoSaturate] = useState<number>(100);
   const [videoZoom, setVideoZoom] = useState<number>(100);
   const [videoFit, setVideoFit] = useState<'cover' | 'contain' | 'fill'>('contain');
+
+  // Dynamic Orientation & Auto-fullscreen fit on rotate
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
+
+  useEffect(() => {
+    const handleOrientationResize = () => {
+      const landscape = window.innerWidth > window.innerHeight;
+      setIsLandscape(landscape);
+      if (landscape) {
+        // Auto fit profile to 'cover' (full-bleed screen) when rotated to landscape mode
+        setVideoFit(prev => prev === 'contain' ? 'cover' : prev);
+      } else {
+        // Return back to standard contain fit style when returning to portrait mode
+        setVideoFit(prev => prev === 'cover' ? 'contain' : prev);
+      }
+    };
+    window.addEventListener('resize', handleOrientationResize);
+    window.addEventListener('orientationchange', handleOrientationResize);
+    // Initialize orientation state on mount
+    handleOrientationResize();
+    return () => {
+      window.removeEventListener('resize', handleOrientationResize);
+      window.removeEventListener('orientationchange', handleOrientationResize);
+    };
+  }, []);
   const [immersiveSelectedCategory, setImmersiveSelectedCategory] = useState('All');
   const [isImmersiveAddFormOpen, setIsImmersiveAddFormOpen] = useState(false);
   const [hiddenChannels, setHiddenChannels] = useState<string[]>(() => {
@@ -3396,18 +3421,35 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           >
             {/* Strict Video Only Escape Hatch */}
             {isStrictVideoOnly && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsStrictVideoOnly(false);
-                  showNotification("Controls and floating metrics restored.", "info");
-                }}
-                className="fixed top-4 right-4 z-[99999] hover:scale-110 active:scale-95 transition-all text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-black/85 hover:bg-black border border-white/25 hover:border-orange-500 flex items-center gap-2 cursor-pointer shadow-2xl text-white pointer-events-auto"
-                title="Restore HUD buttons and information panels"
-              >
-                <EyeOff size={13} className="text-orange-500 animate-pulse" />
-                <span>Show Controls</span>
-              </button>
+              <div className="fixed top-4 right-4 z-[99999] flex items-center gap-2 pointer-events-auto">
+                {/* Fit Preset Cycle Button (Allows perfect fullscreen sizing in landscape) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextFit = videoFit === 'contain' ? 'cover' : videoFit === 'cover' ? 'fill' : 'contain';
+                    setVideoFit(nextFit);
+                    showNotification(`Screen coverage set to: ${nextFit.toUpperCase()}`, "success");
+                  }}
+                  className="hover:scale-110 active:scale-95 transition-all text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-black/85 hover:bg-black border border-white/25 hover:border-emerald-500 flex items-center gap-2 cursor-pointer shadow-2xl text-white"
+                  title="Toggle Display Coverage Mode: Contain / Crop-to-Fill Cover / Stretch-to-Fit Fill"
+                >
+                  <Maximize size={13} className="text-emerald-500 animate-pulse" />
+                  <span>Fit: {videoFit}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsStrictVideoOnly(false);
+                    showNotification("Controls and floating metrics restored.", "info");
+                  }}
+                  className="hover:scale-110 active:scale-95 transition-all text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-black/85 hover:bg-black border border-white/25 hover:border-orange-500 flex items-center gap-2 cursor-pointer shadow-2xl text-white"
+                  title="Restore HUD buttons and information panels"
+                >
+                  <EyeOff size={13} className="text-orange-500 animate-pulse" />
+                  <span>Show Controls</span>
+                </button>
+              </div>
             )}
 
             {/* Top Glass Header Bar Overlay */}
