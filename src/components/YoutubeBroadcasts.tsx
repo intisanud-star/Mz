@@ -175,7 +175,7 @@ const NetworkStreamPlayer: React.FC<{
   contrast = 100,
   saturate = 100,
   zoom = 100,
-  fit = 'cover'
+  fit = 'contain'
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -726,7 +726,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [videoContrast, setVideoContrast] = useState<number>(100);
   const [videoSaturate, setVideoSaturate] = useState<number>(100);
   const [videoZoom, setVideoZoom] = useState<number>(100);
-  const [videoFit, setVideoFit] = useState<'cover' | 'contain' | 'fill'>('cover');
+  const [videoFit, setVideoFit] = useState<'cover' | 'contain' | 'fill'>('contain');
   const [immersiveSelectedCategory, setImmersiveSelectedCategory] = useState('All');
   const [isImmersiveAddFormOpen, setIsImmersiveAddFormOpen] = useState(false);
   const [hiddenChannels, setHiddenChannels] = useState<string[]>(() => {
@@ -2073,155 +2073,69 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 <div className="flex flex-col gap-3 border-b border-slate-900 pb-3 shrink-0">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-sm font-black uppercase tracking-wider text-white">Live Station Room Interaction</h4>
-                      <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Viewing chats for {activeStream.title}</p>
+                      <h4 className="text-sm font-black uppercase tracking-wider text-white">Display Sizing & Calibration</h4>
+                      <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Calibrating view style for {activeStream.title}</p>
                     </div>
-                  </div>
-
-                  {/* Slider tab selector for comment / adjustments */}
-                  <div className="flex bg-slate-900/80 p-1 rounded-xl border border-white/5 gap-1 select-none">
-                    <button
-                      type="button"
-                      onClick={() => setDrawerActiveTab('comments')}
-                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        drawerActiveTab === 'comments' 
-                          ? 'bg-rose-650 text-white font-extrabold shadow' 
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      💬 Live Chat ({activeChatMessages.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDrawerActiveTab('adjustments')}
-                      className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                        drawerActiveTab === 'adjustments' 
-                          ? 'bg-emerald-600 text-white font-extrabold shadow' 
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
-                    >
-                      📐 Size Adjustments
-                    </button>
                   </div>
                 </div>
 
-                {drawerActiveTab === 'comments' ? (
-                  <>
-                    {/* Messages Body */}
-                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-3 scrollbar-hide">
-                      {activeChatMessages.length > 0 ? (
-                        activeChatMessages.map((msg) => (
-                          <div key={msg.id} className="flex gap-2.5 text-slate-300">
-                            {/* Short circle user avatar letter */}
-                            <div className="h-7 w-7 rounded-lg bg-indigo-950 border border-slate-800 text-white font-black text-[9px] flex items-center justify-center shrink-0 uppercase">
-                              {msg.userName?.slice(0, 2) || "EX"}
-                            </div>
-                            <div className="flex flex-col gap-0.5 max-w-[85%]">
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-[10px] font-black text-rose-450">{msg.userName}</span>
-                                <span className="text-[8px] text-slate-600">
-                                  {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              </div>
-                              <p className="text-[10.5px] leading-relaxed text-slate-200 select-text bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-xl rounded-tl-none font-medium">
-                                {msg.text}
-                              </p>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-2">
-                          <MessageSquare size={24} className="text-slate-800 animate-pulse" />
-                          <p className="text-[10px] font-black uppercase tracking-widest">Broadcast room is currently empty</p>
-                          <p className="text-[9px] text-slate-500 font-bold">Secure a participation pass below to say hello!</p>
-                        </div>
-                      )}
-                      <div ref={chatEndRef} />
-                    </div>
-
-                    {/* Submit message form */}
-                    <form 
-                      onSubmit={handleSendChatMessage} 
-                      className="border-t border-slate-900 pt-3 flex gap-2 shrink-0 pointer-events-auto"
-                    >
-                      <input
-                        type="text"
-                        required
-                        placeholder="Say something respectful in chat..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        className="flex-1 px-4 py-3 border border-slate-800 rounded-2xl bg-slate-900 text-xs text-white focus:outline-none focus:border-rose-500/40 font-semibold"
-                      />
-                      <button
-                        type="submit"
-                        className="px-4 bg-rose-650 hover:bg-rose-500 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        Send
-                      </button>
-                    </form>
-                  </>
-                ) : (
-                  <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 text-slate-300">
-                    <div className="flex items-center gap-1.5 px-1 text-emerald-400">
-                      <Maximize size={14} className="text-emerald-400" />
-                      <p className="text-[10px] uppercase font-black tracking-widest">DISPLAY SIZING & COVERAGE PROFILE</p>
-                    </div>
-
-                    {/* Adjustments: Zoom / Scale factor */}
-                    <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
-                      <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
-                        <span>Video Zoom Factor</span>
-                        <span className="text-emerald-450 font-mono font-black">{videoZoom}%</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="100"
-                        max="200"
-                        step="5"
-                        value={videoZoom}
-                        onChange={(e) => setVideoZoom(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
-                      />
-                    </div>
-
-                    {/* Adjustments: Fit Mode Selector */}
-                    <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
-                      <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Fit Coverage Profile</span>
-                      <div className="grid grid-cols-3 gap-1.5 mt-1">
-                        {(['cover', 'contain', 'fill'] as const).map((fitMode) => (
-                          <button
-                            key={fitMode}
-                            type="button"
-                            onClick={() => setVideoFit(fitMode)}
-                            className={`py-2 rounded-xl text-[8.5px] uppercase font-black tracking-wider border transition-all cursor-pointer ${
-                              videoFit === fitMode
-                                ? 'bg-emerald-600 border-emerald-500 text-white font-extrabold'
-                                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                            }`}
-                          >
-                            {fitMode}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Direct Quick resets button */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVideoBrightness(100);
-                        setVideoContrast(100);
-                        setVideoSaturate(100);
-                        setVideoZoom(100);
-                        setVideoFit('cover');
-                        showNotification('Reset display filters to standard hardware default.', 'info');
-                      }}
-                      className="w-full py-3 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 hover:border-slate-700 rounded-2xl text-[9.5px] font-mono tracking-widest uppercase font-black text-slate-400 transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      🔄 Reset Calibration Values
-                    </button>
+                <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 text-slate-300">
+                  <div className="flex items-center gap-1.5 px-1 text-emerald-400">
+                    <Maximize size={14} className="text-emerald-400" />
+                    <p className="text-[10px] uppercase font-black tracking-widest">DISPLAY SIZING & COVERAGE PROFILE</p>
                   </div>
-                )}
+
+                  {/* Adjustments: Zoom / Scale factor */}
+                  <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
+                    <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                      <span>Video Zoom Factor</span>
+                      <span className="text-emerald-450 font-mono font-black">{videoZoom}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="100"
+                      max="200"
+                      step="5"
+                      value={videoZoom}
+                      onChange={(e) => setVideoZoom(parseInt(e.target.value))}
+                      className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
+                    />
+                  </div>
+
+                  {/* Adjustments: Fit Mode Selector */}
+                  <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Fit Coverage Profile</span>
+                    <div className="grid grid-cols-3 gap-1.5 mt-1">
+                      {(['cover', 'contain', 'fill'] as const).map((fitMode) => (
+                        <button
+                          key={fitMode}
+                          type="button"
+                          onClick={() => setVideoFit(fitMode)}
+                          className={`py-2 rounded-xl text-[8.5px] uppercase font-black tracking-wider border transition-all cursor-pointer ${
+                            videoFit === fitMode
+                              ? 'bg-emerald-600 border-emerald-500 text-white font-extrabold'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {fitMode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Direct Quick resets button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVideoZoom(100);
+                      setVideoFit('contain');
+                      showNotification('Reset display filters to standard hardware default.', 'info');
+                    }}
+                    className="w-full py-3 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 hover:border-slate-700 rounded-2xl text-[9.5px] font-mono tracking-widest uppercase font-black text-slate-400 transition-all cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    🔄 Reset Calibration Values
+                  </button>
+                </div>
               </motion.div>
             </>
           )}
@@ -3727,155 +3641,69 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     <div className="flex flex-col gap-3 border-b border-slate-900 pb-3 shrink-0">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-black uppercase tracking-wider text-white">Live Station Room Interaction</h4>
-                          <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Viewing chats for {activeStream.title}</p>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-white">Display Sizing & Calibration</h4>
+                          <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Calibrating view style for {activeStream.title}</p>
                         </div>
-                      </div>
-
-                      {/* Slider tab selector for comment / adjustments */}
-                      <div className="flex bg-slate-900/80 p-1 rounded-xl border border-white/5 gap-1 select-none">
-                        <button
-                          type="button"
-                          onClick={() => setDrawerActiveTab('comments')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                            drawerActiveTab === 'comments' 
-                              ? 'bg-rose-650 text-white font-extrabold shadow' 
-                              : 'text-slate-400 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          💬 Live Chat ({activeChatMessages.length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDrawerActiveTab('adjustments')}
-                          className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                            drawerActiveTab === 'adjustments' 
-                              ? 'bg-emerald-600 text-white font-extrabold shadow' 
-                              : 'text-slate-400 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          📐 Size Adjustments
-                        </button>
                       </div>
                     </div>
 
-                    {drawerActiveTab === 'comments' ? (
-                      <>
-                        {/* Messages Body */}
-                        <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-3 scrollbar-hide">
-                          {activeChatMessages.length > 0 ? (
-                            activeChatMessages.map((msg) => (
-                              <div key={msg.id} className="flex gap-2.5 text-slate-300">
-                                {/* Short circle user avatar letter */}
-                                <div className="h-7 w-7 rounded-lg bg-indigo-950 border border-slate-800 text-white font-black text-[9px] flex items-center justify-center shrink-0 uppercase">
-                                  {msg.userName?.slice(0, 2) || "EX"}
-                                </div>
-                                <div className="flex flex-col gap-0.5 max-w-[85%]">
-                                  <div className="flex items-baseline gap-1.5">
-                                    <span className="text-[10px] font-black text-rose-450">{msg.userName}</span>
-                                    <span className="text-[8px] text-slate-600">
-                                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
-                                  <p className="text-[10.5px] leading-relaxed text-slate-200 select-text bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-xl rounded-tl-none font-medium">
-                                    {msg.text}
-                                  </p>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 gap-2">
-                              <MessageSquare size={24} className="text-slate-800 animate-pulse" />
-                              <p className="text-[10px] font-black uppercase tracking-widest">Broadcast room is currently empty</p>
-                              <p className="text-[9px] text-slate-500 font-bold">Secure a participation pass below to say hello!</p>
-                            </div>
-                          )}
-                          <div ref={chatEndRef} />
-                        </div>
-
-                        {/* Submit message form */}
-                        <form 
-                          onSubmit={handleSendChatMessage} 
-                          className="border-t border-slate-900 pt-3 flex gap-2 shrink-0 pointer-events-auto"
-                        >
-                          <input
-                            type="text"
-                            required
-                            placeholder="Say something respectful in chat..."
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            className="flex-1 px-4 py-3 border border-slate-800 rounded-2xl bg-slate-900 text-xs text-white focus:outline-none focus:border-rose-500/40 font-semibold"
-                          />
-                          <button
-                            type="submit"
-                            className="px-4 bg-rose-650 hover:bg-rose-500 text-white rounded-2xl text-[10px] uppercase font-black tracking-widest transition-all flex items-center gap-1 cursor-pointer"
-                          >
-                            Send
-                          </button>
-                        </form>
-                      </>
-                    ) : (
-                      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 text-slate-300">
-                        <div className="flex items-center gap-1.5 px-1 text-emerald-400">
-                          <Maximize size={14} className="text-emerald-400" />
-                          <p className="text-[10px] uppercase font-black tracking-widest">DISPLAY SIZING & COVERAGE PROFILE</p>
-                        </div>
-
-                        {/* Adjustments: Zoom / Scale factor */}
-                        <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
-                          <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
-                            <span>Video Zoom Factor</span>
-                            <span className="text-emerald-450 font-mono font-black">{videoZoom}%</span>
-                          </div>
-                          <input
-                            type="range"
-                            min="100"
-                            max="200"
-                            step="5"
-                            value={videoZoom}
-                            onChange={(e) => setVideoZoom(parseInt(e.target.value))}
-                            className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
-                          />
-                        </div>
-
-                        {/* Adjustments: Fit Mode Selector */}
-                        <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
-                          <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Fit Coverage Profile</span>
-                          <div className="grid grid-cols-3 gap-1.5 mt-1">
-                            {(['cover', 'contain', 'fill'] as const).map((fitMode) => (
-                              <button
-                                key={fitMode}
-                                type="button"
-                                onClick={() => setVideoFit(fitMode)}
-                                className={`py-2 rounded-xl text-[8.5px] uppercase font-black tracking-wider border transition-all cursor-pointer ${
-                                  videoFit === fitMode
-                                    ? 'bg-emerald-600 border-emerald-500 text-white font-extrabold'
-                                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
-                                }`}
-                              >
-                                {fitMode}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Direct Quick resets button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setVideoBrightness(100);
-                            setVideoContrast(100);
-                            setVideoSaturate(100);
-                            setVideoZoom(100);
-                            setVideoFit('cover');
-                            showNotification('Reset display filters to standard hardware default.', 'info');
-                          }}
-                          className="w-full py-3 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 hover:border-slate-700 rounded-2xl text-[9.5px] font-mono tracking-widest uppercase font-black text-slate-400 transition-all cursor-pointer flex items-center justify-center gap-2"
-                        >
-                          🔄 Reset Calibration Values
-                        </button>
+                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 text-slate-300">
+                      <div className="flex items-center gap-1.5 px-1 text-emerald-400">
+                        <Maximize size={14} className="text-emerald-400" />
+                        <p className="text-[10px] uppercase font-black tracking-widest">DISPLAY SIZING & COVERAGE PROFILE</p>
                       </div>
-                    )}
+
+                      {/* Adjustments: Zoom / Scale factor */}
+                      <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                          <span>Video Zoom Factor</span>
+                          <span className="text-emerald-450 font-mono font-black">{videoZoom}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="100"
+                          max="200"
+                          step="5"
+                          value={videoZoom}
+                          onChange={(e) => setVideoZoom(parseInt(e.target.value))}
+                          className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
+                        />
+                      </div>
+
+                      {/* Adjustments: Fit Mode Selector */}
+                      <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Fit Coverage Profile</span>
+                        <div className="grid grid-cols-3 gap-1.5 mt-1">
+                          {(['cover', 'contain', 'fill'] as const).map((fitMode) => (
+                            <button
+                              key={fitMode}
+                              type="button"
+                              onClick={() => setVideoFit(fitMode)}
+                              className={`py-2 rounded-xl text-[8.5px] uppercase font-black tracking-wider border transition-all cursor-pointer ${
+                                videoFit === fitMode
+                                  ? 'bg-emerald-600 border-emerald-500 text-white font-extrabold'
+                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                              }`}
+                            >
+                              {fitMode}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Direct Quick resets button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVideoZoom(100);
+                          setVideoFit('contain');
+                          showNotification('Reset display filters to standard hardware default.', 'info');
+                        }}
+                        className="w-full py-3 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 hover:border-slate-700 rounded-2xl text-[9.5px] font-mono tracking-widest uppercase font-black text-slate-400 transition-all cursor-pointer flex items-center justify-center gap-2"
+                      >
+                        🔄 Reset Calibration Values
+                      </button>
+                    </div>
                   </motion.div>
                 </>
               )}
