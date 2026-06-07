@@ -2120,30 +2120,53 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         )}
 
         {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
-        <div className="h-16 bg-black border-t border-white/5 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-1">
-          <button onClick={() => { if (onClose) onClose(); }} className="hover:text-white transition-colors cursor-pointer" title="Go Home Dashboard">
+        <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
+          <button 
+            type="button"
+            onClick={() => { if (onClose) onClose(); }} 
+            className="hover:text-white hover:scale-110 active:scale-90 transition-all cursor-pointer p-2 bg-slate-900/30 rounded-xl" 
+            title="Go Home Dashboard"
+          >
             <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
           </button>
-          <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
-            <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
+          <button 
+            type="button"
+            onClick={() => {
+              if (activeStream) {
+                showNotification(`Broadcasting Live: Swipe UP or DOWN on the screen to change stations.`, "info");
+              } else {
+                showNotification("Swipe to explore other live stations!", "info");
+              }
+            }}
+            className="text-white bg-slate-900 border border-white/10 hover:border-orange-500 rounded-xl p-2 flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-md" 
+            title="Reels Mode active"
+          >
+            <svg className="h-5.5 w-5.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
           </button>
           {isAdmin ? (
-            <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
+            <button 
+              type="button"
+              onClick={() => setIsImmersiveAddFormOpen(true)} 
+              className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
+              title="Add Live Stream"
+            >
               <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
             </button>
           ) : (
             <button 
+              type="button"
               onClick={() => { 
                 setCategoryFilter('All'); 
                 showNotification("Exploring all live channels!", "info"); 
               }} 
-              className="hover:text-white hover:scale-110 transition-all cursor-pointer text-slate-400" 
+              className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
               title="Explore Channels"
             >
               <Compass size={22} className="hover:text-white" />
             </button>
           )}
           <button 
+            type="button"
             onClick={() => {
               if (activeStream) {
                 setIsImmersiveCommentsOpen(true);
@@ -2151,7 +2174,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 showNotification("Please select a live station first!", "info");
               }
             }}
-            className="hover:text-white transition-colors cursor-pointer" 
+            className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
             title="Display Size & Interactive board"
           >
             <Maximize size={20} />
@@ -2162,7 +2185,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               const profileTab = document.getElementById("profile_tab_trigger");
               if (profileTab) profileTab.click();
             }}
-            className="h-6 w-6 rounded-full border border-white/60 bg-slate-850 flex items-center justify-center text-[8px] font-black text-rose-450 font-sans cursor-pointer hover:scale-110 transition-transform" 
+            className="h-8 w-8 rounded-full border-2 border-orange-500 bg-slate-850 flex items-center justify-center text-[10px] font-black text-rose-450 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-md" 
             title="Your User Profile"
           >
             {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
@@ -3711,30 +3734,53 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             )}
 
             {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
-            <div className="h-16 bg-black border-t border-white/5 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-1">
-              <button onClick={() => { setIsImmersiveMode(false); }} className="hover:text-white transition-colors cursor-pointer" title="Go Home Dashboard">
+            <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
+              <button 
+                type="button"
+                onClick={() => { setIsImmersiveMode(false); }} 
+                className="hover:text-white hover:scale-110 active:scale-90 transition-all cursor-pointer p-2 bg-slate-900/30 rounded-xl" 
+                title="Go Home Dashboard"
+              >
                 <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
               </button>
-              <button className="text-white hover:scale-110 transition-transform cursor-pointer" title="Reels Mode active">
-                <svg className="h-5.5 w-5.5 shrink-0" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
+              <button 
+                type="button"
+                onClick={() => {
+                  if (activeStream) {
+                    showNotification(`Broadcasting Live: Swipe UP or DOWN on the screen to change stations.`, "info");
+                  } else {
+                    showNotification("Swipe to explore other live stations!", "info");
+                  }
+                }}
+                className="text-white bg-slate-900 border border-white/10 hover:border-orange-500 rounded-xl p-2 flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-md" 
+                title="Reels Mode active"
+              >
+                <svg className="h-5.5 w-5.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
               </button>
               {isAdmin ? (
-                <button onClick={() => setIsImmersiveAddFormOpen(true)} className="hover:text-white hover:scale-110 transition-all cursor-pointer" title="Add Live Stream">
+                <button 
+                  type="button"
+                  onClick={() => setIsImmersiveAddFormOpen(true)} 
+                  className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
+                  title="Add Live Stream"
+                >
                   <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
                 </button>
               ) : (
                 <button 
+                  type="button"
                   onClick={() => { 
                     setCategoryFilter('All'); 
                     showNotification("Exploring all live channels!", "info"); 
                   }} 
-                  className="hover:text-white hover:scale-110 transition-all cursor-pointer text-slate-400" 
+                  className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
                   title="Explore Channels"
                 >
                   <Compass size={22} className="hover:text-white" />
                 </button>
               )}
               <button 
+                type="button"
                 onClick={() => {
                   if (activeStream) {
                     setIsImmersiveCommentsOpen(true);
@@ -3742,7 +3788,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     showNotification("Please select a live station first!", "info");
                   }
                 }}
-                className="hover:text-white transition-colors cursor-pointer" 
+                className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
                 title="Display Size & Interactive board"
               >
                 <Maximize size={20} />
@@ -3753,7 +3799,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   const profileTab = document.getElementById("profile_tab_trigger");
                   if (profileTab) profileTab.click();
                 }}
-                className="h-6 w-6 rounded-full border border-white/60 bg-slate-850 flex items-center justify-center text-[8px] font-black text-rose-450 font-sans cursor-pointer hover:scale-110 transition-transform" 
+                className="h-8 w-8 rounded-full border-2 border-orange-500 bg-slate-850 flex items-center justify-center text-[10px] font-black text-rose-450 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-md" 
                 title="Your User Profile"
               >
                 {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
