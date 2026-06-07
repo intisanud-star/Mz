@@ -168,6 +168,7 @@ const NetworkStreamPlayer: React.FC<{
   saturate?: number;
   zoom?: number;
   fit?: 'cover' | 'contain' | 'fill';
+  isTabActive?: boolean;
 }> = ({
   url,
   isActive,
@@ -178,7 +179,8 @@ const NetworkStreamPlayer: React.FC<{
   contrast = 100,
   saturate = 100,
   zoom = 100,
-  fit = 'contain'
+  fit = 'contain',
+  isTabActive = true
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -432,7 +434,7 @@ const NetworkStreamPlayer: React.FC<{
         ref={videoRef}
         className="w-full h-full pointer-events-auto transition-all duration-200"
         playsInline
-        muted={isMuted}
+        muted={!isTabActive ? true : isMuted}
         style={{
           filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%)`,
           transform: `scale(${zoom / 100})`,
@@ -686,6 +688,7 @@ interface YoutubeBroadcastsProps {
   showNotification: (message: string, type?: 'success' | 'error') => void;
   onOpenPlace?: (creatorUid: string, creatorName?: string) => void;
   onClose?: () => void;
+  isTabActive?: boolean;
 }
 
 export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
@@ -700,7 +703,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   handleDebitExcoin,
   showNotification,
   onOpenPlace,
-  onClose
+  onClose,
+  isTabActive = true
 }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1758,10 +1762,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   };
 
   const getEmbedUrl = (item: YoutubeBroadcast) => {
+    const muteVal = isTabActive ? "0" : "1";
     if (item.type === 'channel') {
-      return `https://www.youtube.com/embed/live_stream?channel=${item.channelId}&autoplay=1&mute=0&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
+      return `https://www.youtube.com/embed/live_stream?channel=${item.channelId}&autoplay=1&mute=${muteVal}&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
     }
-    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&mute=0&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
+    return `https://www.youtube.com/embed/${item.videoId}?autoplay=1&mute=${muteVal}&playsinline=1&rel=0&showinfo=0&modestbranding=1`;
   };
 
   const getCoverImageUrl = (item: YoutubeBroadcast) => {
@@ -1905,6 +1910,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           saturate={videoSaturate}
                           zoom={videoZoom}
                           fit={videoFit}
+                          isTabActive={isTabActive}
                           onSkip={() => {
                             const nextIdx = (idx + 1) % filteredBroadcasts.length;
                             scrollImmersiveToIdx(nextIdx);
@@ -2769,6 +2775,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             saturate={videoSaturate}
                             zoom={videoZoom}
                             fit={videoFit}
+                            isTabActive={isTabActive}
                             onSkip={() => {
                               const nextIdx = (idx + 1) % filteredBroadcasts.length;
                               scrollToIdx(nextIdx);
@@ -3525,6 +3532,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               saturate={videoSaturate}
                               zoom={videoZoom}
                               fit={videoFit}
+                              isTabActive={isTabActive}
                               onSkip={() => {
                                 const nextIdx = (idx + 1) % filteredBroadcasts.length;
                                 scrollImmersiveToIdx(nextIdx);

@@ -11957,79 +11957,79 @@ function ExonaApp() {
               )}
             </div>
 
-            {feedTab === 'institutions' ? (
-              <>
-                <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-                  {['all', 'school', 'place'].map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setSchoolFilter(f as any)}
-                      className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
-                        schoolFilter === f 
-                          ? 'bg-accent text-white' 
-                          : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
-                      }`}
-                    >
-                      {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
-                    </button>
-                  ))}
-                </div>
+            <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
+              <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                {['all', 'school', 'place'].map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setSchoolFilter(f as any)}
+                    className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
+                      schoolFilter === f 
+                        ? 'bg-accent text-white' 
+                        : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
+                    }`}
+                  >
+                    {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
+                  </button>
+                ))}
+              </div>
 
-                <div className="divide-y divide-gray-100">
-                  {[...schools, ...places]
-                    .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
-                    .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
-                    .filter(s => {
-                      // If searching, show all matching
-                      if (globalSearch.trim() !== '') return true;
-                      // Admins see all
-                      if (userDoc?.role === 'admin') return true;
-                      // Otherwise show if created, administrative viewer, or user is follower/approved member
-                      return s.creatorUid === user?.uid || 
-                             s.administrativeViewers?.includes(user?.uid || '') ||
-                             s.followers?.includes(user?.uid || '') ||
-                             userDoc?.following?.includes(s.id);
-                    })
-                    .map(school => {
-                      const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
-                      return (
+              <div className="divide-y divide-gray-100">
+                {[...schools, ...places]
+                  .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
+                  .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
+                  .filter(s => {
+                    // If searching, show all matching
+                    if (globalSearch.trim() !== '') return true;
+                    // Admins see all
+                    if (userDoc?.role === 'admin') return true;
+                    // Otherwise show if created, administrative viewer, or user is follower/approved member
+                    return s.creatorUid === user?.uid || 
+                           s.administrativeViewers?.includes(user?.uid || '') ||
+                           s.followers?.includes(user?.uid || '') ||
+                           userDoc?.following?.includes(s.id);
+                  })
+                  .map(school => {
+                    const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
+                    return (
+                      <div 
+                        key={school.id}
+                        className="py-6 border-b border-gray-50 group"
+                      >
                         <div 
-                          key={school.id}
-                          className="py-6 border-b border-gray-50 group"
+                          className="cursor-pointer mb-4 flex items-start gap-3"
+                          onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
                         >
-                          <div 
-                            className="cursor-pointer mb-4 flex items-start gap-3"
-                            onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
-                          >
-                            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
-                              {school.logo ? (
-                                <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-ink">{school.name.charAt(0)}</span>
-                              )}
-                              {isRecentlyActive(school.id) && (
-                                <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
-                              {latestAnnouncement ? (
-                                <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
-                                  {latestAnnouncement.content}
-                                </p>
-                              ) : (
-                                <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
-                              )}
-                            </div>
+                          <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
+                            {school.logo ? (
+                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <span className="text-ink">{school.name.charAt(0)}</span>
+                            )}
+                            {isRecentlyActive(school.id) && (
+                              <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                            )}
                           </div>
-                          
-                          {/* Institution Action Buttons hidden from homepage as requested */}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
+                            {latestAnnouncement ? (
+                              <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                                {latestAnnouncement.content}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })}
-                </div>
-              </>
-            ) : (
+                        
+                        {/* Institution Action Buttons hidden from homepage as requested */}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className={feedTab === 'broadcasts' ? 'block' : 'hidden absolute w-0 h-0 overflow-hidden pointer-events-none'}>
               <YoutubeBroadcasts
                 user={user}
                 userDoc={userDoc}
@@ -12052,8 +12052,9 @@ function ExonaApp() {
                   }
                 }}
                 onClose={() => setFeedTab('institutions')}
+                isTabActive={feedTab === 'broadcasts'}
               />
-            )}
+            </div>
             </div>
           </div>
         );
