@@ -464,10 +464,7 @@ const NetworkStreamPlayer: React.FC<{
         </motion.div>
       </div>
 
-      <div className="absolute top-9 left-4 z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full border border-emerald-500/30 text-[9px] uppercase font-black text-emerald-400 select-none">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-        <span>NATIVE ENGINE ACTIVE</span>
-      </div>
+
 
       {playbackError && (
         <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-10 gap-4">
@@ -1795,66 +1792,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             <div className="w-10 h-10" />
           )}
 
-          {/* Category Dropdown Selector and Follow Switch */}
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
-              >
-                <span>{categoryFilter === 'All' && !followedOnly ? 'Discover Channels' : (followedOnly ? 'Followed Only' : categoryFilter)}</span>
-                <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
-              </button>
-
-              <AnimatePresence>
-                {immersiveShowCategoryDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
-                  >
-                    {CATEGORIES.map((cat) => (
-                      <button
-                        key={cat}
-                        onClick={() => {
-                          setCategoryFilter(cat);
-                          setFollowedOnly(false);
-                          setImmersiveShowCategoryDropdown(false);
-                          setCurrentIdx(0);
-                        }}
-                        className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                          categoryFilter === cat && !followedOnly
-                            ? 'bg-orange-600 text-white font-black'
-                            : 'text-slate-400 hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        {cat}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setFollowedOnly(!followedOnly);
-                setCurrentIdx(0);
-              }}
-              className={`h-9 px-4 bg-slate-900/80 backdrop-blur-md border rounded-full flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                followedOnly 
-                  ? 'border-rose-500 text-rose-500 bg-rose-950/25 animate-pulse shadow-md' 
-                  : 'border-white/10 text-slate-300 hover:text-white hover:border-white/20'
-              }`}
-              title="Toggle Watching Followed Stations Only"
-            >
-              <Heart size={12} fill={followedOnly ? "currentColor" : "none"} />
-              {followedOnly ? 'Watching Followed' : 'Watch Followed'}
-            </button>
-          </div>
+          {/* Empty center spacing to maintain flex positioning */}
+          <div className="flex-1" />
 
           {/* Close Button */}
           <button
@@ -3420,66 +3359,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 <div className="w-10 h-10" />
               )}
 
-              {/* Category Dropdown Selector and Follow Switch */}
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setImmersiveShowCategoryDropdown(!immersiveShowCategoryDropdown)}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 backdrop-blur-md border border-white/10 hover:border-white/20 rounded-full text-[11px] font-black uppercase tracking-widest text-slate-200 hover:text-white transition-all cursor-pointer shadow-lg"
-                  >
-                    <span>{categoryFilter === 'All' && !followedOnly ? 'Discover Channels' : (followedOnly ? 'Followed Only' : categoryFilter)}</span>
-                    <ChevronDown size={12} className={`text-slate-400 transition-transform ${immersiveShowCategoryDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  <AnimatePresence>
-                    {immersiveShowCategoryDropdown && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="absolute left-1/2 -translate-x-1/2 mt-2 w-52 bg-slate-950/95 backdrop-blur-lg border border-slate-800 rounded-2xl shadow-2xl p-2 z-50 flex flex-col gap-0.5"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <button
-                            key={cat}
-                            onClick={() => {
-                              setCategoryFilter(cat);
-                              setFollowedOnly(false);
-                              setImmersiveShowCategoryDropdown(false);
-                              setCurrentIdx(0);
-                            }}
-                            className={`w-full text-left px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                              categoryFilter === cat && !followedOnly
-                                ? 'bg-orange-600 text-white font-black'
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                            }`}
-                          >
-                            {cat}
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFollowedOnly(!followedOnly);
-                    setCurrentIdx(0);
-                  }}
-                  className={`h-9 px-4 bg-slate-900/80 backdrop-blur-md border rounded-full flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest transition-all cursor-pointer ${
-                    followedOnly 
-                      ? 'border-rose-500 text-rose-500 bg-rose-950/25 animate-pulse shadow-md' 
-                      : 'border-white/10 text-slate-300 hover:text-white hover:border-white/20'
-                  }`}
-                  title="Toggle Watching Followed Stations Only"
-                >
-                  <Heart size={12} fill={followedOnly ? "currentColor" : "none"} />
-                  {followedOnly ? 'Watching Followed' : 'Watch Followed'}
-                </button>
-              </div>
+              {/* Empty center spacing to maintain flex positioning */}
+              <div className="flex-1" />
 
               {/* Close Button */}
               <button

@@ -167,21 +167,6 @@ export default function WorkspaceAppCenter({
       version: 'v2.0.0',
       size: '1.9 MB',
       featuresList: ['Real-time Timer Constraints', 'Comprehensive Result Analytics Builder', 'Auto-Grade Key Formulas', 'Dynamic Subject Selector']
-    },
-    { 
-      id: 'e-exam', 
-      name: 'Photo and Video Lab', 
-      description: 'Interactive studio to adjust image brightness, apply filters, manage customized video subtitles, and export modified media formats.', 
-      iconName: 'Video', 
-      category: 'Media & Creative', 
-      color: 'rose-600', 
-      rating: '4.9', 
-      reviews: 153, 
-      creator: 'Exonasoft Media Systems',
-      isDefault: true,
-      version: 'v1.0.5',
-      size: '5.2 MB',
-      featuresList: ['Cinematic Film Colorist Tones', 'Dynamic Subtitle & Watermark Overlays', 'Full Resolution Canvas Jpeg Export', 'Variable Video Velocity Modulations']
     }
   ];
 

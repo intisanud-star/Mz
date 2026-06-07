@@ -33,7 +33,6 @@ import Markdown from 'react-markdown';
 import { PDFDocument } from 'pdf-lib';
 import SmartDocumentCreator from './components/SmartDocumentCreator';
 import ExonaFileShare from './components/ExonaFileShare';
-import PhotoVideoLab from './components/PhotoVideoLab';
 import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
 import CustomAppSandbox from './components/CustomAppSandbox';
 import ExcoinP2PCentre from './components/ExcoinP2PCentre';
@@ -3492,7 +3491,7 @@ function ExonaApp() {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       } catch (e) {}
     }
-    return ['app-center', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'e-exam'];
+    return ['app-center', 'editor', 'pdf', 'file-share', 'storage', 'e-test'];
   });
 
   const [customApps, setCustomApps] = useState<any[]>(() => {
@@ -12029,7 +12028,7 @@ function ExonaApp() {
               </div>
             </div>
 
-            <div className={feedTab === 'broadcasts' ? 'block' : 'hidden absolute w-0 h-0 overflow-hidden pointer-events-none'}>
+            {feedTab === 'broadcasts' && (
               <YoutubeBroadcasts
                 user={user}
                 userDoc={userDoc}
@@ -12054,7 +12053,7 @@ function ExonaApp() {
                 onClose={() => setFeedTab('institutions')}
                 isTabActive={feedTab === 'broadcasts'}
               />
-            </div>
+            )}
             </div>
           </div>
         );
@@ -20197,8 +20196,7 @@ function ExonaApp() {
           'pdf': { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
           'file-share': { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
           'storage': { id: 'storage', name: 'Cloud Storage', description: "Secure cloud storage for your institution's important assets.", icon: HardDrive, color: 'emerald-600' },
-          'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
-          'e-exam': { id: 'e-exam', name: 'YouTube Cinema', description: 'Stream shared videos, educational trailers, and YouTube cinema posts in an immersive Netflix-inspired theater layout.', icon: Video, color: 'red-600' }
+          'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' }
         };
 
         const workspaceFeatures = [
@@ -20206,7 +20204,7 @@ function ExonaApp() {
         ];
 
         // Add standard ones if enabled in App Center
-        const standardIds = ['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'e-exam'];
+        const standardIds = ['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'];
         standardIds.forEach(id => {
           if (enabledAppIds.includes(id)) {
             const item = catalogAppsById[id];
@@ -20246,7 +20244,7 @@ function ExonaApp() {
               customApps={customApps}
               setCustomApps={setCustomApps}
               onLaunchApp={(id) => {
-                if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'e-exam'].includes(id)) {
+                if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'].includes(id)) {
                   setActiveWorkspaceTool(id);
                 } else {
                   // Custom App
@@ -20377,16 +20375,6 @@ function ExonaApp() {
             <ExonaFileShare 
               onClose={() => setActiveWorkspaceTool(null)}
               showNotification={showNotification}
-            />
-          );
-        }
-
-        if (activeWorkspaceTool === 'e-exam') {
-          return (
-            <PhotoVideoLab
-              onClose={() => setActiveWorkspaceTool(null)}
-              showNotification={showNotification}
-              excoinBalance={excoinBalance}
             />
           );
         }
