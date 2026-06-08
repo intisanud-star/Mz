@@ -4041,7 +4041,7 @@ function ExonaApp() {
       errorStr.toLowerCase().includes('exhausted');
 
     if (isQuota) {
-      // Bypassed quota exceeded state to keep app operations unblocked
+      setIsQuotaExceeded(true);
     }
 
     const errInfo: FirestoreErrorInfo = {
@@ -7019,6 +7019,9 @@ function ExonaApp() {
       if (reasonStr.includes('FIRESTORE') || reasonStr.includes('firestore') || reasonStr.includes('Assertion')) {
         event.preventDefault();
         console.warn('Isolating unhandled background Firestore error:', event.reason);
+        try {
+          setIsQuotaExceeded(true);
+        } catch (e) {}
       }
     };
     const handleError = (event: ErrorEvent) => {
@@ -7034,6 +7037,9 @@ function ExonaApp() {
       ) {
         event.preventDefault();
         console.warn('Isolating background Firestore error:', event.error || event.message);
+        try {
+          setIsQuotaExceeded(true);
+        } catch (e) {}
       }
     };
 
