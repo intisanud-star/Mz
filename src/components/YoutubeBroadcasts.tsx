@@ -41,7 +41,7 @@ import {
   EyeOff
 } from 'lucide-react';
 
-import { db } from '../firebase';
+import { db, getApiUrl } from '../firebase';
 import { 
   collection, 
   doc, 
@@ -151,7 +151,7 @@ export function isHlsStream(stream?: YoutubeBroadcast | null): boolean {
 
 // Custom CORS Proxy template list for native stream routing and connection resilience
 const PROXIES = [
-  { name: 'Global Secure Ingress Proxy', getUrl: (u: string) => `/api/live-proxy?url=${encodeURIComponent(u)}` },
+  { name: 'Global Secure Ingress Proxy', getUrl: (u: string) => getApiUrl(`/api/live-proxy?url=${encodeURIComponent(u)}`) },
   { name: 'Direct Link (No Proxy)', getUrl: (u: string) => u },
   { name: 'CORSProxy Tunnel', getUrl: (u: string) => `https://corsproxy.org/?url=${encodeURIComponent(u)}` },
   { name: 'AllOrigins Tunnel', getUrl: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` }
@@ -1726,7 +1726,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       if (!isVlc && !parsed) {
         setParsingError('Resolving channel/video link secure protocols...');
         try {
-          const res = await fetch('/api/youtube/resolve', {
+          const res = await fetch(getApiUrl('/api/youtube/resolve'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: formUrl }),
