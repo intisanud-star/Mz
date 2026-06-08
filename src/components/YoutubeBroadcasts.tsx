@@ -269,6 +269,15 @@ const NetworkStreamPlayer: React.FC<{
           config.liveBackoff = 4;
         }
 
+        // Custom AJAX request headers modifier to bypass Webview or CDN mobile user blocks
+        config.xhrSetup = (xhr: XMLHttpRequest, url: string) => {
+          try {
+            xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+          } catch (e) {
+            console.warn("Failed to set Custom User-Agent header inside local Hls.js client setup:", e);
+          }
+        };
+
         hlsInstance = new HlsClass(config);
         addLog(`Source buffer limit set dynamically: ${config.maxBufferLength || 10} seconds.`);
         hlsInstance.loadSource(activeUrl);
@@ -741,13 +750,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     const handleOrientationResize = () => {
       const landscape = window.innerWidth > window.innerHeight;
       setIsLandscape(landscape);
-      if (landscape) {
-        // Auto fit profile to 'cover' (full-bleed screen) when rotated to landscape mode
-        setVideoFit(prev => prev === 'contain' ? 'cover' : prev);
-      } else {
-        // Return back to standard contain fit style when returning to portrait mode
-        setVideoFit(prev => prev === 'cover' ? 'contain' : prev);
-      }
+      // Keep as 'contain' by default to prevent video cropping (which hides top/bottom headers/tickers)
+      setVideoFit('contain');
     };
     window.addEventListener('resize', handleOrientationResize);
     window.addEventListener('orientationchange', handleOrientationResize);
