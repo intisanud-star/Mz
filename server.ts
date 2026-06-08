@@ -572,6 +572,10 @@ async function startServer() {
         return res.status(500).send('Invalid manifest returned');
       }
       
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const hostHeader = req.get('host') || 'ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app';
+      const selfBaseUrl = `${protocol}://${hostHeader}`;
+
       const parsedUrl = new URL(decodedUrl);
       const baseUrl = decodedUrl.substring(0, decodedUrl.lastIndexOf('/') + 1);
       const origin = parsedUrl.origin;
@@ -585,7 +589,7 @@ async function startServer() {
         if (trimmed.startsWith('#')) {
           return line.replace(/URI="([^"]+)"/g, (match, path) => {
             if (path.startsWith('http://') || path.startsWith('https://')) {
-              return `URI="/api/live-proxy?url=${encodeURIComponent(path)}"`;
+              return `URI="${selfBaseUrl}/api/live-proxy?url=${encodeURIComponent(path)}"`;
             }
             let resolved = '';
             if (path.startsWith('/')) {
@@ -593,7 +597,7 @@ async function startServer() {
             } else {
               resolved = baseUrl + path;
             }
-            return `URI="/api/live-proxy?url=${encodeURIComponent(resolved)}"`;
+            return `URI="${selfBaseUrl}/api/live-proxy?url=${encodeURIComponent(resolved)}"`;
           });
         }
         
@@ -607,7 +611,7 @@ async function startServer() {
           resolvedUrl = baseUrl + trimmed;
         }
         
-        return `/api/live-proxy?url=${encodeURIComponent(resolvedUrl)}`;
+        return `${selfBaseUrl}/api/live-proxy?url=${encodeURIComponent(resolvedUrl)}`;
       });
       
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
