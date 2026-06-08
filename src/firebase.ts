@@ -45,7 +45,7 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 
 // Dynamic Shared API Proxy backend state
-let cachedApiUrl = (typeof window !== 'undefined' && localStorage.getItem('exon_backend_api_url')) || '';
+let cachedApiUrl = 'https://ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app';
 
 // Detect if we are running in the backend host (Cloud Run or locally hosted dev server)
 const isBackendHost = typeof window !== 'undefined' && (
@@ -56,43 +56,13 @@ const isBackendHost = typeof window !== 'undefined' && (
 
 if (isBackendHost && typeof window !== 'undefined') {
   cachedApiUrl = window.location.origin;
-  localStorage.setItem('exon_backend_api_url', window.location.origin);
-  
-  // Register the cloud proxy URL live in Firestore under the open "broadcasts" write rules
-  setTimeout(async () => {
-    try {
-      await setDoc(doc(db, 'broadcasts', 'backend_config'), {
-        apiBaseUrl: window.location.origin,
-        updatedAt: new Date().toISOString()
-      }, { merge: true });
-    } catch (e) {
-      console.warn("Failed to auto-register backend URL in Firestore:", e);
-    }
-  }, 2000);
-}
-
-// Subscribe to active backend configurations to sync the Vercel deployments
-if (typeof window !== 'undefined') {
-  try {
-    onSnapshot(doc(db, 'broadcasts', 'backend_config'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data && data.apiBaseUrl) {
-          cachedApiUrl = data.apiBaseUrl;
-          localStorage.setItem('exon_backend_api_url', data.apiBaseUrl);
-        }
-      }
-    });
-  } catch (e) {
-    console.warn("Failed to subscribe to backend config:", e);
-  }
 }
 
 export function getApiUrl(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  // If we have a cached API URL and we are not on the backend host itself, redirect API requests to the cloud run backend
-  if (cachedApiUrl && !isBackendHost) {
-    return `${cachedApiUrl}${cleanPath}`;
+  // For Vercel or other external hosts, route directly to the Cloud Run backend without any Firestore reads
+  if (!isBackendHost) {
+    return `https://ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app${cleanPath}`;
   }
   return cleanPath;
 }

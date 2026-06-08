@@ -64,7 +64,8 @@ import {
   deleteUser,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  deleteDoc
+  deleteDoc,
+  getApiUrl
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
@@ -2528,7 +2529,7 @@ function ExonaApp() {
   useEffect(() => {
     let checkInterval: any;
     const checkServer = () => {
-      fetch(`/api/health?cb=${Date.now()}`)
+      fetch(getApiUrl(`/api/health?cb=${Date.now()}`))
         .then(res => res.json())
         .then(data => {
           if (data.status === 'ok') {
@@ -2548,7 +2549,7 @@ function ExonaApp() {
 
   const fetchBroadcastHistory = useCallback(() => {
     if (!serverReady) return;
-    fetch(`/api/admin/broadcasts?cb=${Date.now()}`)
+    fetch(getApiUrl(`/api/admin/broadcasts?cb=${Date.now()}`))
       .then(res => {
         if (!res.ok) {
           return res.text().then(text => {
@@ -2619,7 +2620,7 @@ function ExonaApp() {
     if (!serverReady) return;
     const fetchStats = () => {
       // Use absolute path and cache buster to bypass potential proxy issues
-      fetch(`/api/admin/stats?cb=${Date.now()}`)
+      fetch(getApiUrl(`/api/admin/stats?cb=${Date.now()}`))
         .then(res => {
           if (!res.ok) {
             return res.text().then(text => {
@@ -11629,7 +11630,7 @@ function ExonaApp() {
                         if (broadcastImageFile) formData.append('image', broadcastImageFile);
                         if (broadcastVideoFile) formData.append('video', broadcastVideoFile);
 
-                        const res = await fetch('/api/admin/broadcast', {
+                        const res = await fetch(getApiUrl('/api/admin/broadcast'), {
                           method: 'POST',
                           body: formData
                         });
@@ -11709,7 +11710,7 @@ function ExonaApp() {
                             onClick={async () => {
                               if (!window.confirm('Presidential alert: Are you sure you want to recall this broadcast from ALL users? This will delete the messages from their chats.')) return;
                               try {
-                                const res = await fetch(`/api/admin/broadcast/${broadcast.id}`, { method: 'DELETE' });
+                                const res = await fetch(getApiUrl(`/api/admin/broadcast/${broadcast.id}`), { method: 'DELETE' });
                                 const data = await res.json();
                                 if (data.success) {
                                   alert(`Successfully recalled! Deleted from ${data.deletedCount} users.`);
