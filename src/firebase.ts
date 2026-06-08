@@ -43,29 +43,6 @@ export const db = initializeFirestore(app, {
 }, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
-
-// Dynamic Shared API Proxy backend state
-let cachedApiUrl = 'https://ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app';
-
-// Detect if we are running in the backend host (Cloud Run or locally hosted dev server)
-const isBackendHost = typeof window !== 'undefined' && (
-  window.location.origin.includes('run.app') || 
-  window.location.origin.includes('localhost') || 
-  window.location.origin.includes('127.0.0.1')
-);
-
-if (isBackendHost && typeof window !== 'undefined') {
-  cachedApiUrl = window.location.origin;
-}
-
-export function getApiUrl(path: string): string {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  // For Vercel or other external hosts, route directly to the Cloud Run backend without any Firestore reads
-  if (!isBackendHost) {
-    return `https://ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app${cleanPath}`;
-  }
-  return cleanPath;
-}
 export const storage = getStorage(app, firebaseConfig.storageBucket);
 export const googleProvider = new GoogleAuthProvider();
 export { 

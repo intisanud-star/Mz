@@ -41,7 +41,7 @@ import {
   EyeOff
 } from 'lucide-react';
 
-import { db, getApiUrl } from '../firebase';
+import { db } from '../firebase';
 import { 
   collection, 
   doc, 
@@ -151,7 +151,7 @@ export function isHlsStream(stream?: YoutubeBroadcast | null): boolean {
 
 // Custom CORS Proxy template list for native stream routing and connection resilience
 const PROXIES = [
-  { name: 'Global Secure Ingress Proxy', getUrl: (u: string) => getApiUrl(`/api/live-proxy?url=${encodeURIComponent(u)}`) },
+  { name: 'Global Secure Ingress Proxy', getUrl: (u: string) => `/api/live-proxy?url=${encodeURIComponent(u)}` },
   { name: 'Direct Link (No Proxy)', getUrl: (u: string) => u },
   { name: 'CORSProxy Tunnel', getUrl: (u: string) => `https://corsproxy.org/?url=${encodeURIComponent(u)}` },
   { name: 'AllOrigins Tunnel', getUrl: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` }
@@ -170,6 +170,7 @@ const NetworkStreamPlayer: React.FC<{
   zoom?: number;
   fit?: 'cover' | 'contain' | 'fill';
   isTabActive?: boolean;
+  onLoaded?: () => void;
 }> = ({
   url,
   isActive,
@@ -181,7 +182,8 @@ const NetworkStreamPlayer: React.FC<{
   saturate = 100,
   zoom = 100,
   fit = 'contain',
-  isTabActive = true
+  isTabActive = true,
+  onLoaded
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -246,6 +248,7 @@ const NetworkStreamPlayer: React.FC<{
         } else {
           setPlaybackError(`Fatal stream decoding error. Format might be offline, incompatible, or strictly blocked by the remote host.`);
           addLog(`❌ Standby stream decoders exhausted.`);
+          if (onLoaded) onLoaded();
           return prev;
         }
       });
@@ -293,10 +296,12 @@ const NetworkStreamPlayer: React.FC<{
               setIsPlaying(true);
               setPlaybackError(null);
               addLog(`Seamless playback initialized successfully.`);
+              if (onLoaded) onLoaded();
             })
             .catch(err => {
               addLog(`Autoplay interrupted. Click play/unmute to engage native chips.`);
               console.warn(err);
+              if (onLoaded) onLoaded();
             });
         });
 
@@ -332,9 +337,11 @@ const NetworkStreamPlayer: React.FC<{
           .then(() => {
             setIsPlaying(true);
             addLog(`Direct Safari stream live.`);
+            if (onLoaded) onLoaded();
           })
           .catch(err => {
             addLog(`Tap Play to initiate video playback.`);
+            if (onLoaded) onLoaded();
           });
       } else {
         addLog(`Inspecting MIME direct compatibility...`);
@@ -343,9 +350,11 @@ const NetworkStreamPlayer: React.FC<{
           .then(() => {
             setIsPlaying(true);
             addLog(`Direct network video channel active.`);
+            if (onLoaded) onLoaded();
           })
           .catch(err => {
             handleNetworkError();
+            if (onLoaded) onLoaded();
           });
       }
     };
@@ -362,11 +371,18 @@ const NetworkStreamPlayer: React.FC<{
       script.onerror = () => {
         addLog(`❌ Failed to retrieve decoder packages. Using direct fallback.`);
         setupHls();
+        if (onLoaded) onLoaded();
       };
       document.head.appendChild(script);
     } else {
       setupHls();
     }
+
+    const handleLoadedData = () => {
+      if (onLoaded) onLoaded();
+    };
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('canplay', handleLoadedData);
 
     const statsTimer = setInterval(() => {
       if (video && !video.paused) {
@@ -390,6 +406,8 @@ const NetworkStreamPlayer: React.FC<{
       if (hlsInstance) {
         hlsInstance.destroy();
       }
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('canplay', handleLoadedData);
     };
   }, [activeUrl, isActive, bufferMode]);
 
@@ -714,6 +732,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   isTabActive = true
 }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [isChannelLoading, setIsChannelLoading] = useState(true);
+
+  // Trigger loading state when channel index or selected channel changes
+  useEffect(() => {
+    setIsChannelLoading(true);
+  }, [currentIdx]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1726,7 +1751,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
       if (!isVlc && !parsed) {
         setParsingError('Resolving channel/video link secure protocols...');
         try {
-          const res = await fetch(getApiUrl('/api/youtube/resolve'), {
+          const res = await fetch('/api/youtube/resolve', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: formUrl }),
@@ -1887,6 +1912,22 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   {/* Video Player Frame */}
                   {isActive ? (
                     <>
+                      {isChannelLoading && (
+                        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 pointer-events-none transition-opacity duration-350">
+                          <div className="relative flex items-center justify-center">
+                            {/* Inner spinning glow */}
+                            <div className="h-16 w-16 rounded-full border-4 border-orange-500/10 border-t-orange-500 animate-spin" />
+                            {/* Outer broadcasting pulse */}
+                            <div className="absolute h-24 w-24 rounded-full border border-orange-500/30 animate-pulse" />
+                          </div>
+                          <span className="mt-6 text-sm font-black text-white tracking-widest animate-pulse uppercase">
+                            LOADING EXON STATION...
+                          </span>
+                          <span className="mt-2 text-[10px] font-mono text-slate-400 tracking-wider">
+                            TELEMETRY RESYNC ONGOING...
+                          </span>
+                        </div>
+                      )}
                       {isHlsStream(stream) ? (
                         <NetworkStreamPlayer 
                           url={stream.streamUrl || ''} 
@@ -1903,6 +1944,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             const nextIdx = (idx + 1) % filteredBroadcasts.length;
                             scrollImmersiveToIdx(nextIdx);
                           }}
+                          onLoaded={() => setIsChannelLoading(false)}
                         />
                       ) : (
                         <iframe
@@ -1911,6 +1953,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
+                          onLoad={() => setIsChannelLoading(false)}
                           className="absolute inset-0 w-full h-full select-none pointer-events-auto bg-black transition-all duration-200"
                           style={{
                             filter: `brightness(${videoBrightness}%) contrast(${videoContrast}%) saturate(${videoSaturate}%)`,
@@ -2783,6 +2826,22 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
                     {isActive ? (
                       <>
+                        {isChannelLoading && (
+                          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 pointer-events-none transition-opacity duration-350">
+                            <div className="relative flex items-center justify-center">
+                              {/* Inner spinning glow */}
+                              <div className="h-12 w-12 rounded-full border-4 border-orange-500/10 border-t-orange-500 animate-spin" />
+                              {/* Outer broadcasting pulse */}
+                              <div className="absolute h-20 w-20 rounded-full border border-orange-500/30 animate-pulse" />
+                            </div>
+                            <span className="mt-5 text-[11px] font-black text-white tracking-widest animate-pulse uppercase">
+                              LOADING EXON STATION...
+                            </span>
+                            <span className="mt-1.5 text-[8.5px] font-mono text-slate-400 tracking-wider">
+                              TELEMETRY RESYNC ONGOING...
+                            </span>
+                          </div>
+                        )}
                         {isHlsStream(stream) ? (
                           <NetworkStreamPlayer 
                             url={stream.streamUrl || ''} 
@@ -2799,6 +2858,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               const nextIdx = (idx + 1) % filteredBroadcasts.length;
                               scrollToIdx(nextIdx);
                             }}
+                            onLoaded={() => setIsChannelLoading(false)}
                           />
                         ) : (
                           <iframe
@@ -2807,6 +2867,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             frameBorder="0"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen
+                            onLoad={() => setIsChannelLoading(false)}
                             className="absolute inset-0 w-full h-full select-none pointer-events-auto transition-all duration-200"
                             style={{
                               filter: `brightness(${videoBrightness}%) contrast(${videoContrast}%) saturate(${videoSaturate}%)`,
@@ -3517,6 +3578,22 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       {/* Video Player Frame */}
                       {isActive ? (
                         <>
+                          {isChannelLoading && (
+                            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 pointer-events-none transition-opacity duration-350">
+                              <div className="relative flex items-center justify-center">
+                                {/* Inner spinning glow */}
+                                <div className="h-16 w-16 rounded-full border-4 border-orange-500/10 border-t-orange-500 animate-spin" />
+                                {/* Outer broadcasting pulse */}
+                                <div className="absolute h-24 w-24 rounded-full border border-orange-500/30 animate-pulse" />
+                              </div>
+                              <span className="mt-6 text-sm font-black text-white tracking-widest animate-pulse uppercase">
+                                LOADING EXON STATION...
+                              </span>
+                              <span className="mt-2 text-[10px] font-mono text-slate-400 tracking-wider">
+                                TELEMETRY RESYNC ONGOING...
+                              </span>
+                            </div>
+                          )}
                           {isHlsStream(stream) ? (
                             <NetworkStreamPlayer 
                               url={stream.streamUrl || ''} 
@@ -3533,6 +3610,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                 const nextIdx = (idx + 1) % filteredBroadcasts.length;
                                 scrollImmersiveToIdx(nextIdx);
                               }}
+                              onLoaded={() => setIsChannelLoading(false)}
                             />
                           ) : (
                             <iframe
@@ -3541,6 +3619,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               frameBorder="0"
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                               allowFullScreen
+                              onLoad={() => setIsChannelLoading(false)}
                               className="absolute inset-0 w-full h-full select-none pointer-events-auto bg-black transition-all duration-200"
                               style={{
                                 filter: `brightness(${videoBrightness}%) contrast(${videoContrast}%) saturate(${videoSaturate}%)`,

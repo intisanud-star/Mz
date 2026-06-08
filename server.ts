@@ -572,15 +572,6 @@ async function startServer() {
         return res.status(500).send('Invalid manifest returned');
       }
       
-      let protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-      if (Array.isArray(protocol)) {
-        protocol = protocol[0];
-      }
-      const hostHeader = req.get('host') || 'ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app';
-      const isLocal = hostHeader.includes('localhost') || hostHeader.includes('127.0.0.1');
-      const finalProtocol = isLocal ? 'http' : 'https';
-      const selfBaseUrl = `${finalProtocol}://${hostHeader}`;
-
       const parsedUrl = new URL(decodedUrl);
       const baseUrl = decodedUrl.substring(0, decodedUrl.lastIndexOf('/') + 1);
       const origin = parsedUrl.origin;
@@ -594,7 +585,7 @@ async function startServer() {
         if (trimmed.startsWith('#')) {
           return line.replace(/URI="([^"]+)"/g, (match, path) => {
             if (path.startsWith('http://') || path.startsWith('https://')) {
-              return `URI="${selfBaseUrl}/api/live-proxy?url=${encodeURIComponent(path)}"`;
+              return `URI="/api/live-proxy?url=${encodeURIComponent(path)}"`;
             }
             let resolved = '';
             if (path.startsWith('/')) {
@@ -602,7 +593,7 @@ async function startServer() {
             } else {
               resolved = baseUrl + path;
             }
-            return `URI="${selfBaseUrl}/api/live-proxy?url=${encodeURIComponent(resolved)}"`;
+            return `URI="/api/live-proxy?url=${encodeURIComponent(resolved)}"`;
           });
         }
         
@@ -616,7 +607,7 @@ async function startServer() {
           resolvedUrl = baseUrl + trimmed;
         }
         
-        return `${selfBaseUrl}/api/live-proxy?url=${encodeURIComponent(resolvedUrl)}`;
+        return `/api/live-proxy?url=${encodeURIComponent(resolvedUrl)}`;
       });
       
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');

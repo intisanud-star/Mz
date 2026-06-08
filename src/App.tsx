@@ -64,8 +64,7 @@ import {
   deleteUser,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  deleteDoc,
-  getApiUrl
+  deleteDoc
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
 import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
@@ -2529,7 +2528,7 @@ function ExonaApp() {
   useEffect(() => {
     let checkInterval: any;
     const checkServer = () => {
-      fetch(getApiUrl(`/api/health?cb=${Date.now()}`))
+      fetch(`/api/health?cb=${Date.now()}`)
         .then(res => res.json())
         .then(data => {
           if (data.status === 'ok') {
@@ -2549,7 +2548,7 @@ function ExonaApp() {
 
   const fetchBroadcastHistory = useCallback(() => {
     if (!serverReady) return;
-    fetch(getApiUrl(`/api/admin/broadcasts?cb=${Date.now()}`))
+    fetch(`/api/admin/broadcasts?cb=${Date.now()}`)
       .then(res => {
         if (!res.ok) {
           return res.text().then(text => {
@@ -2620,7 +2619,7 @@ function ExonaApp() {
     if (!serverReady) return;
     const fetchStats = () => {
       // Use absolute path and cache buster to bypass potential proxy issues
-      fetch(getApiUrl(`/api/admin/stats?cb=${Date.now()}`))
+      fetch(`/api/admin/stats?cb=${Date.now()}`)
         .then(res => {
           if (!res.ok) {
             return res.text().then(text => {
@@ -3114,7 +3113,7 @@ function ExonaApp() {
       formData.append('image', file);
       formData.append('type', type);
 
-      const response = await fetch(getApiUrl('/api/ai/scan-list'), {
+      const response = await fetch('/api/ai/scan-list', {
         method: 'POST',
         body: formData
       });
@@ -11630,7 +11629,7 @@ function ExonaApp() {
                         if (broadcastImageFile) formData.append('image', broadcastImageFile);
                         if (broadcastVideoFile) formData.append('video', broadcastVideoFile);
 
-                        const res = await fetch(getApiUrl('/api/admin/broadcast'), {
+                        const res = await fetch('/api/admin/broadcast', {
                           method: 'POST',
                           body: formData
                         });
@@ -11710,7 +11709,7 @@ function ExonaApp() {
                             onClick={async () => {
                               if (!window.confirm('Presidential alert: Are you sure you want to recall this broadcast from ALL users? This will delete the messages from their chats.')) return;
                               try {
-                                const res = await fetch(getApiUrl(`/api/admin/broadcast/${broadcast.id}`), { method: 'DELETE' });
+                                const res = await fetch(`/api/admin/broadcast/${broadcast.id}`, { method: 'DELETE' });
                                 const data = await res.json();
                                 if (data.success) {
                                   alert(`Successfully recalled! Deleted from ${data.deletedCount} users.`);
@@ -15165,7 +15164,7 @@ function ExonaApp() {
           }, 3500);
 
           try {
-            const res = await fetch(getApiUrl('/api/ai/classroom-moderator'), {
+            const res = await fetch('/api/ai/classroom-moderator', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -26711,7 +26710,7 @@ function ExonaApp() {
                       onClick={async () => {
                         setIsReplyingToAi(true);
                         try {
-                          const res = await fetch(getApiUrl('/api/ai/reply-story'), {
+                          const res = await fetch('/api/ai/reply-story', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -26750,7 +26749,7 @@ function ExonaApp() {
                     const userMsg = aiStoryReplyText;
                     setAiStoryReplyText('');
                     try {
-                      const res = await fetch(getApiUrl('/api/ai/reply-story'), {
+                      const res = await fetch('/api/ai/reply-story', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -26859,7 +26858,7 @@ function ExonaApp() {
                             try {
                               const topics = ['Wisdom', 'Inspiration', 'Future Tech', 'Minimalist Design', 'Mindfulness'];
                               const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-                              const res = await fetch(getApiUrl('/api/ai/generate-status'), {
+                              const res = await fetch('/api/ai/generate-status', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ topic: randomTopic })
