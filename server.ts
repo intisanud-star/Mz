@@ -572,9 +572,14 @@ async function startServer() {
         return res.status(500).send('Invalid manifest returned');
       }
       
-      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      let protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      if (Array.isArray(protocol)) {
+        protocol = protocol[0];
+      }
       const hostHeader = req.get('host') || 'ais-pre-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app';
-      const selfBaseUrl = `${protocol}://${hostHeader}`;
+      const isLocal = hostHeader.includes('localhost') || hostHeader.includes('127.0.0.1');
+      const finalProtocol = isLocal ? 'http' : 'https';
+      const selfBaseUrl = `${finalProtocol}://${hostHeader}`;
 
       const parsedUrl = new URL(decodedUrl);
       const baseUrl = decodedUrl.substring(0, decodedUrl.lastIndexOf('/') + 1);

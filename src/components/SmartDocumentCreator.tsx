@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import html2canvas from 'html2canvas';
+import { getApiUrl } from '../firebase';
 import { 
   Sparkles, Award, IdCard, Receipt, FileText, FileSignature, 
   FileSpreadsheet, User, ChevronDown, Check, Printer, 
@@ -71,7 +72,7 @@ export default function SmartDocumentCreator({
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/api/ai/scan-design', {
+      const response = await fetch(getApiUrl('/api/ai/scan-design'), {
         method: 'POST',
         body: formData
       });
@@ -410,7 +411,7 @@ export default function SmartDocumentCreator({
 
     setIsDocGenerating(true);
     try {
-      const response = await fetch('/api/ai/fill-document', {
+      const response = await fetch(getApiUrl('/api/ai/fill-document'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

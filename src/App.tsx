@@ -3114,7 +3114,7 @@ function ExonaApp() {
       formData.append('image', file);
       formData.append('type', type);
 
-      const response = await fetch('/api/ai/scan-list', {
+      const response = await fetch(getApiUrl('/api/ai/scan-list'), {
         method: 'POST',
         body: formData
       });
@@ -15165,7 +15165,7 @@ function ExonaApp() {
           }, 3500);
 
           try {
-            const res = await fetch('/api/ai/classroom-moderator', {
+            const res = await fetch(getApiUrl('/api/ai/classroom-moderator'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -26711,7 +26711,7 @@ function ExonaApp() {
                       onClick={async () => {
                         setIsReplyingToAi(true);
                         try {
-                          const res = await fetch('/api/ai/reply-story', {
+                          const res = await fetch(getApiUrl('/api/ai/reply-story'), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -26750,7 +26750,7 @@ function ExonaApp() {
                     const userMsg = aiStoryReplyText;
                     setAiStoryReplyText('');
                     try {
-                      const res = await fetch('/api/ai/reply-story', {
+                      const res = await fetch(getApiUrl('/api/ai/reply-story'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -26859,7 +26859,7 @@ function ExonaApp() {
                             try {
                               const topics = ['Wisdom', 'Inspiration', 'Future Tech', 'Minimalist Design', 'Mindfulness'];
                               const randomTopic = topics[Math.floor(Math.random() * topics.length)];
-                              const res = await fetch('/api/ai/generate-status', {
+                              const res = await fetch(getApiUrl('/api/ai/generate-status'), {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ topic: randomTopic })
