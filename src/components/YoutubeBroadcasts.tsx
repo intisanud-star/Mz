@@ -761,6 +761,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   const [isImmersiveMode, setIsImmersiveMode] = useState(true);
   const [isStrictVideoOnly, setIsStrictVideoOnly] = useState(false);
   const [isImmersiveCommentsOpen, setIsImmersiveCommentsOpen] = useState(false);
+  const [isImmersiveChannelsDrawerOpen, setIsImmersiveChannelsDrawerOpen] = useState(false);
   const [drawerActiveTab, setDrawerActiveTab] = useState<'comments' | 'adjustments'>('comments');
   const [videoBrightness, setVideoBrightness] = useState<number>(100);
   const [videoContrast, setVideoContrast] = useState<number>(100);
@@ -775,8 +776,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     const handleOrientationResize = () => {
       const landscape = window.innerWidth > window.innerHeight;
       setIsLandscape(landscape);
-      // Keep as 'contain' by default to prevent video cropping (which hides top/bottom headers/tickers)
-      setVideoFit('contain');
+      // Auto cover when rotated to landscape, contain when portrait
+      if (landscape) {
+        setVideoFit('cover');
+      } else {
+        setVideoFit('contain');
+      }
     };
     window.addEventListener('resize', handleOrientationResize);
     window.addEventListener('orientationchange', handleOrientationResize);
@@ -2212,7 +2217,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         )}
 
         {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
-        {!isStrictVideoOnly && (
+        {!isStrictVideoOnly && !isLandscape && (
           <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
             <button 
               type="button"
@@ -2236,28 +2241,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             >
               <svg className="h-5.5 w-5.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
             </button>
-            {isAdmin ? (
-              <button 
-                type="button"
-                onClick={() => setIsImmersiveAddFormOpen(true)} 
-                className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
-                title="Add Live Stream"
-              >
-                <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
-              </button>
-            ) : (
-              <button 
-                type="button"
-                onClick={() => { 
-                  setCategoryFilter('All'); 
-                  showNotification("Exploring all live channels!", "info"); 
-                }} 
-                className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
-                title="Explore Channels"
-              >
-                <Compass size={22} className="hover:text-white" />
-              </button>
-            )}
+            <button 
+              type="button"
+              onClick={() => { 
+                setIsImmersiveChannelsDrawerOpen(true);
+              }} 
+              className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
+              title="Show Stations Directory"
+            >
+              <Compass size={22} className="hover:text-orange-500 transition-colors" />
+            </button>
             <button 
               type="button"
               onClick={() => {
@@ -2285,6 +2278,110 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             </div>
           </div>
         )}
+
+        {/* SLIDE-UP REELS CHANNELS DIRECTORY DRAWER */}
+        <AnimatePresence>
+          {isImmersiveChannelsDrawerOpen && (
+            <>
+              {/* Frosted comments Backdrop */}
+              <div 
+                onClick={() => setIsImmersiveChannelsDrawerOpen(false)}
+                className="absolute inset-x-0 top-0 bottom-[60vh] bg-transparent z-[9992] cursor-pointer"
+              />
+              {/* Solid Updrawer card */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-slate-950/98 border-t border-slate-800 z-[9993] flex flex-col p-6 pointer-events-auto"
+              >
+                {/* Header bar handle */}
+                <div 
+                  className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4 cursor-pointer hover:bg-slate-700 select-none shrink-0" 
+                  onClick={() => setIsImmersiveChannelsDrawerOpen(false)} 
+                />
+                
+                <div className="flex flex-col gap-3 border-b border-slate-900 pb-3 shrink-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <Tv size={16} className="text-orange-500" />
+                        Stations Directory
+                      </h4>
+                      <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Select any station to switch transmission instantly</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-4 text-slate-350 no-scrollbar">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
+                    {filteredBroadcasts.map((stream, idx) => {
+                      const isActive = idx === currentIdx;
+                      const isHls = isHlsStream(stream);
+                      
+                      return (
+                        <div
+                          key={stream.id}
+                          onClick={() => {
+                            scrollImmersiveToIdx(idx);
+                            setIsImmersiveChannelsDrawerOpen(false);
+                            showNotification(`Transmitting: ${stream.title}`, "success");
+                          }}
+                          className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 group relative overflow-hidden select-none items-center ${
+                            isActive 
+                              ? 'bg-slate-900 border-orange-500 text-white shadow-md' 
+                              : 'border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-900/40'
+                          }`}
+                        >
+                          {/* Thumbnail / Symbol left */}
+                          <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0 relative bg-slate-900 flex items-center justify-center border border-white/5">
+                            {isHls ? (
+                              <div className="text-emerald-400 flex flex-col items-center justify-center font-sans">
+                                <Tv size={16} />
+                                <span className="text-[5px] font-mono tracking-wider uppercase font-black text-emerald-500">HLS</span>
+                              </div>
+                            ) : (
+                              <img 
+                                src={getCoverImageUrl(stream)} 
+                                alt={stream.title} 
+                                className="h-full w-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-300"
+                              />
+                            )}
+                            
+                            {isActive && (
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                <span className="flex h-2 w-2 relative">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0 flex flex-col text-left">
+                            <span className="text-[10px] font-extrabold text-white truncate uppercase tracking-wide group-hover:text-orange-400 transition-colors">
+                              {stream.title}
+                            </span>
+                            <span className="text-[8px] font-mono text-slate-500 uppercase tracking-wider mt-0.5">
+                              {stream.category || 'BROADCAST'}
+                            </span>
+                          </div>
+
+                          {isActive && (
+                            <span className="text-[7.5px] font-mono tracking-widest text-orange-500 uppercase font-black border border-orange-500/30 px-1.5 py-0.5 rounded bg-orange-950/30 animate-pulse">
+                              LIVE
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* SLIDE-UP REELS COMMENTS DRAWER OVERLAY */}
         <AnimatePresence>
@@ -3892,7 +3989,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             )}
 
             {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
-            {!isStrictVideoOnly && (
+            {!isStrictVideoOnly && !isLandscape && (
               <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
                 <button 
                   type="button"
@@ -3916,28 +4013,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 >
                   <svg className="h-5.5 w-5.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
                 </button>
-                {isAdmin ? (
-                  <button 
-                    type="button"
-                    onClick={() => setIsImmersiveAddFormOpen(true)} 
-                    className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
-                    title="Add Live Stream"
-                  >
-                    <Plus size={22} className="text-white bg-slate-800 rounded-lg p-0.5" />
-                  </button>
-                ) : (
-                  <button 
-                    type="button"
-                    onClick={() => { 
-                      setCategoryFilter('All'); 
-                      showNotification("Exploring all live channels!", "info"); 
-                    }} 
-                    className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
-                    title="Explore Channels"
-                  >
-                    <Compass size={22} className="hover:text-white" />
-                  </button>
-                )}
+                <button 
+                  type="button"
+                  onClick={() => { 
+                    setIsImmersiveChannelsDrawerOpen(true);
+                  }} 
+                  className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
+                  title="Show Stations Directory"
+                >
+                  <Compass size={22} className="hover:text-orange-500 transition-colors" />
+                </button>
                 <button 
                   type="button"
                   onClick={() => {
@@ -3958,13 +4043,117 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     const profileTab = document.getElementById("profile_tab_trigger");
                     if (profileTab) profileTab.click();
                   }}
-                  className="h-8 w-8 rounded-full border-2 border-orange-500 bg-slate-850 flex items-center justify-center text-[10px] font-black text-rose-450 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-md" 
+                  className="h-8 w-8 rounded-full border-2 border-orange-555 bg-slate-850 flex items-center justify-center text-[10px] font-black text-rose-450 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-md" 
                   title="Your User Profile"
                 >
                   {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
                 </div>
               </div>
             )}
+
+            {/* SLIDE-UP REELS CHANNELS DIRECTORY DRAWER */}
+            <AnimatePresence>
+              {isImmersiveChannelsDrawerOpen && (
+                <>
+                  {/* Frosted comments Backdrop */}
+                  <div 
+                    onClick={() => setIsImmersiveChannelsDrawerOpen(false)}
+                    className="absolute inset-x-0 top-0 bottom-[60vh] bg-transparent z-[9992] cursor-pointer"
+                  />
+                  {/* Solid Updrawer card */}
+                  <motion.div
+                    initial={{ y: '100%' }}
+                    animate={{ y: 0 }}
+                    exit={{ y: '100%' }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                    className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-slate-950/98 border-t border-slate-800 z-[9993] flex flex-col p-6 pointer-events-auto"
+                  >
+                    {/* Header bar handle */}
+                    <div 
+                      className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4 cursor-pointer hover:bg-slate-700 select-none shrink-0" 
+                      onClick={() => setIsImmersiveChannelsDrawerOpen(false)} 
+                    />
+                    
+                    <div className="flex flex-col gap-3 border-b border-slate-900 pb-3 shrink-0">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                            <Tv size={16} className="text-orange-500" />
+                            Stations Directory
+                          </h4>
+                          <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Select any station to switch transmission instantly</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-4 text-slate-350 no-scrollbar">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
+                        {filteredBroadcasts.map((stream, idx) => {
+                          const isActive = idx === currentIdx;
+                          const isHls = isHlsStream(stream);
+                          
+                          return (
+                            <div
+                              key={stream.id}
+                              onClick={() => {
+                                scrollImmersiveToIdx(idx);
+                                setIsImmersiveChannelsDrawerOpen(false);
+                                showNotification(`Transmitting: ${stream.title}`, "success");
+                              }}
+                              className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 group relative overflow-hidden select-none items-center ${
+                                isActive 
+                                  ? 'bg-slate-900 border-orange-500 text-white shadow-md' 
+                                  : 'border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-900/40'
+                              }`}
+                            >
+                              {/* Thumbnail / Symbol left */}
+                              <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0 relative bg-slate-900 flex items-center justify-center border border-white/5">
+                                {isHls ? (
+                                  <div className="text-emerald-400 flex flex-col items-center justify-center font-sans">
+                                    <Tv size={16} />
+                                    <span className="text-[5px] font-mono tracking-wider uppercase font-black text-emerald-500">HLS</span>
+                                  </div>
+                                ) : (
+                                  <img 
+                                    src={getCoverImageUrl(stream)} 
+                                    alt={stream.title} 
+                                    className="h-full w-full object-cover opacity-60 group-hover:scale-110 transition-transform duration-300"
+                                  />
+                                )}
+                                
+                                {isActive && (
+                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <span className="flex h-2 w-2 relative">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0 flex flex-col text-left">
+                                <span className="text-[10px] font-extrabold text-white truncate uppercase tracking-wide group-hover:text-orange-400 transition-colors">
+                                  {stream.title}
+                                </span>
+                                <span className="text-[8px] font-mono text-slate-500 uppercase tracking-wider mt-0.5">
+                                  {stream.category || 'BROADCAST'}
+                                </span>
+                              </div>
+
+                              {isActive && (
+                                <span className="text-[7.5px] font-mono tracking-widest text-orange-500 uppercase font-black border border-orange-500/30 px-1.5 py-0.5 rounded bg-orange-950/30 animate-pulse">
+                                  LIVE
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
 
             {/* SLIDE-UP REELS COMMENTS DRAWER OVERLAY */}
             <AnimatePresence>
