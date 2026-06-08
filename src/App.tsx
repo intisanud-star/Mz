@@ -7012,46 +7012,11 @@ function ExonaApp() {
       setIsOnline(false);
       showNotification('Running in offline mode', 'error');
     };
-    
-    // Safety Net: Catch any unhandled firebase/firestore errors or internal assertion errors to prevent crashing
-    const handleRejection = (event: PromiseRejectionEvent) => {
-      const reasonStr = event.reason ? String(event.reason) : '';
-      if (reasonStr.includes('FIRESTORE') || reasonStr.includes('firestore') || reasonStr.includes('Assertion')) {
-        event.preventDefault();
-        console.warn('Isolating unhandled background Firestore error:', event.reason);
-        try {
-          setIsQuotaExceeded(true);
-        } catch (e) {}
-      }
-    };
-    const handleError = (event: ErrorEvent) => {
-      const errStr = event.error ? String(event.error) : '';
-      const msgStr = event.message ? String(event.message) : '';
-      if (
-        errStr.includes('FIRESTORE') || 
-        errStr.includes('firestore') || 
-        msgStr.includes('FIRESTORE') || 
-        msgStr.includes('firestore') || 
-        errStr.includes('Assertion') ||
-        msgStr.includes('Assertion')
-      ) {
-        event.preventDefault();
-        console.warn('Isolating background Firestore error:', event.error || event.message);
-        try {
-          setIsQuotaExceeded(true);
-        } catch (e) {}
-      }
-    };
-
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('unhandledrejection', handleRejection);
-    window.addEventListener('error', handleError);
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('unhandledrejection', handleRejection);
-      window.removeEventListener('error', handleError);
     };
   }, []);
 
@@ -23778,6 +23743,24 @@ function ExonaApp() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
+      {/* Free Tier Quota Warning banner */}
+      {isQuotaExceeded && userDoc?.role === 'admin' && (
+        <div className="bg-red-500 text-white text-xs font-bold px-4 py-2.5 text-center flex flex-col sm:flex-row items-center justify-center gap-1.5 z-[999] transition-all">
+          <div className="flex items-center gap-1.5">
+            <AlertCircle size={14} />
+            <span>Firestore Free Tier Daily Quota Exceeded. Database operations are paused until reset tomorrow (or upon upgrade).</span>
+          </div>
+          <a 
+            href="https://console.firebase.google.com/project/studio-438355495-26bec/firestore/databases/ai-studio-c3ea759e-c369-4b6c-babb-5352435dc336/data?openUpgradeDialog=true" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="underline ml-0 sm:ml-2 hover:opacity-80 transition-all font-extrabold flex items-center gap-0.5"
+          >
+            Upgrade or Manage Quotas
+          </a>
+        </div>
+      )}
+
       {/* Global Notification */}
       <AnimatePresence>
         {notification && (

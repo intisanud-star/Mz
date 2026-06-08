@@ -1269,7 +1269,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
     }
 
     // Add GitHub live broadcast at index 0 if it is live
-    if (githubBroadcast && githubBroadcast.streamUrl) {
+    if (false) {
       const parsed = githubBroadcast.streamUrl ? parseYoutubeId(githubBroadcast.streamUrl) : null;
       const isHls = githubBroadcast.type === 'vlc' || githubBroadcast.type === 'hls';
       const ghItem: YoutubeBroadcast = {
