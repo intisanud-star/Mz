@@ -10295,7 +10295,12 @@ function ExonaApp() {
         const owned = snap.docs.map(d => ({ id: d.id, ...d.data() } as School));
         setSchools(prev => {
           const others = prev.filter(s => s.creatorUid !== user.uid);
-          return [...others, ...owned];
+          const combined = [...others, ...owned];
+          const uniqueMap = new Map();
+          combined.forEach(item => {
+            if (item && item.id) uniqueMap.set(item.id, item);
+          });
+          return Array.from(uniqueMap.values());
         });
       }, (error) => {
         if (!error.message.includes('insufficient permissions')) {
@@ -10309,7 +10314,12 @@ function ExonaApp() {
         const owned = snap.docs.map(d => ({ id: d.id, ...d.data() } as Place));
         setPlaces(prev => {
           const others = prev.filter(p => p.creatorUid !== user.uid);
-          return [...others, ...owned];
+          const combined = [...others, ...owned];
+          const uniqueMap = new Map();
+          combined.forEach(item => {
+            if (item && item.id) uniqueMap.set(item.id, item);
+          });
+          return Array.from(uniqueMap.values());
         });
       }, (error) => {
         if (!error.message.includes('insufficient permissions')) {
@@ -10324,7 +10334,12 @@ function ExonaApp() {
         const followed = snap.docs.map(d => ({ id: d.id, ...d.data() } as School));
         setSchools(prev => {
           const remaining = prev.filter(s => s.creatorUid === user.uid || !followed.some(f => f.id === s.id));
-          return [...remaining, ...followed];
+          const combined = [...remaining, ...followed];
+          const uniqueMap = new Map();
+          combined.forEach(item => {
+            if (item && item.id) uniqueMap.set(item.id, item);
+          });
+          return Array.from(uniqueMap.values());
         });
       }, (error) => {
         if (!error.message.includes('insufficient permissions')) {
@@ -10338,7 +10353,12 @@ function ExonaApp() {
         const followed = snap.docs.map(d => ({ id: d.id, ...d.data() } as Place));
         setPlaces(prev => {
           const remaining = prev.filter(p => p.creatorUid === user.uid || !followed.some(f => f.id === p.id));
-          return [...remaining, ...followed];
+          const combined = [...remaining, ...followed];
+          const uniqueMap = new Map();
+          combined.forEach(item => {
+            if (item && item.id) uniqueMap.set(item.id, item);
+          });
+          return Array.from(uniqueMap.values());
         });
       }, (error) => {
         if (!error.message.includes('insufficient permissions')) {
@@ -19721,7 +19741,10 @@ function ExonaApp() {
                                     (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.pause();
                                   } else {
                                     setActiveVoiceMessage(msg.id);
-                                    (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.play();
+                                    const audioEl = document.getElementById(`audio-${msg.id}`) as HTMLAudioElement;
+                                    if (audioEl) {
+                                      audioEl.play().catch(e => console.warn('Audio play failed:', e));
+                                    }
                                   }
                                 }}
                                 className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${msg.senderUid === user.uid ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-accent/10 hover:bg-accent/20 text-accent'}`}

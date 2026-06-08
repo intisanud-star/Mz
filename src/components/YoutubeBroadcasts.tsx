@@ -1920,12 +1920,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             {/* Outer broadcasting pulse */}
                             <div className="absolute h-24 w-24 rounded-full border border-orange-500/30 animate-pulse" />
                           </div>
-                          <span className="mt-6 text-sm font-black text-white tracking-widest animate-pulse uppercase">
-                            LOADING EXON STATION...
-                          </span>
-                          <span className="mt-2 text-[10px] font-mono text-slate-400 tracking-wider">
-                            TELEMETRY RESYNC ONGOING...
-                          </span>
                         </div>
                       )}
                       {isHlsStream(stream) ? (
@@ -2834,12 +2828,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               {/* Outer broadcasting pulse */}
                               <div className="absolute h-20 w-20 rounded-full border border-orange-500/30 animate-pulse" />
                             </div>
-                            <span className="mt-5 text-[11px] font-black text-white tracking-widest animate-pulse uppercase">
-                              LOADING EXON STATION...
-                            </span>
-                            <span className="mt-1.5 text-[8.5px] font-mono text-slate-400 tracking-wider">
-                              TELEMETRY RESYNC ONGOING...
-                            </span>
                           </div>
                         )}
                         {isHlsStream(stream) ? (
@@ -3586,12 +3574,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                 {/* Outer broadcasting pulse */}
                                 <div className="absolute h-24 w-24 rounded-full border border-orange-500/30 animate-pulse" />
                               </div>
-                              <span className="mt-6 text-sm font-black text-white tracking-widest animate-pulse uppercase">
-                                LOADING EXON STATION...
-                              </span>
-                              <span className="mt-2 text-[10px] font-mono text-slate-400 tracking-wider">
-                                TELEMETRY RESYNC ONGOING...
-                              </span>
                             </div>
                           )}
                           {isHlsStream(stream) ? (
