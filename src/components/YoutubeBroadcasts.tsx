@@ -1343,6 +1343,22 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           likes: gh.likes || [],
         };
       });
+      // Always ensure the Sunnah TV loop preset is prepended for instant reels download and looped local-first playback
+      if (!list.some(item => item.id === 'preset_sunnah_tv')) {
+        list.unshift({
+          id: 'preset_sunnah_tv',
+          title: 'Sunnah TV (Reels Loop)',
+          type: 'hls',
+          streamType: 'hls',
+          streamUrl: 'https://assets.mixkit.co/videos/preview/mixkit-mosque-against-the-sunset-sky-and-birds-flying-43187-large.mp4',
+          category: 'Islamic Education',
+          description: 'Continuous spiritual live loop broadcast in high definition (Exonapp Local-First Engine).',
+          creatorUid: 'exon_system',
+          creatorName: 'Sunnah TV Live',
+          isPreset: true,
+          likes: [],
+        });
+      }
     } else {
       // HIGH QUALITY DEFAULT PRESETS FOR DIRECT LOOP PLAYBACK & REELS DOWNLOADS
       list = [
@@ -3193,6 +3209,22 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           <Heart size={18} fill={hasLiked ? "currentColor" : "none"} className={hasLiked ? "animate-pulse" : ""} />
                         </button>
                         <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
+                      </div>
+
+                      {/* Premium Reels style download button */}
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDownloadClip(stream);
+                          }}
+                          className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-black/60 border border-white/20 text-emerald-400 hover:text-white hover:bg-emerald-650 flex items-center justify-center transition-all shadow-lg cursor-pointer hover:border-emerald-400"
+                          title="Download Reel (Exonapp Native Downloader)"
+                        >
+                          <Download size={16} />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white drop-shadow-md">Download</span>
                       </div>
 
                       {/* External YouTube / Network Link Button */}
