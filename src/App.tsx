@@ -12001,19 +12001,19 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full min-h-screen bg-gray-50/50 pb-32">
+          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
             <div className="max-w-xl mx-auto pt-8 px-4">
             <div className="flex items-center justify-between mb-8">
               <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
                   onClick={() => setFeedTab('institutions')}
-                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'institutions' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
+                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest tracking-widest transition-all whitespace-nowrap ${feedTab === 'institutions' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
                 >
                   Institutions
                 </button>
                 <button 
                   onClick={() => setFeedTab('broadcasts')}
-                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'broadcasts' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
+                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest tracking-widest transition-all whitespace-nowrap ${feedTab === 'broadcasts' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
                 >
                   Broadcasts
                 </button>
@@ -12029,9 +12029,12 @@ function ExonaApp() {
             </div>
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
-              <div className="flex flex-wrap items-center gap-2 mb-8">
+              <div 
+                className="flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-2 select-none"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {categories.map((c) => (
-                  <div key={c.id} className="relative group">
+                  <div key={c.id} className="relative group shrink-0">
                     <button
                       onClick={() => setSchoolFilter(c.id)}
                       className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
@@ -12064,7 +12067,7 @@ function ExonaApp() {
                       e.preventDefault();
                       handleCreateCustomCategory();
                     }}
-                    className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5"
+                    className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 shrink-0"
                   >
                     <input
                       type="text"
@@ -12091,7 +12094,7 @@ function ExonaApp() {
                 ) : (
                   <button
                     onClick={() => setIsAddingCategory(true)}
-                    className="h-10 w-10 bg-gray-50 text-muted border border-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-100 hover:border-gray-200 transition-all select-none"
+                    className="h-10 w-10 bg-gray-50 text-muted border border-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-100 hover:border-gray-200 transition-all select-none shrink-0"
                     title="Add Category"
                   >
                     <Plus size={16} />
