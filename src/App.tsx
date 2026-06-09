@@ -6743,6 +6743,33 @@ function ExonaApp() {
     localStorage.setItem('exon_custom_categories', JSON.stringify(customOnly));
   }, [categories]);
 
+  const getFilterCount = (filterId: string): number => {
+    let filtered = [...schools, ...places];
+    
+    // Apply user role/following permissions (matches feed rules)
+    filtered = filtered.filter(s => {
+      if (globalSearch.trim() !== '') {
+        return s.name.toLowerCase().includes(globalSearch.toLowerCase());
+      }
+      if (userDoc?.role === 'admin') return true;
+      return s.creatorUid === user?.uid || 
+             s.administrativeViewers?.includes(user?.uid || '') ||
+             s.followers?.includes(user?.uid || '') ||
+             userDoc?.following?.includes(s.id);
+    });
+
+    if (filterId === 'all') return filtered.length;
+    if (filterId === 'school') return filtered.filter(s => s.type === 'school').length;
+    if (filterId === 'place') return filtered.filter(s => s.type === 'place').length;
+    
+    return filtered.filter(s => {
+      return (
+        (s.category && s.category.toLowerCase() === filterId.toLowerCase()) ||
+        (s.educationalLevels && s.educationalLevels.some(lvl => lvl.toLowerCase() === filterId.toLowerCase()))
+      );
+    }).length;
+  };
+
   const handleCreateCustomCategory = () => {
     const trimmed = newCategoryInput.trim();
     if (!trimmed) return;
@@ -12033,32 +12060,42 @@ function ExonaApp() {
                 className="flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-2 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {categories.map((c) => (
-                  <div key={c.id} className="relative group shrink-0">
-                    <button
-                      onClick={() => setSchoolFilter(c.id)}
-                      className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
-                        schoolFilter === c.id 
-                          ? 'bg-accent text-white' 
-                          : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                    {!['all', 'place', 'school', 'Business'].includes(c.id) && (
+                {categories.map((c) => {
+                  const count = getFilterCount(c.id);
+                  return (
+                    <div key={c.id} className="relative group shrink-0">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteCategory(c.id);
-                        }}
-                        className="absolute -top-1.5 -right-1.5 bg-gray-100 hover:bg-red-100 hover:text-red-500 text-muted h-5 w-5 rounded-full flex items-center justify-center text-[9px] transition-all border border-white opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        title="Delete category"
+                        onClick={() => setSchoolFilter(c.id)}
+                        className={`h-9 px-4 rounded-full text-[13px] font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap outline-none ${
+                          schoolFilter === c.id 
+                            ? 'bg-accent text-white shadow-sm' 
+                            : 'bg-gray-100/85 text-muted hover:bg-gray-200/90 hover:text-ink'
+                        }`}
                       >
-                        <X size={10} />
+                        <span>{c.label}</span>
+                        <span className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-bold ${
+                          schoolFilter === c.id 
+                            ? 'bg-white/20 text-white' 
+                            : 'bg-gray-200 text-muted group-hover:bg-gray-300'
+                        }`}>
+                          {count}
+                        </span>
                       </button>
-                    )}
-                  </div>
-                ))}
+                      {!['all', 'place', 'school', 'Business'].includes(c.id) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCategory(c.id);
+                          }}
+                          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white h-4.5 w-4.5 rounded-full flex items-center justify-center text-[8px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          title="Delete category"
+                        >
+                          <X size={8} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
                 
                 {/* Plus button to add custom category */}
                 {isAddingCategory ? (
@@ -12067,34 +12104,34 @@ function ExonaApp() {
                       e.preventDefault();
                       handleCreateCustomCategory();
                     }}
-                    className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 shrink-0"
+                    className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full h-9 pl-3.5 pr-1 shrink-0"
                   >
                     <input
                       type="text"
                       value={newCategoryInput}
                       onChange={(e) => setNewCategoryInput(e.target.value)}
-                      placeholder="Category..."
-                      className="bg-transparent text-xs font-bold outline-none w-24 text-ink placeholder:text-muted/40"
+                      placeholder="New category"
+                      className="bg-transparent text-[12px] font-semibold outline-none w-24 text-ink placeholder:text-muted/40"
                       autoFocus
                     />
                     <button 
                       type="submit"
-                      className="h-7 w-7 bg-accent text-white rounded-lg flex items-center justify-center hover:bg-accent/90"
+                      className="h-7 w-7 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
                     >
-                      <Check size={14} />
+                      <Check size={12} />
                     </button>
                     <button 
                       type="button"
                       onClick={() => setIsAddingCategory(false)}
-                      className="h-7 w-7 bg-gray-200 text-muted rounded-lg flex items-center justify-center hover:bg-gray-300"
+                      className="h-7 w-7 bg-gray-200 text-muted rounded-full flex items-center justify-center hover:bg-gray-300 shrink-0"
                     >
-                      <X size={14} />
+                      <X size={12} />
                     </button>
                   </form>
                 ) : (
                   <button
                     onClick={() => setIsAddingCategory(true)}
-                    className="h-10 w-10 bg-gray-50 text-muted border border-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-100 hover:border-gray-200 transition-all select-none shrink-0"
+                    className="h-9 w-9 bg-gray-100 text-muted hover:bg-gray-200 hover:text-ink rounded-full flex items-center justify-center transition-all select-none shrink-0"
                     title="Add Category"
                   >
                     <Plus size={16} />
