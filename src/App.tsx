@@ -6158,6 +6158,8 @@ function ExonaApp() {
   };
   const [editingRecord, setEditingRecord] = useState<StudentRecord | null>(null);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [selectedPostInGrid, setSelectedPostInGrid] = useState<Post | null>(null);
+  const [activeInstagramTab, setActiveInstagramTab] = useState<'posts' | 'reels' | 'tagged'>('posts');
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
   const [postComments, setPostComments] = useState<any[]>([]);
@@ -10791,7 +10793,7 @@ function ExonaApp() {
   // 6. Posts & Personalized Social Feed Listener
   useEffect(() => {
     if (isQuotaExceeded || !user || !userDoc) return;
-    if (!['feed', 'school-feed'].includes(view)) return;
+    if (!['feed', 'school-feed', 'institution-profile'].includes(view)) return;
 
     let unsubPosts = () => {};
 
@@ -10800,7 +10802,7 @@ function ExonaApp() {
       ...schools.filter(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)).map(s => s.id),
       ...places.filter(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid)).map(p => p.id)
     ];
-    const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id].filter(Boolean))];
+    const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id, selectedInstitutionForProfile?.id].filter(Boolean))];
     
     if (relevantIds.length > 0) {
       const limitedIds = relevantIds.slice(0, 30);
@@ -10855,7 +10857,7 @@ function ExonaApp() {
     }
 
     return () => unsubPosts();
-  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, postsLimit, isQuotaExceeded, view]);
+  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, selectedInstitutionForProfile?.id, postsLimit, isQuotaExceeded, view]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMorePosts) return;
@@ -10868,7 +10870,7 @@ function ExonaApp() {
     if (!container) return;
 
     const handleScroll = () => {
-      if (view !== 'feed' && view !== 'school-feed') return;
+      if (view !== 'feed' && view !== 'school-feed' && view !== 'institution-profile') return;
       
       const scrollHeight = container.scrollHeight;
       const scrollTop = container.scrollTop;
@@ -19397,42 +19399,211 @@ function ExonaApp() {
                 </div>
               )}
 
-              {/* Recent Posts Section */}
-              <div className="border-t border-gray-100 pt-10">
-                <div className="flex items-center justify-between mb-8">
-                  <h3 className="text-xl font-black text-ink tracking-tight">Recent Broadcasts</h3>
-                  <div className="h-0.5 flex-1 mx-6 bg-gray-50" />
+              {/* Instagram Style Posts Section */}
+              <div className="border-t border-gray-150 mt-10">
+                {/* Instagram Tabs Selector */}
+                <div className="flex justify-center border-t border-gray-200 mt-[-1px] mb-6">
+                  <div className="flex gap-16 select-none">
+                    <button
+                      onClick={() => setActiveInstagramTab('posts')}
+                      className={`flex items-center gap-2 py-4 text-[12px] font-black uppercase tracking-wider border-t-2 transition-all outline-none ${
+                        activeInstagramTab === 'posts'
+                          ? 'border-ink text-ink font-black'
+                          : 'border-transparent text-muted hover:text-ink'
+                      }`}
+                    >
+                      <Grid size={16} />
+                      <span>Posts</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveInstagramTab('reels')}
+                      className={`flex items-center gap-2 py-4 text-[12px] font-black uppercase tracking-wider border-t-2 transition-all outline-none ${
+                        activeInstagramTab === 'reels'
+                          ? 'border-ink text-ink font-black'
+                          : 'border-transparent text-muted hover:text-ink'
+                      }`}
+                    >
+                      <Play size={16} className="fill-current" />
+                      <span>Reels</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveInstagramTab('tagged')}
+                      className={`flex items-center gap-2 py-4 text-[12px] font-black uppercase tracking-wider border-t-2 transition-all outline-none ${
+                        activeInstagramTab === 'tagged'
+                          ? 'border-ink text-ink font-black'
+                          : 'border-transparent text-muted hover:text-ink'
+                      }`}
+                    >
+                      <Tag size={16} />
+                      <span>Tagged</span>
+                    </button>
+                  </div>
                 </div>
 
-                {institutionPosts.length === 0 ? (
-                  <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
-                    <div className="h-16 w-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 text-muted border border-gray-100">
-                      <MessageSquare size={24} className="opacity-20" />
+                {/* Filtered Posts based on Tab selection */}
+                {(() => {
+                  const filteredPosts = institutionPosts.filter(post => {
+                    if (activeInstagramTab === 'reels') {
+                      return post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                    }
+                    if (activeInstagramTab === 'tagged') {
+                      return post.isPinned || post.authorRole === 'admin' || post.authorUid === inst!.creatorUid;
+                    }
+                    return true; // posts tab defaults to all
+                  });
+
+                  if (filteredPosts.length === 0) {
+                    return (
+                      <div className="py-20 text-center flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                        <div className="h-16 w-16 bg-white rounded-full border border-gray-150 flex items-center justify-center text-muted mb-4 shadow-sm">
+                          {activeInstagramTab === 'posts' ? (
+                            <Grid size={24} className="opacity-40" />
+                          ) : activeInstagramTab === 'reels' ? (
+                            <Play size={24} className="opacity-40" />
+                          ) : (
+                            <Tag size={24} className="opacity-40" />
+                          )}
+                        </div>
+                        <h4 className="text-base font-bold text-ink mb-1">
+                          No {activeInstagramTab === 'posts' ? 'Posts' : activeInstagramTab === 'reels' ? 'Reels' : 'Tagged Photos'} Yet
+                        </h4>
+                        <p className="text-[12px] text-muted max-w-xs leading-normal">
+                          When broadcasts are shared by this institution, they will appear right here as visual highlights.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
+                      {filteredPosts.map(post => {
+                        const hasImage = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
+                        const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                        const isMulti = post.mediaUrls && post.mediaUrls.length > 1;
+                        const viewsCount = (post.likes * 14 + 11);
+
+                        return (
+                          <div 
+                            key={post.id} 
+                            className="relative aspect-square group cursor-pointer overflow-hidden bg-white border border-gray-100 rounded-lg md:rounded-2xl shadow-sm transition-transform active:scale-[0.98] select-none"
+                            onClick={() => setSelectedPostInGrid(post)}
+                          >
+                            {/* Grid Cell content */}
+                            {hasImage ? (
+                              <div className="h-full w-full">
+                                <img 
+                                  src={post.mediaUrls?.[0] || post.mediaUrl} 
+                                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" 
+                                  referrerPolicy="no-referrer" 
+                                  alt="Post media" 
+                                />
+                              </div>
+                            ) : (
+                              /* Typographic Quote-Card cell for text posts */
+                              <div className="absolute inset-0 p-3 flex flex-col justify-between bg-gradient-to-br from-indigo-50/50 via-zinc-50/80 to-pink-50/50">
+                                <p className="text-[10px] md:text-[12px] font-bold text-ink/90 line-clamp-3 leading-normal text-center my-auto px-1 tracking-tight font-sans">
+                                  {post.content}
+                                </p>
+                                <div className="flex justify-between items-center text-[9px] font-bold text-muted mt-auto pt-1 border-t border-zinc-100">
+                                  <span>
+                                    {post.timestamp ? new Date(post.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Broadcast'}
+                                  </span>
+                                  <span className="flex items-center gap-0.5 text-accent"><Heart size={8} className="fill-current text-accent" /> {post.likes || 0}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Badge Indicators for Multi-Images or Videos */}
+                            {isMulti && (
+                              <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                                <Layers size={11} className="text-white" />
+                              </div>
+                            )}
+                            {isVideo && (
+                              <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                                <Play size={11} className="text-white fill-white" />
+                              </div>
+                            )}
+
+                            {/* Standard Instagram Views overlay at bottom left */}
+                            <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded-full text-[9px] font-extrabold flex items-center gap-1 z-10 shadow-sm opacity-90 transition-opacity">
+                              <Eye size={9} className="text-white" />
+                              <span>{viewsCount.toLocaleString()}</span>
+                            </div>
+
+                            {/* Instagram hover statistical detail overlay */}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20">
+                              <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
+                                <Heart size={14} className="fill-white text-white" />
+                                <span>{post.likes || 0}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
+                                <MessageCircle size={14} className="fill-white text-white" />
+                                <span>{post.commentsCount || 0}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <p className="text-sm font-bold text-muted">No broadcasts from this institution yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {institutionPosts.map(post => (
-                      <FeedPost 
-                        key={post.id} 
-                        post={post} 
-                        onUserClick={handleUserClick}
-                        onInstitutionClick={handleInstitutionClick}
-                        onLike={handleLikePost}
-                        onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                        onMessage={handleMessageAuthor}
-                        onReshare={handleResharePost}
-                        onForward={handleForwardPost}
-                        onEdit={handleEditPost}
-                        onDelete={onDeletePostClick}
-                        currentUserId={user?.uid}
-                        canManage={canManage}
-                      />
-                    ))}
+                  );
+                })()}
+              </div>
+
+              {/* Detailed Post Viewer Modal */}
+              <AnimatePresence>
+                {selectedPostInGrid && (
+                  <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                      className="relative max-w-xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                    >
+                      {/* Modal Header */}
+                      <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-white">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                          <span className="text-xs font-black uppercase tracking-widest text-ink">Broadcast Insight</span>
+                        </div>
+                        <button 
+                          onClick={() => setSelectedPostInGrid(null)}
+                          className="h-8 w-8 bg-gray-50 hover:bg-gray-100 text-muted hover:text-ink rounded-full flex items-center justify-center transition-all border border-gray-200"
+                        >
+                          <X size={15} />
+                        </button>
+                      </div>
+
+                      {/* Modal Scroll area */}
+                      <div className="p-5 overflow-y-auto no-scrollbar scrollbar-hide flex-1 bg-gray-50/50">
+                        <FeedPost 
+                          post={selectedPostInGrid} 
+                          onUserClick={handleUserClick}
+                          onInstitutionClick={(instId: string) => { 
+                            setSelectedPostInGrid(null); 
+                            handleInstitutionClick(instId); 
+                          }}
+                          onLike={handleLikePost}
+                          onComment={(p: Post) => { 
+                            setActivePostForComments(p); 
+                            setIsCommentModalOpen(true); 
+                          }}
+                          onMessage={handleMessageAuthor}
+                          onReshare={handleResharePost}
+                          onForward={handleForwardPost}
+                          onEdit={handleEditPost}
+                          onDelete={(p: Post) => { 
+                            onDeletePostClick(p); 
+                            setSelectedPostInGrid(null); 
+                          }}
+                          currentUserId={user?.uid}
+                          canManage={canManage}
+                        />
+                      </div>
+                    </motion.div>
                   </div>
                 )}
-              </div>
+              </AnimatePresence>
             </div>
           </div>
         );
@@ -23895,9 +24066,9 @@ function ExonaApp() {
     );
   }
 
-  const activeInstForBroadcast = (view === 'school-feed' && selectedSchool) 
+  const activeInstForBroadcast = (view === 'school-feed' && selectedSchool && canManageInstitution(selectedSchool)) 
     ? selectedSchool 
-    : (view === 'institution-profile' && selectedInstitutionForProfile) 
+    : (view === 'institution-profile' && selectedInstitutionForProfile && canManageInstitution(selectedInstitutionForProfile)) 
       ? selectedInstitutionForProfile 
       : null;
 
