@@ -6714,7 +6714,59 @@ function ExonaApp() {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [attendanceCategoryFilter, setAttendanceCategoryFilter] = useState('all');
   const [routineCategoryFilter, setRoutineCategoryFilter] = useState('all');
-  const [schoolFilter, setSchoolFilter] = useState<'all' | 'school' | 'place'>('all');
+  const [schoolFilter, setSchoolFilter] = useState<string>('all');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [categories, setCategories] = useState<{ id: string; label: string }[]>(() => {
+    const defaultCats = [
+      { id: 'all', label: 'All' },
+      { id: 'place', label: 'Places' },
+      { id: 'school', label: 'Schools' },
+      { id: 'Business', label: 'Business' }
+    ];
+    try {
+      const stored = localStorage.getItem('exon_custom_categories');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return [...defaultCats, ...parsed];
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return defaultCats;
+  });
+
+  useEffect(() => {
+    const customOnly = categories.filter(c => !['all', 'place', 'school', 'Business'].includes(c.id));
+    localStorage.setItem('exon_custom_categories', JSON.stringify(customOnly));
+  }, [categories]);
+
+  const handleCreateCustomCategory = () => {
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) return;
+    const exists = categories.some(c => c.label.toLowerCase() === trimmed.toLowerCase());
+    if (exists) {
+      setNewCategoryInput('');
+      setIsAddingCategory(false);
+      return;
+    }
+    const newCat = { id: trimmed, label: trimmed };
+    setCategories([...categories, newCat]);
+    setSchoolFilter(trimmed);
+    setNewCategoryInput('');
+    setIsAddingCategory(false);
+  };
+
+  const handleDeleteCategory = (catId: string) => {
+    const updated = categories.filter(c => c.id !== catId);
+    setCategories(updated);
+    if (schoolFilter === catId) {
+      setSchoolFilter('all');
+    }
+  };
+
   const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date' | 'department'>('alphabet');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -11977,74 +12029,142 @@ function ExonaApp() {
             </div>
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
-              <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
-                {['all', 'school', 'place'].map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setSchoolFilter(f as any)}
-                    className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
-                      schoolFilter === f 
-                        ? 'bg-accent text-white' 
-                        : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
-                    }`}
-                  >
-                    {f === 'all' ? 'All' : f === 'school' ? 'Schools' : 'Places'}
-                  </button>
+              <div className="flex flex-wrap items-center gap-2 mb-8">
+                {categories.map((c) => (
+                  <div key={c.id} className="relative group">
+                    <button
+                      onClick={() => setSchoolFilter(c.id)}
+                      className={`px-6 py-2.5 rounded-xl text-[13px] font-bold transition-all whitespace-nowrap ${
+                        schoolFilter === c.id 
+                          ? 'bg-accent text-white' 
+                          : 'bg-white text-muted border border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                    {!['all', 'place', 'school', 'Business'].includes(c.id) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCategory(c.id);
+                        }}
+                        className="absolute -top-1.5 -right-1.5 bg-gray-100 hover:bg-red-100 hover:text-red-500 text-muted h-5 w-5 rounded-full flex items-center justify-center text-[9px] transition-all border border-white opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="Delete category"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
                 ))}
+                
+                {/* Plus button to add custom category */}
+                {isAddingCategory ? (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleCreateCustomCategory();
+                    }}
+                    className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5"
+                  >
+                    <input
+                      type="text"
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      placeholder="Category..."
+                      className="bg-transparent text-xs font-bold outline-none w-24 text-ink placeholder:text-muted/40"
+                      autoFocus
+                    />
+                    <button 
+                      type="submit"
+                      className="h-7 w-7 bg-accent text-white rounded-lg flex items-center justify-center hover:bg-accent/90"
+                    >
+                      <Check size={14} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setIsAddingCategory(false)}
+                      className="h-7 w-7 bg-gray-200 text-muted rounded-lg flex items-center justify-center hover:bg-gray-300"
+                    >
+                      <X size={14} />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => setIsAddingCategory(true)}
+                    className="h-10 w-10 bg-gray-50 text-muted border border-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-100 hover:border-gray-200 transition-all select-none"
+                    title="Add Category"
+                  >
+                    <Plus size={16} />
+                  </button>
+                )}
               </div>
 
               <div className="divide-y divide-gray-100">
-                {[...schools, ...places]
-                  .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
-                  .filter(s => schoolFilter === 'all' || s.type === schoolFilter)
-                  .filter(s => {
-                    // If searching, show all matching
-                    if (globalSearch.trim() !== '') return true;
-                    // Admins see all
-                    if (userDoc?.role === 'admin') return true;
-                    // Otherwise show if created, administrative viewer, or user is follower/approved member
-                    return s.creatorUid === user?.uid || 
-                           s.administrativeViewers?.includes(user?.uid || '') ||
-                           s.followers?.includes(user?.uid || '') ||
-                           userDoc?.following?.includes(s.id);
-                  })
-                  .map(school => {
-                    const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
-                    return (
-                      <div 
-                        key={school.id}
-                        className="py-6 border-b border-gray-50 group"
-                      >
-                        <div 
-                          className="cursor-pointer mb-4 flex items-start gap-3"
-                          onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                <AnimatePresence mode="popLayout">
+                  {[...schools, ...places]
+                    .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
+                    .filter(s => {
+                      if (schoolFilter === 'all') return true;
+                      if (schoolFilter === 'school') return s.type === 'school';
+                      if (schoolFilter === 'place') return s.type === 'place';
+                      // Custom / Specific category filtering
+                      return (
+                        (s.category && s.category.toLowerCase() === schoolFilter.toLowerCase()) ||
+                        (s.educationalLevels && s.educationalLevels.some(lvl => lvl.toLowerCase() === schoolFilter.toLowerCase()))
+                      );
+                    })
+                    .filter(s => {
+                      // If searching, show all matching
+                      if (globalSearch.trim() !== '') return true;
+                      // Admins see all
+                      if (userDoc?.role === 'admin') return true;
+                      // Otherwise show if created, administrative viewer, or user is follower/approved member
+                      return s.creatorUid === user?.uid || 
+                             s.administrativeViewers?.includes(user?.uid || '') ||
+                             s.followers?.includes(user?.uid || '') ||
+                             userDoc?.following?.includes(s.id);
+                    })
+                    .map(school => {
+                      const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
+                      return (
+                        <motion.div 
+                          key={school.id}
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.2 }}
+                          className="py-6 border-b border-gray-50 group"
                         >
-                          <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
-                            {school.logo ? (
-                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="text-ink">{school.name.charAt(0)}</span>
-                            )}
-                            {isRecentlyActive(school.id) && (
-                              <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
-                            )}
+                          <div 
+                            className="cursor-pointer mb-4 flex items-start gap-3"
+                            onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                          >
+                            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
+                              {school.logo ? (
+                                <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                <span className="text-ink">{school.name.charAt(0)}</span>
+                              )}
+                              {isRecentlyActive(school.id) && (
+                                <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
+                              {latestAnnouncement ? (
+                                <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                                  {latestAnnouncement.content}
+                                </p>
+                              ) : (
+                                <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
-                            {latestAnnouncement ? (
-                              <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
-                                {latestAnnouncement.content}
-                              </p>
-                            ) : (
-                              <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Institution Action Buttons hidden from homepage as requested */}
-                      </div>
-                    );
-                  })}
+                        </motion.div>
+                      );
+                    })}
+                </AnimatePresence>
               </div>
             </div>
 
