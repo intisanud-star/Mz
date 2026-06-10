@@ -608,5 +608,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.userUid == request.auth.uid;
       allow update, delete: if isAdmin();
     }
+
+    match /institutionGames/{gameId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isInstitutionManager(request.resource.data.institutionId);
+      allow update, delete: if isAuthenticated() && isInstitutionManager(resource.data.institutionId);
+    }
+
+    match /institutionGameLeads/{leadId} {
+      allow read, list: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && isInstitutionManager(resource.data.institutionId);
+    }
   }
 }

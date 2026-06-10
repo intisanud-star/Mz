@@ -1613,6 +1613,875 @@ interface School {
   }[];
 }
 
+const PremiumGameModal = ({
+  isOpen,
+  onClose,
+  school,
+  user,
+  userDoc,
+  exonWallet,
+  excoinBalance,
+  onNotify,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  school: School | Place | null;
+  user: any;
+  userDoc: any;
+  exonWallet: any;
+  excoinBalance: number;
+  onNotify: (msg: string, type?: 'success' | 'info' | 'error') => void;
+}) => {
+  const resultRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<'play' | 'manage' | 'leaderboard'>('play');
+  const [gameConfig, setGameConfig] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [participation, setParticipation] = useState<any | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Play Active state
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [score, setScore] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<{ [key: number]: string }>({});
+
+  // Manager Edit states
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editDuration, setEditDuration] = useState(60);
+  const [editRewardStars, setEditRewardStars] = useState(20);
+  const [editRewardCoins, setEditRewardCoins] = useState(10);
+  const [editEntryFeeStars, setEditEntryFeeStars] = useState(0);
+  const [editEntryFeeCoins, setEditEntryFeeCoins] = useState(0);
+  const [editQuestions, setEditQuestions] = useState<any[]>([]);
+
+  // Add Question setup form
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [newQOptA, setNewQOptA] = useState('');
+  const [newQOptB, setNewQOptB] = useState('');
+  const [newQOptC, setNewQOptC] = useState('');
+  const [newQOptD, setNewQOptD] = useState('');
+  const [newQCorrect, setNewQCorrect] = useState('A');
+  const [newQCategory, setNewQCategory] = useState('General');
+
+  // Require firebase methods directly or use imported from window/context
+  const { getDocs, collection, query, where, limit, doc, setDoc, updateDoc, serverTimestamp, increment } = require('firebase/firestore');
+
+  const canManage = school && user && (
+    userDoc?.role === 'admin' ||
+    school.creatorUid === user.uid ||
+    (school.administrativeViewers && school.administrativeViewers.includes(user.uid))
+  );
+
+  const loadGameData = useCallback(async () => {
+    if (!school) return;
+    setIsLoading(true);
+    try {
+      const q = query(
+        collection(db, 'institutionGames'),
+        where('institutionId', '==', school.id),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        const data = { id: docSnap.id, ...docSnap.data() };
+        setGameConfig(data);
+
+        setEditTitle(data.title || '');
+        setEditDesc(data.description || '');
+        setEditDuration(data.duration || 60);
+        setEditRewardStars(data.rewardStars || 0);
+        setEditRewardCoins(data.rewardCoins || 0);
+        setEditEntryFeeStars(data.entryFeeStars || 0);
+        setEditEntryFeeCoins(data.entryFeeCoins || 0);
+        setEditQuestions(data.questions || []);
+
+        // Check if current user participated
+        if (user) {
+          const lp = query(
+            collection(db, 'institutionGameLeads'),
+            where('gameId', '==', docSnap.id),
+            where('uid', '==', user.uid),
+            limit(1)
+          );
+          const pSnap = await getDocs(lp);
+          if (!pSnap.empty) {
+            setParticipation(pSnap.docs[0].data());
+          } else {
+            setParticipation(null);
+          }
+        }
+
+        // Fetch leaderboard leads
+        const leadsQ = query(
+          collection(db, 'institutionGameLeads'),
+          where('gameId', '==', docSnap.id)
+        );
+        const lSnap = await getDocs(leadsQ);
+        const mapped = lSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+        const sorted = mapped.sort((a: any, b: any) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return (b.timeLeft || 0) - (a.timeLeft || 0);
+        });
+        setLeads(sorted);
+      } else {
+        setGameConfig(null);
+        setParticipation(null);
+        setLeads([]);
+
+        // Prep empty setup for creator
+        setEditTitle('Premium Knowledge Contest');
+        setEditDesc('A premium challenge configured by our institution. Earn exclusive rewards!');
+        setEditDuration(60);
+        setEditRewardStars(25);
+        setEditRewardCoins(15);
+        setEditEntryFeeStars(5);
+        setEditEntryFeeCoins(0);
+        setEditQuestions([
+          {
+            text: "Which planet is known as the Red Planet?",
+            options: ["Venus", "Mars", "Jupiter", "Saturn"],
+            correctOption: "Mars",
+            category: "Science"
+          },
+          {
+            text: "Who has the longest tenure as Nigeria's Head of State?",
+            options: ["Yakubu Gowon", "Olusegun Obasanjo", "Ibrahim Babangida", "Muhammadu Buhari"],
+            correctOption: "Yakubu Gowon",
+            category: "Nigeria Trivia"
+          }
+        ]);
+      }
+    } catch (e) {
+      console.error("Failed to load custom premium game", e);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [school, user]);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadGameData();
+    }
+  }, [isOpen, loadGameData]);
+
+  // Gameplay countdown loop
+  useEffect(() => {
+    let timer: any;
+    if (isPlaying && timeLeft > 0 && !gameEnded) {
+      timer = setInterval(() => {
+        setTimeLeft(t => {
+          if (t <= 1) {
+            clearInterval(timer);
+            handleFinishQuiz(selectedAnswers, 0);
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [isPlaying, gameEnded, timeLeft, selectedAnswers]);
+
+  const handleStartGame = async () => {
+    if (!gameConfig || !user) return;
+
+    const starsFee = gameConfig.entryFeeStars || 0;
+    const coinsFee = gameConfig.entryFeeCoins || 0;
+
+    const myStars = exonWallet?.balance || 0;
+    const myCoins = excoinBalance || 0;
+
+    if (myStars < starsFee) {
+      onNotify(`Insufficient balance. You need ${starsFee} Stars to play this premium game.`, 'error');
+      return;
+    }
+    if (myCoins < coinsFee) {
+      onNotify(`Insufficient balance. You need ${coinsFee} Coins to play this premium game.`, 'error');
+      return;
+    }
+
+    if (starsFee > 0 || coinsFee > 0) {
+      try {
+        await updateDoc(doc(db, 'wallets', user.uid), {
+          balance: increment(-starsFee),
+          excoin_balance: increment(-coinsFee)
+        });
+        onNotify(`Successfully paid ${starsFee} Stars and ${coinsFee} Coins to join!`, 'success');
+      } catch (err) {
+        console.error("Deduction error:", err);
+        onNotify("Transaction failed. Try again.", "error");
+        return;
+      }
+    }
+
+    // Reset loop
+    setCurrentIdx(0);
+    setScore(0);
+    setTimeLeft(gameConfig.duration || 60);
+    setSelectedAnswers({});
+    setGameEnded(false);
+    setIsPlaying(true);
+  };
+
+  const handleFinishQuiz = async (answers: { [key: number]: string }, leftSecs: number) => {
+    if (!gameConfig || !school || !user) return;
+    setGameEnded(true);
+
+    let calculatedScore = 0;
+    gameConfig.questions.forEach((q: any, i: number) => {
+      if (answers[i] === q.correctOption) {
+        calculatedScore++;
+      }
+    });
+
+    setScore(calculatedScore);
+
+    const payload = {
+      gameId: gameConfig.id,
+      institutionId: school.id,
+      uid: user.uid,
+      name: userDoc?.displayName || user?.displayName || user?.email || 'Challenger',
+      email: user.email || '',
+      score: calculatedScore,
+      totalQuestions: gameConfig.questions.length,
+      timeLeft: leftSecs,
+      timestamp: serverTimestamp(),
+    };
+
+    try {
+      const ref = doc(collection(db, 'institutionGameLeads'));
+      await setDoc(ref, payload);
+      setParticipation(payload);
+
+      // Reward on perfect score
+      if (calculatedScore === gameConfig.questions.length) {
+        const rewardStars = gameConfig.rewardStars || 0;
+        const rewardCoins = gameConfig.rewardCoins || 0;
+        if (rewardStars > 0 || rewardCoins > 0) {
+          await updateDoc(doc(db, 'wallets', user.uid), {
+            balance: increment(rewardStars),
+            excoin_balance: increment(rewardCoins)
+          });
+          onNotify(`Perfect score! Awarded ${rewardStars} Stars and ${rewardCoins} Coins!`, 'success');
+        }
+      }
+
+      onNotify("Your scorecard has been registered!", "success");
+
+      // Reload leads board
+      const leadsQ = query(
+        collection(db, 'institutionGameLeads'),
+        where('gameId', '==', gameConfig.id)
+      );
+      const lSnap = await getDocs(leadsQ);
+      const mapped = lSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+      const sorted = mapped.sort((a: any, b: any) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return (b.timeLeft || 0) - (a.timeLeft || 0);
+      });
+      setLeads(sorted);
+
+    } catch (e) {
+      console.error("Save score error:", e);
+      onNotify("Could not register score", "error");
+    }
+  };
+
+  const handleSaveGameSetup = async () => {
+    if (!school || !user) return;
+    if (editQuestions.length === 0) {
+      onNotify("Please configure at least one question", "error");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      let gId = gameConfig?.id;
+      const payload = {
+        institutionId: school.id,
+        institutionName: school.name,
+        creatorUid: user.uid,
+        title: editTitle.trim(),
+        description: editDesc.trim(),
+        duration: Number(editDuration) || 60,
+        rewardStars: Number(editRewardStars) || 0,
+        rewardCoins: Number(editRewardCoins) || 0,
+        entryFeeStars: Number(editEntryFeeStars) || 0,
+        entryFeeCoins: Number(editEntryFeeCoins) || 0,
+        questions: editQuestions,
+        isActive: true,
+        timestamp: serverTimestamp(),
+      };
+
+      if (gId) {
+        await setDoc(doc(db, 'institutionGames', gId), payload, { merge: true });
+        setGameConfig({ id: gId, ...payload });
+      } else {
+        const gameRef = doc(collection(db, 'institutionGames'));
+        await setDoc(gameRef, payload);
+        setGameConfig({ id: gameRef.id, ...payload });
+      }
+
+      onNotify("Premium Game saved successfully!", "success");
+      loadGameData();
+    } catch (e) {
+      console.error(e);
+      onNotify("Failed to preserve configuration", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddQuestion = () => {
+    if (!newQuestionText.trim() || !newQOptA || !newQOptB) {
+      onNotify("Question text and at least A and B choices are mandatory", "error");
+      return;
+    }
+    const derivedOpts = [newQOptA.trim(), newQOptB.trim()];
+    if (newQOptC.trim()) derivedOpts.push(newQOptC.trim());
+    if (newQOptD.trim()) derivedOpts.push(newQOptD.trim());
+
+    let correctText = '';
+    if (newQCorrect === 'A') correctText = newQOptA.trim();
+    else if (newQCorrect === 'B') correctText = newQOptB.trim();
+    else if (newQCorrect === 'C') correctText = newQOptC.trim();
+    else if (newQCorrect === 'D') correctText = newQOptD.trim();
+
+    const newQ = {
+      text: newQuestionText.trim(),
+      options: derivedOpts,
+      correctOption: correctText || derivedOpts[0],
+      category: newQCategory
+    };
+
+    setEditQuestions(prev => [...prev, newQ]);
+
+    setNewQuestionText('');
+    setNewQOptA('');
+    setNewQOptB('');
+    setNewQOptC('');
+    setNewQOptD('');
+    setNewQCorrect('A');
+  };
+
+  const handleRemoveQuestion = (idx: number) => {
+    setEditQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveScorecardImage = async () => {
+    if (!resultRef.current) return;
+    try {
+      const dataUrl = await toPng(resultRef.current, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        cacheBust: true,
+      });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `PremiumBattleScore_${school?.name || 'Exona'}.png`;
+      link.click();
+      onNotify("Saved scorecard image!", "success");
+    } catch (err) {
+      console.error(err);
+      onNotify("Failed to save scorecard.", "error");
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[500] flex items-center justify-center p-4 overload-no-print no-scrollbar overflow-y-auto">
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden shadow-2xl relative"
+        >
+          {/* Header */}
+          <div className="p-6 sm:p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 bg-[#B45309] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/10 animate-pulse">
+                <Trophy size={20} className="text-yellow-300 animate-bounce" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-lg font-black text-ink leading-tight flex items-center gap-1.5">
+                  Exona Premium Game
+                </h3>
+                <p className="text-[10px] text-muted font-bold uppercase tracking-widest leading-none mt-1">
+                  Hosted by {school?.name || 'Institution'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isPlaying && !gameEnded && (
+                <div className={`px-4 py-1.5 rounded-xl border font-black font-mono text-sm ${timeLeft < 15 ? 'bg-red-50 border-red-100 text-red-600 animate-pulse' : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+                  {timeLeft}s
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                className="h-10 w-10 hover:bg-gray-100 border border-transparent hover:border-gray-100 rounded-2xl flex items-center justify-center text-muted transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Selector (Manager only) */}
+          {canManage && !isPlaying && (
+            <div className="flex bg-gray-50/50 border-b border-gray-100 px-6 shrink-0">
+              <button
+                onClick={() => setActiveTab('play')}
+                className={`py-3 px-4 font-black text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'play' ? 'border-[#B45309] text-ink' : 'border-transparent text-muted'}`}
+              >
+                Battle Room
+              </button>
+              <button
+                onClick={() => setActiveTab('manage')}
+                className={`py-3 px-4 font-black text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'manage' ? 'border-[#B45309] text-ink' : 'border-transparent text-muted'}`}
+              >
+                Configure Questions
+              </button>
+              <button
+                onClick={() => setActiveTab('leaderboard')}
+                className={`py-3 px-4 font-black text-xs uppercase tracking-widest border-b-2 transition-all ${activeTab === 'leaderboard' ? 'border-[#B45309] text-ink' : 'border-transparent text-muted'}`}
+              >
+                Leaderboard
+              </button>
+            </div>
+          )}
+
+          {/* Scrollable Container */}
+          <div className="p-6 sm:p-8 flex-1 overflow-y-auto no-scrollbar">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20">
+                <RefreshCw size={36} className="text-amber-500 animate-spin mb-4" />
+                <p className="text-xs font-bold text-muted uppercase">Retrieving configuration...</p>
+              </div>
+            ) : isPlaying ? (
+              // Active Play Loop
+              <div>
+                {gameEnded ? (
+                  // Results Summary Screen
+                  <div className="space-y-6">
+                    <div ref={resultRef} className="p-8 border border-amber-150 bg-gradient-to-br from-amber-50/20 to-white rounded-3xl text-center relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl -mr-12 -mt-12" />
+                      <div className="h-16 w-16 bg-amber-100/50 text-[#B45309] rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Award size={36} />
+                      </div>
+                      <h4 className="text-2xl font-black text-ink mb-1">Challenge Completed!</h4>
+                      <p className="text-xs text-muted max-w-xs mx-auto font-medium">Your score is saved to our custom leaderboard</p>
+
+                      <div className="my-8">
+                        <span className="text-[10px] font-black text-muted uppercase tracking-[0.25em] block mb-2">Final Score</span>
+                        <div className="inline-flex items-baseline justify-center gap-1">
+                          <span className="text-5xl font-black text-ink">{score}</span>
+                          <span className="text-lg font-bold text-muted">/ {gameConfig?.questions.length}</span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto p-4 bg-white/60 border border-gray-100 rounded-2xl">
+                        <div>
+                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest block text-center">Accuracy</span>
+                          <span className="text-sm font-black text-[#B45309] block text-center">{Math.round((score / (gameConfig?.questions.length || 1)) * 100)}%</span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] font-bold text-muted uppercase tracking-widest block text-center">Remaining Time</span>
+                          <span className="text-sm font-black text-ink block text-center">{timeLeft}s</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={saveScorecardImage}
+                        className="flex-1 py-4 bg-[#B45309] text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-amber-800 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-900/10"
+                      >
+                        <Download size={14} /> Download Scorecard
+                      </button>
+                      <button
+                        onClick={() => {
+                          setIsPlaying(false);
+                          setGameEnded(false);
+                          loadGameData();
+                        }}
+                        className="flex-1 py-4 bg-gray-50 border border-gray-150 text-ink rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-gray-100 transition-all"
+                      >
+                        Exit Arena
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Active quiz panel
+                  <div className="space-y-6">
+                    {/* Progress tracking */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">Question {currentIdx + 1} of {gameConfig?.questions.length}</span>
+                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest bg-amber-50 px-2 py-0.5 rounded-full">{gameConfig?.questions[currentIdx]?.category || 'General'}</span>
+                    </div>
+
+                    <div className="p-6 sm:p-8 bg-gray-50 border border-gray-100 rounded-3xl min-h-[140px] flex items-center">
+                      <h4 className="text-lg sm:text-xl font-bold text-ink leading-relaxed text-left">{gameConfig?.questions[currentIdx]?.text}</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {gameConfig?.questions[currentIdx]?.options.map((opt: string, i: number) => {
+                        const isSelected = selectedAnswers[currentIdx] === opt;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => handleSelectAnswer(opt)}
+                            className={`p-5 text-left rounded-2xl border font-bold text-xs sm:text-sm transition-all flex items-center gap-3 ${isSelected ? 'bg-[#B45309] border-[#B45309] text-white shadow-md shadow-amber-900/10 scale-[1.02]' : 'bg-white border-gray-150 text-ink hover:border-amber-300'}`}
+                          >
+                            <span className={`h-6 w-6 rounded-lg flex items-center justify-center text-[10px] font-black uppercase ${isSelected ? 'bg-white/25 text-white' : 'bg-gray-50 border border-gray-100 text-muted'}`}>
+                              {String.fromCharCode(65 + i)}
+                            </span>
+                            <span className="flex-1">{opt}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100 flex items-center justify-between">
+                      <button
+                        disabled={currentIdx === 0}
+                        onClick={() => setCurrentIdx(prev => prev - 1)}
+                        className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold text-muted uppercase tracking-widest rounded-xl disabled:opacity-30 border border-gray-100 transition-all"
+                      >
+                        Previous
+                      </button>
+
+                      {currentIdx < (gameConfig?.questions.length || 1) - 1 ? (
+                        <button
+                          disabled={!selectedAnswers[currentIdx]}
+                          onClick={() => setCurrentIdx(prev => prev + 1)}
+                          className="px-6 py-2.5 bg-ink text-white hover:bg-ink/90 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all disabled:opacity-30"
+                        >
+                          Next
+                        </button>
+                      ) : (
+                        <button
+                          disabled={!selectedAnswers[currentIdx]}
+                          onClick={() => handleFinishQuiz(selectedAnswers, timeLeft)}
+                          className="px-8 py-3 bg-[#B45309] text-white hover:bg-amber-800 text-[10px] uppercase font-black tracking-widest rounded-xl transition-all shadow-md shadow-amber-900/10"
+                        >
+                          Submit Quiz
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : activeTab === 'manage' && canManage ? (
+              // Quiz Manager Form
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-black text-ink uppercase tracking-wider mb-4 text-left">Launch settings</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Contest Title</label>
+                      <input
+                        type="text"
+                        value={editTitle}
+                        onChange={(e) => setEditTitle(e.target.value)}
+                        placeholder="Contest Title"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Time Allotment (Seconds)</label>
+                      <input
+                        type="number"
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(Number(e.target.value))}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 mt-3 text-left">
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Contest Pitch / Description</label>
+                    <textarea
+                      value={editDesc}
+                      onChange={(e) => setEditDesc(e.target.value)}
+                      rows={2}
+                      placeholder="Brief rules, requirements or pitch..."
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs font-bold outline-none resize-none"
+                    />
+                  </div>
+
+                  {/* Pricing Matrix */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-4 p-4 bg-amber-500/[0.02] border border-amber-500/10 rounded-2xl text-left">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-[#B45309] uppercase tracking-wide">Fee (Stars)</label>
+                      <input
+                        type="number"
+                        value={editEntryFeeStars}
+                        onChange={(e) => setEditEntryFeeStars(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border border-gray-150 rounded-lg text-xs font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-[#B45309] uppercase tracking-wide">Fee (Coins)</label>
+                      <input
+                        type="number"
+                        value={editEntryFeeCoins}
+                        onChange={(e) => setEditEntryFeeCoins(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border border-gray-150 rounded-lg text-xs font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-muted uppercase tracking-wide">Reward (Stars)</label>
+                      <input
+                        type="number"
+                        value={editRewardStars}
+                        onChange={(e) => setEditRewardStars(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border border-gray-150 rounded-lg text-xs font-bold"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-muted uppercase tracking-wide">Reward (Coins)</label>
+                      <input
+                        type="number"
+                        value={editRewardCoins}
+                        onChange={(e) => setEditRewardCoins(Number(e.target.value))}
+                        className="w-full px-3 py-2 bg-white border border-gray-150 rounded-lg text-xs font-bold"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-black text-ink uppercase tracking-wider mb-4 text-left">Add new item</h4>
+                  <div className="space-y-3 p-5 bg-gray-50 border border-gray-100 rounded-3xl text-left">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-muted uppercase tracking-widest">Question Wording</label>
+                      <input
+                        type="text"
+                        value={newQuestionText}
+                        onChange={(e) => setNewQuestionText(e.target.value)}
+                        placeholder="What is the distance to..."
+                        className="w-full px-4 py-2.5 bg-white border border-gray-155 rounded-xl text-xs font-bold outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted uppercase">Option A</label>
+                        <input type="text" value={newQOptA} onChange={(e) => setNewQOptA(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-155 rounded-lg text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted uppercase">Option B</label>
+                        <input type="text" value={newQOptB} onChange={(e) => setNewQOptB(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-155 rounded-lg text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted uppercase">Option C (Optional)</label>
+                        <input type="text" value={newQOptC} onChange={(e) => setNewQOptC(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-155 rounded-lg text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted uppercase">Option D (Optional)</label>
+                        <input type="text" value={newQOptD} onChange={(e) => setNewQOptD(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-155 rounded-lg text-xs" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted uppercase font-sans">Correct choice</label>
+                        <select
+                          value={newQCorrect}
+                          onChange={(e) => setNewQCorrect(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-gray-155 rounded-lg text-xs font-bold"
+                        >
+                          <option value="A">Choice A</option>
+                          <option value="B">Choice B</option>
+                          {newQOptC.trim() && <option value="C">Choice C</option>}
+                          {newQOptD.trim() && <option value="D">Choice D</option>}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted uppercase font-sans">Subject Genre</label>
+                        <input
+                          type="text"
+                          value={newQCategory}
+                          onChange={(e) => setNewQCategory(e.target.value)}
+                          placeholder="General Knowledge"
+                          className="w-full px-3 py-2 bg-white border border-gray-155 rounded-lg text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={handleAddQuestion}
+                      className="w-full py-3 bg-[#B45309] hover:bg-amber-800 text-white font-bold text-xs uppercase tracking-widest rounded-xl transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Plus size={14} /> Append Question
+                    </button>
+                  </div>
+                </div>
+
+                {/* Question List */}
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="text-sm font-black text-ink uppercase tracking-wider mb-2 text-left">Stored Contest Questions ({editQuestions.length})</h4>
+                  {editQuestions.length === 0 ? (
+                    <p className="text-xs text-muted font-medium py-3 italic text-left">No questions added yet. Use form above to add questions.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {editQuestions.map((q, idx) => (
+                        <div key={idx} className="p-4 bg-gray-50 border border-gray-100 rounded-2xl flex items-start justify-between gap-4 text-left">
+                          <div className="text-left">
+                            <span className="text-[8px] font-black text-[#B45309] uppercase tracking-wider">{q.category}</span>
+                            <p className="text-xs font-bold text-ink leading-snug mt-1">{idx + 1}. {q.text}</p>
+                            <p className="text-[10px] text-muted font-bold mt-1">Options: {q.options.join(', ')} — <span className="text-green-600">Correct: {q.correctOption}</span></p>
+                          </div>
+                          <button
+                            onClick={() => handleRemoveQuestion(idx)}
+                            className="h-8 w-8 text-rose-500 hover:bg-rose-50 rounded-xl flex items-center justify-center border border-transparent hover:border-rose-100 transition-all shrink-0 cursor-pointer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  disabled={isSaving}
+                  onClick={handleSaveGameSetup}
+                  className="w-full py-4 bg-[#B45309] hover:bg-amber-800 text-white text-xs uppercase font-black tracking-widest rounded-2xl shadow-lg transition-all"
+                >
+                  {isSaving ? "Preserving Arena Settings..." : "Save and Launch Exona Premium Game"}
+                </button>
+              </div>
+            ) : activeTab === 'leaderboard' || (!canManage && gameConfig) ? (
+              // Scores Board
+              <div className="space-y-4">
+                <div className="flex justify-between items-center bg-amber-500/5 p-4 rounded-2xl border border-amber-500/10">
+                  <div className="flex items-center gap-2">
+                    <Trophy size={16} className="text-amber-600" />
+                    <span className="text-xs font-black uppercase text-[#B45309] tracking-widest">Institutional Champions</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-muted uppercase">{leads.length} Contenders</span>
+                </div>
+
+                {leads.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <Award size={36} className="text-muted/30 mx-auto mb-2" />
+                    <p className="text-xs font-black text-ink uppercase tracking-widest">Scoring Board Empty</p>
+                    <p className="text-[10px] text-muted mt-1 max-w-xs mx-auto">Be the first to finish this battle and take the lead!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {leads.map((lead: any, idx: number) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-amber-100 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-8 w-8 rounded-xl flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-100 text-yellow-800' : idx === 1 ? 'bg-slate-100 text-slate-800' : idx === 2 ? 'bg-amber-100 text-amber-800' : 'bg-gray-50 text-muted border border-gray-100'}`}>
+                            {idx + 1}
+                          </div>
+                          <div className="text-left">
+                            <h5 className="text-xs font-bold text-ink leading-none">{lead.name}</h5>
+                            <span className="text-[9px] font-bold text-muted uppercase tracking-wider">{lead.email}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xs font-black text-ink block">{lead.score} / {lead.totalQuestions}</span>
+                          <span className="text-[8px] text-muted font-bold block mt-0.5">{lead.timeLeft}s left</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // Follower play intro card
+              <div>
+                {gameConfig ? (
+                  <div className="text-center py-6 space-y-8">
+                    <div className="w-20 h-20 bg-amber-50 text-[#B45309] border border-amber-100 rounded-[2rem] flex items-center justify-center mx-auto shadow-sm">
+                      <Gamepad2 size={36} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="text-2xl font-black text-ink">{gameConfig.title || 'Institutional Premium Battle'}</h4>
+                      <p className="text-xs text-muted max-w-sm mx-auto leading-relaxed">{gameConfig.description || 'A localized customized tournament configuration.'}</p>
+                    </div>
+
+                    {/* Fees & rewards table */}
+                    <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto p-4 bg-gray-50/50 border border-gray-100 rounded-3xl">
+                      <div className="text-left p-3 bg-white border border-gray-100 rounded-2xl">
+                        <span className="text-[8px] font-black text-muted uppercase tracking-widest block mb-1">Entrance fee</span>
+                        <div className="flex items-center gap-1.5 text-[#B45309]">
+                          <Lock size={12} />
+                          <span className="text-sm font-black font-mono">
+                            {gameConfig.entryFeeStars || gameConfig.entryFeeCoins ? `${gameConfig.entryFeeStars} Stars / ${gameConfig.entryFeeCoins} Coins` : 'FREE Entry'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-left p-3 bg-white border border-gray-100 rounded-2xl">
+                        <span className="text-[8px] font-black text-muted uppercase tracking-widest block mb-1">Champions reward</span>
+                        <div className="flex items-center gap-1.5 text-green-600">
+                          <Sparkles size={12} className="text-green-500 animate-pulse" />
+                          <span className="text-sm font-black font-mono">
+                            {gameConfig.rewardStars || gameConfig.rewardCoins ? `+${gameConfig.rewardStars} Stars / +${gameConfig.rewardCoins} Coins` : 'Weekly Prestige'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {participation ? (
+                      <div className="space-y-4 max-w-sm mx-auto">
+                        <div className="p-4 bg-green-50/50 border border-green-150 rounded-2xl text-left">
+                          <p className="text-[8px] font-black text-green-700 uppercase tracking-widest leading-none mb-1">Contest status</p>
+                          <p className="text-xs font-bold text-ink">You participated! Score: {participation.score} / {participation.totalQuestions}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setScore(participation.score);
+                            setTimeLeft(participation.timeLeft || 0);
+                            setGameEnded(true);
+                            setIsPlaying(true);
+                          }}
+                          className="w-full py-4 bg-[#B45309] hover:bg-amber-800 text-white rounded-2xl font-bold text-xs uppercase tracking-widest transition-all text-center block"
+                        >
+                          View Scorecard
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleStartGame}
+                        className="w-full max-w-xs py-5 bg-ink text-white font-bold text-xs uppercase tracking-[0.2em] rounded-[2rem] hover:bg-ink/80 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md mt-4"
+                      >
+                        Enter Arena
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Stars size={40} className="text-amber-500/20 mx-auto mb-4 animate-spin-slow" />
+                    <h4 className="text-sm font-black uppercase text-ink tracking-widest">No Active Battles</h4>
+                    <p className="text-xs text-muted max-w-xs mx-auto mt-2 leading-relaxed">
+                      The institution owners have not launched any premium battle game yet. Request the administration to start one!
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+};
+
 const NETWORK_PROVIDERS = ['MTN', 'Airtel', 'Glo', '9mobile'];
 const DATA_PLANS = [
   { id: 'mtn-1gb', name: '1GB - 30 Days', price: 1200, network: 'MTN' },
@@ -3994,6 +4863,7 @@ function ExonaApp() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
   const [currentBattleQuestions, setCurrentBattleQuestions] = useState<any[]>(BRAIN_BATTLE_QUESTIONS);
+  const [isPremiumGameOpen, setIsPremiumGameOpen] = useState(false);
   const [isExonWalletOpen, setIsExonWalletOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [showWealthFloatingChip, setShowWealthFloatingChip] = useState(false);
@@ -23957,7 +24827,13 @@ function ExonaApp() {
                       setIsBrainBattleActive(true);
                       setBattleStep('welcome');
                     } else if (tool.id === 'exona-premium') {
-                      showNotification('Exona Premium Quiz is coming soon! Upgrade to Premium to be the first to play.', 'success');
+                      const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
+                      if (!activeInst) {
+                        showNotification('Please select or follow an institution to play their premium game!', 'error');
+                        return;
+                      }
+                      setSelectedSchool(activeInst);
+                      setIsPremiumGameOpen(true);
                     } else {
                       setActiveTool(tool.id);
                     }

@@ -415,6 +415,57 @@
         "tradeInitiatorUid": { "type": "string" }
       },
       "required": ["offerId", "buyerUid", "buyerName", "sellerUid", "sellerName", "amount", "price", "totalCost", "status", "timestamp"]
+    },
+    "InstitutionGame": {
+      "title": "InstitutionGame",
+      "description": "Premium games configured by institution owners",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "institutionName": { "type": "string" },
+        "creatorUid": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "rewardCoins": { "type": "number" },
+        "rewardStars": { "type": "number" },
+        "entryFeeStars": { "type": "number" },
+        "entryFeeCoins": { "type": "number" },
+        "duration": { "type": "number" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "text": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctOption": { "type": "string" },
+              "category": { "type": "string" }
+            }
+          }
+        },
+        "isActive": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["institutionId", "creatorUid", "title", "questions", "timestamp"]
+    },
+    "InstitutionGameLead": {
+      "title": "InstitutionGameLead",
+      "description": "Lead and score results for institution premium games",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "gameId": { "type": "string" },
+        "institutionId": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "score": { "type": "number" },
+        "totalQuestions": { "type": "number" },
+        "timeLeft": { "type": "number" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["gameId", "institutionId", "uid", "name", "score", "totalQuestions", "timestamp"]
     }
   },
   "firestore": {
@@ -442,6 +493,8 @@
     "/broadcasts/{broadcastId}/messages/{chatId}": { "schema": "BroadcastMessage", "description": "Individual message IDs for unsend/deletion" },
     "/dailyRoutines/{routineId}": { "schema": "DailyRoutine", "description": "Institutional routine schedule" },
     "/p2pOffers/{offerId}": { "schema": "P2POffer", "description": "P2P Excoin ad listings" },
-    "/p2pTrades/{tradeId}": { "schema": "P2PTrade", "description": "Active Excoin P2P trades" }
+    "/p2pTrades/{tradeId}": { "schema": "P2PTrade", "description": "Active Excoin P2P trades" },
+    "/institutionGames/{gameId}": { "schema": "InstitutionGame", "description": "Custom premium games" },
+    "/institutionGameLeads/{leadId}": { "schema": "InstitutionGameLead", "description": "Premium game execution records" }
   }
 }
