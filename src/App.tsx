@@ -2463,7 +2463,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -6724,7 +6724,8 @@ function ExonaApp() {
       { id: 'all', label: 'All' },
       { id: 'place', label: 'Places' },
       { id: 'school', label: 'Schools' },
-      { id: 'Business', label: 'Business' }
+      { id: 'Business', label: 'Business' },
+      { id: 'chats', label: 'Chat Members' }
     ];
     try {
       const stored = localStorage.getItem('exon_custom_categories');
@@ -6741,7 +6742,7 @@ function ExonaApp() {
   });
 
   useEffect(() => {
-    const customOnly = categories.filter(c => !['all', 'place', 'school', 'Business'].includes(c.id));
+    const customOnly = categories.filter(c => !['all', 'place', 'school', 'Business', 'chats'].includes(c.id));
     localStorage.setItem('exon_custom_categories', JSON.stringify(customOnly));
   }, [categories]);
 
@@ -6763,6 +6764,7 @@ function ExonaApp() {
     if (filterId === 'all') return filtered.length;
     if (filterId === 'school') return filtered.filter(s => s.type === 'school').length;
     if (filterId === 'place') return filtered.filter(s => s.type === 'place').length;
+    if (filterId === 'chats') return recentChats.length;
     
     return filtered.filter(s => {
       return (
@@ -12083,7 +12085,7 @@ function ExonaApp() {
                           {count}
                         </span>
                       </button>
-                      {!['all', 'place', 'school', 'Business'].includes(c.id) && (
+                      {!['all', 'place', 'school', 'Business', 'chats'].includes(c.id) && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -12143,69 +12145,143 @@ function ExonaApp() {
 
               <div className="divide-y divide-gray-100">
                 <AnimatePresence mode="popLayout">
-                  {[...schools, ...places]
-                    .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
-                    .filter(s => {
-                      if (schoolFilter === 'all') return true;
-                      if (schoolFilter === 'school') return s.type === 'school';
-                      if (schoolFilter === 'place') return s.type === 'place';
-                      // Custom / Specific category filtering
-                      return (
-                        (s.category && s.category.toLowerCase() === schoolFilter.toLowerCase()) ||
-                        (s.educationalLevels && s.educationalLevels.some(lvl => lvl.toLowerCase() === schoolFilter.toLowerCase()))
-                      );
-                    })
-                    .filter(s => {
-                      // If searching, show all matching
-                      if (globalSearch.trim() !== '') return true;
-                      // Admins see all
-                      if (userDoc?.role === 'admin') return true;
-                      // Otherwise show if created, administrative viewer, or user is follower/approved member
-                      return s.creatorUid === user?.uid || 
-                             s.administrativeViewers?.includes(user?.uid || '') ||
-                             s.followers?.includes(user?.uid || '') ||
-                             userDoc?.following?.includes(s.id);
-                    })
-                    .map(school => {
-                      const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
-                      return (
-                        <motion.div 
-                          key={school.id}
-                          layout
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.2 }}
-                          className="py-6 border-b border-gray-50 group"
-                        >
-                          <div 
-                            className="cursor-pointer mb-4 flex items-start gap-3"
-                            onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                  {schoolFilter === 'chats' ? (
+                    recentChats
+                      .filter(chat => {
+                        const group = chat.isGroup ? chatGroups.find(g => g.id === chat.otherUid) : null;
+                        const otherUser = !chat.isGroup ? (connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null }) : null;
+                        const displayName = chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name || 'User');
+                        return displayName?.toLowerCase().includes(globalSearch.toLowerCase());
+                      })
+                      .map(chat => {
+                        const group = chat.isGroup ? chatGroups.find(g => g.id === chat.otherUid) : null;
+                        const otherUser = !chat.isGroup ? (connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null }) : null;
+                        const displayName = chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name || 'User');
+                        const photoURL = chat.isGroup ? group?.photoURL : (otherUser?.photoURL || (otherUser as any)?.photo);
+                        const isOnline = isRecentlyActive(chat.otherUid);
+                        const lastMsgTxt = chat.lastMessage?.content || 'Sent a message';
+                        const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === (chat.isGroup ? chat.otherUid : user?.uid) && m.status !== 'read').length;
+
+                        return (
+                          <motion.div 
+                            key={chat.lastMessage.chatId}
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="py-6 border-b border-gray-50 flex items-center justify-between group"
                           >
-                            <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
-                              {school.logo ? (
-                                <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <span className="text-ink">{school.name.charAt(0)}</span>
-                              )}
-                              {isRecentlyActive(school.id) && (
-                                <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
-                              {latestAnnouncement ? (
-                                <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
-                                  {latestAnnouncement.content}
+                            <div 
+                              className="cursor-pointer flex-1 flex items-start gap-4 min-w-0"
+                              onClick={() => {
+                                setActiveChat({
+                                  uid: chat.otherUid,
+                                  displayName: displayName,
+                                  photoURL: photoURL,
+                                  isGroup: chat.isGroup
+                                });
+                                setView('chat');
+                              }}
+                            >
+                              <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative shadow-sm">
+                                {photoURL ? (
+                                  <img src={photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="h-full w-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+                                    {displayName?.charAt(0)}
+                                  </div>
+                                )}
+                                {isOnline && (
+                                  <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <h4 className="text-[17px] font-extrabold text-ink truncate">{displayName}</h4>
+                                  {chat.isGroup && (
+                                    <span className="text-[9px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Group</span>
+                                  )}
+                                </div>
+                                <p className="text-[13px] text-muted line-clamp-1 leading-relaxed">
+                                  {lastMsgTxt}
                                 </p>
-                              ) : (
-                                <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
-                              )}
+                              </div>
                             </div>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
+                            
+                            {unreadCount > 0 && (
+                              <div className="h-6 min-w-6 px-1.5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md ml-3">
+                                {unreadCount}
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })
+                  ) : (
+                    [...schools, ...places]
+                      .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
+                      .filter(s => {
+                        if (schoolFilter === 'all') return true;
+                        if (schoolFilter === 'school') return s.type === 'school';
+                        if (schoolFilter === 'place') return s.type === 'place';
+                        // Custom / Specific category filtering
+                        return (
+                          (s.category && s.category.toLowerCase() === schoolFilter.toLowerCase()) ||
+                          (s.educationalLevels && s.educationalLevels.some(lvl => lvl.toLowerCase() === schoolFilter.toLowerCase()))
+                        );
+                      })
+                      .filter(s => {
+                        // If searching, show all matching
+                        if (globalSearch.trim() !== '') return true;
+                        // Admins see all
+                        if (userDoc?.role === 'admin') return true;
+                        // Otherwise show if created, administrative viewer, or user is follower/approved member
+                        return s.creatorUid === user?.uid || 
+                               s.administrativeViewers?.includes(user?.uid || '') ||
+                               s.followers?.includes(user?.uid || '') ||
+                               userDoc?.following?.includes(s.id);
+                      })
+                      .map(school => {
+                        const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
+                        return (
+                          <motion.div 
+                            key={school.id}
+                            layout
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.2 }}
+                            className="py-6 border-b border-gray-50 group"
+                          >
+                            <div 
+                              className="cursor-pointer mb-4 flex items-start gap-3"
+                              onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                            >
+                              <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
+                                {school.logo ? (
+                                  <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <span className="text-ink">{school.name.charAt(0)}</span>
+                                )}
+                                {isRecentlyActive(school.id) && (
+                                  <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
+                                {latestAnnouncement ? (
+                                  <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                                    {latestAnnouncement.content}
+                                  </p>
+                                ) : (
+                                  <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
+                                )}
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                  )}
                 </AnimatePresence>
               </div>
             </div>
@@ -19728,6 +19804,13 @@ function ExonaApp() {
       }
       case 'chat': {
         if (!user) { setView('login'); return null; }
+        if (!activeChat) {
+          setTimeout(() => {
+            setSchoolFilter('chats');
+            setView('feed');
+          }, 0);
+          return null;
+        }
         
     if (activeChat) {
       const currentChatId = activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_');
@@ -20397,6 +20480,47 @@ function ExonaApp() {
                 )}
               </div>
             )}
+          </div>
+        );
+      }
+      case 'videos': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <div className="w-full min-h-screen bg-gray-50/50 pb-32">
+            <div className="max-w-xl mx-auto pt-8">
+              <div className="px-4 mb-6">
+                <span className="text-[10px] text-accent font-black uppercase tracking-widest bg-accent/10 px-2.5 py-1 rounded-full">Explore Videos</span>
+                <h2 className="text-3xl font-black text-ink tracking-tight font-display mt-2">Broadcast Channels</h2>
+                <p className="text-xs text-muted font-bold tracking-tight uppercase mt-1">Immersive Video Channels & Broadcasts</p>
+              </div>
+
+              <div className="bg-white rounded-[2rem] border border-gray-100 p-4 md:p-6 shadow-sm">
+                <YoutubeBroadcasts
+                  user={user}
+                  userDoc={userDoc}
+                  customBroadcasts={broadcastEngine === 'sqlite_offline' ? localSqliteBroadcasts : youtubeBroadcasts}
+                  broadcastEngine={broadcastEngine}
+                  setBroadcastEngine={setBroadcastEngine}
+                  onAddBroadcast={handleAddYoutubeBroadcast}
+                  onDeleteBroadcast={handleDeleteYoutubeBroadcast}
+                  onLikeBroadcast={handleLikeYoutubeBroadcast}
+                  handleDebitExcoin={handleDebitExcoin}
+                  showNotification={showNotification}
+                  onOpenPlace={(creatorUid, creatorName) => {
+                    const foundSchool = schools.find(s => s.creatorUid === creatorUid || s.name.toLowerCase() === creatorName?.toLowerCase());
+                    if (foundSchool) {
+                      setSelectedSchool(foundSchool);
+                      setView('school-feed');
+                      showNotification(`Welcome to ${foundSchool.name}!`, 'success');
+                    } else {
+                      showNotification("The associated institution/place could not be found.", "error");
+                    }
+                  }}
+                  onClose={() => setView('feed')}
+                  isTabActive={view === 'videos'}
+                />
+              </div>
+            </div>
           </div>
         );
       }
@@ -26881,10 +27005,13 @@ function ExonaApp() {
               label="Tools"
             />
             <NavButton 
-              active={view === 'chat'} 
-              onClick={() => setView('chat')} 
-              icon={MessageSquare} 
-              label="Chat"
+              active={view === 'videos'} 
+              onClick={() => {
+                setActiveChat(null);
+                setView('videos');
+              }} 
+              icon={Video} 
+              label="Videos"
             />
             <NavButton 
               active={view === 'finance'} 
