@@ -2465,6 +2465,16 @@ function ExonaApp() {
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
+  const [exonaAiInput, setExonaAiInput] = useState('');
+  const [exonaAiChat, setExonaAiChat] = useState<Array<{ sender: 'user' | 'ai', text: string, timestamp: Date }>>([
+    {
+      sender: 'ai',
+      text: "Welcome to **Exona AI**. I am your advanced, high-end artificial intelligence partner.\n\nHow can I elevate your day? Select one of our premium task presets or message me directly.",
+      timestamp: new Date()
+    }
+  ]);
+  const [exonaAiLoading, setExonaAiLoading] = useState(false);
+  const [exonaAiError, setExonaAiError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -11725,6 +11735,60 @@ function ExonaApp() {
     );
   };
 
+  const handleSendExonaAiMessage = async (customPrompt?: string) => {
+    const textToSend = customPrompt || exonaAiInput;
+    if (!textToSend.trim()) return;
+
+    if (!customPrompt) {
+      setExonaAiInput('');
+    }
+
+    setExonaAiError(null);
+    setExonaAiLoading(true);
+
+    const userMessage = {
+      sender: 'user' as const,
+      text: textToSend,
+      timestamp: new Date()
+    };
+
+    setExonaAiChat(prev => [...prev, userMessage]);
+
+    try {
+      const chatHistoryForApi = exonaAiChat.map(c => ({
+        sender: c.sender,
+        text: c.text
+      }));
+
+      const res = await fetch('/api/ai/exona', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: textToSend,
+          chatHistory: chatHistoryForApi
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setExonaAiChat(prev => [...prev, {
+          sender: 'ai',
+          text: data.replyText,
+          timestamp: new Date()
+        }]);
+      } else {
+        setExonaAiError(data.error || 'Failed to get prompt completion.');
+      }
+    } catch (err: any) {
+      console.error('Exona AI Fetch Error:', err);
+      setExonaAiError('Connection failed. Please check internet access or try again.');
+    } finally {
+      setExonaAiLoading(false);
+    }
+  };
+
   const renderView = () => {
     switch (renderedView) {
       case 'admin': {
@@ -13157,230 +13221,212 @@ function ExonaApp() {
         );
       }
       case 'schools': {
-        const invitesCount = userDoc?.invitesCount || 0;
-        const isQualified = userDoc?.isLifetimeFree || invitesCount >= 3;
-        const inviteProgress = Math.min(invitesCount, 3);
-        const myInstitutions = [...schools, ...places].filter(s => canManageInstitution(s));
+        const presets = [
+          {
+            title: "Announcement Draft",
+            description: "Compose a beautiful formal community update.",
+            prompt: "Compose a beautiful, formal, high-impact community and institution update. Mention milestone achievements and maintain an inspiring community tone."
+          },
+          {
+            title: "Story Video Script",
+            description: "Generate a premium 3-slide status script.",
+            prompt: "Generate a beautifully structured, highly visual 3-slide storytelling status script for Sunnah TV and modern stream channels."
+          },
+          {
+            title: "Workspace Balance Strategy",
+            description: "Analyze budgeting & digital records setup.",
+            prompt: "Write a high-end strategic overview for organizing school records and tracking daily routines within a cloud platform."
+          },
+          {
+            title: "Platform AI Integration",
+            description: "Explore localized AI benefits & use cases.",
+            prompt: "Provide an elegant, authoritative assessment of using integrated AI to bridge community networks with technical workspaces."
+          }
+        ];
 
         return (
-          <div className="w-full max-w-xl mx-auto pb-32">
-            <div className="flex items-center justify-between py-6 px-5">
-              <h2 className="text-[28px] font-black text-ink tracking-tight font-display">Status</h2>
-              <div className="flex gap-2">
-                <button className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
-                  <Search size={18} />
-                </button>
-                <button className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100">
-                  <MoreHorizontal size={18} />
-                </button>
+          <div className="w-full max-w-4xl mx-auto py-8 px-4 sm:px-8 pb-32">
+            {/* Exona AI Display Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 border-b border-gray-100 pb-8">
+              <div>
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-3 mb-2"
+                >
+                  <div className="h-10 w-10 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
+                    <Sparkles size={22} />
+                  </div>
+                  <h2 className="text-3xl sm:text-4xl font-extrabold text-ink tracking-tight font-display">
+                    Exona AI
+                  </h2>
+                </motion.div>
+                <motion.p 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
+                >
+                  Advanced AI Partner Desk
+                </motion.p>
               </div>
+
+              {/* Reset session button */}
+              <button 
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to clear your current Exona AI chat session?")) {
+                    setExonaAiChat([
+                      {
+                        sender: 'ai',
+                        text: "Welcome to **Exona AI**. I am your advanced, high-end artificial intelligence partner.\n\nHow can I elevate your day? Select one of our premium task presets or message me directly.",
+                        timestamp: new Date()
+                      }
+                    ]);
+                    setExonaAiError(null);
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold text-muted hover:text-accent border border-gray-100 hover:border-accent/10 rounded-xl transition-all bg-card/50 flex items-center gap-2 self-start md:self-auto"
+              >
+                <RefreshCw size={14} />
+                Clear Session
+              </button>
             </div>
 
-            {/* Stories Row */}
-            <div className="px-5 mb-10">
-              <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-                {/* My Story Add Button */}
-                <div className="flex-shrink-0 text-center">
-                  <div className="relative group">
-                    <button 
-                      onClick={() => setIsStoryModalOpen(true)}
-                      className="h-20 w-20 rounded-[2.2rem] bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center group-hover:border-accent transition-all duration-500 overflow-hidden"
-                    >
-                      {user?.photoURL ? (
-                        <img src={user.photoURL} className="h-full w-full object-cover opacity-50 group-hover:opacity-70 grayscale transition-all" />
-                      ) : (
-                        <UserIcon size={24} className="text-gray-300" />
-                      )}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="h-9 w-9 bg-accent text-white rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-accent/20">
-                          <Plus size={20} />
-                        </div>
-                      </div>
-                    </button>
-                    <p className="text-[11px] font-black text-ink tracking-tight mt-2.5 opacity-80 uppercase tracking-[0.05em]">My Status</p>
-                  </div>
-                </div>
-
-                {/* Active Stories */}
-                {(Object.entries(storyGroups) as [string, Story[]][]).map(([id, group]) => {
-                  const firstStory = group[0];
-                  const hasUnseen = !group.every(s => s.viewers?.includes(user?.uid || ''));
-                  return (
-                    <button 
-                      key={id}
-                      onClick={() => { setSelectedStoryGroup(group); setActiveStoryIndex(0); setIsStoryViewerOpen(true); }}
-                      className="flex-shrink-0 text-center group"
-                    >
-                      <div className={`h-20 w-20 p-1 rounded-[2.2rem] border-2 transition-all duration-500 ${hasUnseen ? 'border-accent ring-2 ring-accent/15 sm:ring-4 sm:ring-accent/5' : 'border-gray-100 grayscale-[0.5]'}`}>
-                        <div className="h-full w-full rounded-[2rem] overflow-hidden bg-gray-100 border border-white">
-                          <img src={firstStory.authorPhoto || firstStory.mediaUrl} className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                        </div>
-                      </div>
-                      <p className="text-[11px] font-black text-ink tracking-tight mt-2.5 truncate w-20 uppercase tracking-[0.05em]">{firstStory.authorName.split(' ')[0]}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Premium Sections */}
-            <div className="space-y-1">
-              {myInstitutions.length > 0 && (
-                <div className="px-5 mb-8">
-                  <div className="flex items-center justify-between mb-5">
-                  <h2 className="text-[12px] font-black text-accent uppercase tracking-[0.3em]">Institutional Control</h2>
-                  <span className="text-[11px] font-bold text-muted bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">{myInstitutions.length} Active</span>
-                </div>
-                  <div className="grid grid-cols-1 gap-3">
-                    {myInstitutions.map(school => (
-                      <button 
-                        key={school.id}
-                        onClick={() => { setSelectedSchool(school); setView('school-feed'); setSchoolFeedTab('manage'); }}
-                        className="flex items-center gap-4 p-4 bg-white border border-gray-100 rounded-[1.8rem] hover:border-accent/20 hover:bg-accent/[0.02] transition-all group text-left"
-                      >
-                        <div className="h-16 w-16 p-0.5 rounded-2xl border-2 border-accent/20 flex items-center justify-center group-hover:scale-105 transition-all overflow-hidden bg-white">
-                          <div className="h-full w-full rounded-[0.85rem] overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
-                            {school.logo ? (
-                              <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <span className="text-lg font-black text-gray-200">{school.name.charAt(0)}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-extrabold text-ink text-[17px] tracking-tight mb-2 group-hover:text-accent transition-colors">{school.name}</h3>
-                          <div className="flex gap-2">
-                            <span className="text-[10px] font-black text-muted uppercase tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-100">Portal ID: {school.id}</span>
-                            <span className="text-[10px] font-black text-accent uppercase tracking-widest bg-accent/5 px-2 py-0.5 rounded border border-accent/10">Administrator</span>
-                          </div>
-                        </div>
-                        <ChevronRight size={18} className="text-muted/30 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recent Status (WhatsApp Style) */}
-              <div className="py-4 px-4 border-b border-gray-100">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-[13px] font-bold text-accent uppercase tracking-widest">Followed Institutions</h2>
-                  <button onClick={() => setView('feed')} className="text-[11px] font-bold text-muted hover:text-accent transition-colors">View All</button>
-                </div>
-                <div className="flex gap-4 overflow-x-auto pb-2 no-scrollbar">
-                  {[...schools, ...places]
-                    .filter(s => s.followers?.includes(user?.uid || ''))
-                    .slice(0, 8).map(school => (
-                    <button 
-                      key={school.id}
-                      onClick={() => { setSelectedSchool(school); setView('school-feed'); setSchoolFeedTab('feed'); }}
-                      className="flex-shrink-0 w-20 text-center group"
-                    >
-                      <div className="h-16 w-16 p-0.5 rounded-2xl border-2 border-accent flex items-center justify-center mx-auto mb-2 group-hover:scale-105 transition-all overflow-hidden bg-white shadow-sm">
-                        <div className="h-full w-full rounded-[0.85rem] overflow-hidden bg-white border border-gray-100 flex items-center justify-center">
-                          {school.logo ? (
-                            <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <span className="text-xl font-bold text-gray-300">{school.name.charAt(0)}</span>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-[11px] font-bold text-ink truncate w-full">{school.name}</p>
-                    </button>
-                  ))}
-                  {[...schools, ...places].filter(s => s.followers?.includes(user?.uid || '')).length === 0 && (
-                    <p className="text-[11px] text-muted font-medium py-4">You haven't followed any institutions yet.</p>
-                  )}
-                </div>
-              </div>
-
-               {/* Special Items */}
-               <button 
-                 onClick={() => setView('feed')}
-                 className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
-               >
-                 <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
-                   <GraduationCap size={24} />
-                 </div>
-                 <div className="flex-1">
-                   <div className="flex justify-between items-center">
-                     <h3 className="font-bold text-ink text-[15px]">Institutions Directory</h3>
-                     <span className="text-[10px] text-muted font-medium">9:41 AM</span>
-                   </div>
-                   <p className="text-[13px] text-muted truncate">Explore and follow schools</p>
-                 </div>
-               </button>
-
-               {/* 
-               {(myInstitutions.length > 0 || userDoc?.role === 'admin' || [...schools, ...places].some(s => canAccessInstitutionData(s))) && (
-                 <button 
-                   onClick={() => handleNavigateToData('records')}
-                   className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
-                 >
-                   <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
-                     <Search size={24} />
-                   </div>
-                   <div className="flex-1">
-                     <div className="flex justify-between items-center">
-                       <h3 className="font-bold text-ink text-[15px]">{labels.student} Records</h3>
-                       <span className="text-[10px] text-muted font-medium">Yesterday</span>
-                     </div>
-                     <p className="text-[13px] text-muted truncate">Access all digitized profiles</p>
-                   </div>
-                 </button>
-               )}
-               */}
-
-              {/* Followed & Managed Institutions as Home Feed */}
-              {[...schools, ...places].filter(s => 
-                userDoc?.following?.includes(s.id) || 
-                s.creatorUid === user?.uid
-              ).map(school => {
-                const lastPost = posts.filter(p => p.schoolId === school.id).sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0))[0];
-                return (
-                  <button 
-                    key={school.id}
-                    onClick={() => { setSelectedSchool(school); setView('school-feed'); }}
-                    className="w-full p-4 hover:bg-white border-b border-gray-100 transition-all text-left flex items-center gap-4 hover:border-gray-200"
+            {/* Chat Conversation Stream */}
+            <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden mb-8 min-h-[400px] flex flex-col justify-between">
+              
+              {/* Chat Panel Content */}
+              <div className="p-6 sm:p-8 space-y-6 max-h-[500px] overflow-y-auto no-scrollbar flex-1">
+                {exonaAiChat.map((msg, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                   >
-                    <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                      {school.logo ? (
-                        <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    {/* Avatar Element */}
+                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${msg.sender === 'user' ? 'bg-indigo-50 text-indigo-600' : 'bg-accent/10 text-accent'}`}>
+                      {msg.sender === 'user' ? (
+                        user?.photoURL ? (
+                          <img src={user.photoURL} className="h-full w-full object-cover rounded-xl" />
+                        ) : (
+                          user?.displayName?.charAt(0) || 'U'
+                        )
                       ) : (
-                        <span className="text-muted text-[10px] font-bold">{school.name.charAt(0)}</span>
+                        <Sparkles size={16} />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-center">
-                        <h3 className="font-bold text-ink text-[15px] truncate">{school.name}</h3>
-                        <span className="text-[10px] text-muted font-medium">
-                          {lastPost ? formatTime(lastPost.timestamp) : '9:41 AM'}
-                        </span>
+
+                    {/* Chat Bubble Layout */}
+                    <div className="max-w-[80%]">
+                      <div className={`p-5 rounded-2xl text-[14px] leading-relaxed ${
+                        msg.sender === 'user'
+                          ? 'bg-ink text-white rounded-tr-none' 
+                          : 'bg-gray-50 text-ink rounded-tl-none border border-gray-100/50'
+                      }`}>
+                        {msg.sender === 'ai' ? (
+                          <div className="markdown-body prose prose-slate max-w-none text-ink text-[14px]">
+                            <Markdown>{msg.text}</Markdown>
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-line">{msg.text}</p>
+                        )}
                       </div>
-                      <p className="text-[13px] text-muted truncate">
-                        {lastPost ? lastPost.content : `Welcome to ${school.name}`}
+                      <span className="text-[9px] text-muted/50 font-medium font-mono mt-1.5 block">
+                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+
+                {/* AI Loading state placeholder */}
+                {exonaAiLoading && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex gap-4"
+                  >
+                    <div className="h-9 w-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                      <Sparkles size={16} className="animate-spin" />
+                    </div>
+                    <div className="bg-gray-50 text-muted p-5 rounded-2xl rounded-tl-none border border-gray-100/50 max-w-[80%] flex items-center gap-3">
+                      <span className="text-xs font-semibold uppercase tracking-wider">Exona AI is thinking</span>
+                      <div className="flex gap-1">
+                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Error Banner */}
+                {exonaAiError && (
+                  <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-3 text-xs font-bold">
+                    <AlertTriangle size={16} />
+                    <span>{exonaAiError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input Area */}
+              <div className="p-4 sm:p-6 bg-gray-50/50 border-t border-gray-100 flex gap-3 items-center">
+                <input
+                  type="text"
+                  placeholder="Ask Exona AI anything..."
+                  value={exonaAiInput}
+                  onChange={(e) => setExonaAiInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSendExonaAiMessage();
+                    }
+                  }}
+                  disabled={exonaAiLoading}
+                  className="flex-1 px-5 py-3.5 bg-white border border-gray-100 focus:border-accent/20 rounded-2xl outline-none transition-all text-sm font-sans placeholder:text-muted/40 text-ink"
+                />
+                <button
+                  onClick={() => handleSendExonaAiMessage()}
+                  disabled={exonaAiLoading || !exonaAiInput.trim()}
+                  className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition-all font-bold"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Smart Presets Bento Row */}
+            <div>
+              <h3 className="text-[11px] font-black text-accent uppercase tracking-[0.25em] mb-6 px-1">
+                AI Preset Triggers
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {presets.map((p, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (!exonaAiLoading) {
+                        handleSendExonaAiMessage(p.prompt);
+                      }
+                    }}
+                    disabled={exonaAiLoading}
+                    className="p-5 text-left bg-white border border-gray-100 rounded-3xl hover:border-accent/20 hover:bg-accent/[0.01] transition-all duration-300 shadow-sm flex flex-col justify-between group disabled:opacity-60"
+                  >
+                    <div>
+                      <h4 className="font-bold text-ink text-[14px] mb-1 tracking-tight group-hover:text-accent transition-colors">
+                        {p.title}
+                      </h4>
+                      <p className="text-[12px] text-muted font-medium pr-4 leading-relaxed">
+                        {p.description}
                       </p>
                     </div>
+                    <div className="flex justify-end mt-4">
+                      <span className="text-[10px] bg-gray-50 group-hover:bg-accent group-hover:text-white border border-gray-100 group-hover:border-accent/10 px-3 py-1 rounded-lg text-muted font-semibold uppercase tracking-wider transition-all">
+                        Execute Preset →
+                      </span>
+                    </div>
                   </button>
-                );
-              })}
-
-              {/* Empty State / Explore */}
-              {(!userDoc?.following || userDoc.following.length === 0) && (
-                <div className="py-12 px-8 text-center bg-white border border-gray-100 rounded-3xl mt-4">
-                  <div className="h-16 w-16 bg-white border border-gray-100 rounded-full flex items-center justify-center text-muted mx-auto mb-4">
-                    <MessageSquare size={24} />
-                  </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">No active updates</h3>
-                  <p className="text-sm text-muted mb-6">Follow institutions to see their updates here on your home feed.</p>
-                  <button 
-                    onClick={() => setView('feed')}
-                    className="px-6 py-2.5 bg-accent text-white rounded-full font-bold text-sm hover:bg-accent/90 transition-all"
-                  >
-                    Explore Institutions
-                  </button>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         );
@@ -27122,8 +27168,8 @@ function ExonaApp() {
                   onClick={() => { setView('feed'); setSidebarOpen(false); }} 
                 />
                 <SidebarItem 
-                  icon={GraduationCap} 
-                  label="Institutions" 
+                  icon={Sparkles} 
+                  label="Exona AI" 
                   active={view === 'schools'} 
                   onClick={() => { setView('schools'); setSidebarOpen(false); }} 
                 />
@@ -27234,7 +27280,7 @@ function ExonaApp() {
             onClick={() => setView('schools')}
             className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[12px] sm:text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Story</span>
+            <span className={`text-[12px] sm:text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
             {view === 'schools' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}

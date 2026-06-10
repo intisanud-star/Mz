@@ -1695,6 +1695,54 @@ Keep your response short, warm, and highly engaging (max 2-3 sentences). Do not 
     }
   });
 
+  // Exona AI Assistant Route
+  app.post('/api/ai/exona', async (req, res) => {
+    const { prompt, chatHistory } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: 'No prompt provided' });
+    }
+
+    try {
+      const systemInstruction = `You are Exona AI, the advanced, high-end artificial intelligence engine integrated directly into the Exona platform. 
+Exona represents a modern, beautiful full-stack platform linking local communities, institutions (schools, places of worship, businesses), custom broadcasts, and financial workspaces. 
+Provide elegant, authoritative, and extremely polished responses in clean Markdown styling. 
+You can help users:
+1. Formulate institutional announcements & updates.
+2. Develop creative story status scripts.
+3. Plan business or community events.
+4. Compose engaging broadcast scripts.
+5. Provide helpful and deep explanations on any topic.
+
+Maintain the Exona design-centric, premium tone: balanced, professional, concise, with sleek spacing. Use markdown headers, bold items, or lists beautifully as needed.`;
+
+      // Build chat history matching @google/genai schema
+      const contents: any[] = [];
+      if (chatHistory && Array.isArray(chatHistory)) {
+        for (const turn of chatHistory) {
+          contents.push({
+            role: turn.sender === 'user' ? 'user' : 'model',
+            parts: [{ text: turn.text }]
+          });
+        }
+      }
+      contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
+        model: "gemini-3.5-flash",
+        contents,
+        config: {
+          systemInstruction,
+          temperature: 0.8
+        }
+      }));
+
+      res.json({ success: true, replyText: response.text || 'Exona AI is here to elevate your experience.' });
+    } catch (err: any) {
+      console.error('Exona AI Helper Error:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to generate AI response' });
+    }
+  });
+
   // Global error handler for API routes (Must be after all routes)
   app.use('/api', (err: any, req: any, res: any, next: any) => {
     console.error(`API Error on ${req.method} ${req.url}:`, err);
