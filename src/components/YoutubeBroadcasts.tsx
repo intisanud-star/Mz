@@ -1912,7 +1912,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               return (
                 <div
                   key={stream.id}
-                  className="w-full h-screen min-h-screen snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                  className="w-full h-full min-h-full snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
                 >
                   {/* Video Player Frame */}
                   {isActive ? (
@@ -3658,7 +3658,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   return (
                     <div
                       key={stream.id}
-                      className="w-full h-screen min-h-screen snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                      className="w-full h-full min-h-full snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
                     >
                       {/* Video Player Frame */}
                       {isActive ? (

@@ -21174,9 +21174,9 @@ function ExonaApp() {
           <div className="w-full min-h-screen bg-gray-50/50 pb-32">
             <div className="max-w-xl mx-auto pt-8">
               <div className="px-4 mb-6">
-                <span className="text-[10px] text-accent font-black uppercase tracking-widest bg-accent/10 px-2.5 py-1 rounded-full">Explore Videos</span>
+                <span className="text-[10px] text-accent font-black uppercase tracking-widest bg-accent/10 px-2.5 py-1 rounded-full">Explore Streams</span>
                 <h2 className="text-3xl font-black text-ink tracking-tight font-display mt-2">Broadcast Channels</h2>
-                <p className="text-xs text-muted font-bold tracking-tight uppercase mt-1">Immersive Video Channels & Broadcasts</p>
+                <p className="text-xs text-muted font-bold tracking-tight uppercase mt-1">Immersive Stream Channels & Broadcasts</p>
               </div>
 
               <div className="bg-white rounded-[2rem] border border-gray-100 p-4 md:p-6 shadow-sm">
@@ -27696,7 +27696,7 @@ function ExonaApp() {
                 setView('videos');
               }} 
               icon={Video} 
-              label="Videos"
+              label="Stream"
             />
             <NavButton 
               active={view === 'finance'} 

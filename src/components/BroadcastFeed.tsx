@@ -254,31 +254,37 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
   // Observer to auto-play & focus streams in timeline
   const listContainerRef = useRef<HTMLDivElement>(null);
 
+  // Set default active video once items load
+  useEffect(() => {
+    if (unifiedItems.length > 0 && !activeVideoId) {
+      setActiveVideoId(unifiedItems[0].id);
+    }
+  }, [unifiedItems, activeVideoId]);
+
   useEffect(() => {
     if (!isTabActive) return;
 
     const observerOption = {
       root: null,
-      rootMargin: '-50px 0px -50px 0px',
-      threshold: 0.5
+      rootMargin: '-25% 0px -25% 0px',
+      threshold: 0.1
     };
 
     const handleIntersection = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach(entry => {
-        const id = entry.target.getAttribute('data-id');
-        if (entry.isIntersecting) {
+      const visible = entries.filter(e => e.isIntersecting);
+      if (visible.length > 0) {
+        // Find the one closest to the center of the screen or with highest ratio
+        let bestEntry = visible[0];
+        visible.forEach(entry => {
+          if (entry.intersectionRatio > bestEntry.intersectionRatio) {
+            bestEntry = entry;
+          }
+        });
+        const id = bestEntry.target.getAttribute('data-id');
+        if (id) {
           setActiveVideoId(id);
-          const videoElement = entry.target.querySelector('video');
-          if (videoElement) {
-            videoElement.play().catch(() => {});
-          }
-        } else {
-          const videoElement = entry.target.querySelector('video');
-          if (videoElement) {
-            videoElement.pause();
-          }
         }
-      });
+      }
     };
 
     const observer = new IntersectionObserver(handleIntersection, observerOption);
@@ -468,6 +474,7 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
               // Identify content details
               const hasVideo = item.type === 'broadcast' || post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: string) => u?.includes('.mp4'));
               const hasImages = (item.type === 'post') && (post.mediaType === 'image' || post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0));
+              const isActive = activeVideoId === item.id;
 
               // Local dynamic liked helper state
               function linkedPostLiked(id: string) {
@@ -583,40 +590,119 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
                   <div className="bg-black relative aspect-square sm:aspect-video w-full flex items-center justify-center overflow-hidden border-b border-gray-150 shadow-inner">
                     {item.type === 'broadcast' ? (
                       // Live broadcast stream
-                      post.streamType === 'youtube' || post.videoId ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${post.videoId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${post.videoId}&controls=1&modestbranding=1&rel=0&iv_load_policy=3&showinfo=0`}
-                          title={post.title}
-                          className="w-full h-full border-0 absolute inset-0 select-none pointer-events-auto"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : post.streamUrl ? (
-                        <video
-                          src={post.streamUrl}
-                          autoPlay
-                          loop
-                          muted={isMuted}
-                          playsInline
-                          className="w-full h-full object-cover"
-                        />
+                      isActive ? (
+                        <>
+                          {/* Gesture protective overlay allowing normal touch swipes to scroll the timeline cleanly */}
+                          <div 
+                            className="absolute inset-0 bg-transparent z-10 cursor-pointer"
+                            onClick={handleToggleMute}
+                          />
+                          {(post.streamType === 'youtube' || post.videoId) ? (
+                            <iframe
+                              src={`https://www.youtube.com/embed/${post.videoId}?autoplay=1&mute=${isMuted ? 1 : 0}&loop=1&playlist=${post.videoId}&controls=0&modestbranding=1&rel=0&iv_load_policy=3&showinfo=2`}
+                              title={post.title}
+                              className="w-full h-full border-0 absolute inset-0 select-none pointer-events-none"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          ) : post.streamUrl ? (
+                            <video
+                              src={post.streamUrl}
+                              autoPlay
+                              loop
+                              muted={isMuted}
+                              playsInline
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-zinc-500 gap-2">
+                              <Tv size={36} className="text-zinc-600 animate-pulse" />
+                              <span className="text-[10px] uppercase tracking-wider font-extrabold text-zinc-500">Live feed offline</span>
+                            </div>
+                          )}
+                        </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center text-zinc-500 gap-2">
-                          <Tv size={36} className="text-zinc-600 animate-pulse" />
-                          <span className="text-[10px] uppercase tracking-wider font-extrabold text-zinc-500">Live feed offline</span>
+                        // Static elegant placeholder cover card for inactive broadcast channels
+                        <div 
+                          className="w-full h-full relative cursor-pointer select-none flex flex-col items-center justify-center bg-zinc-950 overflow-hidden group"
+                          onClick={() => setActiveVideoId(item.id)}
+                        >
+                          {/* Ambient blurred backdrop */}
+                          {post.photoURL && (
+                            <img 
+                              src={post.photoURL} 
+                              className="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-30 scale-110"
+                              alt=""
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          
+                          {/* Central logo */}
+                          {post.photoURL && (
+                            <div className="relative z-10 h-24 w-24 sm:h-28 sm:w-28 rounded-full p-1 bg-gradient-to-tr from-rose-500 via-amber-400 to-indigo-600 shadow-2xl group-hover:scale-105 transition-transform duration-500">
+                              <img 
+                                src={post.photoURL} 
+                                className="h-full w-full rounded-full object-cover border-4 border-black" 
+                                alt=""
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          )}
+
+                          {/* Pulsing play overlay indicator */}
+                          <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center gap-3 z-10 pt-16 sm:pt-20">
+                            <div className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white shadow-lg shadow-black/10 transition-all duration-300">
+                              <Tv size={20} className="text-white" />
+                            </div>
+                            <span className="text-[10px] sm:text-xs font-black tracking-[0.2em] text-white bg-red-600 px-3 py-1 rounded-full border border-red-500 shadow animate-pulse">
+                              TAP TO TUNE IN
+                            </span>
+                          </div>
                         </div>
                       )
                     ) : (
                       // Normal Feed post attachments
                       hasVideo ? (
-                        <video
-                          src={post.mediaUrl || (post.mediaUrls && post.mediaUrls[0])}
-                          autoPlay
-                          loop
-                          muted={isMuted}
-                          playsInline
-                          className="w-full h-full object-cover"
-                        />
+                        isActive ? (
+                          <>
+                            {/* Scroll safeguard overlay */}
+                            <div 
+                              className="absolute inset-0 bg-transparent z-10 cursor-pointer"
+                              onClick={handleToggleMute}
+                            />
+                            <video
+                              src={post.mediaUrl || (post.mediaUrls && post.mediaUrls[0])}
+                              autoPlay
+                              loop
+                              muted={isMuted}
+                              playsInline
+                              className="w-full h-full object-cover"
+                            />
+                          </>
+                        ) : (
+                          // Lightweight video placeholder cover
+                          <div 
+                            className="w-full h-full relative cursor-pointer select-none flex items-center justify-center bg-zinc-950 overflow-hidden group"
+                            onClick={() => setActiveVideoId(item.id)}
+                          >
+                            {post.mediaUrl || (post.mediaUrls && post.mediaUrls[0]) ? (
+                              <video
+                                src={post.mediaUrl || (post.mediaUrls && post.mediaUrls[0])}
+                                muted
+                                playsInline
+                                className="w-full h-full object-cover opacity-40 blur-sm scale-105"
+                              />
+                            ) : null}
+                            <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-2">
+                              <div className="h-12 w-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform">
+                                <Music size={18} />
+                              </div>
+                              <span className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-wider bg-black/40 px-3 py-1 rounded-full border border-white/5">
+                                Tap to Autoplay
+                              </span>
+                            </div>
+                          </div>
+                        )
                       ) : hasImages ? (
                         <img
                           src={post.mediaUrl || (post.mediaUrls && post.mediaUrls[0])}
@@ -635,7 +721,7 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
                     )}
 
                     {/* MUTE VOLUME TRIGGER KEY FLOATING ON PLAYER */}
-                    {hasVideo && (
+                    {hasVideo && isActive && (
                       <button
                         onClick={handleToggleMute}
                         className="absolute bottom-3 right-3 h-8 w-8 bg-black/60 hover:bg-black/80 backdrop-blur-md rounded-full flex items-center justify-center text-white transition-all shadow-md focus:outline-none z-10"
@@ -649,7 +735,6 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
                       <span className={`h-1.5 w-1.5 rounded-full ${item.type === 'broadcast' ? 'bg-red-500 animate-ping' : 'bg-green-400'}`} />
                       <span>{item.type === 'broadcast' ? 'Live Channel' : 'Autoplay'}</span>
                     </div>
-
                   </div>
 
                   {/* INSTAGRAM FOOTER FEEDBACK BAR & COMMENTS */}
