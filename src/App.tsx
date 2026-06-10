@@ -27306,7 +27306,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {activeInstForBroadcast ? (
+        {(view === 'chat' || view === 'institution-channel' || view === 'institution-profile' || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
