@@ -37,6 +37,7 @@ import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter'
 import CustomAppSandbox from './components/CustomAppSandbox';
 import ExcoinP2PCentre from './components/ExcoinP2PCentre';
 import { YoutubeBroadcasts } from './components/YoutubeBroadcasts';
+import { BroadcastFeed } from './components/BroadcastFeed';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 declare global {
@@ -2727,9 +2728,72 @@ function ExonaApp() {
   const [localSqliteBroadcasts, setLocalSqliteBroadcasts] = useState<any[]>(() => {
     const saved = localStorage.getItem('exon_sqlite_broadcasts');
     if (saved) {
-      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+      try { 
+        const parsed = JSON.parse(saved); 
+        if (parsed && parsed.length > 0) return parsed;
+      } catch (e) { 
+        console.error(e); 
+      }
     }
-    return [];
+    // Seed with high quality, real default channels requested by user
+    return [
+      {
+        id: 'sunnah-tv',
+        title: 'Sunnah TV Madinah Live',
+        type: 'channel',
+        streamType: 'youtube',
+        videoId: 'W_98rVpC3g8',
+        category: 'Religious & Culture',
+        description: 'Official Live Stream broadcasting daily prayers, spiritual gatherings, and Islamic educational programs directly from the Prophet\'s Mosque in Madinah Al-Munawwarah.',
+        creatorName: 'Sunnah TV',
+        creatorUid: 'sys',
+        likes: ['u_1', 'u_2'],
+        likesCount: 12040,
+        photoURL: 'https://images.unsplash.com/photo-1590076247564-a29b3addee63?w=150&q=80'
+      },
+      {
+        id: 'bollywood-tv',
+        title: 'Bollywood Retro Classics & Hits',
+        type: 'video',
+        streamType: 'youtube',
+        videoId: 'h3fUgwyot78',
+        category: 'Entertainment & Music',
+        description: 'Immerse yourself in non-stop Bollywood melodies, movie soundtracks, trailers, and golden era classics curated specifically for dance, rhythm, and culture enthusiasts.',
+        creatorName: 'Bollywood Feed',
+        creatorUid: 'sys',
+        likes: ['u_1'],
+        likesCount: 8940,
+        photoURL: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=150&q=80'
+      },
+      {
+        id: 'spacex-channel',
+        title: 'SpaceX Mission Control - Starship Orbital Flight',
+        type: 'video',
+        streamType: 'youtube',
+        videoId: '2a_HCNGfgTo',
+        category: 'Science & Aerospace',
+        description: 'Live telemetry, flight controls, and high-definition orbital launches presented by SpaceX engineering teams. Watch rocket booster recoveries and Starship orbital demonstrations.',
+        creatorName: 'SpaceX Official',
+        creatorUid: 'sys',
+        likes: ['u_2', 'u_3'],
+        likesCount: 64200,
+        photoURL: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?w=150&q=80'
+      },
+      {
+        id: 'saudi-quran-tv',
+        title: 'Saudi Quran TV Makkah Live',
+        type: 'channel',
+        streamType: 'youtube',
+        videoId: 'M9m6FidVb8E',
+        category: 'Religious & Culture',
+        description: 'Continuous, 24/7 high-definition live telecast of the Holy Kaaba in Makkah with beautiful, world-renowned Quranic recitations.',
+        creatorName: 'Saudi Quran TV',
+        creatorUid: 'sys',
+        likes: [],
+        likesCount: 45310,
+        photoURL: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=150&q=80'
+      }
+    ];
   });
 
   const [localSqliteRecords, setLocalSqliteRecords] = useState<any[]>(() => {
@@ -12430,28 +12494,31 @@ function ExonaApp() {
             </div>
 
             {feedTab === 'broadcasts' && (
-              <YoutubeBroadcasts
+              <BroadcastFeed
                 user={user}
                 userDoc={userDoc}
+                posts={posts}
+                schools={schools}
+                places={places}
                 customBroadcasts={broadcastEngine === 'sqlite_offline' ? localSqliteBroadcasts : youtubeBroadcasts}
-                broadcastEngine={broadcastEngine}
-                setBroadcastEngine={setBroadcastEngine}
-                onAddBroadcast={handleAddYoutubeBroadcast}
-                onDeleteBroadcast={handleDeleteYoutubeBroadcast}
-                onLikeBroadcast={handleLikeYoutubeBroadcast}
-                handleDebitExcoin={handleDebitExcoin}
-                showNotification={showNotification}
-                onOpenPlace={(creatorUid, creatorName) => {
-                  const foundSchool = schools.find(s => s.creatorUid === creatorUid || s.name.toLowerCase() === creatorName?.toLowerCase());
-                  if (foundSchool) {
-                    setSelectedSchool(foundSchool);
-                    setView('school-feed');
-                    showNotification(`Welcome to ${foundSchool.name}!`, 'success');
-                  } else {
-                    showNotification("The associated institution/place could not be found.", "error");
+                onUserClick={handleUserClick}
+                onInstitutionClick={(schoolId) => {
+                  const s = schools.find(sch => sch.id === schoolId) || places.find(pl => pl.id === schoolId);
+                  if (s) {
+                    setSelectedInstitutionForProfile(s);
+                    setView('institution-channel');
                   }
                 }}
-                onClose={() => setFeedTab('institutions')}
+                onLikePost={handleLikePost}
+                onCommentPost={(p) => {
+                  setActivePostForComments(p);
+                  setIsCommentModalOpen(true);
+                }}
+                onResharePost={handleResharePost}
+                onFollowUser={handleFollowUser}
+                onUnfollowUser={handleUnfollowUser}
+                onFollowInstitution={handleFollowInstitution}
+                showNotification={showNotification}
                 isTabActive={feedTab === 'broadcasts'}
               />
             )}
