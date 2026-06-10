@@ -2463,7 +2463,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
@@ -11212,7 +11212,7 @@ function ExonaApp() {
     const inst = [...schools, ...places].find(i => i.id === id);
     if (inst) {
       setSelectedInstitutionForProfile(inst);
-      setView('institution-profile');
+      setView('institution-channel');
     }
   };
 
@@ -12255,7 +12255,7 @@ function ExonaApp() {
                           >
                             <div 
                               className="cursor-pointer mb-4 flex items-start gap-3"
-                              onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                              onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                             >
                               <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
                                 {school.logo ? (
@@ -19312,6 +19312,334 @@ function ExonaApp() {
           </WordLayout>
         );
       }
+      case 'institution-channel': {
+        const inst = selectedInstitutionForProfile;
+        if (!inst) { setView('feed'); return null; }
+
+        const latestInst = [...schools, ...places].find(s => s.id === inst.id) || inst;
+        const institutionPosts = posts
+          .filter(p => p.schoolId === latestInst.id)
+          .sort((a, b) => {
+            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return timeA - timeB;
+          });
+
+        const isFollowing = userDoc?.following?.includes(latestInst.id);
+        const canManage = canManageInstitution(latestInst);
+
+        // Helper to format timestamps gracefully like "May 26", "June 9", and message times "10:58"
+        const getFormattedTime = (timestampStr: any) => {
+          if (!timestampStr) return "";
+          try {
+            const date = new Date(timestampStr);
+            return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+          } catch (e) {
+            return "";
+          }
+        };
+
+        const getFormattedDate = (timestampStr: any) => {
+          if (!timestampStr) return "Broadcasts";
+          try {
+            const date = new Date(timestampStr);
+            return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+          } catch (e) {
+            return "";
+          }
+        };
+
+        return (
+          <div className="flex flex-col min-h-screen max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-12">
+            {/* Telegram Style Header */}
+            <div className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 shadow-sm z-50">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {/* Back Button */}
+                <button 
+                  onClick={() => setView('feed')} 
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors text-slate-600"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+                
+                {/* Title and Avatar - Clicking opens the detailed Profile details! */}
+                <div 
+                  onClick={() => {
+                    setSelectedInstitutionForProfile(latestInst);
+                    setView('institution-profile');
+                  }}
+                  className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 group"
+                >
+                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0 shadow-sm relative group-hover:scale-102 transition-transform">
+                    {latestInst.logo ? (
+                      <img src={latestInst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Logo" />
+                    ) : (
+                      <span className="text-lg font-black text-indigo-600">{latestInst.name.charAt(0)}</span>
+                    )}
+                    {isRecentlyActive(latestInst.id) && (
+                      <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-sm font-black text-ink truncate group-hover:text-indigo-600 transition-colors leading-tight flex items-center gap-1">
+                      {latestInst.name}
+                    </h3>
+                    <p className="text-[10px] text-muted font-bold tracking-tight uppercase leading-none mt-0.5">
+                      {latestInst.followers?.length || 0} subscribers • broadcast
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Header Right Action Icons */}
+              <div className="flex items-center gap-1.5 shrink-0 text-slate-500">
+                <button 
+                  onClick={() => {
+                    setSelectedInstitutionForProfile(latestInst);
+                    setView('institution-profile');
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors text-indigo-600 font-extrabold text-[11px] uppercase tracking-wider hidden sm:block"
+                >
+                  View Page
+                </button>
+                <button className="p-1.5 hover:bg-gray-100 rounded-full transition-colors">
+                  <Search size={19} />
+                </button>
+                <button 
+                  onClick={() => {
+                    setSelectedInstitutionForProfile(latestInst);
+                    setView('institution-profile');
+                  }}
+                  className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <MoreHorizontal size={19} />
+                </button>
+              </div>
+            </div>
+
+            {/* Scrollable Telegram Channel Post Stream */}
+            <div 
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-6 flex flex-col no-scrollbar bg-[#f4f7f9] min-h-[50vh]"
+              style={{
+                backgroundImage: 'radial-gradient(#d5dde3 1.2px, transparent 1.2px)',
+                backgroundSize: '24px 24px',
+                backgroundPosition: '0 0'
+              }}
+            >
+              {institutionPosts.length === 0 ? (
+                <div className="my-auto py-20 text-center bg-white/80 backdrop-blur-sm rounded-[2rem] border border-gray-200 shadow-sm p-6 max-w-sm mx-auto">
+                  <div className="h-16 w-16 bg-indigo-50/50 rounded-full text-indigo-500 flex items-center justify-center mx-auto mb-4">
+                    <VideoIcon size={28} className="opacity-80" />
+                  </div>
+                  <h4 className="text-base font-black text-ink mb-1">Channel Created</h4>
+                  <p className="text-xs text-muted font-bold tracking-tight uppercase mb-4">No broadcasts published yet</p>
+                  <p className="text-xs text-muted max-w-xs leading-normal">
+                    Subscribe and turn on notifications. When broadcasts, events, or releases are made, they will appear right here dynamically.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Informational intro card */}
+                  <div className="bg-amber-50/80 backdrop-blur-sm border border-amber-100/60 rounded-3xl p-4 shadow-sm text-center max-w-sm mx-auto mb-2 text-amber-900 select-none">
+                    <p className="text-[11px] font-black uppercase tracking-wider mb-1 text-amber-800">📌 Official Channel Info</p>
+                    <p className="text-xs font-bold leading-normal text-amber-700/95">
+                      You are viewing {latestInst.name} Official Broadcast. Scroll to explore live events, announcements, and direct digital resources.
+                    </p>
+                  </div>
+
+                  {(() => {
+                    let lastDateStr = '';
+                    return institutionPosts.map((post, idx) => {
+                      const currentDateStr = getFormattedDate(post.timestamp);
+                      const showDateDivider = currentDateStr && currentDateStr !== lastDateStr;
+                      if (showDateDivider) {
+                        lastDateStr = currentDateStr;
+                      }
+
+                      const hasMedia = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
+                      const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                      const isLiked = user && fallbackPostLikes[post.id]?.likedBy?.includes(user.uid);
+                      const likesCount = (post.likes || 0) + (fallbackPostLikes[post.id]?.likes || 0);
+
+                      return (
+                        <div key={post.id || idx} className="flex flex-col items-center w-full">
+                          {/* Floating Date Indicator */}
+                          {showDateDivider && (
+                            <div className="my-3 px-3.5 py-1 bg-black/20 backdrop-blur-sm text-white font-black text-[10px] uppercase tracking-wider rounded-full shadow-sm">
+                              {currentDateStr}
+                            </div>
+                          )}
+
+                          {/* Message bubble Container */}
+                          <div className="relative group max-w-[85%] self-start w-full transition-transform active:scale-[0.99] flex items-end gap-2">
+                            {/* Speech Bubble */}
+                            <div className="w-full bg-white rounded-[1.5rem] rounded-tl-sm shadow-sm border border-gray-150 overflow-hidden flex flex-col">
+                              {/* Publisher Info (Channel Header) */}
+                              <div className="px-4 pt-3 pb-1.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/50">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">
+                                  {latestInst.name}
+                                </span>
+                                <span className="text-[9px] font-bold text-muted/60">
+                                  Broadcast Channel
+                                </span>
+                              </div>
+
+                              {/* Rich media content */}
+                              {hasMedia && (
+                                <div className="relative aspect-video bg-gray-100 border-b border-gray-100 flex items-center justify-center overflow-hidden">
+                                  {isVideo ? (
+                                    <video 
+                                      src={post.mediaUrls?.[0] || post.mediaUrl} 
+                                      controls 
+                                      className="h-full w-full object-cover" 
+                                      referrerPolicy="no-referrer"
+                                    />
+                                  ) : (
+                                    <img 
+                                      src={post.mediaUrls?.[0] || post.mediaUrl} 
+                                      className="h-full w-full object-cover hover:scale-[1.03] transition-transform duration-500" 
+                                      referrerPolicy="no-referrer"
+                                      alt="Broadcast Media"
+                                    />
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Body post content */}
+                              <div className="p-4 flex flex-col">
+                                <p className="text-[13px] text-ink font-sans leading-relaxed whitespace-pre-wrap select-text">
+                                  {post.content}
+                                </p>
+
+                                {/* Meta area (timestamp, views, and action indicators inline bottom-right) */}
+                                <div className="mt-3 pt-2.5 border-t border-gray-50 flex items-center justify-between text-[11px] font-bold text-muted/80">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className="flex items-center gap-1">
+                                      <Eye size={12} className="opacity-60" /> {(post.likes * 11 + 7).toLocaleString()}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Heart size={11} className={`opacity-60 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} /> {likesCount}
+                                    </span>
+                                  </div>
+                                  <span className="text-[10px] font-mono select-none">
+                                    {getFormattedTime(post.timestamp) || "10:58"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Fully Functional Telegram Interactive Actions Row */}
+                              <div className="p-1 px-3 bg-indigo-50/30 border-t border-gray-100 flex gap-2 overflow-x-auto no-scrollbar py-2">
+                                <button 
+                                  onClick={() => handleLikePost(post.id, fallbackPostLikes[post.id]?.likedBy || [])}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm ${isLiked ? 'text-accent border-accent/20 bg-accent/5' : 'text-slate-600 border-slate-150 hover:bg-slate-50'}`}
+                                >
+                                  <ThumbsUp size={11} className={isLiked ? 'fill-current' : ''} />
+                                  <span>{isLiked ? 'Liked' : 'Like'}</span>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setActivePostForComments(post);
+                                    setIsCommentModalOpen(true);
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-150 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-600 transition-all select-none shadow-sm"
+                                >
+                                  <MessageCircle size={11} />
+                                  <span>{post.commentsCount || 0} Replies</span>
+                                </button>
+                                {post.linkUrl && (
+                                  <a 
+                                    href={post.linkUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm"
+                                  >
+                                    <ExternalLink size={11} />
+                                    <span>Visit Site</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Circular Forward Icon Button */}
+                            <button 
+                              onClick={() => handleForwardPost(post)}
+                              className="h-8 w-8 bg-black/40 hover:bg-black/60 shadow-md text-white rounded-full flex items-center justify-center shrink-0 transition-all scale-90 opacity-0 group-hover:opacity-100 hover:scale-100"
+                              title="Forward Broadcast"
+                            >
+                              <ArrowUpRight size={15} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </>
+              )}
+            </div>
+
+            {/* Telegram Channel Bottom Input Action Bar */}
+            <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex items-center gap-2 shadow-inner">
+              {!isFollowing ? (
+                /* JOIN Channel Accent Overlay */
+                <button 
+                  onClick={() => {
+                    handleFollowInstitution(latestInst);
+                    showNotification(`Subscribed to ${latestInst.name} successfully!`, 'success');
+                  }}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[13px] uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-600/10 active:scale-[0.98]"
+                >
+                  <Users size={16} />
+                  <span>Join Official Channel</span>
+                </button>
+              ) : (
+                /* Telegram Input Bar Component */
+                <div className="flex items-center gap-2.5 w-full select-none">
+                  {/* Left Action Button (Exona Portal or Menu) */}
+                  <button 
+                    onClick={() => {
+                      setSelectedSchool(latestInst);
+                      setView('school-feed');
+                      showNotification("Entered School Portal Console", "success");
+                    }} 
+                    className="px-3.5 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm hover:bg-indigo-700 transition-all shrink-0 active:scale-95"
+                  >
+                    <Grid size={13} />
+                    <span>Portal</span>
+                  </button>
+
+                  {/* Input form mimic */}
+                  <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
+                    <button className="text-gray-400 hover:text-indigo-600 transition-colors">
+                      <Smile size={18} />
+                    </button>
+                    <input 
+                      type="text" 
+                      placeholder="Comment or broadcast..." 
+                      className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          showNotification("To publish an official broadcast, manage the channel from administrators panel.", "info");
+                        }
+                      }}
+                    />
+                    <button className="text-gray-400 hover:text-indigo-600 transition-colors">
+                      <Paperclip size={18} />
+                    </button>
+                  </div>
+
+                  {/* Mic / Audio record mimic */}
+                  <button 
+                    onClick={() => showNotification("Speech capture is only available for direct peer-to-peer secure chat lines.", "info")}
+                    className="h-10 w-10 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-full flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <Mic size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
       case 'institution-profile': {
         let inst = selectedInstitutionForProfile;
         if (!inst) { setView('feed'); return null; }
@@ -19726,7 +20054,7 @@ function ExonaApp() {
                         key={inst.id}
                         onClick={() => {
                           setSelectedInstitutionForProfile(inst);
-                          setView('institution-profile');
+                          setView('institution-channel');
                         }}
                         className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4"
                       >
@@ -19812,14 +20140,14 @@ function ExonaApp() {
           return null;
         }
         
-    if (activeChat) {
-      const currentChatId = activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_');
-      const chatMessages = allMessages
-        .filter(m => m.chatId === currentChatId)
-        .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+        if (activeChat) {
+          const currentChatId = activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_');
+          const chatMessages = allMessages
+            .filter(m => m.chatId === currentChatId)
+            .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
           return (
-            <div className="flex flex-col bg-card h-full relative">
+            <div className="flex flex-col min-h-screen max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-12">
               {/* Group Settings Modal */}
               {isGroupSettingsOpen && activeGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
@@ -20003,81 +20331,111 @@ function ExonaApp() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 p-3 border-b border-gray-100 sticky top-0 bg-card/80 backdrop-blur-md z-30">
-                <button onClick={() => setActiveChat(null)} className="p-2 hover:bg-gray-100 rounded-full transition-colors shrink-0">
-                  <ChevronRight size={20} className="rotate-180" />
-                </button>
-                
-                <div 
-                  className={`flex items-center gap-3 flex-1 min-w-0 p-1 rounded-2xl transition-all ${activeChat.isGroup ? 'cursor-pointer hover:bg-gray-50 group/header' : ''}`}
-                  onClick={() => {
-                    if (activeChat.isGroup) {
-                      const group = chatGroups.find(g => g.id === activeChat.uid);
-                      setEditingGroupData({ 
-                        name: group?.name || activeChat.displayName || '', 
-                        description: group?.description || '', 
-                        photoURL: group?.photoURL || activeChat.photoURL || '' 
-                      });
-                      setIsGroupSettingsOpen(true);
-                    }
-                  }}
-                >
-                  <div className="h-10 w-10 rounded-xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                    {activeChat.photoURL || chatGroups.find(g => g.id === activeChat.uid)?.photoURL ? (
-                      <img 
-                        src={activeChat.isGroup ? (chatGroups.find(g => g.id === activeChat.uid)?.photoURL || activeChat.photoURL) : activeChat.photoURL} 
-                        className="h-full w-full object-cover" 
-                        referrerPolicy="no-referrer" 
-                      />
-                    ) : activeChat.isGroup ? (
-                      <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
-                        <Users size={18} />
-                      </div>
-                    ) : (
-                      <span className="text-muted text-[10px] font-bold">{activeChat.displayName?.charAt(0) || '?'}</span>
-                    )}
-                  </div>
+              {/* Telegram Header */}
+              <div className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 shadow-sm z-50">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <button onClick={() => setActiveChat(null)} className="p-1 hover:bg-gray-100 rounded-full transition-colors text-slate-600 shrink-0">
+                    <ChevronLeft size={24} />
+                  </button>
                   
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-ink text-sm leading-tight truncate group-hover/header:text-accent transition-colors">
-                      {activeChat.displayName || chatGroups.find(g => g.id === activeChat.uid)?.name || 'Group'}
-                    </h3>
-                    <div className="flex items-center gap-1">
-                      {activeChat.isGroup ? (
-                        <span className="text-[10px] text-muted font-bold uppercase tracking-widest">
-                          {chatGroups.find(g => g.id === activeChat.uid)?.members?.length || activeChat.membersCount || 0} Members
-                        </span>
-                      ) : isOtherTyping ? (
-                        <p className="text-[10px] text-accent font-bold animate-pulse uppercase tracking-widest">Typing...</p>
+                  {/* Clicking header institution name / personal user name redirects to profile */}
+                  <div 
+                    className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 group"
+                    onClick={async () => {
+                      if (activeChat.isGroup) {
+                        const group = chatGroups.find(g => g.id === activeChat.uid);
+                        setEditingGroupData({ 
+                          name: group?.name || activeChat.displayName || '', 
+                          description: group?.description || '', 
+                          photoURL: group?.photoURL || activeChat.photoURL || '' 
+                        });
+                        setIsGroupSettingsOpen(true);
+                      } else {
+                        try {
+                          const targetUid = activeChat.uid;
+                          const userMeta = chatUsers.find(u => u.uid === targetUid) || { uid: targetUid, displayName: activeChat.displayName, photoURL: activeChat.photoURL };
+                          setSelectedUserProfile({
+                            uid: targetUid,
+                            name: userMeta.displayName || activeChat.displayName || 'User',
+                            photo: userMeta.photoURL || activeChat.photoURL || ''
+                          });
+                          
+                          const userRef = doc(db, 'users', targetUid);
+                          const userSnap = await getDoc(userRef);
+                          if (userSnap.exists()) {
+                            setSelectedUserProfileDoc(userSnap.data());
+                          } else {
+                            setSelectedUserProfileDoc({});
+                          }
+                          setView('user-profile');
+                          showNotification(`Opened ${userMeta.displayName}'s profile`, 'info');
+                        } catch (e) {
+                          console.error("Error displaying user profile from header click:", e);
+                        }
+                      }
+                    }}
+                  >
+                    <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0 shadow-sm relative group-hover:scale-102 transition-transform">
+                      {activeChat.photoURL || chatGroups.find(g => g.id === activeChat.uid)?.photoURL ? (
+                        <img 
+                          src={activeChat.isGroup ? (chatGroups.find(g => g.id === activeChat.uid)?.photoURL || activeChat.photoURL) : activeChat.photoURL} 
+                          className="h-full w-full object-cover" 
+                          referrerPolicy="no-referrer" 
+                          alt="Chat Avatar"
+                        />
+                      ) : activeChat.isGroup ? (
+                        <div className="h-full w-full bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <Users size={18} />
+                        </div>
                       ) : (
-                        <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest text-xs">Online</p>
+                        <span className="text-sm font-black text-indigo-600">{(activeChat.displayName || 'User').charAt(0)}</span>
                       )}
+                      {!activeChat.isGroup && isRecentlyActive(activeChat.uid) && (
+                        <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse" />
+                      )}
+                    </div>
+                    
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-black text-ink truncate group-hover:text-indigo-600 transition-colors leading-tight flex items-center gap-1">
+                        {activeChat.displayName || chatGroups.find(g => g.id === activeChat.uid)?.name || 'Group'}
+                      </h3>
+                      <div className="flex items-center gap-1">
+                        {activeChat.isGroup ? (
+                          <p className="text-[10px] text-muted font-bold tracking-tight uppercase leading-none mt-0.5">
+                            {chatGroups.find(g => g.id === activeChat.uid)?.members?.length || activeChat.membersCount || 0} Members
+                          </p>
+                        ) : isOtherTyping ? (
+                          <p className="text-[10px] text-accent font-black animate-pulse uppercase tracking-widest mt-0.5 leading-none">Typing...</p>
+                        ) : (
+                          <p className="text-[10px] text-green-500 font-bold uppercase tracking-tight mt-0.5 leading-none">Online</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {!activeChat.isGroup && (
-                  <button 
-                    onClick={() => handleInitiateCall(activeChat.uid)}
-                    className="h-9 w-9 bg-accent/5 text-accent rounded-xl flex items-center justify-center hover:bg-accent/15 transition-all shrink-0"
-                    title="Audio Call"
-                  >
-                    <Phone size={16} />
-                  </button>
-                )}
-                
-                {activeChat.isGroup && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsAddingMember(true);
-                    }}
-                    className="h-9 w-9 bg-accent/5 text-accent rounded-xl flex items-center justify-center hover:bg-accent/15 transition-all shrink-0"
-                    title="Add Member"
-                  >
-                    <UserPlus size={16} />
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0 text-slate-500">
+                  {!activeChat.isGroup ? (
+                    <button 
+                      onClick={() => handleInitiateCall(activeChat.uid)}
+                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-indigo-600"
+                      title="Audio Call"
+                    >
+                      <Phone size={19} />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsAddingMember(true);
+                      }}
+                      className="p-1.5 hover:bg-gray-100 rounded-full transition-colors text-indigo-600"
+                      title="Add Member"
+                    >
+                      <UserPlus size={19} />
+                    </button>
+                  )}
+                </div>
               </div>
               {CallOverlay()}
 
@@ -20126,151 +20484,200 @@ function ExonaApp() {
                 </div>
               )}
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-48 no-scrollbar">
+              {/* Scrollable Telegram Stream with Textured Background */}
+              <div 
+                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 flex flex-col no-scrollbar bg-[#f4f7f9] min-h-[50vh] pb-32"
+                style={{
+                  backgroundImage: 'radial-gradient(#d5dde3 1.2px, transparent 1.2px)',
+                  backgroundSize: '24px 24px',
+                  backgroundPosition: '0 0'
+                }}
+              >
                 {chatMessages.length === 0 ? (
-                  <div className="py-20 text-center opacity-30">
-                    <MessageSquare size={48} className="mx-auto mb-4" />
-                    <p className="text-sm font-bold">No messages yet. Say hi!</p>
+                  <div className="my-auto py-12 text-center bg-white/80 backdrop-blur-sm rounded-[2rem] border border-gray-200 shadow-sm p-6 max-w-sm mx-auto select-none">
+                    <div className="h-14 w-14 bg-indigo-50/50 rounded-full text-indigo-500 flex items-center justify-center mx-auto mb-4">
+                      <MessageSquare size={24} className="opacity-80" />
+                    </div>
+                    <h4 className="text-base font-black text-ink mb-1">Secure Connection established</h4>
+                    <p className="text-xs text-muted font-bold tracking-tight uppercase mb-3">Chats are encrypted end-to-end</p>
+                    <p className="text-xs text-muted max-w-xs leading-normal">
+                      Send voice recordings, text, status directives, and coordinate tasks securely within ExonApp portals.
+                    </p>
                   </div>
                 ) : (
-                  chatMessages.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.senderUid === user.uid ? 'justify-end' : 'justify-start'}`}>
-                      <div className="relative group max-w-[80%]">
-                        {activeChat.isGroup && msg.senderUid !== user.uid && (
-                          <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-1 ml-2">
-                             {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'User'}
-                          </p>
-                        )}
-                        <div className={`p-4 rounded-2xl text-sm font-medium relative ${
-                          msg.senderUid === user.uid 
-                            ? 'bg-ink text-white rounded-tr-none' 
-                            : 'bg-gray-100 text-ink rounded-tl-none'
-                        }`}>
-                          {msg.mediaType === 'voice' ? (
-                            <div className="flex items-center gap-3 min-w-[150px]">
-                              <button 
-                                onClick={() => {
-                                  if (activeVoiceMessage === msg.id) {
-                                    setActiveVoiceMessage(null);
-                                    (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.pause();
-                                  } else {
-                                    setActiveVoiceMessage(msg.id);
-                                    const audioEl = document.getElementById(`audio-${msg.id}`) as HTMLAudioElement;
-                                    if (audioEl) {
-                                      audioEl.play().catch(e => console.warn('Audio play failed:', e));
-                                    }
-                                  }
-                                }}
-                                className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${msg.senderUid === user.uid ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-accent/10 hover:bg-accent/20 text-accent'}`}
-                              >
-                                {activeVoiceMessage === msg.id ? <Pause size={18} /> : <Play size={18} />}
-                              </button>
-                              <div className="flex-1">
-                                <div className="h-1 w-full bg-current opacity-20 rounded-full overflow-hidden">
-                                   <motion.div 
-                                      animate={activeVoiceMessage === msg.id ? { x: ['0%', '100%'] } : { x: '0%' }}
-                                      transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                                      className="h-full w-1/3 bg-current opacity-60" 
-                                    />
-                                </div>
-                                <p className="text-[10px] mt-1 opacity-60 font-bold uppercase tracking-widest">Voice Memo</p>
-                              </div>
-                              <audio 
-                                id={`audio-${msg.id}`} 
-                                src={msg.mediaUrl} 
-                                onEnded={() => setActiveVoiceMessage(null)}
-                                className="hidden" 
-                              />
+                  chatMessages.map((msg) => {
+                    const isSelf = msg.senderUid === user.uid;
+                    return (
+                      <div key={msg.id} className={`flex w-full ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                        <div className="relative group max-w-[85%] flex items-end gap-2">
+                          {/* Avatar in Group Chat */}
+                          {activeChat.isGroup && !isSelf && (
+                            <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-start mt-1">
+                              {chatUsers.find(u => u.uid === msg.senderUid)?.photoURL ? (
+                                <img src={chatUsers.find(u => u.uid === msg.senderUid)?.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Avatar" />
+                              ) : (
+                                <span className="text-[10px] font-black text-indigo-600">
+                                  {(chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'U').charAt(0)}
+                                </span>
+                              )}
                             </div>
-                          ) : editingMessageId === msg.id ? (
-                            <div className="flex flex-col gap-2">
-                              <textarea
-                                value={editingMessageText}
-                                onChange={(e) => setEditingMessageText(e.target.value)}
-                                className="bg-white/10 text-white border-none outline-none rounded-lg p-2 resize-none h-20"
-                                autoFocus
-                              />
-                              <div className="flex gap-2 justify-end">
-                                <button onClick={() => { setEditingMessageId(null); setEditingMessageText(''); }} className="text-[10px] font-bold uppercase py-1 px-2 border border-white/20 rounded">Cancel</button>
-                                <button onClick={() => handleUpdateMessage(msg.id, editingMessageText)} className="text-[10px] font-bold uppercase py-1 px-2 bg-white text-black rounded">Save</button>
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
-                              <div className={`flex items-center gap-1 mt-1 opacity-70 ${msg.senderUid === user.uid ? 'justify-end' : 'justify-start'}`}>
-                                {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
-                                <span className="text-[9px]">{formatTime(msg.timestamp)}</span>
-                                {msg.senderUid === user.uid && (
-                                  <span className={msg.status === 'read' ? 'text-blue-400' : 'text-gray-400'}>
-                                    {msg.status === 'sent' ? <Check size={12} /> : <CheckCheck size={12} />}
-                                  </span>
-                                )}
-                              </div>
-                            </>
                           )}
-                        </div>
 
-                        {msg.senderUid === user.uid && editingMessageId !== msg.id && (
-                          <div className="absolute top-1/2 -left-10 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button 
-                              onClick={() => {
-                                if (activeMessageMenuId === msg.id) {
-                                  setActiveMessageMenuId(null);
-                                } else {
-                                  setActiveMessageMenuId(msg.id);
-                                }
-                              }}
-                              className="p-1.5 text-muted hover:text-ink hover:bg-gray-100 rounded-full"
-                            >
-                              <MoreHorizontal size={16} />
-                            </button>
-                            {activeMessageMenuId === msg.id && (
-                              <div className="absolute bottom-full mb-2 left-0 w-32 bg-white border border-gray-100 rounded-xl z-50 overflow-hidden">
+                          {/* Speech bubble - Self has light green, other has pure white */}
+                          <div className={`p-3 rounded-2xl shadow-sm text-sm relative border ${
+                            isSelf 
+                              ? 'bg-[#effdde] text-ink rounded-tr-none border-green-200/40' 
+                              : 'bg-white text-ink rounded-tl-none border-gray-150'
+                          }`}>
+                            {activeChat.isGroup && !isSelf && (
+                              <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">
+                                {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'User'}
+                              </p>
+                            )}
+
+                            {msg.mediaType === 'voice' ? (
+                              <div className="flex items-center gap-3 min-w-[150px]">
                                 <button 
                                   onClick={() => {
-                                    setEditingMessageId(msg.id);
-                                    setEditingMessageText(msg.text);
-                                    setActiveMessageMenuId(null);
+                                    if (activeVoiceMessage === msg.id) {
+                                      setActiveVoiceMessage(null);
+                                      (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.pause();
+                                    } else {
+                                      setActiveVoiceMessage(msg.id);
+                                      const audioEl = document.getElementById(`audio-${msg.id}`) as HTMLAudioElement;
+                                      if (audioEl) {
+                                        audioEl.play().catch(e => console.warn('Audio play failed:', e));
+                                      }
+                                    }
                                   }}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-ink hover:bg-gray-50 flex items-center gap-2"
+                                  className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${isSelf ? 'bg-green-600/10 hover:bg-green-600/20 text-green-700' : 'bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600'}`}
                                 >
-                                  <Edit2 size={12} /> Edit
+                                  {activeVoiceMessage === msg.id ? <Pause size={18} /> : <Play size={18} />}
                                 </button>
-                                <button 
-                                  onClick={() => {
-                                    handleDeleteMessage(msg.id);
-                                    setActiveMessageMenuId(null);
-                                  }}
-                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                >
-                                  <Trash2 size={12} /> Unsend
-                                </button>
+                                <div className="flex-1">
+                                  <div className="h-1 w-full bg-current opacity-20 rounded-full overflow-hidden">
+                                     <motion.div 
+                                        animate={activeVoiceMessage === msg.id ? { x: ['0%', '100%'] } : { x: '0%' }}
+                                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                                        className="h-full w-1/3 bg-current opacity-60" 
+                                      />
+                                  </div>
+                                  <p className="text-[9px] mt-1 opacity-60 font-black uppercase tracking-widest leading-none">Voice Memo</p>
+                                </div>
+                                <audio 
+                                  id={`audio-${msg.id}`} 
+                                  src={msg.mediaUrl} 
+                                  onEnded={() => setActiveVoiceMessage(null)}
+                                  className="hidden" 
+                                />
                               </div>
+                            ) : editingMessageId === msg.id ? (
+                              <div className="flex flex-col gap-2 min-w-[200px]">
+                                <textarea
+                                  value={editingMessageText}
+                                  onChange={(e) => setEditingMessageText(e.target.value)}
+                                  className="bg-white/90 border border-gray-200 outline-none rounded-xl p-2 resize-none h-20 text-xs text-ink"
+                                  autoFocus
+                                />
+                                <div className="flex gap-2 justify-end">
+                                  <button onClick={() => { setEditingMessageId(null); setEditingMessageText(''); }} className="text-[9px] font-black uppercase tracking-widest py-1 px-2 border.5 border-gray-300 rounded-lg">Cancel</button>
+                                  <button onClick={() => handleUpdateMessage(msg.id, editingMessageText)} className="text-[9px] font-black uppercase tracking-widest py-1 px-2 bg-indigo-600 text-white rounded-lg">Save</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p className="whitespace-pre-wrap leading-relaxed font-sans text-[13px]">{msg.text}</p>
+                                <div className={`flex items-center gap-1 mt-1.5 opacity-70 justify-end text-[9px] font-bold text-muted/65`}>
+                                  {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
+                                  <span className="font-mono">{formatTime(msg.timestamp)}</span>
+                                  {isSelf && (
+                                    <span className={msg.status === 'read' ? 'text-blue-500' : 'text-slate-400'}>
+                                      {msg.status === 'sent' ? <Check size={11} /> : <CheckCheck size={11} />}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
                             )}
                           </div>
-                        )}
+
+                          {/* Quick Edit bubble hover menu */}
+                          {isSelf && editingMessageId !== msg.id && (
+                            <div className="absolute top-1/2 -left-10 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                              <button 
+                                onClick={() => {
+                                  if (activeMessageMenuId === msg.id) {
+                                    setActiveMessageMenuId(null);
+                                  } else {
+                                    setActiveMessageMenuId(msg.id);
+                                  }
+                                }}
+                                className="p-1.5 text-muted hover:text-ink hover:bg-gray-100 rounded-full bg-white/80 border border-gray-100 shadow-sm"
+                              >
+                                <MoreHorizontal size={14} />
+                              </button>
+                              {activeMessageMenuId === msg.id && (
+                                <div className="absolute bottom-full mb-2 left-0 w-28 bg-white border border-gray-100 rounded-xl z-50 overflow-hidden shadow-lg animate-fade-in">
+                                  <button 
+                                    onClick={() => {
+                                      setEditingMessageId(msg.id);
+                                      setEditingMessageText(msg.text);
+                                      setActiveMessageMenuId(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-ink hover:bg-gray-50 flex items-center gap-1.5"
+                                  >
+                                    <Edit2 size={11} /> Edit
+                                  </button>
+                                  <button 
+                                    onClick={() => {
+                                      handleDeleteMessage(msg.id);
+                                      setActiveMessageMenuId(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50 flex items-center gap-1.5"
+                                  >
+                                    <Trash2 size={11} /> Unsend
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
                 <div ref={chatEndRef} />
               </div>
 
-              <div className="fixed bottom-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-card border border-gray-100 p-2 rounded-2xl flex flex-col gap-2 z-40">
+              {/* Telegram Style Bottom Input Action Bar */}
+              <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex flex-col gap-1 shadow-inner absolute bottom-0 left-0 right-0 z-40">
+                {/* Typing status inside the docked bar */}
                 {!activeChat.isGroup && isOtherTyping && (
-                  <div className="px-4 py-1 flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="h-1 w-1 bg-accent rounded-full" />
-                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="h-1 w-1 bg-accent rounded-full" />
-                      <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="h-1 w-1 bg-accent rounded-full" />
+                  <div className="px-3 py-1 flex items-center gap-1.5 animate-pulse">
+                    <div className="flex gap-1 shrink-0">
+                      <div className="h-1 w-1 bg-indigo-600 rounded-full" />
+                      <div className="h-1 w-1 bg-indigo-600 rounded-full" />
+                      <div className="h-1 w-1 bg-indigo-600 rounded-full" />
                     </div>
-                    <span className="text-[10px] font-bold text-accent uppercase tracking-widest italic">{activeChat.displayName} is typing...</span>
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest italic">{activeChat.displayName} is typing...</span>
                   </div>
                 )}
-                <div className="flex items-center gap-2">
-                   {isRecording ? (
-                    <div className="flex-1 bg-accent/5 flex items-center justify-between px-4 py-3 rounded-xl border border-accent/20">
+                
+                <div className="flex items-center gap-2 w-full select-none">
+                  {/* Left Action Button (Exona Portal Link) */}
+                  <button 
+                    onClick={() => {
+                      setView('feed');
+                      showNotification("Returned to feed dashboard", "info");
+                    }} 
+                    className="px-3 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm hover:bg-indigo-700 transition-all shrink-0 active:scale-95"
+                  >
+                    <Grid size={13} />
+                    <span>Portal</span>
+                  </button>
+
+                  {/* Input widget */}
+                  {isRecording ? (
+                    <div className="flex-1 bg-red-50/50 flex items-center justify-between px-4 py-2 bg-gray-50 border border-gray-150 rounded-2xl">
                       <div className="flex items-center gap-3">
                         <motion.div 
                           animate={{ scale: [1, 1.2, 1] }} 
@@ -20290,30 +20697,52 @@ function ExonaApp() {
                       </button>
                     </div>
                   ) : (
-                    <>
+                    <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
+                      <button className="text-slate-400 hover:text-indigo-600 transition-colors shrink-0">
+                        <Smile size={18} />
+                      </button>
                       <input 
                         type="text" 
-                        placeholder="Type a message..." 
+                        placeholder="Message or command..." 
                         value={chatInput}
                         onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && (handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup), setChatInput(''))}
-                        className="flex-1 bg-gray-50 border-none outline-none px-4 py-3 rounded-xl text-sm font-medium"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && chatInput.trim()) {
+                            handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup);
+                            setChatInput('');
+                          }
+                        }}
+                        className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans"
                       />
-                      <button 
-                         onClick={handleStartRecording}
-                         className="h-10 w-10 text-muted hover:text-accent hover:bg-accent/5 rounded-xl flex items-center justify-center transition-all shrink-0"
-                         title="Record Voice"
-                      >
-                         <Mic size={18} />
+                      <button className="text-slate-400 hover:text-indigo-600 transition-colors shrink-0">
+                        <Paperclip size={18} />
                       </button>
-                    </>
+                    </div>
                   )}
-                  <button 
-                    onClick={() => { handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup); setChatInput(''); }}
-                    className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
-                  >
-                    <Send size={18} />
-                  </button>
+
+                  {/* Right side Audio mic vs Send Action */}
+                  {!chatInput.trim() && !isRecording ? (
+                    <button 
+                      onClick={handleStartRecording}
+                      className="h-10 w-10 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-full flex items-center justify-center transition-colors shrink-0 active:scale-95"
+                      title="Record Voice Note"
+                    >
+                      <Mic size={18} />
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={() => {
+                        if (chatInput.trim()) {
+                          handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup);
+                          setChatInput('');
+                        }
+                      }}
+                      className="h-10 w-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shrink-0 shadow-md shadow-indigo-600/15"
+                      title="Send Message"
+                    >
+                      <Send size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
