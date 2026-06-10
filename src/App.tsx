@@ -6908,6 +6908,8 @@ function ExonaApp() {
   const [pullDistance, setPullDistance] = useState(0);
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
+  const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [profileActiveTab, setProfileActiveTab] = useState<'broadcasts' | 'wealth' | 'institutions'>('broadcasts');
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#000000');
@@ -24011,406 +24013,629 @@ function ExonaApp() {
       }
       case 'profile': {
         if (!user) { setView('login'); return null; }
+        
+        // Inline timestamp formatter
+        const formatProfileTimestamp = (ts: any) => {
+          if (!ts) return "Just now";
+          try {
+            const date = typeof ts.toDate === 'function' ? ts.toDate() : new Date(ts);
+            return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            return "Just now";
+          }
+        };
+
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
-            {/* Top Bar with Back Button */}
+            {/* Top Bar with Back and Settings Buttons */}
             <div className="flex items-center justify-between mb-6">
               <button 
-                onClick={() => setView('feed')}
-                className="h-10 w-10 sm:h-12 sm:w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm"
+                onClick={() => {
+                  if (showProfileSettings) {
+                    setShowProfileSettings(false);
+                  } else {
+                    setView('feed');
+                  }
+                }}
+                className="h-10 w-10 sm:h-12 sm:w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm active:scale-95 cursor-pointer"
+                title={showProfileSettings ? "Back to Profile" : "Back to Feed"}
               >
                 <ChevronLeft size={20} />
               </button>
+              <h1 className="text-sm font-black text-ink uppercase tracking-widest">
+                {showProfileSettings ? "Settings" : "Profile"}
+              </h1>
+              <button 
+                onClick={() => setShowProfileSettings(!showProfileSettings)}
+                className={`h-10 w-10 sm:h-12 sm:w-12 rounded-2xl flex items-center justify-center transition-all shadow-sm active:scale-95 cursor-pointer ${
+                  showProfileSettings 
+                    ? 'bg-accent text-white border border-accent/20' 
+                    : 'bg-white text-muted border border-gray-100 hover:text-ink hover:border-gray-200'
+                }`}
+                title="Settings"
+              >
+                <SettingsIcon size={20} />
+              </button>
             </div>
 
-            {/* Cover Picture Block */}
-            <div className="relative h-32 sm:h-36 bg-gray-50 rounded-3xl overflow-hidden mb-6 border border-gray-100/50 flex items-center justify-center group/user-cover">
-              {userDoc?.coverURL ? (
-                <img src={userDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
-              ) : (
-                <div className="h-full w-full bg-gray-50 flex items-center justify-center">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted/30">Exona Cover Banner</span>
-                </div>
-              )}
-
-              <label className="absolute top-3 right-3 h-8 w-8 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full flex items-center justify-center text-muted hover:text-ink hover:scale-105 active:scale-95 cursor-pointer shadow-sm transition-all z-10" title="Upload Cover Image">
-                <CameraIcon size={14} />
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*"
-                  onChange={handleUpdateCoverPicture}
-                />
-              </label>
-            </div>
-
-            {/* Previous View Profile Info Row */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex-1 mr-4 min-h-[80px] flex flex-col justify-center">
-                <AnimatePresence mode="wait">
-                  {isEditingProfileInline ? (
-                    <motion.div 
-                      key="edit-name"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="space-y-2"
+            {showProfileSettings ? (
+              /* DEDICATED SETTINGS AND PREFERENCES SCREEN */
+              <div className="space-y-12">
+                {/* Wealth & Treasury Section */}
+                <section>
+                  <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">National Treasury</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button 
+                      onClick={() => setIsExonWealthOpen(true)}
+                      className="w-full flex items-center justify-between p-6 rounded-[2.5rem] border border-accent/10 bg-accent/[0.02] hover:bg-accent/[0.05] transition-all group relative overflow-hidden cursor-pointer"
                     >
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
-                      <input 
-                        type="text" 
-                        value={editingProfile.displayName}
-                        onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
-                        className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
-                        placeholder="Your name..."
-                        autoFocus
-                      />
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      key="view-name"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                    >
-                      <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
-                      <div className="flex items-center gap-2">
-                        <p className="text-ink text-[14px]">{user.email?.split('@')[0]}</p>
-                        <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
-                        {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
-                          <button 
-                            onClick={async () => {
-                              try {
-                                await sendEmailVerification(user);
-                                showNotification('Verification email sent!');
-                              } catch (e: any) {
-                                showNotification(e.message || 'Failed to send verification', 'error');
-                              }
-                            }}
-                            className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
-                          >
-                            Verify Email
-                          </button>
-                        )}
+                      <div className="flex items-center gap-5 relative z-10 text-left">
+                        <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <Stars size={28} className="animate-pulse" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[16px] font-black text-ink tracking-tight uppercase">My Wealth Terminal</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-1">
+                               <Stars size={12} className="text-accent" />
+                               <span className="text-[11px] font-bold text-ink">{exonWallet?.balance || 0} Stars</span>
+                            </div>
+                            <div className="w-1 h-1 bg-gray-200 rounded-full" />
+                            <div className="flex items-center gap-1">
+                               <IdCard size={12} className="text-gray-400" />
+                               <span className="text-[11px] font-bold text-muted">{excoinBalance} Coins</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                      <ChevronRight size={20} className="text-accent/50 group-hover:text-accent transition-colors relative z-10" />
+                      
+                      {/* Decorative elements */}
+                      <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12">
+                        <Stars size={60} className="text-accent" />
+                      </div>
+                    </button>
+                  </div>
+                </section>
 
-              {/* Round profile avatar on the right with camera hover overlay */}
-              <div className="relative group/profile-avatar h-20 w-20 shrink-0">
-                <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center">
-                  {isUploadingProfile ? (
-                    <div className="h-full w-full bg-white flex flex-col items-center justify-center">
-                      <div className="h-5 w-5 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
-                    </div>
-                  ) : userDoc?.photoURL || user.photoURL ? (
-                    <img src={userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Profile" />
-                  ) : (
-                    <div className="h-full w-full bg-white flex items-center justify-center text-ink font-bold text-2xl">
-                      {user.displayName?.charAt(0)}
-                    </div>
-                  )}
+                {/* Workspace Settings */}
+                <section>
+                  <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-500', onClick: () => setIsSecurityModalOpen(true) },
+                      { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
+                      { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-500', onClick: () => setIsThemeModalOpen(true) },
+                      { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'emerald-500', onClick: () => setIsDataStorageModalOpen(true) }
+                    ].map((item, i) => (
+                      <button 
+                        key={i} 
+                        onClick={item.onClick}
+                        className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 hover:bg-neutral-50/50 transition-all group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-5 text-left">
+                          <div className={`h-12 w-12 rounded-2xl bg-neutral-50 flex items-center justify-center text-${item.color} group-hover:scale-110 transition-transform`}>
+                            <item.icon size={20} />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[15px] font-bold text-ink tracking-tight">{item.label}</p>
+                            <p className="text-[11px] text-muted font-medium">{item.desc}</p>
+                          </div>
+                        </div>
+                        <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                          <ChevronRight size={14} className="text-ink" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Support & Legal */}
+                <section>
+                  <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Support & Legal</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {[
+                      { icon: AlertCircle, label: 'Help Center', desc: 'Get assistance and documentation', onClick: () => setIsHelpCentreModalOpen(true) },
+                      { icon: FileText, label: 'Terms of Service', desc: 'Review our legal agreements', onClick: () => setIsLegalModalOpen(true) }
+                    ].map((item, i) => (
+                      <button 
+                        key={i} 
+                        onClick={item.onClick}
+                        className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:bg-neutral-55 transition-all group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-5 text-left">
+                          <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-muted group-hover:text-ink transition-colors">
+                            <item.icon size={20} />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[15px] font-bold text-ink tracking-tight">{item.label}</p>
+                            <p className="text-[11px] text-muted font-medium">{item.desc}</p>
+                          </div>
+                        </div>
+                        <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                          <ChevronRight size={14} className="text-ink" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <div className="pt-8 border-t border-gray-100">
+                  <button 
+                    onClick={() => signOut(auth)}
+                    className="w-full py-5 bg-red-50 text-red-600 rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-red-100 transition-all flex items-center justify-center gap-4 active:scale-[0.98] cursor-pointer"
+                  >
+                    <LogOut size={20} />
+                    Sign Out
+                  </button>
+                  <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Operations Terminal v1.0.5</p>
                 </div>
+              </div>
+            ) : (
+              /* THREADS STYLE PROFILE & INDIVIDUAL USER CONTENT */
+              <div>
+                {/* Cover Picture Block */}
+                <div className="relative h-32 sm:h-36 bg-gray-55 rounded-3xl overflow-hidden mb-6 border border-gray-100/50 flex items-center justify-center group/user-cover">
+                  {userDoc?.coverURL ? (
+                    <img src={userDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
+                  ) : (
+                    <div className="h-full w-full bg-gray-50 flex items-center justify-center">
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-muted/30">Exona Cover Banner</span>
+                    </div>
+                  )}
 
-                {!isUploadingProfile && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/profile-avatar:opacity-100 transition-opacity cursor-pointer rounded-full z-20">
-                    <CameraIcon size={16} />
+                  <label className="absolute top-3 right-3 h-8 w-8 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full flex items-center justify-center text-muted hover:text-ink hover:scale-105 active:scale-95 cursor-pointer shadow-sm transition-all z-10" title="Upload Cover Image">
+                    <CameraIcon size={14} />
                     <input 
                       type="file" 
                       className="hidden" 
                       accept="image/*"
-                      onChange={handleUpdateProfilePicture}
+                      onChange={handleUpdateCoverPicture}
                     />
                   </label>
-                )}
-              </div>
-            </div>
-
-            <div className="mb-6 min-h-[60px]">
-              <AnimatePresence mode="wait">
-                {isEditingProfileInline ? (
-                  <motion.div 
-                    key="edit-bio"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="space-y-2"
-                  >
-                    <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Bio</label>
-                    <textarea 
-                      value={editingProfile.bio}
-                      onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
-                      className="w-full text-ink text-[14px] bg-gray-50 border border-gray-100 outline-none rounded-xl p-4 h-32 resize-none focus:bg-white focus:border-accent/20 transition-all leading-relaxed"
-                      placeholder="Tell the world about yourself..."
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.p 
-                    key="view-bio"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-ink text-[14px] whitespace-pre-wrap"
-                  >
-                    {userDoc?.bio || "No bio yet."}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Followers, Following People, Following Institutions Stats */}
-            <div className="grid grid-cols-3 gap-3 mb-8 bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
-              <div className="text-center p-3">
-                <p className="text-2xl font-black text-ink">
-                  {(userDoc?.followers || []).length}
-                </p>
-                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Followers</p>
-              </div>
-              <div className="text-center p-3 border-x border-gray-200">
-                <p className="text-2xl font-black text-ink">
-                  {(userDoc?.following || []).filter(id => 
-                    !schools.some(s => s.id === id) && !places.some(p => p.id === id)
-                  ).length}
-                </p>
-                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">People Followed</p>
-              </div>
-              <div className="text-center p-3">
-                <p className="text-2xl font-black text-ink">
-                  {(userDoc?.following || []).filter(id => 
-                    schools.some(s => s.id === id) || places.some(p => p.id === id)
-                  ).length}
-                </p>
-                <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Institutions</p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mb-10">
-              <AnimatePresence mode="wait">
-                {isEditingProfileInline ? (
-                  <motion.div 
-                    key="edit-actions"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex flex-col gap-4 w-full"
-                  >
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                      <div>
-                        <p className="text-sm font-bold text-ink">Private Account</p>
-                        <p className="text-[10px] text-muted font-medium">Only followers can see your broadcasts</p>
-                      </div>
-                      <button 
-                        onClick={() => setEditingProfile({...editingProfile, isPrivate: !editingProfile.isPrivate} as any)}
-                        className={`w-12 h-6 rounded-full transition-all relative ${editingProfile.isPrivate ? 'bg-accent' : 'bg-gray-200'}`}
-                      >
-                        <motion.div 
-                          className="absolute top-1 left-1 h-4 w-4 bg-white rounded-full"
-                          animate={{ x: editingProfile.isPrivate ? 24 : 0 }}
-                        />
-                      </button>
-                    </div>
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={handleUpdateProfile}
-                        className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Check size={16} /> Save
-                      </button>
-                      <button 
-                        onClick={() => setIsEditingProfileInline(false)}
-                        className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
-                      >
-                        <X size={16} /> Cancel
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div 
-                    key="view-actions"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    className="flex gap-3 w-full"
-                  >
-                    <button 
-                      onClick={handleEditProfile}
-                      className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all"
-                    >
-                      Edit profile
-                    </button>
-                    <button className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all">
-                      Share profile
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            <div className="space-y-12 mt-12">
-              {/* Wealth & Treasury Section */}
-              <section>
-                <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">National Treasury</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  <button 
-                    onClick={() => setIsExonWealthOpen(true)}
-                    className="w-full flex items-center justify-between p-6 rounded-[2.5rem] border border-accent/10 bg-accent/[0.02] hover:bg-accent/[0.05] transition-all group relative overflow-hidden"
-                  >
-                    <div className="flex items-center gap-5 relative z-10">
-                      <div className="h-14 w-14 rounded-2xl bg-white flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                        <Stars size={28} className="animate-pulse" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[16px] font-black text-ink tracking-tight uppercase">My Wealth Terminal</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <div className="flex items-center gap-1">
-                             <Stars size={12} className="text-accent" />
-                             <span className="text-[11px] font-bold text-ink">{exonWallet?.balance || 0} Stars</span>
-                          </div>
-                          <div className="w-1 h-1 bg-gray-200 rounded-full" />
-                          <div className="flex items-center gap-1">
-                             <IdCard size={12} className="text-gray-400" />
-                             <span className="text-[11px] font-bold text-muted">{excoinBalance} Coins</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <ChevronRight size={20} className="text-accent/50 group-hover:text-accent transition-colors relative z-10" />
-                    
-                    {/* Decorative elements */}
-                    <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12">
-                      <Stars size={60} className="text-accent" />
-                    </div>
-                  </button>
                 </div>
-              </section>
 
-              {/* Institutional Profile Management */}
-              {(() => {
-                const myInstitutions = [...schools, ...places].filter(inst => canManageInstitution(inst));
-                if (myInstitutions.length === 0) return null;
-                return (
-                  <section>
-                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Managed Institutions</h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      {myInstitutions.map((inst) => (
-                        <div key={inst.id} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-card group hover:border-accent/10 transition-all">
-                          <div className="flex items-center gap-5">
-                            <div className="relative h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white group-hover:scale-105 transition-transform">
-                              {uploadingInstitutionId === inst.id ? (
-                                <div className="absolute inset-0 bg-white/90 flex flex-col items-center justify-center gap-1">
-                                  <div className="h-5 w-5 border-2 border-accent/20 border-t-accent rounded-full animate-spin" />
-                                </div>
-                              ) : inst.logo ? (
-                                <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="h-full w-full bg-gray-50 flex items-center justify-center text-muted font-bold text-xl uppercase">
-                                  {inst.name.charAt(0)}
-                                </div>
-                              )}
-                              <label className="absolute inset-0 bg-black/40 text-white flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity cursor-pointer">
-                                <Camera size={18} />
-                                <input 
-                                  type="file" 
-                                  className="hidden" 
-                                  accept="image/*"
-                                  onChange={(e) => handleUpdateInstitutionLogo(inst, e)}
-                                />
-                              </label>
-                            </div>
-                            <div className="text-left">
-                              <p className="text-[15px] font-bold text-ink tracking-tight">{inst.name}</p>
-                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">{inst.type}</p>
-                            </div>
+                {/* Profile Info Row */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex-1 mr-4 min-h-[80px] flex flex-col justify-center">
+                    <AnimatePresence mode="wait">
+                      {isEditingProfileInline ? (
+                        <motion.div 
+                          key="edit-name"
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="space-y-2"
+                        >
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
+                          <input 
+                            type="text" 
+                            value={editingProfile.displayName}
+                            onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
+                            className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
+                            placeholder="Your name..."
+                            autoFocus
+                          />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="view-name"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                        >
+                          <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-ink text-[14px]/none">{user.email?.split('@')[0]}</p>
+                            <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
+                            {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
+                              <button 
+                                onClick={async () => {
+                                  try {
+                                    await sendEmailVerification(user);
+                                    showNotification('Verification email sent!');
+                                  } catch (e: any) {
+                                    showNotification(e.message || 'Failed to send verification', 'error');
+                                  }
+                                }}
+                                className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
+                              >
+                                Verify Email
+                              </button>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Profile avatar with camera hover overlay */}
+                  <div className="relative group/profile-avatar h-20 w-20 shrink-0">
+                    <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center">
+                      {isUploadingProfile ? (
+                        <div className="h-full w-full bg-white flex flex-col items-center justify-center">
+                          <div className="h-5 w-5 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+                        </div>
+                      ) : userDoc?.photoURL || user.photoURL ? (
+                        <img src={userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Profile" />
+                      ) : (
+                        <div className="h-full w-full bg-white flex items-center justify-center text-ink font-bold text-2xl">
+                          {user.displayName?.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+
+                    {!isUploadingProfile && (
+                      <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/profile-avatar:opacity-100 transition-opacity cursor-pointer rounded-full z-20">
+                        <CameraIcon size={16} />
+                        <input 
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={handleUpdateProfilePicture}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bio text */}
+                <div className="mb-6 min-h-[40px]">
+                  <AnimatePresence mode="wait">
+                    {isEditingProfileInline ? (
+                      <motion.div 
+                        key="edit-bio"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="space-y-2"
+                      >
+                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Bio</label>
+                        <textarea 
+                          value={editingProfile.bio}
+                          onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
+                          className="w-full text-ink text-[14px] bg-gray-50 border border-gray-100 outline-none rounded-xl p-4 h-32 resize-none focus:bg-white focus:border-accent/20 transition-all leading-relaxed"
+                          placeholder="Tell the world about yourself..."
+                        />
+                      </motion.div>
+                    ) : (
+                      <motion.p 
+                        key="view-bio"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-ink text-[14px] whitespace-pre-wrap font-medium"
+                      >
+                        {userDoc?.bio || "No bio yet."}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Followers, Following Stats */}
+                <div className="grid grid-cols-3 gap-3 mb-6 bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
+                  <div className="text-center p-2.5">
+                    <p className="text-xl font-black text-ink">
+                      {(userDoc?.followers || []).length}
+                    </p>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Followers</p>
+                  </div>
+                  <div className="text-center p-2.5 border-x border-gray-250 border-gray-200">
+                    <p className="text-xl font-black text-ink">
+                      {(userDoc?.following || []).filter(id => 
+                        !schools.some(s => s.id === id) && !places.some(p => p.id === id)
+                      ).length}
+                    </p>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Following</p>
+                  </div>
+                  <div className="text-center p-2.5">
+                    <p className="text-xl font-black text-ink">
+                      {(userDoc?.following || []).filter(id => 
+                        schools.some(s => s.id === id) || places.some(p => p.id === id)
+                      ).length}
+                    </p>
+                    <p className="text-[9px] font-bold text-muted uppercase tracking-[0.15em] mt-1">Institutions</p>
+                  </div>
+                </div>
+
+                {/* Edit & Share inline actions */}
+                <div className="flex gap-3 mb-8">
+                  <AnimatePresence mode="wait">
+                    {isEditingProfileInline ? (
+                      <motion.div 
+                        key="edit-actions"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="flex flex-col gap-4 w-full"
+                      >
+                        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                          <div>
+                            <p className="text-sm font-bold text-ink">Private Account</p>
+                            <p className="text-[10px] text-muted font-medium mr-1.5">Only followers can see your broadcasts</p>
                           </div>
                           <button 
-                            onClick={() => {
-                              setEditingSchool(inst as any);
-                              setIsSchoolModalOpen(true);
-                            }}
-                            className="h-10 px-4 bg-gray-50 text-ink rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                            onClick={() => setEditingProfile({...editingProfile, isPrivate: !editingProfile.isPrivate} as any)}
+                            className={`w-12 h-6 rounded-full transition-all relative shrink-0 cursor-pointer ${editingProfile.isPrivate ? 'bg-accent' : 'bg-gray-200'}`}
                           >
-                            Edit
+                            <motion.div 
+                              className="absolute top-1 left-1 h-4 w-4 bg-white rounded-full"
+                              animate={{ x: editingProfile.isPrivate ? 24 : 0 }}
+                            />
                           </button>
                         </div>
-                      ))}
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={handleUpdateProfile}
+                            className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <Check size={16} /> Save
+                          </button>
+                          <button 
+                            onClick={() => setIsEditingProfileInline(false)}
+                            className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-55 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <X size={16} /> Cancel
+                          </button>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <motion.div 
+                        key="view-actions"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20 }}
+                        className="flex gap-3 w-full"
+                      >
+                        <button 
+                          onClick={handleEditProfile}
+                          className="flex-1 py-3 bg-ink text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-ink/90 transition-all shadow-sm cursor-pointer"
+                        >
+                          Edit profile
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (navigator.share) {
+                              navigator.share({
+                                title: `${user.displayName}'s Profile`,
+                                text: `Check out ${user.displayName}'s profile on Exona!`,
+                                url: window.location.href
+                              }).catch(() => {});
+                            } else {
+                              navigator.clipboard.writeText(window.location.href);
+                              showNotification("Profile link copied!");
+                            }
+                          }}
+                          className="flex-1 py-3 border border-gray-200 rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-gray-50 transition-all cursor-pointer"
+                        >
+                          Share profile
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* THREADS STYLE TABS */}
+                <div className="flex border-b border-gray-150 mb-6">
+                  <button 
+                    onClick={() => setProfileActiveTab('broadcasts')}
+                    className={`flex-1 pb-3 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer ${
+                      profileActiveTab === 'broadcasts' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
+                    }`}
+                  >
+                    Broadcasts
+                  </button>
+                  <button 
+                    onClick={() => setProfileActiveTab('wealth')}
+                    className={`flex-1 pb-3 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer ${
+                      profileActiveTab === 'wealth' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
+                    }`}
+                  >
+                    Wealth Card
+                  </button>
+                  <button 
+                    onClick={() => setProfileActiveTab('institutions')}
+                    className={`flex-1 pb-3 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer ${
+                      profileActiveTab === 'institutions' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
+                    }`}
+                  >
+                    Institutions
+                  </button>
+                </div>
+
+                {/* TAB WINDOW CONTENT */}
+                <div className="min-h-[200px]">
+                  {profileActiveTab === 'broadcasts' && (() => {
+                    const myPosts = posts.filter(p => p.authorUid === user.uid);
+                    if (myPosts.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                          <div className="h-16 w-16 bg-neutral-100 text-muted/40 rounded-full flex items-center justify-center mb-4">
+                            <Radio size={28} className="animate-pulse" />
+                          </div>
+                          <h3 className="text-sm font-bold text-ink">No Broadcasts Yet</h3>
+                          <p className="text-xs text-muted mt-1 max-w-xs">Share your thoughts, photos, or updates to the main feed to list them on your profile threads.</p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-4">
+                        {myPosts.map((post) => {
+                          const isPostLiked = user && (post.likedBy?.includes(user.uid) || fallbackPostLikes[post.id]?.likedBy?.includes(user.uid));
+                          const postLikesCount = (post.likedBy?.length || post.likes || 0);
+
+                          return (
+                            <div key={post.id} className="p-5 bg-white border border-gray-100 rounded-[2rem] shadow-sm hover:border-gray-200 transition-all">
+                              {/* Header */}
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
+                                    {post.authorPhoto || userDoc?.photoURL || user.photoURL ? (
+                                      <img src={post.authorPhoto || userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="" />
+                                    ) : (
+                                      <span className="text-sm font-bold text-muted">{post.authorName?.charAt(0) || user.displayName?.charAt(0)}</span>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold text-ink">{post.authorName || user.displayName}</h4>
+                                    <p className="text-[10px] text-muted font-bold uppercase tracking-tight">
+                                      {formatProfileTimestamp(post.timestamp)}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <button 
+                                  onClick={async () => {
+                                    if (confirm("Are you sure you want to delete this broadcast?")) {
+                                      try {
+                                        await deleteDoc(doc(db, 'posts', post.id));
+                                        setPosts(prev => prev.filter(p => p.id !== post.id));
+                                        showNotification("Broadcast deleted");
+                                      } catch (e: any) {
+                                        showNotification("Failed to delete: " + e.message, "error");
+                                      }
+                                    }
+                                  }}
+                                  className="h-8 w-8 text-muted hover:text-red-500 rounded-xl flex items-center justify-center hover:bg-red-50 transition-all cursor-pointer"
+                                  title="Delete Broadcast"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+
+                              {/* Content text */}
+                              <p className="text-ink text-sm leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
+
+                              {/* Media if present */}
+                              {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
+                                <div className="rounded-2xl overflow-hidden border border-gray-100 bg-black aspect-video relative mb-4">
+                                  {post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') ? (
+                                    <video src={post.mediaUrl || post.mediaUrls?.[0]} controls className="w-full h-full object-cover" />
+                                  ) : (
+                                    <img src={post.mediaUrl || post.mediaUrls?.[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="" />
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Toolbar reactions */}
+                              <div className="flex items-center gap-3 pt-3 border-t border-gray-50">
+                                <button 
+                                  onClick={() => handleLikePost(post.id, post.likedBy || [])}
+                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all select-none border cursor-pointer ${
+                                    isPostLiked 
+                                      ? 'text-accent border-accent/20 bg-accent/5' 
+                                      : 'text-slate-600 border-slate-150 bg-white hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <ThumbsUp size={11} className={isPostLiked ? 'fill-current animate-bounce' : ''} />
+                                  <span>{postLikesCount} {isPostLiked ? 'Liked' : 'Like'}</span>
+                                </button>
+                                <button 
+                                  onClick={() => {
+                                    setActivePostForComments(post);
+                                    setIsCommentModalOpen(true);
+                                  }}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-150 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-600 transition-all select-none cursor-pointer"
+                                >
+                                  <MessageCircle size={11} />
+                                  <span>{post.commentsCount || 0} Replies</span>
+                                </button>
+                                <button 
+                                  onClick={() => handleResharePost(post)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-150 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-600 transition-all select-none cursor-pointer"
+                                >
+                                  <Repeat size={11} />
+                                  <span>Reshare</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {profileActiveTab === 'wealth' && (
+                    <div className="space-y-4">
+                      <button 
+                        onClick={() => setIsExonWealthOpen(true)}
+                        className="w-full flex items-center justify-between p-6 rounded-[2.5rem] border border-accent/15 bg-accent/[0.02] hover:bg-accent/[0.05] transition-all group relative overflow-hidden text-left cursor-pointer"
+                      >
+                        <div className="flex flex-col relative z-10 w-full text-left">
+                          <div className="flex justify-between items-start mb-6 w-full">
+                            <div className="h-12 w-12 rounded-xl bg-white border border-accent/10 flex items-center justify-center text-accent">
+                              <Stars size={24} className="animate-spin-slow" />
+                            </div>
+                            <span className="text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 bg-accent/10 text-accent rounded-full border border-accent/5">National Treasury</span>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Exona Account Balance</p>
+                            <h3 className="text-3xl font-black text-ink mt-1 flex items-baseline gap-1">
+                              {exonWallet?.balance || 0} <span className="text-xs font-bold text-accent uppercase tracking-widest">Stars</span>
+                            </h3>
+                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                              <IdCard size={12} className="text-gray-400" />
+                              <span className="text-xs font-bold text-muted">{excoinBalance} Institutional Coins</span>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Backdrop background card glow */}
+                        <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12 translate-x-3 -translate-y-3">
+                          <Stars size={80} className="text-accent" />
+                        </div>
+                      </button>
                     </div>
-                  </section>
-                );
-              })()}
+                  )}
 
-              <section>
-                <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-600', onClick: () => setIsSecurityModalOpen(true) },
-                    { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
-                    { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-600', onClick: () => setIsThemeModalOpen(true) },
-                    { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'accent', onClick: () => setIsDataStorageModalOpen(true) }
-                  ].map((item, i) => (
-                    <button 
-                      key={i} 
-                      onClick={item.onClick}
-                      className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group"
-                    >
-                      <div className="flex items-center gap-5">
-                        <div className={`h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-${item.color} group-hover:scale-110 transition-transform`}>
-                          <item.icon size={20} />
+                  {profileActiveTab === 'institutions' && (() => {
+                    const myInstitutions = [...schools, ...places].filter(inst => canManageInstitution(inst));
+                    if (myInstitutions.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                          <div className="h-16 w-16 bg-neutral-100 text-muted/40 rounded-full flex items-center justify-center mb-4">
+                            <Building2 size={24} />
+                          </div>
+                          <h3 className="text-sm font-bold text-ink">No Managed Institutions</h3>
+                          <p className="text-xs text-muted mt-1 max-w-xs">You are not registered as an administrator of any school or place of interest.</p>
                         </div>
-                        <div className="text-left">
-                          <p className="text-[15px] font-bold text-ink tracking-tight">{item.label}</p>
-                          <p className="text-[11px] text-muted font-medium">{item.desc}</p>
-                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-3">
+                        {myInstitutions.map((inst) => (
+                          <div key={inst.id} className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-100 bg-white group hover:border-accent/20 transition-all">
+                            <div className="flex items-center gap-4 text-left">
+                              <div className="relative h-12 w-12 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                                {uploadingInstitutionId === inst.id ? (
+                                  <div className="h-5 w-5 border-2 border-accent/20 border-t-accent rounded-full animate-spin" />
+                                ) : inst.logo ? (
+                                  <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="" />
+                                ) : (
+                                  <span className="text-lg font-bold text-muted uppercase">{inst.name.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="text-left">
+                                <p className="text-sm font-bold text-ink leading-snug">{inst.name}</p>
+                                <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-0.5">{inst.type}</p>
+                              </div>
+                            </div>
+                            <button 
+                              onClick={() => {
+                                setEditingSchool(inst as any);
+                                setIsSchoolModalOpen(true);
+                              }}
+                              className="h-10 px-4 bg-gray-50 hover:bg-gray-100 text-[10px] font-bold text-ink uppercase tracking-wider rounded-xl transition-all border border-gray-100 cursor-pointer shrink-0"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        ))}
                       </div>
-                      <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                        <ChevronRight size={14} className="text-ink" />
-                      </div>
-                    </button>
-                  ))}
+                    );
+                  })()}
                 </div>
-              </section>
-
-              <section>
-                <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Support & Legal</h3>
-                <div className="grid grid-cols-1 gap-3">
-                  {[
-                    { icon: AlertCircle, label: 'Help Center', desc: 'Get assistance and documentation', onClick: () => setIsHelpCentreModalOpen(true) },
-                    { icon: FileText, label: 'Terms of Service', desc: 'Review our legal agreements', onClick: () => setIsLegalModalOpen(true) }
-                  ].map((item, i) => (
-                    <button 
-                      key={i} 
-                      onClick={item.onClick}
-                      className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 transition-all group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-5">
-                        <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-muted group-hover:text-ink transition-colors">
-                          <item.icon size={20} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-[15px] font-bold text-ink tracking-tight">{item.label}</p>
-                          <p className="text-[11px] text-muted font-medium">{item.desc}</p>
-                        </div>
-                      </div>
-                      <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
-                        <ChevronRight size={14} className="text-ink" />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <div className="pt-8 border-t border-gray-100">
-                <button 
-                  onClick={() => signOut(auth)}
-                  className="w-full py-5 bg-red-50 text-red-600 rounded-[2rem] font-bold text-xs uppercase tracking-[0.3em] hover:bg-red-100 transition-all flex items-center justify-center gap-4 active:scale-[0.98]"
-                >
-                  <LogOut size={20} />
-                  Sign Out
-                </button>
-                <p className="text-center text-[10px] text-muted font-bold uppercase tracking-[0.4em] mt-8 opacity-30">Operations Terminal v1.0.5</p>
               </div>
-            </div>
+            )}
           </div>
         );
       }
