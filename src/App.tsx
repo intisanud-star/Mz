@@ -13190,19 +13190,25 @@ function ExonaApp() {
         return (
           <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
             <div className="max-w-xl mx-auto pt-3 px-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
+            <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-1">
+              <div className="flex gap-6 h-10 items-center overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none relative">
                 <button 
                   onClick={() => setFeedTab('institutions')}
-                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'institutions' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
+                  className={`h-full relative px-1 text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap flex items-center justify-center ${feedTab === 'institutions' ? 'text-ink' : 'text-muted hover:text-ink'}`}
                 >
-                  Institutions
+                  <span>Institutions</span>
+                  {feedTab === 'institutions' && (
+                    <motion.div layoutId="feedTab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+                  )}
                 </button>
                 <button 
                   onClick={() => setFeedTab('broadcasts')}
-                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'broadcasts' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
+                  className={`h-full relative px-1 text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap flex items-center justify-center ${feedTab === 'broadcasts' ? 'text-ink' : 'text-muted hover:text-ink'}`}
                 >
-                  Broadcasts
+                  <span>Broadcasts</span>
+                  {feedTab === 'broadcasts' && (
+                    <motion.div layoutId="feedTab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+                  )}
                 </button>
               </div>
               {user && feedTab === 'institutions' && (
@@ -13217,26 +13223,34 @@ function ExonaApp() {
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
               <div 
-                className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1 select-none"
+                className="flex items-center gap-5 mb-3 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full h-9 border-b border-gray-100/40 select-none pb-0.5"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {categories.map((c) => {
                   const count = getFilterCount(c.id);
+                  const isSelected = schoolFilter === c.id;
                   return (
-                    <div key={c.id} className="relative group shrink-0">
+                    <div key={c.id} className="relative group shrink-0 h-full flex items-center">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-7 px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap outline-none flex items-center justify-center font-sans ${
-                          schoolFilter === c.id 
-                            ? 'bg-ink text-white font-bold shadow-sm' 
-                            : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e4e6eb] font-normal'
+                        className={`h-full px-1.5 relative text-[11.5px] uppercase tracking-wider font-bold transition-all outline-none flex items-center justify-center font-sans ${
+                          isSelected 
+                            ? 'text-ink' 
+                            : 'text-muted hover:text-ink'
                         }`}
                       >
-                        <span>{c.label}</span>
-                        {count > 0 && (
-                          <span className="ml-1 text-[11px] font-medium opacity-85">
-                            {count}
-                          </span>
+                        <span className="flex items-center gap-1.5">
+                          {c.label}
+                          {count > 0 && (
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${
+                              isSelected ? 'bg-ink text-white' : 'bg-slate-100/80 text-slate-500'
+                            }`}>
+                              {count}
+                            </span>
+                          )}
+                        </span>
+                        {isSelected && (
+                          <motion.div layoutId="schoolFilter-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
                         )}
                       </button>
                       {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
@@ -13245,7 +13259,7 @@ function ExonaApp() {
                             e.stopPropagation();
                             handleDeleteCategory(c.id);
                           }}
-                          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white h-4.5 w-4.5 rounded-full flex items-center justify-center text-[8px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                           title="Delete category"
                         >
                           <X size={8} />
