@@ -13217,7 +13217,7 @@ function ExonaApp() {
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
               <div 
-                className="flex items-center gap-2 mb-2 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
+                className="flex items-center gap-1.5 mb-2 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {categories.map((c) => {
@@ -13226,20 +13226,18 @@ function ExonaApp() {
                     <div key={c.id} className="relative group shrink-0">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-8 px-4 rounded-full text-[13px] font-medium flex items-center gap-1.5 transition-all whitespace-nowrap outline-none ${
+                        className={`h-7 px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap outline-none flex items-center justify-center ${
                           schoolFilter === c.id 
-                            ? 'bg-accent text-white shadow-sm shadow-accent/10' 
-                            : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 border border-transparent'
+                            ? 'bg-[#d9fdd3] text-[#005c4b] font-medium' 
+                            : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e4e6eb] font-normal'
                         }`}
                       >
                         <span>{c.label}</span>
-                        <span className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold ${
-                          schoolFilter === c.id 
-                            ? 'bg-white/20 text-white' 
-                            : 'bg-slate-200/60 text-slate-500 group-hover:bg-slate-300/60'
-                        }`}>
-                          {count}
-                        </span>
+                        {count > 0 && (
+                          <span className="ml-1 text-[11px] font-medium opacity-85">
+                            {count}
+                          </span>
+                        )}
                       </button>
                       {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
                         <button
@@ -13264,37 +13262,37 @@ function ExonaApp() {
                       e.preventDefault();
                       handleCreateCustomCategory();
                     }}
-                    className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full h-9 pl-3.5 pr-1 shrink-0"
+                    className="flex items-center gap-1 bg-[#f0f2f5] rounded-full h-7 pl-3 pr-1 shrink-0"
                   >
                     <input
                       type="text"
                       value={newCategoryInput}
                       onChange={(e) => setNewCategoryInput(e.target.value)}
                       placeholder="New category"
-                      className="bg-transparent text-[12px] font-semibold outline-none w-24 text-ink placeholder:text-muted/40"
+                      className="bg-transparent text-[12px] font-medium outline-none w-20 text-[#54656f] placeholder:text-[#54656f]/45"
                       autoFocus
                     />
                     <button 
                       type="submit"
-                      className="h-7 w-7 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
+                      className="h-5.5 w-5.5 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
                     >
-                      <Check size={12} />
+                      <Check size={10} />
                     </button>
                     <button 
                       type="button"
                       onClick={() => setIsAddingCategory(false)}
-                      className="h-7 w-7 bg-gray-200 text-muted rounded-full flex items-center justify-center hover:bg-gray-300 shrink-0"
+                      className="h-5.5 w-5.5 bg-gray-200 text-muted rounded-full flex items-center justify-center hover:bg-gray-300 shrink-0"
                     >
-                      <X size={12} />
+                      <X size={10} />
                     </button>
                   </form>
                 ) : (
                   <button
                     onClick={() => setIsAddingCategory(true)}
-                    className="h-9 w-9 bg-gray-100 text-muted hover:bg-gray-200 hover:text-ink rounded-full flex items-center justify-center transition-all select-none shrink-0"
+                    className="h-7 w-7 bg-[#f0f2f5] text-[#54656f] hover:bg-[#e4e6eb] rounded-full flex items-center justify-center transition-all select-none shrink-0"
                     title="Add Category"
                   >
-                    <Plus size={16} />
+                    <Plus size={14} />
                   </button>
                 )}
               </div>
