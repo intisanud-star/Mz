@@ -23932,115 +23932,31 @@ function ExonaApp() {
         }
 
         return (
-          <WordLayout
-            title="Workspace"
-            subtitle="Productivity & Document Suite"
-            icon={LayoutGrid}
-            showNotification={showNotification}
-            handlePrint={handlePrint}
-            hideSaveImage={true}
-          >
-            <div className="flex flex-col gap-12 max-w-5xl">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
+            <div className="max-w-xl mx-auto pt-4 px-4">
+              <h2 className="text-lg font-black text-ink mb-6 uppercase tracking-wider">Workspace</h2>
+              
+              <div className="grid grid-cols-1 gap-4">
                 {workspaceFeatures.map(item => (
                   <button
                     key={item.id}
                     onClick={() => handleWorkspaceToolClick(item.id)}
-                    className="group p-8 bg-white border-2 border-gray-50 rounded-[2.5rem] hover:border-accent transition-all text-left relative overflow-hidden"
+                    className="flex items-center gap-4 p-5 bg-white border border-gray-100 rounded-2xl hover:border-accent hover:shadow-sm transition-all text-left w-full group"
                   >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700" />
-                    
-                    <div className="relative">
-                      <div className={`h-16 w-16 bg-${item.color.split('-')[0]}-50 text-${item.color} rounded-3xl flex items-center justify-center mb-8 group-hover:rotate-6 transition-transform`}>
-                        <item.icon size={32} strokeWidth={2.5} />
-                      </div>
-                      
-                      <h3 className="text-2xl font-black text-ink mb-3">{item.name}</h3>
-                      <p className="text-[13px] text-muted font-bold leading-relaxed max-w-[240px]">
-                        {item.description}
-                      </p>
-                      
-                      <div className="mt-12 flex items-center gap-3">
-                        <div className="h-10 px-6 bg-gray-50 rounded-full flex items-center justify-center text-[10px] font-black uppercase tracking-widest text-ink group-hover:bg-accent group-hover:text-white transition-all">
-                          Launch Service
-                        </div>
-                        <div className="h-10 w-10 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all">
-                          <ArrowUpRight size={18} />
-                        </div>
-                      </div>
+                    <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                      <item.icon size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-ink truncate">{item.name}</h3>
+                    </div>
+                    <div className="h-8 w-8 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all shrink-0">
+                      <ArrowUpRight size={14} />
                     </div>
                   </button>
                 ))}
               </div>
-
-              {/* Recent Activity - Live Data */}
-              <div className="bg-white p-10 rounded-[3rem] border border-gray-100">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="text-xl font-black text-ink">Recent Activity</h3>
-                    <p className="text-xs text-muted font-bold">Your live workspace records</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-2 w-2 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-muted">Synced Live</span>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {cloudFiles.length === 0 ? (
-                    <div className="py-12 text-center bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-100">
-                      <div className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4">
-                         <Activity size={20} className="text-muted opacity-20" />
-                      </div>
-                      <p className="text-[11px] font-black uppercase tracking-widest text-muted">No recent activity detected</p>
-                    </div>
-                  ) : (
-                    cloudFiles.slice(0, 5).map((file) => (
-                      <div key={file.id} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-2xl group hover:bg-white transition-all cursor-pointer" onClick={() => setActiveWorkspaceTool(file.category === 'document' ? 'docs' : 'storage')}>
-                         <div className="flex items-center gap-4">
-                           <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${file.category === 'image' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
-                              {file.category === 'image' ? <Camera size={18} /> : <FileText size={18} />}
-                           </div>
-                           <div>
-                             <h4 className="text-sm font-bold text-ink">{file.name}</h4>
-                             <p className="text-[10px] text-muted font-medium uppercase tracking-widest">
-                               {file.type.split('/')[1] || 'FILE'} • Saved {file.timestamp?.toDate ? file.timestamp.toDate().toLocaleDateString() : 'Just now'}
-                             </p>
-                           </div>
-                         </div>
-                         <ArrowUpRight size={16} className="text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Quick Actions Card */}
-              <div className="md:col-span-2 mt-8 p-10 bg-gradient-to-br from-ink to-gray-800 rounded-[3rem] text-white overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl -mr-32 -mt-32" />
-                <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
-                  <div className="flex-1">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase tracking-widest mb-6">
-                      <Sparkles size={12} className="text-accent" />
-                      Pro Features
-                    </div>
-                    <h3 className="text-3xl font-black mb-4">Integrated Document Workflow</h3>
-                    <p className="text-white/60 font-bold text-sm max-w-md leading-relaxed">
-                      Connect your documents with your institutional workflow. Sign, share, and store everything in one secure place.
-                    </p>
-                  </div>
-                  <div className="flex gap-4">
-                     <button className="h-14 px-8 bg-accent text-white rounded-2xl font-black text-sm hover:scale-105 transition-transform active:scale-95">
-                       Upgrade Account
-                     </button>
-                     <button className="h-14 px-8 bg-white/10 text-white rounded-2xl font-black text-sm hover:bg-white/20 transition-all border border-white/10">
-                       Doc Guide
-                     </button>
-                  </div>
-                </div>
-              </div>
             </div>
-          </WordLayout>
+          </div>
         );
       }
       case 'tools': {
@@ -24909,66 +24825,58 @@ function ExonaApp() {
         }
 
         return (
-          <WordLayout 
-            title={userInstitution ? userInstitution.name : "Institutional Hub"}
-            subtitle={canAccessAdmin && !isOwner ? "Authorized Access" : "Institutional Utility Suite"}
-            icon={Cpu}
-            branding={userInstitution ? { logo: userInstitution.logo, name: userInstitution.name } : undefined}
-            showNotification={showNotification}
-            handlePrint={handlePrint}
-          >
-            <div className="mb-16 border-b border-gray-100 pb-12">
-              <h1 className="text-4xl font-extrabold text-ink mb-2">Utility Terminal</h1>
-              <p className="text-muted text-xs font-medium uppercase tracking-[0.2em]">
-                {userInstitution ? `${userInstitution.name} Operations` : 'System Tools'} • {new Date().toLocaleDateString()}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {tools.map((tool) => (
-                <motion.button
-                  key={tool.id}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    if (tool.id === 'daily-routine') {
-                      setView('daily-routine');
-                      return;
-                    }
-                    if (tool.id === 'brain-battle') {
-                      if (!isBattleWindowOpen()) {
-                        fetchLeaderboard();
+          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
+            <div className="max-w-xl mx-auto pt-4 px-4">
+              <h2 className="text-lg font-black text-ink mb-6 uppercase tracking-wider">Tools</h2>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {tools.map((tool) => (
+                  <button
+                    key={tool.id}
+                    onClick={() => {
+                      if (tool.id === 'daily-routine') {
+                        setView('daily-routine');
+                        return;
+                      }
+                      if (tool.id === 'brain-battle') {
+                        if (!isBattleWindowOpen()) {
+                          fetchLeaderboard();
+                          setIsBrainBattleActive(true);
+                          setBattleStep('leaderboard');
+                          return;
+                        }
+                        const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
+                        setCurrentBattleQuestions(shuffled);
                         setIsBrainBattleActive(true);
-                        setBattleStep('leaderboard');
-                        return;
+                        setBattleStep('welcome');
+                      } else if (tool.id === 'exona-premium') {
+                        const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
+                        if (!activeInst) {
+                          showNotification('Please select or follow an institution to play their premium game!', 'error');
+                          return;
+                        }
+                        setSelectedSchool(activeInst);
+                        setIsPremiumGameOpen(true);
+                      } else {
+                        setActiveTool(tool.id);
                       }
-                      const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
-                      setCurrentBattleQuestions(shuffled);
-                      setIsBrainBattleActive(true);
-                      setBattleStep('welcome');
-                    } else if (tool.id === 'exona-premium') {
-                      const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
-                      if (!activeInst) {
-                        showNotification('Please select or follow an institution to play their premium game!', 'error');
-                        return;
-                      }
-                      setSelectedSchool(activeInst);
-                      setIsPremiumGameOpen(true);
-                    } else {
-                      setActiveTool(tool.id);
-                    }
-                  }}
-                  className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-gray-100 text-left group hover:border-accent/20 transition-all"
-                >
-                  <div className={`h-14 w-14 rounded-2xl bg-gray-50 flex items-center justify-center text-${tool.color} mb-6 group-hover:scale-110 transition-transform`}>
-                    <tool.icon size={28} />
-                  </div>
-                  <h3 className="text-xl font-extrabold text-ink mb-2 tracking-tight">{tool.name}</h3>
-                  <p className="text-muted text-xs font-medium leading-relaxed">{tool.description}</p>
-                </motion.button>
-              ))}
+                    }}
+                    className="flex items-center gap-4 p-5 bg-white border border-gray-100 rounded-2xl hover:border-accent hover:shadow-sm transition-all text-left w-full group"
+                  >
+                    <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                      <tool.icon size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-bold text-ink truncate">{tool.name}</h3>
+                    </div>
+                    <div className="h-8 w-8 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all shrink-0">
+                      <ArrowUpRight size={14} />
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </WordLayout>
+          </div>
         );
       }
       case 'penalty': {
