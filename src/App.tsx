@@ -7114,7 +7114,7 @@ function ExonaApp() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
   useEffect(() => {
-    if (!user?.uid || isQuotaExceeded || (view !== 'workspace' && view !== 'tools' && view !== 'sub-apps')) return;
+    if (!user?.uid || isQuotaExceeded || (view !== 'workspace' && view !== 'tools')) return;
     const q = query(
       collection(db, 'cloudFiles'),
       where('ownerUid', '==', user.uid),
@@ -7143,7 +7143,7 @@ function ExonaApp() {
   }, [user?.uid, isQuotaExceeded]);
 
   useEffect(() => {
-    if (!user?.uid || isQuotaExceeded || !['chat', 'records', 'attendance', 'school-feed', 'user-profile', 'institution-profile', 'tools', 'sub-apps'].includes(view)) return;
+    if (!user?.uid || isQuotaExceeded || !['chat', 'records', 'attendance', 'school-feed', 'user-profile', 'institution-profile', 'tools'].includes(view)) return;
     const q = query(
       collection(db, 'users'),
       where('following', 'array-contains', user.uid)
@@ -11661,7 +11661,7 @@ function ExonaApp() {
     });
 
     let unsubWalletHistory = () => {};
-    if (view === 'tools' || view === 'sub-apps') {
+    if (view === 'tools') {
       const qHistory = query(
         collection(db, `wallets/${user.uid}/history`),
         orderBy('timestamp', 'desc'),
@@ -13417,9 +13417,6 @@ function ExonaApp() {
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
                                   const announcementTime = getAnnouncementTime(latestAnnouncement);
-                                  const isTwins = school.name.toLowerCase().includes('twins academy');
-                                  const displayTitle = isTwins ? 'Twins Academy Routine' : school.name;
-                                  const displaySnippet = isTwins ? 'Standard daily activities and operational schedule' : (latestAnnouncement ? latestAnnouncement.content : 'No announcements yet');
                                   return (
                                     <motion.div 
                                       key={school.id}
@@ -13446,14 +13443,14 @@ function ExonaApp() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <span className="text-[14.5px] font-semibold text-slate-800 truncate">{displayTitle}</span>
+                                            <span className="text-[14.5px] font-semibold text-slate-800 truncate">{school.name}</span>
                                             {announcementTime && (
                                               <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
                                             )}
                                           </div>
                                           <div className="flex items-start justify-between gap-2 mt-0.5">
                                             <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
-                                              {displaySnippet}
+                                              {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
                                             </span>
                                           </div>
                                         </div>
@@ -13499,9 +13496,6 @@ function ExonaApp() {
                           filteredSchoolsAndPlaces.map(school => {
                             const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
                             const announcementTime = getAnnouncementTime(latestAnnouncement);
-                            const isTwins = school.name.toLowerCase().includes('twins academy');
-                            const displayTitle = isTwins ? 'Twins Academy Routine' : school.name;
-                            const displaySnippet = isTwins ? 'Standard daily activities and operational schedule' : (latestAnnouncement ? latestAnnouncement.content : 'No announcements yet');
                             return (
                               <motion.div 
                                 key={school.id}
@@ -13528,14 +13522,14 @@ function ExonaApp() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                      <span className="text-[14.5px] font-semibold text-slate-800 truncate">{displayTitle}</span>
+                                      <span className="text-[14.5px] font-semibold text-slate-800 truncate">{school.name}</span>
                                       {announcementTime && (
                                         <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
                                       )}
                                     </div>
                                     <div className="flex items-start justify-between gap-2 mt-0.5">
                                       <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
-                                        {displaySnippet}
+                                        {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
                                       </span>
                                     </div>
                                   </div>
@@ -20636,7 +20630,7 @@ function ExonaApp() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-black text-ink truncate group-hover:text-indigo-600 transition-colors leading-tight flex items-center gap-1">
-                      {latestInst.name.toLowerCase().includes('twins academy') ? 'Twins Academy Routine' : latestInst.name}
+                      {latestInst.name}
                     </h3>
                     <p className="text-[10px] text-muted font-bold tracking-tight uppercase leading-none mt-0.5">
                       {latestInst.followers?.length || 0} subscribers • broadcast
@@ -20960,18 +20954,14 @@ function ExonaApp() {
             <div className="px-6 pt-16">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1 min-w-0 pr-4">
-                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate">
-                    {inst.name.toLowerCase().includes('twins academy') ? 'Twins Academy Routine' : inst.name}
-                  </h2>
+                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate">{inst.name}</h2>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent bg-accent/5 px-2 py-0.5 rounded-full">{inst.type}</span>
                     {inst.type === 'place' && (inst as Place).category && (
                       <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted bg-gray-50 px-2 py-0.5 rounded-full">{(inst as Place).category}</span>
                     )}
                   </div>
-                  <p className="text-[14px] text-muted leading-relaxed whitespace-pre-wrap">
-                    {inst.name.toLowerCase().includes('twins academy') ? 'Standard daily activities and operational schedule' : (inst.description || "No description provided.")}
-                  </p>
+                  <p className="text-[14px] text-muted leading-relaxed whitespace-pre-wrap">{inst.description || "No description provided."}</p>
                 </div>
                 
                 <div className="flex flex-col gap-2 shrink-0">
@@ -22350,147 +22340,6 @@ function ExonaApp() {
                   );
                 })
               )}
-            </div>
-          </div>
-        );
-      }
-      case 'sub-apps': {
-        const labels = selectedSchool ? getLabels(selectedSchool.type) : getLabels();
-        const isOwner = selectedSchool?.creatorUid === user?.uid;
-        const canAccessAdmin = isOwner || selectedSchool?.administrativeViewers?.includes(user?.uid || '');
-        const isFollower = selectedSchool?.followers?.includes(user?.uid || '');
-        const canAccessAny = canAccessAdmin || isFollower;
-
-        const catalogAppsById = {
-          'docs': { id: 'docs', name: 'Documents', icon: FileText, color: 'blue-600' },
-          'editor': { id: 'editor', name: 'Creative Editor', icon: PenTool, color: 'purple-600' },
-          'pdf': { id: 'pdf', name: 'PDF Studio', icon: FileJson, color: 'red-600' },
-          'file-share': { id: 'file-share', name: 'Exona Drop (AirDrop)', icon: Radio, color: 'blue-600' },
-          'storage': { id: 'storage', name: 'Cloud Storage', icon: HardDrive, color: 'emerald-600' },
-          'e-test': { id: 'e-test', name: 'E-Test Portal', icon: BadgeCheck, color: 'indigo-600' }
-        };
-
-        const workspaceFeatures = [
-          { id: 'app-center', name: 'Workspace App Center', icon: ShoppingBag, color: 'blue-600' }
-        ];
-
-        const standardIds = ['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'];
-        standardIds.forEach(id => {
-          if (enabledAppIds.includes(id)) {
-            const item = catalogAppsById[id as keyof typeof catalogAppsById];
-            if (item) {
-              workspaceFeatures.push(item);
-            }
-          }
-        });
-
-        customApps.forEach((cApp: any) => {
-          if (enabledAppIds.includes(cApp.id)) {
-            workspaceFeatures.push({
-              id: cApp.id,
-              name: cApp.name,
-              icon: getAppIcon(cApp.iconName),
-              color: cApp.color
-            });
-          }
-        });
-
-        const tools = [
-          { id: 'calculator', name: 'Balance Calculator', icon: Calculator, color: 'indigo-600' },
-          { id: 'export', name: 'Download Center', icon: Download, color: 'blue-600' },
-          { id: 'export-attendance', name: 'Participation Hub', icon: Users, color: 'orange-600' },
-          { id: 'export-wallet', name: 'Wallet Center', icon: Wallet, color: 'emerald-500' },
-          { id: 'penalty', name: 'Excoin P2P', icon: Repeat, color: 'orange-500' },
-          { id: 'referral', name: 'Referral Hub', icon: Gift, color: 'rose-500' },
-          { id: 'id-gen', name: 'ID Generator', icon: IdCard, color: 'blue-600' },
-          { id: 'reports', name: 'Report Center', icon: FileBarChart, color: 'purple-600' },
-          { id: 'secret-key', name: 'Secret Keys', icon: Lock, color: 'amber-600' },
-          { id: 'daily-routine', name: labels.routine, icon: Activity, color: 'cyan-600' },
-          { id: 'brain-battle', name: 'Brain Battle', icon: Zap, color: 'yellow-500' },
-          { id: 'exona-premium', name: 'Exona Premium Challenge', icon: Stars, color: 'yellow-600' },
-        ];
-
-        return (
-          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden no-print">
-            <div className="max-w-xl mx-auto pt-6 px-4 space-y-8">
-              {/* Workspace Apps Section */}
-              <div>
-                <h2 className="text-[11px] font-black text-slate-400 mb-3.5 uppercase tracking-[0.2em] px-1">Workspace Apps</h2>
-                <div className="grid grid-cols-1 gap-3">
-                  {workspaceFeatures.map(item => (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setActiveWorkspaceTool(item.id);
-                        setView('workspace');
-                      }}
-                      className="flex items-center gap-4 p-4.5 bg-white border border-gray-100 rounded-2xl hover:border-accent hover:shadow-xs transition-all text-left w-full group cursor-pointer"
-                    >
-                      <div className="h-11 w-11 bg-slate-50 text-slate-700 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-accent/5 group-hover:text-accent transition-all">
-                        <item.icon size={20} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-[14.5px] font-bold text-ink truncate group-hover:text-accent transition-colors">{item.name}</h3>
-                      </div>
-                      <div className="h-8 w-8 bg-gray-50 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-accent/10 group-hover:text-accent transition-all shrink-0">
-                        <ArrowUpRight size={14} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tools Section */}
-              <div>
-                <h2 className="text-[11px] font-black text-slate-400 mb-3.5 uppercase tracking-[0.2em] px-1">Tools</h2>
-                <div className="grid grid-cols-1 gap-3">
-                  {tools.map(tool => (
-                    <button
-                      key={tool.id}
-                      onClick={() => {
-                        if (tool.id === 'daily-routine') {
-                          setView('daily-routine');
-                          return;
-                        }
-                        if (tool.id === 'brain-battle') {
-                          if (!isBattleWindowOpen()) {
-                            fetchLeaderboard();
-                            setIsBrainBattleActive(true);
-                            setBattleStep('leaderboard');
-                            return;
-                          }
-                          const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
-                          setCurrentBattleQuestions(shuffled);
-                          setIsBrainBattleActive(true);
-                          setBattleStep('welcome');
-                        } else if (tool.id === 'exona-premium') {
-                          const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
-                          if (!activeInst) {
-                            showNotification('Please select or follow an institution to play their premium game!', 'error');
-                            return;
-                          }
-                          setSelectedSchool(activeInst);
-                          setIsPremiumGameOpen(true);
-                        } else {
-                          setActiveTool(tool.id);
-                          setView('tools');
-                        }
-                      }}
-                      className="flex items-center gap-4 p-4.5 bg-white border border-gray-100 rounded-2xl hover:border-accent hover:shadow-xs transition-all text-left w-full group cursor-pointer"
-                    >
-                      <div className="h-11 w-11 bg-slate-50 text-slate-700 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-accent/5 group-hover:text-accent transition-all">
-                        <tool.icon size={20} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-[14.5px] font-bold text-ink truncate group-hover:text-accent transition-colors">{tool.name}</h3>
-                      </div>
-                      <div className="h-8 w-8 bg-gray-50 rounded-full flex items-center justify-center text-slate-400 group-hover:bg-accent/10 group-hover:text-accent transition-all shrink-0">
-                        <ArrowUpRight size={14} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         );
@@ -28446,7 +28295,7 @@ function ExonaApp() {
                 </div>
                 <SidebarItem 
                   icon={Home} 
-                  label="Home" 
+                  label="Chats" 
                   active={view === 'feed'} 
                   onClick={() => { setView('feed'); setSidebarOpen(false); }} 
                 />
@@ -28458,9 +28307,15 @@ function ExonaApp() {
                 />
                 <SidebarItem 
                   icon={LayoutGrid} 
-                  label="Sub Apps" 
-                  active={view === 'sub-apps'} 
-                  onClick={() => { setView('sub-apps'); setSidebarOpen(false); }} 
+                  label="Workspace" 
+                  active={view === 'workspace'} 
+                  onClick={() => { setView('workspace'); setSidebarOpen(false); }} 
+                />
+                <SidebarItem 
+                  icon={Cpu} 
+                  label="Institutional Hub" 
+                  active={view === 'tools'} 
+                  onClick={() => { setView('tools'); setSidebarOpen(false); }} 
                 />
                 
                 {(schools.some(s => canAccessInstitutionData(s)) || 
@@ -28954,35 +28809,46 @@ function ExonaApp() {
             animate={{ y: 0, opacity: 1, x: '-50%' }}
             exit={{ y: 80, opacity: 0, x: '-50%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[340px] no-print"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[420px] no-print"
           >
             <NavButton 
-              active={view === 'feed'} 
-              onClick={() => {
-                setActiveWorkspaceTool(null);
-                setActiveTool(null);
-                setView('feed');
-              }} 
-              icon={Home} 
-              label="Home"
-            />
-            <NavButton 
-              active={view === 'schools'} 
-              onClick={() => {
-                setView('schools');
-              }} 
-              icon={Sparkles} 
-              label="Exona AI"
-            />
-            <NavButton 
-              active={view === 'sub-apps'} 
-              onClick={() => {
-                setActiveWorkspaceTool(null);
-                setActiveTool(null);
-                setView('sub-apps');
-              }} 
+              active={view === 'workspace'} 
+              onClick={() => setView('workspace')} 
               icon={LayoutGrid} 
-              label="Sub Apps"
+              label="Workspace"
+            />
+            <NavButton 
+              active={view === 'tools'} 
+              onClick={() => setView('tools')} 
+              icon={Cpu} 
+              label="Tools"
+            />
+            <NavButton 
+              active={view === 'videos'} 
+              onClick={() => {
+                setActiveChat(null);
+                setView('videos');
+              }} 
+              icon={Video} 
+              label="Stream"
+            />
+            <NavButton 
+              active={view === 'finance'} 
+              onClick={() => {
+                if (user) {
+                  setIsExonWalletOpen(true);
+                } else {
+                  setView('login');
+                }
+              }} 
+              icon={Wallet} 
+              label="Wallet"
+            />
+            <NavButton 
+              active={view === 'profile'} 
+              onClick={() => user ? setView('profile') : setView('login')} 
+              icon={UserIcon} 
+              label="Settings"
             />
           </motion.div>
         )}
