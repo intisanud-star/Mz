@@ -26013,20 +26013,28 @@ function ExonaApp() {
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
       {/* Free Tier Quota Warning banner */}
-      {isQuotaExceeded && userDoc?.role === 'admin' && (
-        <div className="bg-red-500 text-white text-xs font-bold px-4 py-2.5 text-center flex flex-col sm:flex-row items-center justify-center gap-1.5 z-[999] transition-all">
-          <div className="flex items-center gap-1.5">
-            <AlertCircle size={14} />
-            <span>Firestore Free Tier Daily Quota Exceeded. Database operations are paused until reset tomorrow (or upon upgrade).</span>
+      {isQuotaExceeded && (
+        <div className="bg-red-600 text-white text-xs font-bold px-4 py-3 text-center flex flex-col sm:flex-row items-center justify-center gap-1.5 z-[999] transition-all relative shadow-lg">
+          <div className="flex items-center gap-1.5 justify-center flex-wrap">
+            <AlertCircle size={15} className="animate-pulse" />
+            <span className="font-extrabold tracking-wide uppercase bg-white/20 px-1.5 py-0.5 rounded text-[9px]">SYSTEM LIMIT REACHED</span>
+            <span>
+              {userDoc?.role === 'admin' 
+                ? "Firestore Free Tier Daily Quota (50k limit) Exceeded. Database operations are paused until reset tomorrow."
+                : "Database Daily Free-Tier Readers Quota Exceeded. Service will auto-resume upon reset tomorrow."
+              }
+            </span>
           </div>
-          <a 
-            href="https://console.firebase.google.com/project/studio-438355495-26bec/firestore/databases/ai-studio-c3ea759e-c369-4b6c-babb-5352435dc336/data?openUpgradeDialog=true" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="underline ml-0 sm:ml-2 hover:opacity-80 transition-all font-extrabold flex items-center gap-0.5"
-          >
-            Upgrade or Manage Quotas
-          </a>
+          {userDoc?.role === 'admin' && (
+            <a 
+              href="https://console.firebase.google.com/project/studio-438355495-26bec/firestore/databases/ai-studio-c3ea759e-c369-4b6c-babb-5352435dc336/data?openUpgradeDialog=true" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="underline ml-0 sm:ml-2 hover:opacity-80 transition-all font-black flex items-center gap-0.5 bg-white text-red-600 px-3 py-1 rounded-full shadow-sm"
+            >
+              Upgrade Firebase Plan
+            </a>
+          )}
         </div>
       )}
 
