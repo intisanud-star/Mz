@@ -28406,7 +28406,7 @@ function ExonaApp() {
           >
             <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
             {view === 'feed' && (
-              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
+              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
             )}
           </button>
           <button 
@@ -28415,7 +28415,7 @@ function ExonaApp() {
           >
             <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
             {view === 'schools' && (
-              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
+              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
             )}
           </button>
         </div>
