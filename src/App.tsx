@@ -13189,7 +13189,7 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
-            <div className="max-w-xl mx-auto pt-1 px-4">
+            <div className="max-w-xl mx-auto pt-3 px-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
