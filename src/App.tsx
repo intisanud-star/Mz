@@ -28401,7 +28401,7 @@ function ExonaApp() {
         {/* Top brand bar (WhatsApp style branding with measured spacing) */}
         <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
           <div className="flex items-center gap-1.5">
-            <span className="text-[23px] font-extrabold tracking-tight text-[#1da85b] font-sans select-none">ExonApp</span>
+            <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonApp</span>
           </div>
           
           <div className="flex items-center gap-2 text-ink">
