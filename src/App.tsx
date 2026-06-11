@@ -12652,12 +12652,12 @@ function ExonaApp() {
               )}
             </div>
             
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] text-slate-500 font-normal truncate max-w-[280px]">
+            <div className="flex items-start justify-between gap-2 mt-0.5">
+              <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
                 {lastMsgTxt}
               </span>
               {unreadCount > 0 && (
-                <span className="h-5 min-w-[20px] px-1 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                <span className="h-5 min-w-[20px] px-1 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                   {unreadCount}
                 </span>
               )}
@@ -13228,7 +13228,7 @@ function ExonaApp() {
                         onClick={() => setSchoolFilter(c.id)}
                         className={`h-7 px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap outline-none flex items-center justify-center ${
                           schoolFilter === c.id 
-                            ? 'bg-[#d9fdd3] text-[#005c4b] font-medium' 
+                            ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm' 
                             : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e4e6eb] font-normal'
                         }`}
                       >
@@ -13448,8 +13448,8 @@ function ExonaApp() {
                                               <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
                                             )}
                                           </div>
-                                          <div className="flex items-center justify-between gap-2">
-                                            <span className="text-[13px] text-slate-500 font-normal truncate max-w-[280px]">
+                                          <div className="flex items-start justify-between gap-2 mt-0.5">
+                                            <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
                                               {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
                                             </span>
                                           </div>
@@ -13527,8 +13527,8 @@ function ExonaApp() {
                                         <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
                                       )}
                                     </div>
-                                    <div className="flex items-center justify-between gap-2">
-                                      <span className="text-[13px] text-slate-500 font-normal truncate max-w-[280px]">
+                                    <div className="flex items-start justify-between gap-2 mt-0.5">
+                                      <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
                                         {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
                                       </span>
                                     </div>
