@@ -13226,9 +13226,9 @@ function ExonaApp() {
                     <div key={c.id} className="relative group shrink-0">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-7 px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap outline-none flex items-center justify-center ${
+                        className={`h-7 px-3.5 rounded-full text-[13px] transition-colors whitespace-nowrap outline-none flex items-center justify-center font-sans ${
                           schoolFilter === c.id 
-                            ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm' 
+                            ? 'bg-ink text-white font-bold shadow-sm' 
                             : 'bg-[#f0f2f5] text-[#54656f] hover:bg-[#e4e6eb] font-normal'
                         }`}
                       >
