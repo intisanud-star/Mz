@@ -12553,6 +12553,59 @@ function ExonaApp() {
     const lastMsgTxt = chat.lastMessage?.content || 'Sent a message';
     const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === (chat.isGroup ? chat.otherUid : user?.uid) && m.status !== 'read').length;
 
+    const getAvatarGradient = (name: string) => {
+      const colors = [
+        'from-blue-500 to-indigo-600',
+        'from-purple-500 to-pink-600',
+        'from-indigo-500 to-violet-600',
+        'from-emerald-500 to-teal-600',
+        'from-rose-500 to-orange-500',
+        'from-amber-500 to-yellow-600',
+        'from-slate-700 to-slate-950',
+        'from-sky-500 to-blue-600'
+      ];
+      let hash = 0;
+      for (let i = 0; i < (name || '').length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    };
+
+    const formatLastMessageTime = (msg: any) => {
+      if (!msg || !msg.timestamp) return '';
+      try {
+        let date: Date;
+        if (msg.timestamp.seconds) {
+          date = new Date(msg.timestamp.seconds * 1000);
+        } else if (msg.timestamp.toDate) {
+          date = msg.timestamp.toDate();
+        } else {
+          date = new Date(msg.timestamp);
+        }
+        
+        if (isNaN(date.getTime())) return '';
+        
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) {
+          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (diffDays === 1) {
+          return 'Yesterday';
+        } else if (diffDays < 7) {
+          const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          return weekdays[date.getDay()];
+        } else {
+          return date.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
+        }
+      } catch (e) {
+        return '';
+      }
+    };
+
+    const displayTime = formatLastMessageTime(chat.lastMessage);
+
     return (
       <motion.div 
         key={chat.lastMessage.chatId || chat.otherUid}
@@ -12561,50 +12614,56 @@ function ExonaApp() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="py-6 border-b border-gray-50 flex items-center justify-between group"
+        className="py-3 px-3.5 border-b border-gray-100/50 flex items-center justify-between group hover:bg-slate-50/80 active:bg-slate-100/60 rounded-2xl -mx-3.5 transition-colors cursor-pointer"
+        onClick={() => {
+          setActiveChat({
+            uid: chat.otherUid,
+            displayName: displayName,
+            photoURL: photoURL,
+            isGroup: chat.isGroup
+          });
+          setView('chat');
+        }}
       >
-        <div 
-          className="cursor-pointer flex-1 flex items-start gap-4 min-w-0"
-          onClick={() => {
-            setActiveChat({
-              uid: chat.otherUid,
-              displayName: displayName,
-              photoURL: photoURL,
-              isGroup: chat.isGroup
-            });
-            setView('chat');
-          }}
-        >
-          <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative shadow-sm">
+        <div className="flex-1 flex items-center gap-3.5 min-w-0">
+          <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-gray-150 bg-white shrink-0 relative shadow-sm">
             {photoURL ? (
               <img src={photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <div className="h-full w-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold">
+              <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(displayName)} flex items-center justify-center text-white font-medium text-base`}>
                 {displayName?.charAt(0)}
               </div>
             )}
             {isOnline && (
-              <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
             )}
           </div>
+          
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <h4 className="text-[17px] font-extrabold text-ink truncate">{displayName}</h4>
-              {chat.isGroup && (
-                <span className="text-[9px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Group</span>
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[14.5px] font-semibold text-slate-800 truncate">{displayName}</span>
+                {chat.isGroup && (
+                  <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">Group</span>
+                )}
+              </div>
+              {displayTime && (
+                <span className="text-[11px] text-slate-400 font-medium shrink-0">{displayTime}</span>
               )}
             </div>
-            <p className="text-[13px] text-muted line-clamp-1 leading-relaxed">
-              {lastMsgTxt}
-            </p>
+            
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[13px] text-slate-500 font-normal truncate max-w-[280px]">
+                {lastMsgTxt}
+              </span>
+              {unreadCount > 0 && (
+                <span className="h-5 min-w-[20px] px-1 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0 shadow-sm">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        
-        {unreadCount > 0 && (
-          <div className="h-6 min-w-6 px-1.5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md ml-3">
-            {unreadCount}
-          </div>
-        )}
       </motion.div>
     );
   };
@@ -13130,18 +13189,18 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
-            <div className="max-w-xl mx-auto pt-3 px-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="max-w-xl mx-auto pt-1 px-4">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
                   onClick={() => setFeedTab('institutions')}
-                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest tracking-widest transition-all whitespace-nowrap ${feedTab === 'institutions' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
+                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'institutions' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
                 >
                   Institutions
                 </button>
                 <button 
                   onClick={() => setFeedTab('broadcasts')}
-                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest tracking-widest transition-all whitespace-nowrap ${feedTab === 'broadcasts' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
+                  className={`px-4 sm:px-6 py-2 rounded-xl text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${feedTab === 'broadcasts' ? 'bg-ink text-white' : 'text-muted hover:bg-white'}`}
                 >
                   Broadcasts
                 </button>
@@ -13149,16 +13208,16 @@ function ExonaApp() {
               {user && feedTab === 'institutions' && (
                 <button 
                   onClick={() => setIsSchoolModalOpen(true)}
-                  className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 transition-transform"
+                  className="h-10 w-10 bg-accent text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
                 >
-                  <Plus size={24} />
+                  <Plus size={20} />
                 </button>
               )}
             </div>
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
               <div 
-                className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-2 select-none"
+                className="flex items-center gap-2 mb-2 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {categories.map((c) => {
@@ -13167,17 +13226,17 @@ function ExonaApp() {
                     <div key={c.id} className="relative group shrink-0">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-9 px-4 rounded-full text-[13px] font-semibold flex items-center gap-1.5 transition-all whitespace-nowrap outline-none ${
+                        className={`h-8 px-4 rounded-full text-[13px] font-medium flex items-center gap-1.5 transition-all whitespace-nowrap outline-none ${
                           schoolFilter === c.id 
-                            ? 'bg-accent text-white shadow-sm' 
-                            : 'bg-gray-100/85 text-muted hover:bg-gray-200/90 hover:text-ink'
+                            ? 'bg-accent text-white shadow-sm shadow-accent/10' 
+                            : 'bg-slate-100/80 text-slate-600 hover:bg-slate-200/60 hover:text-slate-900 border border-transparent'
                         }`}
                       >
                         <span>{c.label}</span>
-                        <span className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-bold ${
+                        <span className={`text-[10px] leading-none px-1.5 py-0.5 rounded-full font-semibold ${
                           schoolFilter === c.id 
                             ? 'bg-white/20 text-white' 
-                            : 'bg-gray-200 text-muted group-hover:bg-gray-300'
+                            : 'bg-slate-200/60 text-slate-500 group-hover:bg-slate-300/60'
                         }`}>
                           {count}
                         </span>
@@ -13297,15 +13356,69 @@ function ExonaApp() {
                       );
                     }
 
+                    const getAvatarGradient = (name: string) => {
+                      const colors = [
+                        'from-blue-500 to-indigo-600',
+                        'from-purple-500 to-pink-600',
+                        'from-indigo-500 to-violet-600',
+                        'from-emerald-500 to-teal-600',
+                        'from-rose-500 to-orange-500',
+                        'from-amber-500 to-yellow-600',
+                        'from-slate-700 to-slate-950',
+                        'from-sky-500 to-blue-600'
+                      ];
+                      let hash = 0;
+                      for (let i = 0; i < (name || '').length; i++) {
+                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                      }
+                      return colors[Math.abs(hash) % colors.length];
+                    };
+
+                    const getAnnouncementTime = (announcement: any) => {
+                      if (!announcement) return '';
+                      const timestamp = announcement.timestamp || announcement.createdAt;
+                      if (!timestamp) return '';
+                      try {
+                        let date: Date;
+                        if (timestamp.seconds) {
+                          date = new Date(timestamp.seconds * 1000);
+                        } else if (timestamp.toDate) {
+                          date = timestamp.toDate();
+                        } else {
+                          date = new Date(timestamp);
+                        }
+                        
+                        if (isNaN(date.getTime())) return '';
+                        
+                        const now = new Date();
+                        const diffMs = now.getTime() - date.getTime();
+                        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays === 0) {
+                          return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        } else if (diffDays === 1) {
+                          return 'Yesterday';
+                        } else if (diffDays < 7) {
+                          const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                          return weekdays[date.getDay()];
+                        } else {
+                          return date.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
+                        }
+                      } catch (e) {
+                        return '';
+                      }
+                    };
+
                     if (schoolFilter === 'all') {
                       return (
                         <div className="flex flex-col gap-4 w-full pt-1">
                           {filteredSchoolsAndPlaces.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Institutions</div>
-                              <div className="divide-y divide-gray-100">
+                              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-0.5">Institutions</div>
+                              <div className="divide-y divide-gray-100/60">
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
+                                  const announcementTime = getAnnouncementTime(latestAnnouncement);
                                   return (
                                     <motion.div 
                                       key={school.id}
@@ -13314,31 +13427,34 @@ function ExonaApp() {
                                       animate={{ opacity: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.95 }}
                                       transition={{ duration: 0.2 }}
-                                      className="py-3.5 border-b border-gray-50 group"
+                                      className="py-3 px-3.5 border-b border-gray-100/50 flex items-center justify-between group hover:bg-slate-50/80 active:bg-slate-100/60 rounded-2xl -mx-3.5 transition-colors cursor-pointer"
+                                      onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                     >
-                                      <div 
-                                        className="cursor-pointer mb-2 flex items-start gap-3"
-                                        onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
-                                      >
-                                        <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
+                                      <div className="flex-1 flex items-center gap-3.5 min-w-0">
+                                        <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-gray-150 bg-white shrink-0 relative shadow-sm">
                                           {school.logo ? (
                                             <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                           ) : (
-                                            <span className="text-ink">{school.name.charAt(0)}</span>
+                                            <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(school.name)} flex items-center justify-center text-white font-medium text-base`}>
+                                              {school.name.charAt(0)}
+                                            </div>
                                           )}
                                           {isRecentlyActive(school.id) && (
-                                            <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
-                                          {latestAnnouncement ? (
-                                            <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
-                                              {latestAnnouncement.content}
-                                            </p>
-                                          ) : (
-                                            <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
-                                          )}
+                                          <div className="flex items-center justify-between gap-2 mb-0.5">
+                                            <span className="text-[14.5px] font-semibold text-slate-800 truncate">{school.name}</span>
+                                            {announcementTime && (
+                                              <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
+                                            )}
+                                          </div>
+                                          <div className="flex items-center justify-between gap-2">
+                                            <span className="text-[13px] text-slate-500 font-normal truncate max-w-[280px]">
+                                              {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
+                                            </span>
+                                          </div>
                                         </div>
                                       </div>
                                     </motion.div>
@@ -13350,8 +13466,8 @@ function ExonaApp() {
 
                           {filteredDirectChats.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Chat</div>
-                              <div className="divide-y divide-gray-100">
+                              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-0.5">Chat</div>
+                              <div className="divide-y divide-gray-100/60">
                                 {filteredDirectChats.map(renderChatItem)}
                               </div>
                             </div>
@@ -13359,15 +13475,15 @@ function ExonaApp() {
 
                           {filteredGroupChats.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Group</div>
-                              <div className="divide-y divide-gray-100">
+                              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-0.5">Group</div>
+                              <div className="divide-y divide-gray-100/60">
                                 {filteredGroupChats.map(renderChatItem)}
                               </div>
                             </div>
                           )}
 
                           {filteredSchoolsAndPlaces.length === 0 && filteredDirectChats.length === 0 && filteredGroupChats.length === 0 && (
-                            <div className="py-20 text-center text-muted text-sm">
+                            <div className="py-20 text-center text-slate-400 text-sm">
                               No items found
                             </div>
                           )}
@@ -13377,10 +13493,11 @@ function ExonaApp() {
 
                     // Otherwise show specific custom category (e.g. Places, Schools, Business, etc.)
                     return (
-                      <div className="divide-y divide-gray-100 w-full">
+                      <div className="divide-y divide-gray-100/60 w-full">
                         {filteredSchoolsAndPlaces.length > 0 ? (
                           filteredSchoolsAndPlaces.map(school => {
                             const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
+                            const announcementTime = getAnnouncementTime(latestAnnouncement);
                             return (
                               <motion.div 
                                 key={school.id}
@@ -13389,38 +13506,41 @@ function ExonaApp() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.2 }}
-                                className="py-3.5 border-b border-gray-50 group"
+                                className="py-3 px-3.5 border-b border-gray-100/50 flex items-center justify-between group hover:bg-slate-50/80 active:bg-slate-100/60 rounded-2xl -mx-3.5 transition-colors cursor-pointer"
+                                onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                               >
-                                <div 
-                                  className="cursor-pointer mb-2 flex items-start gap-3"
-                                  onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
-                                >
-                                  <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
+                                <div className="flex-1 flex items-center gap-3.5 min-w-0">
+                                  <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-gray-150 bg-white shrink-0 relative shadow-sm">
                                     {school.logo ? (
                                       <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
-                                      <span className="text-ink">{school.name.charAt(0)}</span>
+                                      <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(school.name)} flex items-center justify-center text-white font-medium text-base`}>
+                                        {school.name.charAt(0)}
+                                      </div>
                                     )}
                                     {isRecentlyActive(school.id) && (
-                                      <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
-                                    {latestAnnouncement ? (
-                                      <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
-                                        {latestAnnouncement.content}
-                                      </p>
-                                    ) : (
-                                      <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
-                                    )}
+                                    <div className="flex items-center justify-between gap-2 mb-0.5">
+                                      <span className="text-[14.5px] font-semibold text-slate-800 truncate">{school.name}</span>
+                                      {announcementTime && (
+                                        <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-[13px] text-slate-500 font-normal truncate max-w-[280px]">
+                                        {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
                               </motion.div>
                             );
                           })
                         ) : (
-                          <div className="py-20 text-center text-muted text-sm">
+                          <div className="py-20 text-center text-slate-400 text-sm">
                             No items found for this category
                           </div>
                         )}
@@ -28368,14 +28488,14 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      <header className="pt-8 sm:pt-11 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
-        <div className="px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between w-full">
+      <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
+        <div className="px-4 sm:px-6 h-12 sm:h-14 flex items-center justify-between w-full">
           <div className="flex items-center gap-4 sm:gap-8 h-full">
           <button 
             onClick={() => setView('feed')}
             className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[12px] sm:text-[13px] font-bold tracking-tight ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
+            <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
             {view === 'feed' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
@@ -28384,7 +28504,7 @@ function ExonaApp() {
             onClick={() => setView('schools')}
             className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
           >
-            <span className={`text-[12px] sm:text-[13px] font-bold tracking-tight ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
+            <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
             {view === 'schools' && (
               <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent" />
             )}
