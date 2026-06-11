@@ -28398,78 +28398,86 @@ function ExonaApp() {
 
       {/* Top Navigation */}
       <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
-        <div className="px-4 sm:px-6 h-12 sm:h-14 flex items-center justify-between w-full">
+        {/* Top brand bar (WhatsApp style branding with measured spacing) */}
+        <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[23px] font-extrabold tracking-tight text-[#1da85b] font-sans select-none">ExonApp</span>
+          </div>
+          
+          <div className="flex items-center gap-2 text-ink">
+            <button 
+              onClick={() => {
+                if (user) {
+                  setView('notifications');
+                } else {
+                  setView('login');
+                }
+              }}
+              className={`relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'notifications' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
+            >
+              <Bell size={20} />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                  {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+            <button 
+              onClick={() => setView('search')}
+              className={`md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'search' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
+            >
+              <Search size={20} />
+            </button>
+            <button 
+              onClick={() => setSidebarOpen(true)}
+              className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+            >
+              <MoreVertical size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tab switcher bar */}
+        <div className="px-4 sm:px-6 h-11 flex items-center justify-between w-full border-t border-gray-100/40">
           <div className="flex items-center gap-4 sm:gap-8 h-full">
-          <button 
-            onClick={() => setView('feed')}
-            className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-          >
-            <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
-            {view === 'feed' && (
-              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-            )}
-          </button>
-          <button 
-            onClick={() => setView('schools')}
-            className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-          >
-            <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
-            {view === 'schools' && (
-              <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-            )}
-          </button>
-        </div>
+            <button 
+              onClick={() => setView('feed')}
+              className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+            >
+              <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
+              {view === 'feed' && (
+                <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+              )}
+            </button>
+            <button 
+              onClick={() => setView('schools')}
+              className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+            >
+              <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
+              {view === 'schools' && (
+                <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+              )}
+            </button>
+          </div>
 
-        <div className="flex-1 max-w-md mx-4 relative group hidden md:block">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
-          <input 
-            type="text" 
-            placeholder="Search institutions or people..." 
-            value={globalSearch}
-            onChange={(e) => {
-              const val = e.target.value;
-              setGlobalSearch(val);
-              handleSearchUsers(val);
-              if (val.trim()) setView('search');
-            }}
-            onFocus={() => {
-              if (globalSearch) setView('search');
-            }}
-            className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-accent/20 outline-none transition-all text-xs font-medium" 
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-ink">
-          <button 
-            onClick={() => {
-              if (user) {
-                setView('notifications');
-              } else {
-                setView('login');
-              }
-            }}
-            className={`relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'notifications' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
-          >
-            <Bell size={20} />
-            {unreadNotificationsCount > 0 && (
-              <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
-              </span>
-            )}
-          </button>
-          <button 
-            onClick={() => setView('search')}
-            className={`md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'search' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
-          >
-            <Search size={20} />
-          </button>
-          <button 
-            onClick={() => setSidebarOpen(true)}
-            className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
-          >
-            <MoreVertical size={20} />
-          </button>
-        </div>
+          <div className="flex-1 max-w-md mx-4 relative group hidden md:block">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
+            <input 
+              type="text" 
+              placeholder="Search institutions or people..." 
+              value={globalSearch}
+              onChange={(e) => {
+                const val = e.target.value;
+                setGlobalSearch(val);
+                handleSearchUsers(val);
+                if (val.trim()) setView('search');
+              }}
+              onFocus={() => {
+                if (globalSearch) setView('search');
+              }}
+              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-accent/20 outline-none transition-all text-xs font-medium" 
+            />
+          </div>
         </div>
       </header>
 
