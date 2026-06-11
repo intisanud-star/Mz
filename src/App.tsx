@@ -12642,18 +12642,18 @@ function ExonaApp() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-0.5">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[14.5px] font-semibold text-slate-800 truncate">{displayName}</span>
+                <span className="text-[14.5px] font-bold text-ink truncate font-sans">{displayName}</span>
                 {chat.isGroup && (
                   <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">Group</span>
                 )}
               </div>
               {displayTime && (
-                <span className="text-[11px] text-slate-400 font-medium shrink-0">{displayTime}</span>
+                <span className="text-[11px] text-slate-400 font-medium shrink-0 font-sans">{displayTime}</span>
               )}
             </div>
             
             <div className="flex items-start justify-between gap-2 mt-0.5">
-              <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
+              <span className="text-[14px] text-ink/75 font-medium line-clamp-2 leading-snug break-words flex-1 font-sans">
                 {lastMsgTxt}
               </span>
               {unreadCount > 0 && (
@@ -13412,7 +13412,7 @@ function ExonaApp() {
                         <div className="flex flex-col gap-4 w-full pt-1">
                           {filteredSchoolsAndPlaces.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-0.5">Institutions</div>
+                              <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2 px-0.5 font-sans">INSTITUTIONS</div>
                               <div className="divide-y divide-gray-100/60">
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -13443,13 +13443,13 @@ function ExonaApp() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <span className="text-[14.5px] font-semibold text-slate-800 truncate">{school.name}</span>
+                                            <span className="text-[14.5px] font-bold text-ink truncate font-sans">{school.name}</span>
                                             {announcementTime && (
-                                              <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
+                                              <span className="text-[11px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                             )}
                                           </div>
                                           <div className="flex items-start justify-between gap-2 mt-0.5">
-                                            <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
+                                            <span className="text-[14px] text-ink/75 font-medium line-clamp-2 leading-snug break-words flex-1 font-sans">
                                               {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
                                             </span>
                                           </div>
@@ -13464,7 +13464,7 @@ function ExonaApp() {
 
                           {filteredDirectChats.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-0.5">Chat</div>
+                              <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2 px-0.5 font-sans">CHAT</div>
                               <div className="divide-y divide-gray-100/60">
                                 {filteredDirectChats.map(renderChatItem)}
                               </div>
@@ -13473,7 +13473,7 @@ function ExonaApp() {
 
                           {filteredGroupChats.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5 px-0.5">Group</div>
+                              <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2 px-0.5 font-sans">GROUP</div>
                               <div className="divide-y divide-gray-100/60">
                                 {filteredGroupChats.map(renderChatItem)}
                               </div>
@@ -13522,13 +13522,13 @@ function ExonaApp() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                      <span className="text-[14.5px] font-semibold text-slate-800 truncate">{school.name}</span>
+                                      <span className="text-[14.5px] font-bold text-ink truncate font-sans">{school.name}</span>
                                       {announcementTime && (
-                                        <span className="text-[11px] text-slate-400 font-medium shrink-0">{announcementTime}</span>
+                                        <span className="text-[11px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                       )}
                                     </div>
                                     <div className="flex items-start justify-between gap-2 mt-0.5">
-                                      <span className="text-[14px] text-slate-500/90 font-normal line-clamp-2 leading-snug break-words flex-1">
+                                      <span className="text-[14px] text-ink/75 font-medium line-clamp-2 leading-snug break-words flex-1 font-sans">
                                         {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
                                       </span>
                                     </div>
