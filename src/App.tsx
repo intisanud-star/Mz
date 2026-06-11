@@ -2760,40 +2760,6 @@ const formatTime = (timestamp: any) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-const getWhatsAppFormattedTime = (timestamp: any) => {
-  if (!timestamp) return '';
-  let date: Date;
-  if (timestamp.toDate) {
-    date = timestamp.toDate();
-  } else if (timestamp.toMillis) {
-    date = new Date(timestamp.toMillis());
-  } else if (timestamp.seconds) {
-    date = new Date(timestamp.seconds * 1000);
-  } else if (timestamp instanceof Date) {
-    date = timestamp;
-  } else if (typeof timestamp === 'number') {
-    date = new Date(timestamp);
-  } else {
-    date = new Date(timestamp);
-  }
-
-  if (isNaN(date.getTime())) return '';
-
-  const now = new Date();
-  const diffTime = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0 && now.getDate() === date.getDate()) {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-  } else if (diffDays === 1 || (diffDays === 0 && now.getDate() !== date.getDate())) {
-    return 'Yesterday';
-  } else if (diffDays < 7) {
-    return date.toLocaleDateString([], { weekday: 'long' });
-  } else {
-    return date.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
-  }
-};
-
 // --- HELPERS ---
 const getLabels = (type?: 'school' | 'place') => {
   if (type === 'place' || true) { // Defaulting to generic labels as requested
@@ -12595,10 +12561,10 @@ function ExonaApp() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.2 }}
-        className="py-3 border-b border-gray-50 hover:bg-gray-50/40 transition-colors flex items-center justify-between group px-1"
+        className="py-6 border-b border-gray-50 flex items-center justify-between group"
       >
         <div 
-          className="cursor-pointer flex-1 flex items-start gap-3 min-w-0"
+          className="cursor-pointer flex-1 flex items-start gap-4 min-w-0"
           onClick={() => {
             setActiveChat({
               uid: chat.otherUid,
@@ -12609,7 +12575,7 @@ function ExonaApp() {
             setView('chat');
           }}
         >
-          <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative shadow-sm">
+          <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative shadow-sm">
             {photoURL ? (
               <img src={photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
             ) : (
@@ -12622,34 +12588,23 @@ function ExonaApp() {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-baseline justify-between gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <h4 className="text-[15px] font-bold text-ink truncate leading-none">{displayName}</h4>
-                {chat.isGroup && (
-                  <span className="text-[9px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider shrink-0">Group</span>
-                )}
-              </div>
-              <span className="text-[11px] font-medium text-gray-400 select-none whitespace-nowrap shrink-0">
-                {getWhatsAppFormattedTime(chat.lastMessage?.timestamp)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between mt-1 gap-2">
-              <p className={`text-[13px] leading-snug line-clamp-1 flex-1 ${unreadCount > 0 ? 'text-black font-semibold' : 'text-gray-500'}`}>
-                {chat.lastMessage?.senderUid === user?.uid && (
-                  <span className={`inline-flex mr-1 align-middle ${chat.lastMessage.status === 'read' ? 'text-blue-500' : 'text-gray-400'}`}>
-                    {chat.lastMessage.status === 'sent' ? <Check size={14} /> : <CheckCheck size={14} />}
-                  </span>
-                )}
-                {lastMsgTxt}
-              </p>
-              {unreadCount > 0 && (
-                <div className="h-5 min-w-[20px] px-1 bg-[#25D366] text-white text-[10px] font-black rounded-full flex items-center justify-center shrink-0 select-none shadow-xs">
-                  {unreadCount}
-                </div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <h4 className="text-[17px] font-extrabold text-ink truncate">{displayName}</h4>
+              {chat.isGroup && (
+                <span className="text-[9px] bg-indigo-50 text-indigo-600 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Group</span>
               )}
             </div>
+            <p className="text-[13px] text-muted line-clamp-1 leading-relaxed">
+              {lastMsgTxt}
+            </p>
           </div>
         </div>
+        
+        {unreadCount > 0 && (
+          <div className="h-6 min-w-6 px-1.5 bg-accent text-white text-[10px] font-black rounded-full flex items-center justify-center shadow-md ml-3">
+            {unreadCount}
+          </div>
+        )}
       </motion.div>
     );
   };
@@ -13175,8 +13130,8 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
-            <div className="max-w-xl mx-auto pt-8 px-4">
-            <div className="flex items-center justify-between mb-8">
+            <div className="max-w-xl mx-auto pt-3 px-4">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex bg-gray-50 p-1 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none">
                 <button 
                   onClick={() => setFeedTab('institutions')}
@@ -13203,7 +13158,7 @@ function ExonaApp() {
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
               <div 
-                className="flex items-center gap-2 mb-8 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-2 select-none"
+                className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-2 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {categories.map((c) => {
@@ -13344,10 +13299,10 @@ function ExonaApp() {
 
                     if (schoolFilter === 'all') {
                       return (
-                        <div className="flex flex-col gap-8 w-full pt-2">
+                        <div className="flex flex-col gap-4 w-full pt-1">
                           {filteredSchoolsAndPlaces.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-4">Institutions</div>
+                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Institutions</div>
                               <div className="divide-y divide-gray-100">
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -13359,13 +13314,13 @@ function ExonaApp() {
                                       animate={{ opacity: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.95 }}
                                       transition={{ duration: 0.2 }}
-                                      className="py-3 border-b border-gray-50 hover:bg-gray-50/40 transition-colors group px-1"
+                                      className="py-3.5 border-b border-gray-50 group"
                                     >
                                       <div 
-                                        className="cursor-pointer flex items-start gap-3 w-full"
+                                        className="cursor-pointer mb-2 flex items-start gap-3"
                                         onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                       >
-                                        <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative shadow-sm">
+                                        <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
                                           {school.logo ? (
                                             <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                           ) : (
@@ -13376,21 +13331,14 @@ function ExonaApp() {
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                          <div className="flex items-baseline justify-between gap-2">
-                                            <h4 className="text-[15px] font-bold text-ink truncate leading-none">{school.name}</h4>
-                                            <span className="text-[11px] font-medium text-gray-400 select-none whitespace-nowrap shrink-0">
-                                              {latestAnnouncement ? getWhatsAppFormattedTime(latestAnnouncement.timestamp) : ''}
-                                            </span>
-                                          </div>
-                                          <div className="flex items-center justify-between mt-1 gap-2">
-                                            {latestAnnouncement ? (
-                                              <p className="text-[13px] text-gray-500 line-clamp-1 flex-1 leading-snug">
-                                                {latestAnnouncement.content}
-                                              </p>
-                                            ) : (
-                                              <p className="text-[12px] text-gray-400/80 font-semibold uppercase tracking-wider">No announcements yet</p>
-                                            )}
-                                          </div>
+                                          <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
+                                          {latestAnnouncement ? (
+                                            <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                                              {latestAnnouncement.content}
+                                            </p>
+                                          ) : (
+                                            <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
+                                          )}
                                         </div>
                                       </div>
                                     </motion.div>
@@ -13402,7 +13350,7 @@ function ExonaApp() {
 
                           {filteredDirectChats.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-4">Chat</div>
+                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Chat</div>
                               <div className="divide-y divide-gray-100">
                                 {filteredDirectChats.map(renderChatItem)}
                               </div>
@@ -13411,7 +13359,7 @@ function ExonaApp() {
 
                           {filteredGroupChats.length > 0 && (
                             <div>
-                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-4">Group</div>
+                              <div className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Group</div>
                               <div className="divide-y divide-gray-100">
                                 {filteredGroupChats.map(renderChatItem)}
                               </div>
@@ -13441,13 +13389,13 @@ function ExonaApp() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ duration: 0.2 }}
-                                className="py-3 border-b border-gray-50 hover:bg-gray-50/40 transition-colors group px-1"
+                                className="py-3.5 border-b border-gray-50 group"
                               >
                                 <div 
-                                  className="cursor-pointer flex items-start gap-3 w-full"
+                                  className="cursor-pointer mb-2 flex items-start gap-3"
                                   onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                 >
-                                  <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative shadow-sm">
+                                  <div className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-xl overflow-hidden border border-gray-100 bg-white shrink-0 relative">
                                     {school.logo ? (
                                       <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
@@ -13458,21 +13406,14 @@ function ExonaApp() {
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-baseline justify-between gap-2">
-                                      <h4 className="text-[15px] font-bold text-ink truncate leading-none">{school.name}</h4>
-                                      <span className="text-[11px] font-medium text-gray-400 select-none whitespace-nowrap shrink-0">
-                                        {latestAnnouncement ? getWhatsAppFormattedTime(latestAnnouncement.timestamp) : ''}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center justify-between mt-1 gap-2">
-                                      {latestAnnouncement ? (
-                                        <p className="text-[13px] text-gray-500 line-clamp-1 flex-1 leading-snug">
-                                          {latestAnnouncement.content}
-                                        </p>
-                                      ) : (
-                                        <p className="text-[12px] text-gray-400/80 font-semibold uppercase tracking-wider">No announcements yet</p>
-                                      )}
-                                    </div>
+                                    <h4 className="text-[17px] font-extrabold text-ink mb-1">{school.name}</h4>
+                                    {latestAnnouncement ? (
+                                      <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
+                                        {latestAnnouncement.content}
+                                      </p>
+                                    ) : (
+                                      <p className="text-[11px] text-muted/40 font-bold uppercase tracking-widest">No announcements yet</p>
+                                    )}
                                   </div>
                                 </div>
                               </motion.div>
@@ -21993,46 +21934,46 @@ function ExonaApp() {
                           photoURL: chat.isGroup ? group?.photoURL : (otherUser?.photoURL || (otherUser as any)?.photo),
                           isGroup: chat.isGroup
                         })}
-                        className="w-full py-3 hover:bg-gray-50/40 transition-colors text-left flex items-center gap-3 px-1 group"
+                        className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 group"
                       >
-                        <div className="h-12 w-12 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0 relative shadow-xs">
+                        <div className="h-14 w-14 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
                           {chat.isGroup ? (
                             group?.photoURL ? (
                               <img src={group.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
                                <div className="h-full w-full bg-accent/10 flex items-center justify-center text-accent">
-                                 <Users size={18} />
+                                 <Users size={20} />
                                </div>
                             )
                           ) : (
                             (otherUser?.photoURL || (otherUser as any)?.photo) ? (
                               <img src={otherUser?.photoURL || (otherUser as any)?.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
-                              <span className="text-muted text-sm font-bold">{(otherUser?.displayName || (otherUser as any)?.name)?.charAt(0)}</span>
+                              <span className="text-muted text-xs font-bold">{(otherUser?.displayName || (otherUser as any)?.name)?.charAt(0)}</span>
                             )
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <h3 className="font-bold text-[#1F2937] text-[15px] truncate leading-none">{chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name)}</h3>
-                            <span className="text-[11px] font-medium text-gray-400 select-none whitespace-nowrap shrink-0">
-                              {getWhatsAppFormattedTime(chat.lastMessage.timestamp)}
+                          <div className="flex justify-between items-center mb-1">
+                            <h3 className="font-bold text-ink text-[15px] truncate">{chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name)}</h3>
+                            <span className="text-[10px] text-muted font-medium ml-2">
+                              {formatTime(chat.lastMessage.timestamp)}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between mt-1 gap-2">
+                          <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1 flex-1 truncate">
                               {chat.lastMessage.senderUid === user.uid && (
-                                <span className={chat.lastMessage.status === 'read' ? 'text-blue-500 shrink-0' : 'text-gray-400 shrink-0'}>
-                                  {chat.lastMessage.status === 'sent' ? <Check size={14} /> : <CheckCheck size={14} />}
+                                <span className={chat.lastMessage.status === 'read' ? 'text-blue-400' : 'text-gray-400'}>
+                                  {chat.lastMessage.status === 'sent' ? <Check size={12} /> : <CheckCheck size={12} />}
                                 </span>
                               )}
-                              <p className={`text-[13px] truncate ${unreadCount > 0 ? 'text-black font-semibold' : 'text-gray-500'}`}>
+                              <p className={`text-[13px] truncate ${unreadCount > 0 ? 'text-ink font-bold' : 'text-muted'}`}>
                                 {chat.isGroup && <span className="font-bold text-accent mr-1">Group:</span>}
                                 {chat.lastMessage.text}
                               </p>
                             </div>
                             {unreadCount > 0 && (
-                              <span className="h-5 min-w-[20px] px-1 bg-[#25D366] text-white text-[10px] font-black rounded-full flex items-center justify-center shrink-0 select-none shadow-xs">
+                              <span className="h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-accent text-white text-[10px] font-bold rounded-full ml-2">
                                 {unreadCount}
                               </span>
                             )}
@@ -25580,6 +25521,58 @@ function ExonaApp() {
     }
   };
 
+  if (!isOnline) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-[#F8F9FA] text-[#1F2937] overflow-hidden relative select-none">
+        {/* Ambient style background blobs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#4285F4]/5 blur-[120px] rounded-full animate-pulse"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#EA4335]/5 blur-[100px] rounded-full animate-pulse [animation-delay:1s]"></div>
+        </div>
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="relative z-10 max-w-sm w-full mx-6 bg-white border border-neutral-100 p-8 sm:p-12 rounded-[2.5rem] shadow-2xl flex flex-col items-center text-center"
+        >
+          <div className="h-16 w-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 relative border border-red-100 shadow-xs">
+            <Globe size={28} className="animate-pulse" />
+            <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white border-2 border-white text-[10px] font-black">!</span>
+          </div>
+          
+          <h2 className="text-2xl font-black text-[#1F2937] mb-2 tracking-tight font-display">No Connection</h2>
+          <p className="text-[9px] font-extrabold text-red-500 uppercase tracking-widest mb-6">Synchronization Interrupted</p>
+          
+          <p className="text-[#4B5563] text-xs font-semibold leading-relaxed mb-8 px-2">
+            Exona is a secure real-time system. To prevent mock data loading or caching issues, access is restricted while offline. The application will immediately restore when your network connection is back.
+          </p>
+
+          <div className="relative flex items-center justify-center gap-2 px-4 py-3.5 bg-neutral-50 rounded-2xl w-full border border-neutral-100 text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-4">
+            <span className="h-1.5 w-1.5 bg-red-500 rounded-full"></span>
+            Waiting for network...
+          </div>
+          
+          <button 
+            type="button"
+            onClick={() => {
+              const currentStatus = navigator.onLine;
+              setIsOnline(currentStatus);
+              if (currentStatus) {
+                showNotification('Connection restored! Re-initializing database channels.', 'success');
+              } else {
+                showNotification('Still offline. Please check your network cables or Wi-Fi settings.', 'error');
+              }
+            }}
+            className="w-full py-4 bg-gradient-to-r from-[#4285F4] to-[#34A853] hover:opacity-95 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 border-0 outline-0 select-none cursor-pointer shadow-lg"
+          >
+            <RefreshCw size={14} className="animate-spin [animation-duration:3s]" /> Network Scan Check
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (view === 'splash') {
     return (
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-white dark:bg-[#0b141a] overflow-hidden relative select-none">
@@ -28375,8 +28368,9 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      <header className="h-14 sm:h-16 bg-card/80 backdrop-blur-xl px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 border-b border-gray-100 no-print">
-        <div className="flex items-center gap-4 sm:gap-8 h-full">
+      <header className="pt-8 sm:pt-11 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
+        <div className="px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between w-full">
+          <div className="flex items-center gap-4 sm:gap-8 h-full">
           <button 
             onClick={() => setView('feed')}
             className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
@@ -28446,6 +28440,7 @@ function ExonaApp() {
           >
             <MoreVertical size={20} />
           </button>
+        </div>
         </div>
       </header>
 

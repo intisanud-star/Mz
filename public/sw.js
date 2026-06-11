@@ -1,31 +1,11 @@
-// Exona Service Worker - Hybrid Stale-While-Revalidate & Offline Core
-// Delivers a lightning-fast native experience like WhatsApp and Telegram.
-// Loads cached shell assets instantly under poor/zero-network conditions.
+// Exona Service Worker - Dynamic Network-First Caching with Offline Fallback
+// This ensures developers and users see instant code modifications while online,
+// but can load and run the complete application seamlessly in offline mode.
 
-const CACHE_NAME = 'exona-core-cache-v2';
-
-// Core structural assets to cache during installation
-const PRE_CACHE_RESOURCES = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/favicon.ico',
-  '/splash.png'
-];
+const CACHE_NAME = 'exona-offline-v1';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('Pre-caching Exona application shell assets');
-        return cache.addAll(PRE_CACHE_RESOURCES);
-      })
-      .then(() => self.skipWaiting())
-      .catch((err) => {
-        console.warn('Failed to pre-cache some files during install, proceeding anyway:', err);
-        return self.skipWaiting();
-      })
-  );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -34,7 +14,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Evicting historical service worker cache:', cacheName);
+            console.log('Clearing old service worker cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -43,16 +23,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Cache dynamic assets on-the-fly and fall back to cache when offline
 self.addEventListener('fetch', (event) => {
-  // Only handle standard GET requests
+  // Only handle GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Skip unsupported protocols (chrome-extension, edge, etc.)
+  // Skip unsupported schemes (chrome extension APIs, etc.)
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
 
-  // Protect analytical, auth and dynamic firestore endpoints from caching interference
+  // Skip Firebase sockets, live database calls, or internal developer WS pathways
   if (
     url.hostname.includes('firestore.googleapis.com') ||
     url.hostname.includes('firebaseinstallations.googleapis.com') ||
@@ -65,53 +46,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle SPA routing & index entry cleanly:
-  // If the request is for a layout page navigation, serve /index.html instantly
-  const isNavigation = event.request.mode === 'navigate' || 
-                       url.pathname === '/' || 
-                       url.pathname === '/index.html' ||
-                       (!url.pathname.includes('.') && !url.pathname.endsWith('/'));
+  const isNavigation = event.request.mode === 'navigate';
 
-  if (isNavigation) {
-    event.respondWith(
-      caches.match('/index.html').then((cachedIndexResponse) => {
-        const fetchPromise = fetch('/index.html')
-          .then((networkResponse) => {
-            if (networkResponse.status === 200) {
-              const responseCopy = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseCopy));
-            }
-            return networkResponse;
-          })
-          .catch(() => null);
-
-        // Serve instantly from regional local cache. Fall back to network fetch if not yet stored.
-        return cachedIndexResponse || fetchPromise || caches.match('/');
-      })
-    );
-    return;
-  }
-
-  // Stale-While-Revalidate Engine for general assets (bundled JS, CSS, fonts, assets)
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const responseCopy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseCopy);
-            });
+    fetch(event.request)
+      .then((networkResponse) => {
+        // If the request is successful, clone and keep it in cache
+        if (networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch((error) => {
+        // Network error/offline -> Serve from the local cache storage
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) {
+            return cachedResponse;
           }
-          return networkResponse;
-        })
-        .catch(() => {
-          // Silent catch for network failure when offline
-          return null;
-        });
 
-      // Serve from browser local cache instantly, or fall back to background fetch
-      return cachedResponse || fetchPromise;
-    })
+          // If it is a navigation page layout request offline, render the SPA shell (index.html at root)
+          if (isNavigation) {
+            return caches.match('/');
+          }
+
+          return Promise.reject(error);
+        });
+      })
   );
 });
