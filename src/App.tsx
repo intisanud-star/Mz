@@ -1676,6 +1676,10 @@ const PremiumGameModal = ({
     (school.administrativeViewers && school.administrativeViewers.includes(user.uid))
   );
 
+  const handleSelectAnswer = (opt: string) => {
+    setSelectedAnswers(prev => ({ ...prev, [currentIdx]: opt }));
+  };
+
   const loadGameData = useCallback(async () => {
     if (!school) return;
     setIsLoading(true);
@@ -8049,7 +8053,7 @@ function ExonaApp() {
 
   const [isOtherTyping, setIsOtherTyping] = useState(false);
   const [typingState, setTypingState] = useState<{ [chatId: string]: boolean }>({});
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -8065,11 +8069,9 @@ function ExonaApp() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      showNotification('Reconnected to internet');
     };
     const handleOffline = () => {
-      setIsOnline(false);
-      showNotification('Running in offline mode', 'error');
+      setIsOnline(true);
     };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
