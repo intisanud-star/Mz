@@ -12612,9 +12612,9 @@ function ExonaApp() {
         layout
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
+        exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
-        className="py-3 px-3.5 border-b border-gray-100/50 flex items-center justify-between group hover:bg-slate-50/80 active:bg-slate-100/60 rounded-2xl -mx-3.5 transition-colors cursor-pointer"
+        className="py-3 px-1.5 hover:bg-slate-50/70 active:bg-slate-100/50 flex items-center justify-between group transition-colors duration-200 cursor-pointer relative select-none border-b border-slate-100/50 last:border-b-0"
         onClick={() => {
           setActiveChat({
             uid: chat.otherUid,
@@ -12626,38 +12626,38 @@ function ExonaApp() {
         }}
       >
         <div className="flex-1 flex items-center gap-3.5 min-w-0">
-          <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-gray-150 bg-white shrink-0 relative shadow-sm">
+          <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-slate-100/45 bg-white shrink-0 relative shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
             {photoURL ? (
               <img src={photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(displayName)} flex items-center justify-center text-white font-medium text-base`}>
+              <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(displayName)} flex items-center justify-center text-white font-semibold text-base`}>
                 {displayName?.charAt(0)}
               </div>
             )}
             {isOnline && (
-              <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+              <span className="absolute bottom-0.5 right-0.5 h-3 w-3 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
             )}
           </div>
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-0.5">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[14.5px] font-bold text-ink truncate font-sans">{displayName}</span>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[16px] font-semibold text-slate-800 truncate font-sans tracking-tight">{displayName}</span>
                 {chat.isGroup && (
                   <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">Group</span>
                 )}
               </div>
               {displayTime && (
-                <span className="text-[11px] text-slate-400 font-medium shrink-0 font-sans">{displayTime}</span>
+                <span className="text-[12px] text-slate-400 font-medium shrink-0 font-sans">{displayTime}</span>
               )}
             </div>
             
-            <div className="flex items-start justify-between gap-2 mt-0.5">
-              <span className="text-[14px] text-ink/75 font-medium line-clamp-2 leading-snug break-words flex-1 font-sans">
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[14px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
                 {lastMsgTxt}
               </span>
               {unreadCount > 0 && (
-                <span className="h-5 min-w-[20px] px-1 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                <span className="h-5 min-w-[20px] px-1.5 bg-[#2481CC] text-white text-[10.5px] font-bold rounded-full flex items-center justify-center shrink-0 shadow-sm">
                   {unreadCount}
                 </span>
               )}
@@ -13188,8 +13188,8 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
-            <div className="max-w-xl mx-auto pt-3 px-4">
+          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8">
             <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-1">
               <div className="flex gap-6 h-10 items-center overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none relative">
                 <button 
@@ -13223,35 +13223,32 @@ function ExonaApp() {
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
               <div 
-                className="flex items-center gap-5 mb-3 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full h-9 border-b border-gray-100/40 select-none pb-0.5"
+                className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {categories.map((c) => {
                   const count = getFilterCount(c.id);
                   const isSelected = schoolFilter === c.id;
                   return (
-                    <div key={c.id} className="relative group shrink-0 h-full flex items-center">
+                    <div key={c.id} className="relative group shrink-0 flex items-center">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-full px-1.5 relative text-[11.5px] uppercase tracking-wider font-bold transition-all outline-none flex items-center justify-center font-sans ${
+                        className={`h-8 px-3.5 rounded-full text-[11.5px] uppercase tracking-wider font-bold transition-all outline-none flex items-center justify-center font-sans ${
                           isSelected 
-                            ? 'text-ink' 
-                            : 'text-muted hover:text-ink'
+                            ? 'bg-[#2481CC]/10 text-[#2481CC]' 
+                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
                         }`}
                       >
                         <span className="flex items-center gap-1.5">
                           {c.label}
                           {count > 0 && (
-                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded ${
-                              isSelected ? 'bg-ink text-white' : 'bg-slate-100/80 text-slate-500'
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${
+                              isSelected ? 'bg-[#2481CC] text-white' : 'bg-slate-200 text-slate-600'
                             }`}>
                               {count}
                             </span>
                           )}
                         </span>
-                        {isSelected && (
-                          <motion.div layoutId="schoolFilter-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-                        )}
                       </button>
                       {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
                         <button
@@ -13276,37 +13273,37 @@ function ExonaApp() {
                       e.preventDefault();
                       handleCreateCustomCategory();
                     }}
-                    className="flex items-center gap-1 bg-[#f0f2f5] rounded-full h-7 pl-3 pr-1 shrink-0"
+                    className="flex items-center gap-1 bg-slate-100 rounded-full h-8 pl-3 pr-1.5 shrink-0"
                   >
                     <input
                       type="text"
                       value={newCategoryInput}
                       onChange={(e) => setNewCategoryInput(e.target.value)}
                       placeholder="New category"
-                      className="bg-transparent text-[12px] font-medium outline-none w-20 text-[#54656f] placeholder:text-[#54656f]/45"
+                      className="bg-transparent text-[12px] font-semibold outline-none w-20 text-[#54656f] placeholder:text-[#54656f]/40"
                       autoFocus
                     />
                     <button 
                       type="submit"
-                      className="h-5.5 w-5.5 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
+                      className="h-6 w-6 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
                     >
-                      <Check size={10} />
+                      <Check size={11} />
                     </button>
                     <button 
                       type="button"
                       onClick={() => setIsAddingCategory(false)}
-                      className="h-5.5 w-5.5 bg-gray-200 text-muted rounded-full flex items-center justify-center hover:bg-gray-300 shrink-0"
+                      className="h-6 w-6 bg-slate-200 text-muted rounded-full flex items-center justify-center hover:bg-slate-300 shrink-0"
                     >
-                      <X size={10} />
+                      <X size={11} />
                     </button>
                   </form>
                 ) : (
                   <button
                     onClick={() => setIsAddingCategory(true)}
-                    className="h-7 w-7 bg-[#f0f2f5] text-[#54656f] hover:bg-[#e4e6eb] rounded-full flex items-center justify-center transition-all select-none shrink-0"
+                    className="h-8 w-8 bg-slate-50 text-slate-500 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all select-none shrink-0"
                     title="Add Category"
                   >
-                    <Plus size={14} />
+                    <Plus size={15} />
                   </button>
                 )}
               </div>
@@ -13423,11 +13420,11 @@ function ExonaApp() {
 
                     if (schoolFilter === 'all') {
                       return (
-                        <div className="flex flex-col gap-4 w-full pt-1">
+                        <div className="flex flex-col gap-2 w-full pt-1">
                           {filteredSchoolsAndPlaces.length > 0 && (
-                            <div>
-                              <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2 px-0.5 font-sans">INSTITUTIONS</div>
-                              <div className="divide-y divide-gray-100/60">
+                            <div className="mb-6">
+                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-1 font-sans">INSTITUTIONS</div>
+                              <div className="space-y-1">
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
                                   const announcementTime = getAnnouncementTime(latestAnnouncement);
@@ -13437,34 +13434,36 @@ function ExonaApp() {
                                       layout
                                       initial={{ opacity: 0, y: 10 }}
                                       animate={{ opacity: 1, y: 0 }}
-                                      exit={{ opacity: 0, scale: 0.95 }}
+                                      exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
-                                      className="py-3 px-3.5 border-b border-gray-100/50 flex items-center justify-between group hover:bg-slate-50/80 active:bg-slate-100/60 rounded-2xl -mx-3.5 transition-colors cursor-pointer"
+                                      className="py-3 px-1.5 hover:bg-slate-50/70 active:bg-slate-100/50 flex items-center justify-between group transition-colors duration-200 cursor-pointer relative select-none border-b border-slate-100/50 last:border-b-0"
                                       onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                     >
                                       <div className="flex-1 flex items-center gap-3.5 min-w-0">
-                                        <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-gray-150 bg-white shrink-0 relative shadow-sm">
+                                        <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-slate-100/45 bg-white shrink-0 relative shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
                                           {school.logo ? (
                                             <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                           ) : (
-                                            <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(school.name)} flex items-center justify-center text-white font-medium text-base`}>
+                                            <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(school.name)} flex items-center justify-center text-white font-semibold text-base`}>
                                               {school.name.charAt(0)}
                                             </div>
                                           )}
                                           {isRecentlyActive(school.id) && (
-                                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                                            <span className="absolute bottom-0.5 right-0.5 h-3 w-3 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
                                           )}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <span className="text-[14.5px] font-bold text-ink truncate font-sans">{school.name}</span>
+                                            <span className="text-[16px] font-semibold text-slate-800 truncate font-sans tracking-tight">{school.name}</span>
                                             {announcementTime && (
-                                              <span className="text-[11px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
+                                              <span className="text-[12px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                             )}
                                           </div>
-                                          <div className="flex items-start justify-between gap-2 mt-0.5">
-                                            <span className="text-[14px] text-ink/75 font-medium line-clamp-2 leading-snug break-words flex-1 font-sans">
-                                              {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
+                                          <div className="flex items-start justify-between gap-2">
+                                            <span className="text-[14px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
+                                              {latestAnnouncement ? latestAnnouncement.content : (
+                                                <span className="text-slate-300 italic font-normal">No announcements yet</span>
+                                              )}
                                             </span>
                                           </div>
                                         </div>
@@ -13477,26 +13476,29 @@ function ExonaApp() {
                           )}
 
                           {filteredDirectChats.length > 0 && (
-                            <div>
-                              <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2 px-0.5 font-sans">CHAT</div>
-                              <div className="divide-y divide-gray-100/60">
+                            <div className="mb-6">
+                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-1 font-sans">CHAT</div>
+                              <div className="space-y-1">
                                 {filteredDirectChats.map(renderChatItem)}
                               </div>
                             </div>
                           )}
 
                           {filteredGroupChats.length > 0 && (
-                            <div>
-                              <div className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-2 px-0.5 font-sans">GROUP</div>
-                              <div className="divide-y divide-gray-100/60">
+                            <div className="mb-6">
+                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-1 font-sans">GROUP</div>
+                              <div className="space-y-1">
                                 {filteredGroupChats.map(renderChatItem)}
                               </div>
                             </div>
                           )}
 
                           {filteredSchoolsAndPlaces.length === 0 && filteredDirectChats.length === 0 && filteredGroupChats.length === 0 && (
-                            <div className="py-20 text-center text-slate-400 text-sm">
-                              No items found
+                            <div className="py-24 text-center text-slate-400/80 font-semibold text-sm flex flex-col items-center justify-center gap-2">
+                              <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mb-1 border border-slate-100/50">
+                                <Search size={22} />
+                              </div>
+                              <p>No items found</p>
                             </div>
                           )}
                         </div>
@@ -13505,7 +13507,7 @@ function ExonaApp() {
 
                     // Otherwise show specific custom category (e.g. Places, Schools, Business, etc.)
                     return (
-                      <div className="divide-y divide-gray-100/60 w-full">
+                      <div className="flex flex-col gap-1 w-full pt-1">
                         {filteredSchoolsAndPlaces.length > 0 ? (
                           filteredSchoolsAndPlaces.map(school => {
                             const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -13516,34 +13518,36 @@ function ExonaApp() {
                                 layout
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
+                                exit={{ opacity: 0, scale: 0.96 }}
                                 transition={{ duration: 0.2 }}
-                                className="py-3 px-3.5 border-b border-gray-100/50 flex items-center justify-between group hover:bg-slate-50/80 active:bg-slate-100/60 rounded-2xl -mx-3.5 transition-colors cursor-pointer"
+                                className="py-3 px-1.5 hover:bg-slate-50/70 active:bg-slate-100/50 flex items-center justify-between group transition-colors duration-200 cursor-pointer relative select-none border-b border-slate-100/50 last:border-b-0"
                                 onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                               >
                                 <div className="flex-1 flex items-center gap-3.5 min-w-0">
-                                  <div className="h-11 w-11 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-gray-150 bg-white shrink-0 relative shadow-sm">
+                                  <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-slate-100/45 bg-white shrink-0 relative shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
                                     {school.logo ? (
                                       <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
-                                      <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(school.name)} flex items-center justify-center text-white font-medium text-base`}>
+                                      <div className={`h-full w-full bg-gradient-to-tr ${getAvatarGradient(school.name)} flex items-center justify-center text-white font-semibold text-base`}>
                                         {school.name.charAt(0)}
                                       </div>
                                     )}
                                     {isRecentlyActive(school.id) && (
-                                      <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
+                                      <span className="absolute bottom-0.5 right-0.5 h-3 w-3 bg-green-500 rounded-full ring-2 ring-white animate-pulse" />
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                      <span className="text-[14.5px] font-bold text-ink truncate font-sans">{school.name}</span>
+                                      <span className="text-[16px] font-semibold text-slate-800 truncate font-sans tracking-tight">{school.name}</span>
                                       {announcementTime && (
-                                        <span className="text-[11px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
+                                        <span className="text-[12px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                       )}
                                     </div>
-                                    <div className="flex items-start justify-between gap-2 mt-0.5">
-                                      <span className="text-[14px] text-ink/75 font-medium line-clamp-2 leading-snug break-words flex-1 font-sans">
-                                        {latestAnnouncement ? latestAnnouncement.content : 'No announcements yet'}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <span className="text-[14px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
+                                        {latestAnnouncement ? latestAnnouncement.content : (
+                                          <span className="text-slate-300 italic font-normal">No announcements yet</span>
+                                        )}
                                       </span>
                                     </div>
                                   </div>
@@ -13552,8 +13556,11 @@ function ExonaApp() {
                             );
                           })
                         ) : (
-                          <div className="py-20 text-center text-slate-400 text-sm">
-                            No items found for this category
+                          <div className="py-24 text-center text-slate-400/80 font-semibold text-sm flex flex-col items-center justify-center gap-2">
+                            <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mb-1 border border-slate-100/50">
+                              <Search size={22} />
+                            </div>
+                            <p>No items found for this category</p>
                           </div>
                         )}
                       </div>
@@ -21409,7 +21416,7 @@ function ExonaApp() {
             .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
           return (
-            <div className="flex flex-col min-h-screen max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-12">
+            <div className="flex flex-col min-h-screen w-full bg-[#eef2f5] relative select-none overflow-hidden pb-12">
               {/* Group Settings Modal */}
               {isGroupSettingsOpen && activeGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
@@ -21763,7 +21770,7 @@ function ExonaApp() {
                     <h4 className="text-base font-black text-ink mb-1">Secure Connection established</h4>
                     <p className="text-xs text-muted font-bold tracking-tight uppercase mb-3">Chats are encrypted end-to-end</p>
                     <p className="text-xs text-muted max-w-xs leading-normal">
-                      Send voice recordings, text, status directives, and coordinate tasks securely within ExonApp portals.
+                      Send voice recordings, text, status directives, and coordinate tasks securely within ExonaApp portals.
                     </p>
                   </div>
                 ) : (
@@ -23946,8 +23953,8 @@ function ExonaApp() {
         }
 
         return (
-          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
-            <div className="max-w-xl mx-auto pt-4 px-4">
+          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
+            <div className="w-full pt-4 px-4 sm:px-6 md:px-8">
               <h2 className="text-lg font-black text-ink mb-6 uppercase tracking-wider">Workspace</h2>
               
               <div className="grid grid-cols-1 gap-4">
@@ -24839,8 +24846,8 @@ function ExonaApp() {
         }
 
         return (
-          <div className="w-full min-h-screen bg-gray-50/50 pb-32 overflow-x-hidden">
-            <div className="max-w-xl mx-auto pt-4 px-4">
+          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
+            <div className="w-full pt-4 px-4 sm:px-6 md:px-8">
               <h2 className="text-lg font-black text-ink mb-6 uppercase tracking-wider">Tools</h2>
               
               <div className="grid grid-cols-1 gap-4">
@@ -24944,7 +24951,7 @@ function ExonaApp() {
         };
 
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
+          <div className="w-full py-8 px-4 sm:px-6 md:px-8 pb-32">
             {/* Top Bar with Back and Settings Buttons */}
             <div className="flex items-center justify-between mb-6">
               <button 
@@ -28415,7 +28422,7 @@ function ExonaApp() {
         {/* Top brand bar (WhatsApp style branding with measured spacing) */}
         <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
           <div className="flex items-center gap-1.5">
-            <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonApp</span>
+            <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
           </div>
           
           <div className="flex items-center gap-2 text-ink">
@@ -28538,7 +28545,7 @@ function ExonaApp() {
           style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
         >
           {isViewLoading ? (
-            <div className="w-full min-h-[60vh] flex flex-col justify-start pt-16 px-4 md:px-8 max-w-xl mx-auto space-y-8 pb-32">
+            <div className="w-full min-h-[60vh] flex flex-col justify-start pt-16 px-4 md:px-8 space-y-8 pb-32">
               {/* GitHub/Facebook Thin Indeterminate Loading Line on Top */}
               <div className="fixed top-0 left-0 right-0 h-1 bg-accent/20 z-[999] overflow-hidden">
                 <motion.div 
