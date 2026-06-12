@@ -3462,6 +3462,11 @@ function ExonaApp() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools'].includes(view);
+    if (isFixedLayoutView) {
+      startY.current = 0;
+      return;
+    }
     if (scrollContainerRef.current?.scrollTop === 0) {
       startY.current = e.touches[0].pageY;
     } else {
@@ -3470,6 +3475,8 @@ function ExonaApp() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools'].includes(view);
+    if (isFixedLayoutView) return;
     if (startY.current === 0 || refreshing) return;
     const currentY = e.touches[0].pageY;
     const diff = currentY - startY.current;
@@ -28176,7 +28183,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!['institution-channel', 'school-feed', 'institution-profile'].includes(view) && (
+      {!['institution-channel', 'school-feed', 'institution-profile', 'chat'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
