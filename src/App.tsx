@@ -3339,6 +3339,7 @@ function ExonaApp() {
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
   const [showFABs, setShowFABs] = useState(true);
+  const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
   const lastScrollTop = useRef(0);
   const [exonaAiInput, setExonaAiInput] = useState('');
   const [exonaAiChat, setExonaAiChat] = useState<Array<{ sender: 'user' | 'ai', text: string, timestamp: Date }>>([
@@ -13192,30 +13193,7 @@ function ExonaApp() {
         return (
           <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
             <div className="w-full pt-3 px-4 sm:px-6 md:px-8">
-            <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-1">
-              <div className="flex gap-6 h-10 items-center overflow-x-auto no-scrollbar max-w-[calc(100vw-80px)] sm:max-w-none relative">
-                <button 
-                  onClick={() => setFeedTab('institutions')}
-                  className={`h-full relative px-1 text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap flex items-center justify-center ${feedTab === 'institutions' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-                >
-                  <span>Institutions</span>
-                  {feedTab === 'institutions' && (
-                    <motion.div layoutId="feedTab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-                  )}
-                </button>
-                <button 
-                  onClick={() => setFeedTab('broadcasts')}
-                  className={`h-full relative px-1 text-[11px] font-bold uppercase tracking-widest transition-all whitespace-nowrap flex items-center justify-center ${feedTab === 'broadcasts' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-                >
-                  <span>Broadcasts</span>
-                  {feedTab === 'broadcasts' && (
-                    <motion.div layoutId="feedTab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
+              <div className="block">
               <div 
                 className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -13563,36 +13541,6 @@ function ExonaApp() {
                 </AnimatePresence>
               </div>
             </div>
-
-            {feedTab === 'broadcasts' && (
-              <BroadcastFeed
-                user={user}
-                userDoc={userDoc}
-                posts={posts}
-                schools={schools}
-                places={places}
-                customBroadcasts={broadcastEngine === 'sqlite_offline' ? localSqliteBroadcasts : youtubeBroadcasts}
-                onUserClick={handleUserClick}
-                onInstitutionClick={(schoolId) => {
-                  const s = schools.find(sch => sch.id === schoolId) || places.find(pl => pl.id === schoolId);
-                  if (s) {
-                    setSelectedInstitutionForProfile(s);
-                    setView('institution-channel');
-                  }
-                }}
-                onLikePost={handleLikePost}
-                onCommentPost={(p) => {
-                  setActivePostForComments(p);
-                  setIsCommentModalOpen(true);
-                }}
-                onResharePost={handleResharePost}
-                onFollowUser={handleFollowUser}
-                onUnfollowUser={handleUnfollowUser}
-                onFollowInstitution={handleFollowInstitution}
-                showNotification={showNotification}
-                isTabActive={feedTab === 'broadcasts'}
-              />
-            )}
             </div>
           </div>
         );
@@ -14228,212 +14176,36 @@ function ExonaApp() {
         );
       }
       case 'schools': {
-        const presets = [
-          {
-            title: "Announcement Draft",
-            description: "Compose a beautiful formal community update.",
-            prompt: "Compose a beautiful, formal, high-impact community and institution update. Mention milestone achievements and maintain an inspiring community tone."
-          },
-          {
-            title: "Story Video Script",
-            description: "Generate a premium 3-slide status script.",
-            prompt: "Generate a beautifully structured, highly visual 3-slide storytelling status script for Sunnah TV and modern stream channels."
-          },
-          {
-            title: "Workspace Balance Strategy",
-            description: "Analyze budgeting & digital records setup.",
-            prompt: "Write a high-end strategic overview for organizing school records and tracking daily routines within a cloud platform."
-          },
-          {
-            title: "Platform AI Integration",
-            description: "Explore localized AI benefits & use cases.",
-            prompt: "Provide an elegant, authoritative assessment of using integrated AI to bridge community networks with technical workspaces."
-          }
-        ];
-
         return (
-          <div className="w-full max-w-4xl mx-auto py-8 px-4 sm:px-8 pb-32">
-            {/* Exona AI Display Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 border-b border-gray-100 pb-8">
-              <div>
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-3 mb-2"
-                >
-                  <div className="h-10 w-10 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
-                    <Sparkles size={22} />
-                  </div>
-                  <h2 className="text-3xl sm:text-4xl font-extrabold text-ink tracking-tight font-display">
-                    Exona AI
-                  </h2>
-                </motion.div>
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-muted text-[11px] font-bold uppercase tracking-[0.3em]"
-                >
-                  Advanced AI Partner Desk
-                </motion.p>
-              </div>
-
-              {/* Reset session button */}
-              <button 
-                onClick={() => {
-                  if (window.confirm("Are you sure you want to clear your current Exona AI chat session?")) {
-                    setExonaAiChat([
-                      {
-                        sender: 'ai',
-                        text: "Welcome to **Exona AI**. I am your advanced, high-end artificial intelligence partner.\n\nHow can I elevate your day? Select one of our premium task presets or message me directly.",
-                        timestamp: new Date()
-                      }
-                    ]);
-                    setExonaAiError(null);
+          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8">
+              <BroadcastFeed
+                user={user}
+                userDoc={userDoc}
+                posts={posts}
+                schools={schools}
+                places={places}
+                customBroadcasts={broadcastEngine === 'sqlite_offline' ? localSqliteBroadcasts : youtubeBroadcasts}
+                onUserClick={handleUserClick}
+                onInstitutionClick={(schoolId) => {
+                  const s = schools.find(sch => sch.id === schoolId) || places.find(pl => pl.id === schoolId);
+                  if (s) {
+                    setSelectedInstitutionForProfile(s);
+                    setView('institution-channel');
                   }
                 }}
-                className="px-4 py-2 text-xs font-bold text-muted hover:text-accent border border-gray-100 hover:border-accent/10 rounded-xl transition-all bg-card/50 flex items-center gap-2 self-start md:self-auto"
-              >
-                <RefreshCw size={14} />
-                Clear Session
-              </button>
-            </div>
-
-            {/* Chat Conversation Stream */}
-            <div className="bg-white border border-gray-100 rounded-[2.5rem] shadow-sm overflow-hidden mb-8 min-h-[400px] flex flex-col justify-between">
-              
-              {/* Chat Panel Content */}
-              <div className="p-6 sm:p-8 space-y-6 max-h-[500px] overflow-y-auto no-scrollbar flex-1">
-                {exonaAiChat.map((msg, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-                  >
-                    {/* Avatar Element */}
-                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${msg.sender === 'user' ? 'bg-indigo-50 text-indigo-600' : 'bg-accent/10 text-accent'}`}>
-                      {msg.sender === 'user' ? (
-                        user?.photoURL ? (
-                          <img src={user.photoURL} className="h-full w-full object-cover rounded-xl" />
-                        ) : (
-                          user?.displayName?.charAt(0) || 'U'
-                        )
-                      ) : (
-                        <Sparkles size={16} />
-                      )}
-                    </div>
-
-                    {/* Chat Bubble Layout */}
-                    <div className="max-w-[80%]">
-                      <div className={`p-5 rounded-2xl text-[14px] leading-relaxed ${
-                        msg.sender === 'user'
-                          ? 'bg-ink text-white rounded-tr-none' 
-                          : 'bg-gray-50 text-ink rounded-tl-none border border-gray-100/50'
-                      }`}>
-                        {msg.sender === 'ai' ? (
-                          <div className="markdown-body prose prose-slate max-w-none text-ink text-[14px]">
-                            <Markdown>{msg.text}</Markdown>
-                          </div>
-                        ) : (
-                          <p className="whitespace-pre-line">{msg.text}</p>
-                        )}
-                      </div>
-                      <span className="text-[9px] text-muted/50 font-medium font-mono mt-1.5 block">
-                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
-
-                {/* AI Loading state placeholder */}
-                {exonaAiLoading && (
-                  <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex gap-4"
-                  >
-                    <div className="h-9 w-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                      <Sparkles size={16} className="animate-spin" />
-                    </div>
-                    <div className="bg-gray-50 text-muted p-5 rounded-2xl rounded-tl-none border border-gray-100/50 max-w-[80%] flex items-center gap-3">
-                      <span className="text-xs font-semibold uppercase tracking-wider">Exona AI is thinking</span>
-                      <div className="flex gap-1">
-                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                        <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Error Banner */}
-                {exonaAiError && (
-                  <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-3 text-xs font-bold">
-                    <AlertTriangle size={16} />
-                    <span>{exonaAiError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Chat Input Area */}
-              <div className="p-4 sm:p-6 bg-gray-50/50 border-t border-gray-100 flex gap-3 items-center">
-                <input
-                  type="text"
-                  placeholder="Ask Exona AI anything..."
-                  value={exonaAiInput}
-                  onChange={(e) => setExonaAiInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSendExonaAiMessage();
-                    }
-                  }}
-                  disabled={exonaAiLoading}
-                  className="flex-1 px-5 py-3.5 bg-white border border-gray-100 focus:border-accent/20 rounded-2xl outline-none transition-all text-sm font-sans placeholder:text-muted/40 text-ink"
-                />
-                <button
-                  onClick={() => handleSendExonaAiMessage()}
-                  disabled={exonaAiLoading || !exonaAiInput.trim()}
-                  className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition-all font-bold"
-                >
-                  <Send size={18} />
-                </button>
-              </div>
-            </div>
-
-            {/* Smart Presets Bento Row */}
-            <div>
-              <h3 className="text-[11px] font-black text-accent uppercase tracking-[0.25em] mb-6 px-1">
-                AI Preset Triggers
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {presets.map((p, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      if (!exonaAiLoading) {
-                        handleSendExonaAiMessage(p.prompt);
-                      }
-                    }}
-                    disabled={exonaAiLoading}
-                    className="p-5 text-left bg-white border border-gray-100 rounded-3xl hover:border-accent/20 hover:bg-accent/[0.01] transition-all duration-300 shadow-sm flex flex-col justify-between group disabled:opacity-60"
-                  >
-                    <div>
-                      <h4 className="font-bold text-ink text-[14px] mb-1 tracking-tight group-hover:text-accent transition-colors">
-                        {p.title}
-                      </h4>
-                      <p className="text-[12px] text-muted font-medium pr-4 leading-relaxed">
-                        {p.description}
-                      </p>
-                    </div>
-                    <div className="flex justify-end mt-4">
-                      <span className="text-[10px] bg-gray-50 group-hover:bg-accent group-hover:text-white border border-gray-100 group-hover:border-accent/10 px-3 py-1 rounded-lg text-muted font-semibold uppercase tracking-wider transition-all">
-                        Execute Preset →
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+                onLikePost={handleLikePost}
+                onCommentPost={(p) => {
+                  setActivePostForComments(p);
+                  setIsCommentModalOpen(true);
+                }}
+                onResharePost={handleResharePost}
+                onFollowUser={handleFollowUser}
+                onUnfollowUser={handleUnfollowUser}
+                onFollowInstitution={handleFollowInstitution}
+                showNotification={showNotification}
+                isTabActive={view === 'schools'}
+              />
             </div>
           </div>
         );
@@ -28310,13 +28082,13 @@ function ExonaApp() {
                 </div>
                 <SidebarItem 
                   icon={Home} 
-                  label="Chats" 
+                  label="Home" 
                   active={view === 'feed'} 
                   onClick={() => { setView('feed'); setSidebarOpen(false); }} 
                 />
                 <SidebarItem 
-                  icon={Sparkles} 
-                  label="Exona AI" 
+                  icon={Radio} 
+                  label="Feed" 
                   active={view === 'schools'} 
                   onClick={() => { setView('schools'); setSidebarOpen(false); }} 
                 />
@@ -28468,7 +28240,7 @@ function ExonaApp() {
               onClick={() => setView('schools')}
               className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
             >
-              <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Exona AI</span>
+              <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Feed</span>
               {view === 'schools' && (
                 <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
               )}
@@ -29555,6 +29327,233 @@ function ExonaApp() {
             </motion.div>
           </motion.div>
         )}
+
+        {/* Exona AI Chatbot Modal */}
+        <AnimatePresence>
+          {isExonaAiModalOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4 sm:p-6"
+            >
+              <motion.div 
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 max-w-4xl w-full h-[90vh] md:h-[80vh] flex flex-col overflow-hidden relative select-none"
+              >
+                {/* Modal Header */}
+                <div className="p-6 pb-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
+                      <Sparkles size={22} />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">
+                        Exona AI
+                      </h2>
+                      <p className="text-muted text-[10px] font-bold uppercase tracking-widest leading-none">
+                        Advanced AI Partner Desk
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Reset session button */}
+                    <button 
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to clear your current Exona AI chat session?")) {
+                          setExonaAiChat([
+                            {
+                              sender: 'ai',
+                              text: "Welcome to **Exona AI**. I am your advanced, high-end artificial intelligence partner.\n\nHow can I elevate your day? Select one of our premium task presets or message me directly.",
+                              timestamp: new Date()
+                            }
+                          ]);
+                          setExonaAiError(null);
+                        }
+                      }}
+                      title="Clear Chat Session"
+                      className="p-2 sm:px-4 sm:py-2 text-[11px] font-bold text-muted hover:text-accent hover:border-accent/10 rounded-xl transition-all border border-gray-100 flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={12} />
+                      <span className="hidden sm:inline">Clear Session</span>
+                    </button>
+
+                    {/* Close button */}
+                    <button 
+                      onClick={() => setIsExonaAiModalOpen(false)}
+                      className="h-10 w-10 rounded-xl hover:bg-slate-50 border border-gray-100 text-slate-500 hover:text-slate-900 transition-colors flex items-center justify-center animate-none"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Body (Scrollable Chat & Presets) */}
+                <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
+                  {/* Chat Conversation Stream */}
+                  <div className="space-y-6 flex-1">
+                    {exonaAiChat.map((msg, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                      >
+                        {/* Avatar Element */}
+                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${msg.sender === 'user' ? 'bg-indigo-50 text-indigo-600' : 'bg-accent/10 text-accent'}`}>
+                          {msg.sender === 'user' ? (
+                            user?.photoURL ? (
+                              <img src={user.photoURL} className="h-full w-full object-cover rounded-xl" />
+                            ) : (
+                              user?.displayName?.charAt(0) || 'U'
+                            )
+                          ) : (
+                            <Sparkles size={16} />
+                          )}
+                        </div>
+
+                        {/* Chat Bubble Layout */}
+                        <div className="max-w-[80%]">
+                          <div className={`p-5 rounded-2xl text-[14px] leading-relaxed ${
+                            msg.sender === 'user'
+                              ? 'bg-ink text-white rounded-tr-none' 
+                              : 'bg-gray-50 text-ink rounded-tl-none border border-gray-100/50'
+                          }`}>
+                            {msg.sender === 'ai' ? (
+                              <div className="markdown-body prose prose-slate max-w-none text-ink text-[14px]">
+                                <Markdown>{msg.text}</Markdown>
+                              </div>
+                            ) : (
+                              <p className="whitespace-pre-line">{msg.text}</p>
+                            )}
+                          </div>
+                          <span className="text-[9px] text-muted/50 font-medium font-mono mt-1.5 block">
+                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+
+                    {/* AI Loading state placeholder */}
+                    {exonaAiLoading && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex gap-4"
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                          <Sparkles size={16} className="animate-spin" />
+                        </div>
+                        <div className="bg-gray-50 text-muted p-5 rounded-2xl rounded-tl-none border border-gray-100/50 max-w-[80%] flex items-center gap-3">
+                          <span className="text-xs font-semibold uppercase tracking-wider">Exona AI is thinking</span>
+                          <div className="flex gap-1">
+                            <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {/* Error Banner */}
+                    {exonaAiError && (
+                      <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-3 text-xs font-bold">
+                        <AlertTriangle size={16} />
+                        <span>{exonaAiError}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Smart Presets Bento Row */}
+                  <div className="pt-6 border-t border-gray-100">
+                    <h3 className="text-[11px] font-black text-accent uppercase tracking-[0.25em] mb-4 px-1">
+                      AI Preset Triggers
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {[
+                        {
+                          title: "Announcement Draft",
+                          description: "Compose a beautiful formal community update.",
+                          prompt: "Compose a beautiful, formal, high-impact community and institution update. Mention milestone achievements and maintain an inspiring community tone."
+                        },
+                        {
+                          title: "Story Video Script",
+                          description: "Generate a premium 3-slide status script.",
+                          prompt: "Generate a beautifully structured, highly visual 3-slide storytelling status script for Sunnah TV and modern stream channels."
+                        },
+                        {
+                          title: "Workspace Balance Strategy",
+                          description: "Analyze budgeting & digital records setup.",
+                          prompt: "Write a high-end strategic overview for organizing school records and tracking daily routines within a cloud platform."
+                        },
+                        {
+                          title: "Platform AI Integration",
+                          description: "Explore localized AI benefits & use cases.",
+                          prompt: "Provide an elegant, authoritative assessment of using integrated AI to bridge community networks with technical workspaces."
+                        }
+                      ].map((p, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => {
+                            if (!exonaAiLoading) {
+                              handleSendExonaAiMessage(p.prompt);
+                            }
+                          }}
+                          disabled={exonaAiLoading}
+                          className="p-4 text-left bg-slate-50 hover:bg-slate-100/50 border border-slate-100/70 rounded-2xl transition-all duration-200 flex flex-col justify-between group disabled:opacity-60"
+                        >
+                          <div>
+                            <h4 className="font-bold text-ink text-[13.5px] mb-1 tracking-tight group-hover:text-accent transition-colors">
+                              {p.title}
+                            </h4>
+                            <p className="text-[11.5px] text-muted font-medium pr-4 leading-relaxed">
+                              {p.description}
+                            </p>
+                          </div>
+                          <div className="flex justify-end mt-3">
+                            <span className="text-[9.5px] bg-white group-hover:bg-accent group-hover:text-white border border-gray-100 px-2.5 py-1 rounded-lg text-muted font-semibold uppercase tracking-wider transition-all">
+                              Execute Preset →
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Chat Input Area */}
+                <div className="p-4 sm:p-6 bg-slate-50 border-t border-gray-100 flex gap-3 items-center shrink-0">
+                  <input
+                    type="text"
+                    placeholder="Ask Exona AI anything..."
+                    value={exonaAiInput}
+                    onChange={(e) => setExonaAiInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSendExonaAiMessage();
+                      }
+                    }}
+                    disabled={exonaAiLoading}
+                    className="flex-1 px-5 py-3.5 bg-white border border-gray-100 focus:border-accent/20 rounded-2xl outline-none transition-all text-sm font-sans placeholder:text-muted/40 text-ink text-[14px]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSendExonaAiMessage()}
+                    disabled={exonaAiLoading || !exonaAiInput.trim()}
+                    className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition-all font-bold shrink-0"
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       {/* Floating Action Buttons (WhatsApp Style - Floating Bottom Right) */}
       <AnimatePresence>
         {showFABs && view === 'feed' && (
@@ -29566,7 +29565,7 @@ function ExonaApp() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0, opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
-              onClick={() => setView('schools')}
+              onClick={() => setIsExonaAiModalOpen(true)}
               className="h-12 w-12 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-lg shadow-purple-500/25 border border-white/20 hover:scale-105 active:scale-95 transition-all outline-none"
               title="Exona AI"
             >
