@@ -28263,54 +28263,58 @@ function ExonaApp() {
       )}
 
       {/* Main Area */}
-      <main 
-        ref={scrollContainerRef}
-        className={`flex-1 ${['institution-channel', 'chat', 'records', 'school-feed', 'classroom'].includes(view) ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'} bg-card relative`}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onScroll={(e) => {
-          if (refreshing) return;
-          const currentScrollTop = e.currentTarget.scrollTop;
-          if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
-            setShowFABs(false);
-          } else if (currentScrollTop < lastScrollTop.current - 8) {
-            setShowFABs(true);
-          }
-          lastScrollTop.current = currentScrollTop;
-        }}
-      >
-        <AnimatePresence>
-          {(refreshing || pullDistance > 0) && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ 
-                height: refreshing ? 80 : Math.min(pullDistance, 100),
-                opacity: 1 
-              }}
-              exit={{ height: 0, opacity: 0 }}
-              className="w-full flex items-center justify-center overflow-hidden bg-gray-50/50"
-            >
-              <div className="flex flex-col items-center gap-2">
+      {(() => {
+        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools'].includes(view);
+        return (
+          <main 
+            ref={scrollContainerRef}
+            className={`flex-1 ${isFixedLayoutView ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'} bg-card relative`}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onScroll={(e) => {
+              if (refreshing) return;
+              const currentScrollTop = e.currentTarget.scrollTop;
+              if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
+                setShowFABs(false);
+              } else if (currentScrollTop < lastScrollTop.current - 8) {
+                setShowFABs(true);
+              }
+              lastScrollTop.current = currentScrollTop;
+            }}
+          >
+            <AnimatePresence>
+              {(refreshing || pullDistance > 0) && (
                 <motion.div 
-                  animate={{ rotate: refreshing ? 360 : pullDistance * 2 }}
-                  transition={{ repeat: refreshing ? Infinity : 0, duration: 1, ease: "linear" }}
-                  className="text-accent"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ 
+                    height: refreshing ? 80 : Math.min(pullDistance, 100),
+                    opacity: 1 
+                  }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="w-full flex items-center justify-center overflow-hidden bg-gray-50/50"
                 >
-                  <Repeat size={24} className={refreshing ? "animate-pulse" : ""} />
+                  <div className="flex flex-col items-center gap-2">
+                    <motion.div 
+                      animate={{ rotate: refreshing ? 360 : pullDistance * 2 }}
+                      transition={{ repeat: refreshing ? Infinity : 0, duration: 1, ease: "linear" }}
+                      className="text-accent"
+                    >
+                      <Repeat size={24} className={refreshing ? "animate-pulse" : ""} />
+                    </motion.div>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
+                      {refreshing ? 'Updating Terminal...' : pullDistance > 70 ? 'Release to refresh' : 'Pull to update'}
+                    </p>
+                  </div>
                 </motion.div>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
-                  {refreshing ? 'Updating Terminal...' : pullDistance > 70 ? 'Release to refresh' : 'Pull to update'}
-                </p>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              )}
+            </AnimatePresence>
 
-        <motion.div
-          className="w-full relative"
-          style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
-        >
+            <motion.div
+              className={`w-full relative ${isFixedLayoutView ? 'h-full flex flex-col overflow-hidden min-h-0' : ''}`}
+              style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
+            >
+
           {isViewLoading ? (
             <div className="w-full min-h-[60vh] flex flex-col justify-start pt-16 px-4 md:px-8 space-y-8 pb-32">
               {/* GitHub/Facebook Thin Indeterminate Loading Line on Top */}
@@ -28378,8 +28382,10 @@ function ExonaApp() {
           ) : (
             renderView()
           )}
-        </motion.div>
-      </main>
+         </motion.div>
+       </main>
+      );
+     })()}
 
       {user && !['splash', 'login', 'onboarding'].includes(view) && showWealthFloatingChip && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-3 no-print p-2">
