@@ -4263,6 +4263,7 @@ function ExonaApp() {
   const [isAddingSubFolder, setIsAddingSubFolder] = useState(false);
   const [newSubFolderName, setNewSubFolderName] = useState('');
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [isRecordsMenuOpen, setIsRecordsMenuOpen] = useState(false);
   const [categorySearchQuery, setCategorySearchQuery] = useState('');
   const [recordViewMode, setRecordViewMode] = useState<'classic' | 'microsoft' | 'bento'>('classic');
   const [hasChosenView, setHasChosenView] = useState(false);
@@ -14361,210 +14362,211 @@ function ExonaApp() {
         }
 
         return (
-          <WordLayout 
-            title="Institutional Records"
-            subtitle={labels.system}
-            icon={Database}
-            branding={{ name: selectedSchool.name }}
-            showNotification={showNotification}
-            handlePrint={handlePrint}
-            hideOfficialBadge={true}
-            hideSaveImage={true}
-            hideBranding={true}
-            hideIcon={true}
-            toolbar={
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                <div className="flex gap-1 items-center bg-white border border-gray-100 p-1 rounded-lg">
-                  <button onClick={() => setView('school-feed')} className="px-3 sm:px-4 py-1.5 bg-gray-50 text-ink rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all">Back</button>
-                  {canManageInstitution(selectedSchool) && (
-                    <button 
-                      onClick={() => setIsCategoryManagerOpen(true)} 
-                      className="px-3 sm:px-4 py-1.5 bg-white text-accent rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center gap-2"
-                    >
-                      <List size={12} /> Categories
-                    </button>
-                  )}
-                  {canManageInstitution(selectedSchool) && (
-                    <label className="px-3 sm:px-4 py-1.5 bg-accent text-white rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:bg-accent/90 transition-all flex items-center gap-2 cursor-pointer">
-                      {isAiScanning ? (
-                        <RefreshCw size={12} className="animate-spin" />
-                      ) : (
-                        <Scan size={12} />
-                      )}
-                      Scan Records
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={(e) => handleScanFileSelection(e, 'records')} 
-                      />
-                    </label>
-                  )}
-                  <button 
-                    onClick={() => {
-                      setP2pSyncRole('export');
-                      setIsP2pSyncModalOpen(true);
-                    }}
-                    className="px-3 sm:px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider transition-all flex items-center gap-2"
-                  >
-                    <Share2 size={12} /> Device Sync
-                  </button>
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={() => setIsCategoryDropdownOpen(!isCategoryDropdownOpen)}
-                    className="flex items-center gap-2 px-3 sm:px-4 py-1.5 bg-white border border-gray-100 rounded-lg font-bold text-[9px] sm:text-[10px] uppercase tracking-wider hover:border-accent hover:text-accent transition-all active:scale-95 text-ink shadow-sm"
-                  >
-                    <Folder size={12} className="text-accent" />
-                    <span>Category:</span>
-                    <span className="text-accent bg-accent/5 px-2 py-0.5 rounded-md font-extrabold font-mono">
+          <div className="flex flex-col h-full bg-slate-50/50 overflow-hidden">
+            {/* Elegant Compact Title Bar */}
+            <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between no-print shrink-0">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setView('school-feed')}
+                  className="p-1.5 hover:bg-gray-100 rounded-xl transition-all text-ink flex items-center justify-center cursor-pointer"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <div>
+                  <h1 className="text-[10px] font-black uppercase text-muted tracking-widest leading-none mb-1">{selectedSchool?.name}</h1>
+                  <h2 className="text-xs font-bold text-ink flex items-center gap-1.5 leading-none">
+                    <Database size={12} className="text-accent" />
+                    <span>Records</span>
+                    <span className="text-[8px] bg-accent/10 text-accent px-1.5 py-0.5 rounded-md font-extrabold font-mono uppercase">
                       {((labels as any)[recordTab] || recordTab).toUpperCase()}
                     </span>
-                    <ChevronDown size={12} className={`text-muted transition-transform duration-200 ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  <AnimatePresence>
-                    {isCategoryDropdownOpen && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-[110]" 
-                          onClick={() => {
-                            setIsCategoryDropdownOpen(false);
-                            setCategorySearchQuery('');
-                          }} 
-                        />
-                        
-                        <motion.div
-                          initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          transition={{ duration: 0.15 }}
-                          className="absolute left-0 mt-2 z-[120] w-64 bg-white border border-gray-100 shadow-2xl rounded-2xl p-3 flex flex-col gap-2"
-                        >
-                          <div className="flex items-center gap-2 pb-2 border-b border-gray-50">
-                            <span className="text-[10px] font-black uppercase text-muted tracking-widest flex items-center gap-1">
-                              📁 Categories Folder
-                            </span>
-                            <span className="text-[9px] ml-auto bg-gray-100 text-muted px-1.5 py-0.5 rounded-full font-mono font-bold">
-                              {currentRecordTabs.length} Total
-                            </span>
-                          </div>
-
-                          {currentRecordTabs.length > 5 && (
-                            <div className="relative">
-                              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-                              <input
-                                type="text"
-                                placeholder="Search category..."
-                                value={categorySearchQuery}
-                                onChange={(e) => setCategorySearchQuery(e.target.value)}
-                                className="w-full pl-8 pr-3 py-1 bg-gray-50 text-[10px] font-bold rounded-lg border border-transparent focus:border-accent/20 outline-none placeholder:text-muted/70"
-                              />
-                            </div>
-                          )}
-
-                          <div className="max-h-60 overflow-y-auto flex flex-col gap-1 pr-1 custom-scrollbar">
-                            {(() => {
-                              const filtered = currentRecordTabs.filter(tab => {
-                                const label = ((labels as any)[tab] || tab).toLowerCase();
-                                return label.includes(categorySearchQuery.toLowerCase());
-                              });
-
-                              if (filtered.length === 0) {
-                                return (
-                                  <div className="py-6 text-center text-muted font-bold text-[10px] uppercase">
-                                    No categories found
-                                  </div>
-                                );
-                              }
-
-                              return filtered.map(tab => {
-                                const isSelected = recordTab === tab;
-                                return (
-                                  <button
-                                    key={tab}
-                                    onClick={() => {
-                                      setRecordTab(tab);
-                                      setSelectedSubFolder(null);
-                                      setIsCategoryDropdownOpen(false);
-                                      setCategorySearchQuery('');
-                                    }}
-                                    className={`w-full text-left px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider flex items-center justify-between transition-all duration-150 ${
-                                      isSelected 
-                                        ? 'bg-ink text-white shadow-md shadow-black/10' 
-                                        : 'text-muted hover:text-ink hover:bg-gray-50'
-                                    }`}
-                                  >
-                                    <span className="truncate">{(labels as any)[tab] || tab}</span>
-                                    {isSelected && <Check size={12} strokeWidth={3} />}
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
-                </div>
-                <div className="hidden sm:block h-6 w-[1px] bg-gray-100" />
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center bg-white border border-gray-100 p-1 rounded-lg">
-                    <div className="px-2 text-muted mr-1 border-r border-gray-50">
-                      <ArrowUpDown size={10} />
-                    </div>
-                    {(['alphabet', 'department', 'amount', 'date'] as const).map(s => (
-                      <button 
-                        key={s}
-                        onClick={() => setRecordSort(s)}
-                        className={`px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-all ${recordSort === s ? 'bg-gray-50 text-ink' : 'text-muted hover:text-ink'}`}
-                      >
-                        {s === 'alphabet' ? 'A-Z' : s === 'department' ? 'Dept' : s === 'amount' ? 'Paid' : 'Date'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center bg-gray-50 p-1 rounded-xl border border-gray-100">
-                    {(['classic', 'microsoft', 'bento'] as const).map(mode => (
-                      <button 
-                        key={mode}
-                        onClick={() => setRecordViewMode(mode)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${recordViewMode === mode ? 'bg-white text-accent ring-1 ring-black/5' : 'text-muted hover:text-ink'}`}
-                      >
-                        {mode === 'classic' && <LayoutList size={12} strokeWidth={2.5} />}
-                        {mode === 'microsoft' && <TableProperties size={12} strokeWidth={2.5} />}
-                        {mode === 'bento' && <LayoutGrid size={12} strokeWidth={2.5} />}
-                        <span className="hidden lg:inline">{mode === 'microsoft' ? 'exonasoft word' : mode}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="relative group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-ink transition-colors" size={14} />
-                    <input 
-                      type="text" 
-                      placeholder="Search..." 
-                      value={recordSearch}
-                      onChange={(e) => setRecordSearch(e.target.value)}
-                      className="pl-9 pr-4 py-1.5 bg-white border border-gray-200 rounded-lg focus:ring-0 outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-32 sm:w-48" 
-                    />
-                  </div>
-                  {canManageInstitution(selectedSchool) && (
-                    <button 
-                      onClick={openNewRecordModal}
-                      className="flex items-center gap-3 px-6 py-2 bg-ink text-white rounded-full font-black text-[9px] uppercase tracking-[0.3em] hover:bg-ink/90 transition-all active:scale-95 group"
-                    >
-                      <Plus size={14} strokeWidth={2.5} className="group-hover:rotate-90 transition-transform duration-500" />
-                      Add Record
-                    </button>
-                  )}
+                  </h2>
                 </div>
               </div>
-            }
-          >
-            <div className="mb-8 border-b border-gray-100 pb-6">
-              <p className="text-muted text-xs font-bold uppercase tracking-[0.3em]">{(labels as any)[recordTab] || recordTab} Records • {new Date().toLocaleDateString()}</p>
+
+              {/* Header Right Quick Controls */}
+              <div className="flex items-center gap-1.5">
+                <div className="relative flex items-center">
+                  <Search className="absolute left-2.5 text-muted pointer-events-none" size={12} />
+                  <input 
+                    type="text" 
+                    placeholder="Search..." 
+                    value={recordSearch}
+                    onChange={(e) => setRecordSearch(e.target.value)}
+                    className="pl-7 pr-3 py-1 bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 focus:border-accent rounded-lg focus:bg-white outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-24 sm:w-36 focus:w-32 sm:focus:w-44" 
+                  />
+                </div>
+
+                {/* Filters/Actions Control Icon - Toggle filters sheet */}
+                <button
+                  onClick={() => setIsRecordsMenuOpen(!isRecordsMenuOpen)}
+                  className={`p-1.5 rounded-xl transition-all flex items-center justify-center relative border cursor-pointer ${isRecordsMenuOpen ? 'bg-accent/10 text-accent border-accent/20' : 'text-muted hover:text-ink hover:bg-slate-50 border-gray-100 bg-white'}`}
+                  title="Configure view, sorting and tools"
+                >
+                  <SlidersHorizontal size={14} />
+                  {/* Small active badge count of non-default filters */}
+                  {(recordSort !== 'alphabet' || recordViewMode !== 'classic' || recordTab !== 'all') && (
+                    <span className="absolute top-1 right-1 h-1.5 w-1.5 bg-accent rounded-full ring-1 ring-white" />
+                  )}
+                </button>
+
+                {/* Add record header button */}
+                {canManageInstitution(selectedSchool) && (
+                  <button 
+                    onClick={openNewRecordModal}
+                    className="p-1.5 bg-ink text-white hover:bg-accent rounded-xl transition-all flex items-center justify-center cursor-pointer"
+                    title="Add Record"
+                  >
+                    <Plus size={14} strokeWidth={2.5} />
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Custom Control panel drawer (the Filter & actions Sheet) */}
+            <AnimatePresence>
+              {isRecordsMenuOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 bg-black/20 z-[100] no-print" 
+                    onClick={() => setIsRecordsMenuOpen(false)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="absolute top-[49px] left-0 right-0 bg-white border-b border-gray-200 shadow-xl z-[101] px-4 py-5 flex flex-col gap-5 no-print"
+                  >
+                    {/* Categories Group list folder picker */}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase text-muted tracking-widest flex items-center gap-1">
+                          📁 Select Category Folder
+                        </span>
+                        {canManageInstitution(selectedSchool) && (
+                          <button 
+                            onClick={() => { setIsCategoryManagerOpen(true); setIsRecordsMenuOpen(false); }}
+                            className="text-[9px] font-black uppercase text-accent hover:underline flex items-center gap-1"
+                          >
+                            <List size={10} /> Edit categories
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                        {currentRecordTabs.map(tab => {
+                          const isSelected = recordTab === tab;
+                          return (
+                            <button
+                              key={tab}
+                              onClick={() => {
+                                setRecordTab(tab);
+                                setSelectedSubFolder(null); // Reset subfolder on tab change
+                              }}
+                              className={`px-3 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                                isSelected 
+                                  ? 'bg-ink text-white' 
+                                  : 'bg-gray-50 text-muted hover:text-ink hover:bg-gray-150'
+                              }`}
+                            >
+                              {(labels as any)[tab] || tab}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Sort selection */}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase text-muted tracking-widest flex items-center gap-1">
+                          <ArrowUpDown size={10} /> Sort Order
+                        </span>
+                        <div className="grid grid-cols-2 gap-1 bg-gray-50 p-1 rounded-xl">
+                          {(['alphabet', 'department', 'amount', 'date'] as const).map(s => (
+                            <button 
+                              key={s}
+                              onClick={() => setRecordSort(s)}
+                              className={`py-1.5 text-[9px] font-bold uppercase tracking-wider rounded-lg text-center transition-all cursor-pointer ${recordSort === s ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                            >
+                              {s === 'alphabet' ? 'A-Z' : s === 'department' ? 'Dept' : s === 'amount' ? 'Paid' : 'Date'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* View mode selection */}
+                      <div className="flex flex-col gap-2">
+                        <span className="text-[10px] font-black uppercase text-muted tracking-widest flex items-center gap-1">
+                          <LayoutGrid size={10} /> View Layout
+                        </span>
+                        <div className="grid grid-cols-3 gap-1 bg-gray-50 p-1 rounded-xl">
+                          {(['classic', 'microsoft', 'bento'] as const).map(mode => (
+                            <button 
+                              key={mode}
+                              onClick={() => setRecordViewMode(mode)}
+                              className={`flex items-center justify-center gap-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${recordViewMode === mode ? 'bg-white text-accent shadow-sm' : 'text-muted hover:text-ink'}`}
+                            >
+                              {mode === 'classic' && <LayoutList size={10} strokeWidth={2.5} />}
+                              {mode === 'microsoft' && <TableProperties size={10} strokeWidth={2.5} />}
+                              {mode === 'bento' && <LayoutGrid size={10} strokeWidth={2.5} />}
+                              <span className="text-[8px]">{mode === 'microsoft' ? 'word' : mode}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Operational Utilities (Scan PDF Sync, Print) */}
+                    <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+                      {canManageInstitution(selectedSchool) && (
+                        <label className="px-3 py-1.5 bg-accent/5 hover:bg-accent/10 border border-accent/10 text-accent rounded-xl font-bold text-[9px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer border-dashed border-gray-200">
+                          {isAiScanning ? (
+                            <RefreshCw size={10} className="animate-spin" />
+                          ) : (
+                            <Scan size={10} />
+                          )}
+                          Scan records
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => { handleScanFileSelection(e, 'records'); setIsRecordsMenuOpen(false); }} 
+                          />
+                        </label>
+                      )}
+
+                      <button 
+                        onClick={() => {
+                          setP2pSyncRole('export');
+                          setIsP2pSyncModalOpen(true);
+                          setIsRecordsMenuOpen(false);
+                        }}
+                        className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl font-bold text-[9px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <Share2 size={12} /> Device sync
+                      </button>
+
+                      <button 
+                        onClick={() => { handlePrint(); setIsRecordsMenuOpen(false); }}
+                        className="px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-muted hover:text-ink rounded-xl font-bold text-[9px] uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer"
+                      >
+                        <Printer size={12} /> Print
+                      </button>
+
+                      <button
+                        onClick={() => setIsRecordsMenuOpen(false)}
+                        className="ml-auto px-4 py-1.5 bg-ink text-white font-bold text-[9px] uppercase tracking-wider rounded-xl hover:bg-ink/90 cursor-pointer"
+                      >
+                        Apply Filters
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* Main Content Area */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-6">
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mb-12">
               {[
@@ -15169,7 +15171,8 @@ function ExonaApp() {
                 <div className="h-8 w-32 border-b border-gray-200" />
               </div>
             </div>
-          </WordLayout>
+          </div>
+        </div>
         );
       }
       case 'finance': {
@@ -28183,7 +28186,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!['institution-channel', 'school-feed', 'institution-profile', 'chat'].includes(view) && (
+      {!['institution-channel', 'school-feed', 'institution-profile', 'chat', 'records'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
