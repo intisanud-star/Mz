@@ -2926,9 +2926,9 @@ const WordLayout = ({
   };
 
   return (
-    <div className="flex flex-col bg-white">
+    <div className="flex flex-col bg-white h-full overflow-hidden">
       {/* Ribbon Header */}
-      <div className="bg-white border-b border-gray-200 z-20 sticky top-0 no-print">
+      <div className="bg-white border-b border-gray-200 z-20 shrink-0 no-print">
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3 md:gap-4">
             {!hideIcon && (
@@ -2972,7 +2972,7 @@ const WordLayout = ({
       </div>
 
       {/* Canvas Area */}
-      <div className="p-0 sm:p-4 md:p-8 lg:p-12 flex justify-center bg-gray-50/30">
+      <div className="p-0 sm:p-4 md:p-8 lg:p-12 flex justify-center bg-gray-50/30 flex-1 overflow-y-auto">
         <motion.div 
           ref={contentRef}
           initial={{ opacity: 0, y: 20 }}
@@ -13554,15 +13554,16 @@ function ExonaApp() {
         const canSeeContent = isFollowing || isManager || isAdmin;
 
         return (
-          <div className="w-full max-w-xl mx-auto pt-4 pb-32 px-4">
-            <div className="flex flex-col gap-4 mb-6">
-              <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100">
+          <div className="w-full h-full max-w-xl mx-auto bg-[#eef2f5] flex flex-col overflow-hidden pb-0">
+            {/* WhatsApp/Telegram Style Pinned Header & Tabs / Action Bar */}
+            <div className="bg-white border-b border-gray-150 p-3 shrink-0 flex flex-col gap-3 select-none">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <button onClick={() => setView('schools')} className="p-2 hover:bg-white border border-transparent hover:border-gray-100 rounded-full transition-colors text-accent">
-                    <ChevronRight size={24} className="rotate-180" />
+                  <button onClick={() => setView('schools')} className="p-1 hover:bg-gray-100 rounded-full transition-colors text-slate-600">
+                    <ChevronLeft size={24} />
                   </button>
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
                       {selectedSchool.logo ? (
                         <img src={selectedSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                       ) : (
@@ -13570,18 +13571,18 @@ function ExonaApp() {
                       )}
                     </div>
                     <div>
-                      <h2 className="font-bold text-ink text-base leading-tight">{selectedSchool.name}</h2>
-                      <p className="text-[10px] text-muted font-bold">Online</p>
+                      <h2 className="font-bold text-ink text-sm leading-tight truncate max-w-[150px] sm:max-w-xs">{selectedSchool.name}</h2>
+                      <p className="text-[10px] text-green-500 font-bold uppercase tracking-tight">Online</p>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-ink">
                   {user && !isManager && !isAdmin && (
                     <>
                       {isFollowing ? (
                         <button 
                           onClick={() => handleUnfollowInstitution(selectedSchool)}
-                          className="px-4 py-2 bg-green-50 border border-green-100 text-green-700 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
+                          className="px-3 py-1.5 bg-green-50 border border-green-100 text-green-700 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all group"
                         >
                           <span className="group-hover:hidden flex items-center gap-1">✓ Followed</span>
                           <span className="hidden group-hover:inline">Unfollow</span>
@@ -13589,14 +13590,14 @@ function ExonaApp() {
                       ) : selectedSchool.pendingFollowers?.includes(user.uid) ? (
                         <button 
                           disabled
-                          className="px-4 py-2 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed animate-pulse"
+                          className="px-3 py-1.5 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[10px] font-bold uppercase tracking-widest cursor-not-allowed animate-pulse"
                         >
                           Pending
                         </button>
                       ) : (
                         <button 
                           onClick={() => handleFollowInstitution(selectedSchool)}
-                          className="px-4 py-2 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
+                          className="px-3 py-1.5 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-colors"
                         >
                           Follow
                         </button>
@@ -13615,22 +13616,25 @@ function ExonaApp() {
               </div>
 
               {(isManager || isFollowing || isAdmin) && (
-                <div className="flex bg-white p-1 rounded-xl border border-gray-100">
+                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-150">
                   <button 
                     onClick={() => setSchoolFeedTab('feed')}
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'feed' ? 'bg-ink text-white' : 'text-muted hover:bg-gray-50'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'feed' ? 'bg-white text-ink shadow-sm border border-gray-200/50' : 'text-muted hover:bg-gray-100'}`}
                   >
                     Feed
                   </button>
                   <button 
                     onClick={() => setSchoolFeedTab('manage')}
-                    className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'manage' ? 'bg-ink text-white' : 'text-muted hover:bg-gray-50'}`}
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'manage' ? 'bg-white text-ink shadow-sm border border-gray-200/50' : 'text-muted hover:bg-gray-100'}`}
                   >
                     {isManager || isAdmin ? 'Manage' : 'Offline Workspace'}
                   </button>
                 </div>
               )}
             </div>
+
+            {/* Scrollable Contents Pane */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-32">
 
             {schoolFeedTab === 'feed' && isManager && (
               <div className="mb-6 bg-white p-4 rounded-2xl border border-gray-100">
@@ -14011,6 +14015,7 @@ function ExonaApp() {
                 </div>
               </>
             )}
+            </div>
           </div>
         );
       }
@@ -21182,7 +21187,7 @@ function ExonaApp() {
             .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
 
           return (
-            <div className="flex flex-col min-h-screen w-full bg-[#eef2f5] relative select-none overflow-hidden pb-12">
+            <div className="flex flex-col h-full w-full max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-0">
               {/* Group Settings Modal */}
               {isGroupSettingsOpen && activeGroup && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
@@ -28260,7 +28265,7 @@ function ExonaApp() {
       {/* Main Area */}
       <main 
         ref={scrollContainerRef}
-        className={`flex-1 ${view === 'institution-channel' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'} bg-card relative`}
+        className={`flex-1 ${['institution-channel', 'chat', 'records', 'school-feed', 'classroom'].includes(view) ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'} bg-card relative`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
