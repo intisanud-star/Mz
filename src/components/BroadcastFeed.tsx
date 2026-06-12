@@ -236,11 +236,7 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
       };
     });
 
-    let combined = [...postFeed, ...broadcastFeed];
-
-    if (filterMode === 'following') {
-      combined = combined.filter(item => item.isFollowed || item.isMine);
-    }
+    let combined = [...postFeed, ...broadcastFeed].filter(item => item.isMine || item.isFollowed);
 
     // Live/Official items always sort high, followed by timestamp descending
     return combined.sort((a, b) => {
@@ -393,34 +389,8 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
 
       {/* 2. TOP FILTER BAR AND SOUND SYSTEM */}
       <div className="flex items-center justify-between border border-gray-150 bg-white/80 backdrop-blur-md sticky top-0 z-40 py-2.5 px-4 rounded-3xl mb-5 shadow-sm">
-        <div className="flex items-center gap-1 bg-gray-100/70 p-1 rounded-2xl border border-gray-100">
-          <button
-            onClick={() => setFilterMode('explore')}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none ${
-              filterMode === 'explore'
-                ? 'bg-ink text-white shadow-sm'
-                : 'text-muted hover:text-ink hover:bg-white'
-            }`}
-          >
-            Explore
-          </button>
-          
-          <button
-            onClick={() => {
-              if (!user) {
-                showNotification('Authorized login required to view active subscribers feed', 'error');
-                return;
-              }
-              setFilterMode('following');
-            }}
-            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none ${
-              filterMode === 'following'
-                ? 'bg-ink text-white shadow-sm'
-                : 'text-muted hover:text-ink hover:bg-white'
-            }`}
-          >
-            Following
-          </button>
+        <div className="flex items-center gap-1 bg-gray-100/70 py-1 px-3 rounded-2xl border border-gray-100">
+          <span className="text-[11px] font-black uppercase tracking-wider text-slate-750">My Feed</span>
         </div>
 
         {/* Global Sound Control Trigger */}

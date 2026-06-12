@@ -11776,7 +11776,7 @@ function ExonaApp() {
   // 6. Posts & Personalized Social Feed Listener
   useEffect(() => {
     if (isQuotaExceeded || !user || !userDoc) return;
-    if (!['feed', 'school-feed', 'institution-profile'].includes(view)) return;
+    if (!['feed', 'school-feed', 'institution-profile', 'profile', 'user-profile'].includes(view)) return;
 
     let unsubPosts = () => {};
 
@@ -11785,7 +11785,7 @@ function ExonaApp() {
       ...schools.filter(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)).map(s => s.id),
       ...places.filter(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid)).map(p => p.id)
     ];
-    const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id, selectedInstitutionForProfile?.id].filter(Boolean))];
+    const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id, selectedInstitutionForProfile?.id, selectedUserProfile?.uid].filter(Boolean))];
     
     if (relevantIds.length > 0) {
       const limitedIds = relevantIds.slice(0, 30);
@@ -11840,7 +11840,7 @@ function ExonaApp() {
     }
 
     return () => unsubPosts();
-  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, selectedInstitutionForProfile?.id, postsLimit, isQuotaExceeded, view]);
+  }, [user?.uid, (userDoc?.following || []).join(','), managedIdsTracker, selectedSchool?.id, selectedInstitutionForProfile?.id, selectedUserProfile?.uid, postsLimit, isQuotaExceeded, view]);
 
   const handleLoadMore = () => {
     if (isLoadingMore || !hasMorePosts) return;
@@ -25150,94 +25150,81 @@ function ExonaApp() {
                       );
                     }
                     return (
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
                         {myPosts.map((post) => {
-                          const isPostLiked = user && (post.likedBy?.includes(user.uid) || fallbackPostLikes[post.id]?.likedBy?.includes(user.uid));
-                          const postLikesCount = (post.likedBy?.length || post.likes || 0);
+                          const hasImage = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
+                          const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                          const isMulti = post.mediaUrls && post.mediaUrls.length > 1;
+                          const viewsCount = ((post.likes || 0) * 14 + 11);
+                          const displayDate = (() => {
+                            if (!post.timestamp) return 'Broadcast';
+                            try {
+                              const d = typeof post.timestamp.toDate === 'function' ? post.timestamp.toDate() : new Date(post.timestamp);
+                              return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                            } catch (e) {
+                              return 'Broadcast';
+                            }
+                          })();
 
                           return (
-                            <div key={post.id} className="p-5 bg-white border border-gray-100 rounded-[2rem] shadow-sm hover:border-gray-200 transition-all">
-                              {/* Header */}
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                  <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center">
-                                    {post.authorPhoto || userDoc?.photoURL || user.photoURL ? (
-                                      <img src={post.authorPhoto || userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="" />
-                                    ) : (
-                                      <span className="text-sm font-bold text-muted">{post.authorName?.charAt(0) || user.displayName?.charAt(0)}</span>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <h4 className="text-sm font-bold text-ink">{post.authorName || user.displayName}</h4>
-                                    <p className="text-[10px] text-muted font-bold uppercase tracking-tight">
-                                      {formatProfileTimestamp(post.timestamp)}
-                                    </p>
-                                  </div>
+                            <div 
+                              key={post.id} 
+                              className="relative aspect-square group cursor-pointer overflow-hidden bg-white border border-gray-100 rounded-lg md:rounded-2xl shadow-sm transition-transform active:scale-[0.98] select-none"
+                              onClick={() => setSelectedPostInGrid(post)}
+                            >
+                              {/* Grid Cell content */}
+                              {hasImage ? (
+                                <div className="h-full w-full">
+                                  <img 
+                                    src={post.mediaUrls?.[0] || post.mediaUrl} 
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" 
+                                    referrerPolicy="no-referrer" 
+                                    alt="Post media" 
+                                  />
                                 </div>
-
-                                <button 
-                                  onClick={async () => {
-                                    if (confirm("Are you sure you want to delete this broadcast?")) {
-                                      try {
-                                        await deleteDoc(doc(db, 'posts', post.id));
-                                        setPosts(prev => prev.filter(p => p.id !== post.id));
-                                        showNotification("Broadcast deleted");
-                                      } catch (e: any) {
-                                        showNotification("Failed to delete: " + e.message, "error");
-                                      }
-                                    }
-                                  }}
-                                  className="h-8 w-8 text-muted hover:text-red-500 rounded-xl flex items-center justify-center hover:bg-red-50 transition-all cursor-pointer"
-                                  title="Delete Broadcast"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-
-                              {/* Content text */}
-                              <p className="text-ink text-sm leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
-
-                              {/* Media if present */}
-                              {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
-                                <div className="rounded-2xl overflow-hidden border border-gray-100 bg-black aspect-video relative mb-4">
-                                  {post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') ? (
-                                    <video src={post.mediaUrl || post.mediaUrls?.[0]} controls className="w-full h-full object-cover" />
-                                  ) : (
-                                    <img src={post.mediaUrl || post.mediaUrls?.[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="" />
-                                  )}
+                              ) : (
+                                /* Typographic Quote-Card cell for text posts */
+                                <div className="absolute inset-0 p-3 flex flex-col justify-between bg-gradient-to-br from-indigo-50/50 via-zinc-50/80 to-pink-50/50">
+                                  <p className="text-[10px] md:text-[12px] font-bold text-ink/90 line-clamp-3 leading-normal text-center my-auto px-1 tracking-tight font-sans">
+                                    {post.content}
+                                  </p>
+                                  <div className="flex justify-between items-center text-[9px] font-bold text-muted mt-auto pt-1 border-t border-zinc-100">
+                                    <span>{displayDate}</span>
+                                    <span className="flex items-center gap-0.5 text-accent">
+                                      <HeartFilled size={8} className="fill-current text-accent" /> {post.likes || 0}
+                                    </span>
+                                  </div>
                                 </div>
                               )}
 
-                              {/* Toolbar reactions */}
-                              <div className="flex items-center gap-3 pt-3 border-t border-gray-50">
-                                <button 
-                                  onClick={() => handleLikePost(post.id, post.likedBy || [])}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all select-none border cursor-pointer ${
-                                    isPostLiked 
-                                      ? 'text-accent border-accent/20 bg-accent/5' 
-                                      : 'text-slate-600 border-slate-150 bg-white hover:bg-slate-50'
-                                  }`}
-                                >
-                                  <ThumbsUp size={11} className={isPostLiked ? 'fill-current animate-bounce' : ''} />
-                                  <span>{postLikesCount} {isPostLiked ? 'Liked' : 'Like'}</span>
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    setActivePostForComments(post);
-                                    setIsCommentModalOpen(true);
-                                  }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-150 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-600 transition-all select-none cursor-pointer"
-                                >
-                                  <MessageCircle size={11} />
-                                  <span>{post.commentsCount || 0} Replies</span>
-                                </button>
-                                <button 
-                                  onClick={() => handleResharePost(post)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-150 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-600 transition-all select-none cursor-pointer"
-                                >
-                                  <Repeat size={11} />
-                                  <span>Reshare</span>
-                                </button>
+                              {/* Badge Indicators for Multi-Images or Videos */}
+                              {isMulti && (
+                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                                  <Layers size={11} className="text-white" />
+                                </div>
+                              )}
+                              {isVideo && (
+                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                                  <Play size={11} className="text-white fill-white" />
+                                </div>
+                              )}
+
+                              {/* Standard Instagram Views overlay at bottom left */}
+                              <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white px-2 py-0.5 rounded-full text-[9px] font-extrabold flex items-center gap-1 z-10 shadow-sm opacity-90 transition-opacity">
+                                <Eye size={9} className="text-white" />
+                                <span>{viewsCount.toLocaleString()}</span>
+                              </div>
+
+                              {/* Instagram hover statistical detail overlay */}
+                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20">
+                                <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
+                                  <HeartFilled size={14} className="fill-white text-white" />
+                                  <span>{post.likes || 0}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
+                                  <MessageCircleIcon size={14} className="fill-white text-white" />
+                                  <span>{post.commentsCount || 0}</span>
+                                </div>
                               </div>
                             </div>
                           );
@@ -29327,17 +29314,20 @@ function ExonaApp() {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
 
         {/* Exona AI Chatbot Modal */}
         <AnimatePresence>
           {isExonaAiModalOpen && (
             <motion.div 
+              key="exona-ai-modal-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4 sm:p-6"
             >
               <motion.div 
+                key="exona-ai-modal-content"
                 initial={{ scale: 0.95, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.95, y: 20 }}
@@ -29557,7 +29547,10 @@ function ExonaApp() {
       {/* Floating Action Buttons (WhatsApp Style - Floating Bottom Right) */}
       <AnimatePresence>
         {showFABs && view === 'feed' && (
-          <div className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-4 no-print select-none">
+          <motion.div 
+            key="floating-action-buttons-container"
+            className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-4 no-print select-none"
+          >
             {/* Exona AI FAB */}
             <motion.button
               key="exona-ai-fab"
@@ -29587,10 +29580,8 @@ function ExonaApp() {
                 <Plus size={26} />
               </motion.button>
             )}
-          </div>
+          </motion.div>
         )}
-      </AnimatePresence>
-
       </AnimatePresence>
       </div>
     );
