@@ -3338,6 +3338,8 @@ function ExonaApp() {
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
+  const [showFABs, setShowFABs] = useState(true);
+  const lastScrollTop = useRef(0);
   const [exonaAiInput, setExonaAiInput] = useState('');
   const [exonaAiChat, setExonaAiChat] = useState<Array<{ sender: 'user' | 'ai', text: string, timestamp: Date }>>([
     {
@@ -12614,7 +12616,7 @@ function ExonaApp() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
-        className="py-3 px-1.5 hover:bg-slate-50/70 active:bg-slate-100/50 flex items-center justify-between group transition-colors duration-200 cursor-pointer relative select-none border-b border-slate-100/50 last:border-b-0"
+        className="py-3 px-3 hover:bg-slate-50 active:bg-slate-100/80 rounded-2xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
         onClick={() => {
           setActiveChat({
             uid: chat.otherUid,
@@ -12626,7 +12628,7 @@ function ExonaApp() {
         }}
       >
         <div className="flex-1 flex items-center gap-3.5 min-w-0">
-          <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-slate-100/45 bg-white shrink-0 relative shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
+          <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
             {photoURL ? (
               <img src={photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
             ) : (
@@ -12642,7 +12644,7 @@ function ExonaApp() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-0.5">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="text-[16px] font-semibold text-slate-800 truncate font-sans tracking-tight">{displayName}</span>
+                <span className="text-[15.5px] font-semibold text-slate-900 truncate font-sans tracking-tight">{displayName}</span>
                 {chat.isGroup && (
                   <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">Group</span>
                 )}
@@ -12653,7 +12655,7 @@ function ExonaApp() {
             </div>
             
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[14px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
+              <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
                 {lastMsgTxt}
               </span>
               {unreadCount > 0 && (
@@ -13211,14 +13213,6 @@ function ExonaApp() {
                   )}
                 </button>
               </div>
-              {user && feedTab === 'institutions' && (
-                <button 
-                  onClick={() => setIsSchoolModalOpen(true)}
-                  className="h-10 w-10 bg-accent text-white rounded-xl flex items-center justify-center hover:scale-105 transition-transform"
-                >
-                  <Plus size={20} />
-                </button>
-              )}
             </div>
 
             <div className={feedTab === 'institutions' ? 'block' : 'hidden'}>
@@ -13436,11 +13430,11 @@ function ExonaApp() {
                                       animate={{ opacity: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
-                                      className="py-3 px-1.5 hover:bg-slate-50/70 active:bg-slate-100/50 flex items-center justify-between group transition-colors duration-200 cursor-pointer relative select-none border-b border-slate-100/50 last:border-b-0"
+                                      className="py-3 px-3 hover:bg-slate-50 active:bg-slate-100/80 rounded-2xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
                                       onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                     >
                                       <div className="flex-1 flex items-center gap-3.5 min-w-0">
-                                        <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-slate-100/45 bg-white shrink-0 relative shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
+                                        <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
                                           {school.logo ? (
                                             <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                           ) : (
@@ -13454,13 +13448,13 @@ function ExonaApp() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <span className="text-[16px] font-semibold text-slate-800 truncate font-sans tracking-tight">{school.name}</span>
+                                            <span className="text-[15.5px] font-semibold text-slate-900 truncate font-sans tracking-tight">{school.name}</span>
                                             {announcementTime && (
                                               <span className="text-[12px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                             )}
                                           </div>
                                           <div className="flex items-start justify-between gap-2">
-                                            <span className="text-[14px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
+                                            <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
                                               {latestAnnouncement ? latestAnnouncement.content : (
                                                 <span className="text-slate-300 italic font-normal">No announcements yet</span>
                                               )}
@@ -13520,11 +13514,11 @@ function ExonaApp() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.96 }}
                                 transition={{ duration: 0.2 }}
-                                className="py-3 px-1.5 hover:bg-slate-50/70 active:bg-slate-100/50 flex items-center justify-between group transition-colors duration-200 cursor-pointer relative select-none border-b border-slate-100/50 last:border-b-0"
+                                className="py-3 px-3 hover:bg-slate-50 active:bg-slate-100/80 rounded-2xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
                                 onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                               >
                                 <div className="flex-1 flex items-center gap-3.5 min-w-0">
-                                  <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-slate-100/45 bg-white shrink-0 relative shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
+                                  <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
                                     {school.logo ? (
                                       <img src={school.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                                     ) : (
@@ -13538,13 +13532,13 @@ function ExonaApp() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between gap-2 mb-0.5">
-                                      <span className="text-[16px] font-semibold text-slate-800 truncate font-sans tracking-tight">{school.name}</span>
+                                      <span className="text-[15.5px] font-semibold text-slate-900 truncate font-sans tracking-tight">{school.name}</span>
                                       {announcementTime && (
                                         <span className="text-[12px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                       )}
                                     </div>
                                     <div className="flex items-start justify-between gap-2">
-                                      <span className="text-[14px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
+                                      <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
                                         {latestAnnouncement ? latestAnnouncement.content : (
                                           <span className="text-slate-300 italic font-normal">No announcements yet</span>
                                         )}
@@ -28511,6 +28505,13 @@ function ExonaApp() {
         onTouchEnd={handleTouchEnd}
         onScroll={(e) => {
           if (refreshing) return;
+          const currentScrollTop = e.currentTarget.scrollTop;
+          if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
+            setShowFABs(false);
+          } else if (currentScrollTop < lastScrollTop.current - 8) {
+            setShowFABs(true);
+          }
+          lastScrollTop.current = currentScrollTop;
         }}
       >
         <AnimatePresence>
@@ -29554,6 +29555,43 @@ function ExonaApp() {
             </motion.div>
           </motion.div>
         )}
+      {/* Floating Action Buttons (WhatsApp Style - Floating Bottom Right) */}
+      <AnimatePresence>
+        {showFABs && view === 'feed' && (
+          <div className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-4 no-print select-none">
+            {/* Exona AI FAB */}
+            <motion.button
+              key="exona-ai-fab"
+              initial={{ scale: 0, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
+              onClick={() => setView('schools')}
+              className="h-12 w-12 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-lg shadow-purple-500/25 border border-white/20 hover:scale-105 active:scale-95 transition-all outline-none"
+              title="Exona AI"
+            >
+              <Sparkles size={20} className="animate-pulse" />
+            </motion.button>
+
+            {/* Create Institution FAB */}
+            {user && (
+              <motion.button
+                key="create-institution-fab"
+                initial={{ scale: 0, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                onClick={() => setIsSchoolModalOpen(true)}
+                className="h-14 w-14 rounded-full bg-[#2481CC] text-white flex items-center justify-center shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all outline-none"
+                title="Create Institution"
+              >
+                <Plus size={26} />
+              </motion.button>
+            )}
+          </div>
+        )}
+      </AnimatePresence>
+
       </AnimatePresence>
       </div>
     );
