@@ -20352,22 +20352,34 @@ function ExonaApp() {
         if (!inst) { setView('feed'); return null; }
 
         const latestInst = [...schools, ...places].find(s => s.id === inst.id) || inst;
+        // Helper to format timestamps gracefully, resolving Firestore Timestamps and raw dates properly
+        const parsePostDate = (timestamp: any) => {
+          if (!timestamp) return null;
+          if (timestamp instanceof Date) return timestamp;
+          if (typeof timestamp.toDate === 'function') return timestamp.toDate();
+          if (timestamp.seconds && typeof timestamp.seconds === 'number') {
+            return new Date(timestamp.seconds * 1000 + (timestamp.nanoseconds || 0) / 1000000);
+          }
+          const parsed = new Date(timestamp);
+          if (!isNaN(parsed.getTime())) return parsed;
+          return null;
+        };
+
         const institutionPosts = posts
           .filter(p => p.schoolId === latestInst.id)
           .sort((a, b) => {
-            const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-            const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            const timeA = parsePostDate(a.timestamp)?.getTime() || 0;
+            const timeB = parsePostDate(b.timestamp)?.getTime() || 0;
             return timeA - timeB;
           });
 
         const isFollowing = userDoc?.following?.includes(latestInst.id);
         const canManage = canManageInstitution(latestInst);
 
-        // Helper to format timestamps gracefully like "May 26", "June 9", and message times "10:58"
         const getFormattedTime = (timestampStr: any) => {
-          if (!timestampStr) return "";
+          const date = parsePostDate(timestampStr);
+          if (!date) return "";
           try {
-            const date = new Date(timestampStr);
             return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
           } catch (e) {
             return "";
@@ -20375,17 +20387,17 @@ function ExonaApp() {
         };
 
         const getFormattedDate = (timestampStr: any) => {
-          if (!timestampStr) return "Broadcasts";
+          const date = parsePostDate(timestampStr);
+          if (!date) return "Broadcasts";
           try {
-            const date = new Date(timestampStr);
             return date.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
           } catch (e) {
-            return "";
+            return "Broadcasts";
           }
         };
 
         return (
-          <div className="flex flex-col min-h-screen max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-12">
+          <div className="flex flex-col h-full w-full max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-0">
             {/* Telegram Style Header */}
             <div className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 shadow-sm z-50">
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -28248,7 +28260,7 @@ function ExonaApp() {
       {/* Main Area */}
       <main 
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto bg-card relative"
+        className={`flex-1 ${view === 'institution-channel' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'} bg-card relative`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
