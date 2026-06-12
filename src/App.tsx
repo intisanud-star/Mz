@@ -20505,23 +20505,13 @@ function ExonaApp() {
                             </div>
                           )}
 
-                          {/* Message bubble Container */}
-                          <div className="relative group max-w-[85%] self-start w-full transition-transform active:scale-[0.99] flex items-end gap-2">
+                          {/* Message bubble Container in Normal Chat Writing Style */}
+                          <div className="relative group max-w-[85%] self-start w-full transition-all flex items-end gap-2 my-1">
                             {/* Speech Bubble */}
-                            <div className="w-full bg-white rounded-[1.5rem] rounded-tl-sm shadow-sm border border-gray-150 overflow-hidden flex flex-col">
-                              {/* Publisher Info (Channel Header) */}
-                              <div className="px-4 pt-3 pb-1.5 flex items-center justify-between border-b border-gray-50 bg-gray-50/50">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">
-                                  {latestInst.name}
-                                </span>
-                                <span className="text-[9px] font-bold text-muted/60">
-                                  Broadcast Channel
-                                </span>
-                              </div>
-
-                              {/* Rich media content */}
+                            <div className="w-full bg-white rounded-2xl rounded-tl-sm shadow-sm border border-gray-100/80 p-3.5 flex flex-col relative">
+                              {/* Rich media content if present */}
                               {hasMedia && (
-                                <div className="relative aspect-video bg-gray-100 border-b border-gray-100 flex items-center justify-center overflow-hidden">
+                                <div className="relative aspect-video bg-gray-50 rounded-xl overflow-hidden mb-2.5 border border-gray-100/50">
                                   {isVideo ? (
                                     <video 
                                       src={post.mediaUrls?.[0] || post.mediaUrl} 
@@ -20532,7 +20522,7 @@ function ExonaApp() {
                                   ) : (
                                     <img 
                                       src={post.mediaUrls?.[0] || post.mediaUrl} 
-                                      className="h-full w-full object-cover hover:scale-[1.03] transition-transform duration-500" 
+                                      className="h-full w-full object-cover" 
                                       referrerPolicy="no-referrer"
                                       alt="Broadcast Media"
                                     />
@@ -20540,68 +20530,66 @@ function ExonaApp() {
                                 </div>
                               )}
 
-                              {/* Body post content */}
-                              <div className="p-4 flex flex-col">
-                                <p className="text-[13px] text-ink font-sans leading-relaxed whitespace-pre-wrap select-text">
+                              {/* Chat Body text */}
+                              <div className="flex flex-col">
+                                <p className="text-[13px] md:text-[14px] text-slate-800 font-sans leading-relaxed whitespace-pre-wrap select-text font-normal">
                                   {post.content}
                                 </p>
 
-                                {/* Meta area (timestamp, views, and action indicators inline bottom-right) */}
-                                <div className="mt-3 pt-2.5 border-t border-gray-50 flex items-center justify-between text-[11px] font-bold text-muted/80">
-                                  <div className="flex items-center gap-2.5">
-                                    <span className="flex items-center gap-1">
-                                      <Eye size={12} className="opacity-60" /> {(post.likes * 11 + 7).toLocaleString()}
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <Heart size={11} className={`opacity-60 ${isLiked ? 'text-red-500 fill-red-500' : ''}`} /> {likesCount}
-                                    </span>
-                                  </div>
-                                  <span className="text-[10px] font-mono select-none">
-                                    {getFormattedTime(post.timestamp) || "10:58"}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Fully Functional Telegram Interactive Actions Row */}
-                              <div className="p-1 px-3 bg-indigo-50/30 border-t border-gray-100 flex gap-2 overflow-x-auto no-scrollbar py-2">
-                                <button 
-                                  onClick={() => handleLikePost(post.id, fallbackPostLikes[post.id]?.likedBy || [])}
-                                  className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border rounded-xl text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm ${isLiked ? 'text-accent border-accent/20 bg-accent/5' : 'text-slate-600 border-slate-150 hover:bg-slate-50'}`}
-                                >
-                                  <ThumbsUp size={11} className={isLiked ? 'fill-current' : ''} />
-                                  <span>{isLiked ? 'Liked' : 'Like'}</span>
-                                </button>
-                                <button 
-                                  onClick={() => {
-                                    setActivePostForComments(post);
-                                    setIsCommentModalOpen(true);
-                                  }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-150 hover:bg-slate-50 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-600 transition-all select-none shadow-sm"
-                                >
-                                  <MessageCircle size={11} />
-                                  <span>{post.commentsCount || 0} Replies</span>
-                                </button>
+                                {/* Post linkUrl if any (rendered as simple link instead of a large button) */}
                                 {post.linkUrl && (
                                   <a 
                                     href={post.linkUrl} 
                                     target="_blank" 
                                     rel="noopener noreferrer" 
-                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm"
+                                    className="text-[11px] font-bold text-indigo-600 hover:underline mt-2 flex items-center gap-1"
                                   >
                                     <ExternalLink size={11} />
-                                    <span>Visit Site</span>
+                                    <span>Visit Link</span>
                                   </a>
                                 )}
+
+                                {/* Subtle chat-aligned metadata at bottom right */}
+                                <div className="self-end flex items-center gap-2 mt-2 pt-1.5 border-t border-slate-50 text-[10px] text-slate-400 font-medium select-none w-full justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-0.5" title="Views">
+                                      <Eye size={10} className="opacity-70" />
+                                      <span>{((post.likes || 0) * 11 + 7).toLocaleString()}</span>
+                                    </div>
+                                    <button 
+                                      onClick={() => handleLikePost(post.id, fallbackPostLikes[post.id]?.likedBy || [])}
+                                      className={`flex items-center gap-0.5 hover:text-red-500 transition-colors ${isLiked ? 'text-red-500' : 'text-slate-400'}`}
+                                      title="Love"
+                                    >
+                                      <Heart size={10} className={isLiked ? 'fill-red-500 text-red-500' : ''} />
+                                      <span>{likesCount}</span>
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        setActivePostForComments(post);
+                                        setIsCommentModalOpen(true);
+                                      }}
+                                      className="flex items-center gap-0.5 hover:text-indigo-600 transition-colors text-slate-400"
+                                      title="Replies"
+                                    >
+                                      <MessageCircle size={10} />
+                                      <span>{post.commentsCount || 0}</span>
+                                    </button>
+                                  </div>
+                                  <span className="text-[9px] font-mono select-none text-slate-400/80">
+                                    {getFormattedTime(post.timestamp) || "10:58"}
+                                  </span>
+                                </div>
                               </div>
                             </div>
 
-                            {/* Circular Forward Icon Button */}
+                            {/* Minimal Round Forward Button */}
                             <button 
                               onClick={() => handleForwardPost(post)}
-                              className="h-8 w-8 bg-black/40 hover:bg-black/60 shadow-md text-white rounded-full flex items-center justify-center shrink-0 transition-all scale-90 opacity-0 group-hover:opacity-100 hover:scale-100"
+                              className="h-7 w-7 bg-white/90 hover:bg-white text-slate-500 shadow-sm border border-gray-150 rounded-full flex items-center justify-center shrink-0 transition-opacity opacity-0 group-hover:opacity-100 active:scale-95 duration-200"
                               title="Forward Broadcast"
                             >
-                              <ArrowUpRight size={15} />
+                              <ArrowUpRight size={13} />
                             </button>
                           </div>
                         </div>
@@ -28171,89 +28159,91 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
-        {/* Top brand bar (WhatsApp style branding with measured spacing) */}
-        <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
-          <div className="flex items-center gap-1.5">
-            <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-ink">
-            <button 
-              onClick={() => {
-                if (user) {
-                  setView('notifications');
-                } else {
-                  setView('login');
-                }
-              }}
-              className={`relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'notifications' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
-            >
-              <Bell size={20} />
-              {unreadNotificationsCount > 0 && (
-                <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                  {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
-                </span>
-              )}
-            </button>
-            <button 
-              onClick={() => setView('search')}
-              className={`md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'search' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
-            >
-              <Search size={20} />
-            </button>
-            <button 
-              onClick={() => setSidebarOpen(true)}
-              className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
-            >
-              <MoreVertical size={20} />
-            </button>
-          </div>
-        </div>
-
-        {/* Tab switcher bar */}
-        <div className="px-4 sm:px-6 h-11 flex items-center justify-between w-full border-t border-gray-100/40">
-          <div className="flex items-center gap-4 sm:gap-8 h-full">
-            <button 
-              onClick={() => setView('feed')}
-              className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-            >
-              <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
-              {view === 'feed' && (
-                <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-              )}
-            </button>
-            <button 
-              onClick={() => setView('schools')}
-              className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-            >
-              <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Feed</span>
-              {view === 'schools' && (
-                <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-              )}
-            </button>
+      {!['institution-channel', 'school-feed', 'institution-profile'].includes(view) && (
+        <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
+          {/* Top brand bar (WhatsApp style branding with measured spacing) */}
+          <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
+            </div>
+            
+            <div className="flex items-center gap-2 text-ink">
+              <button 
+                onClick={() => {
+                  if (user) {
+                    setView('notifications');
+                  } else {
+                    setView('login');
+                  }
+                }}
+                className={`relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'notifications' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
+              >
+                <Bell size={20} />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute top-2 right-2 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+              <button 
+                onClick={() => setView('search')}
+                className={`md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'search' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
+              >
+                <Search size={20} />
+              </button>
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+              >
+                <MoreVertical size={20} />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 max-w-md mx-4 relative group hidden md:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search institutions or people..." 
-              value={globalSearch}
-              onChange={(e) => {
-                const val = e.target.value;
-                setGlobalSearch(val);
-                handleSearchUsers(val);
-                if (val.trim()) setView('search');
-              }}
-              onFocus={() => {
-                if (globalSearch) setView('search');
-              }}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-accent/20 outline-none transition-all text-xs font-medium" 
-            />
+          {/* Tab switcher bar */}
+          <div className="px-4 sm:px-6 h-11 flex items-center justify-between w-full border-t border-gray-100/40">
+            <div className="flex items-center gap-4 sm:gap-8 h-full">
+              <button 
+                onClick={() => setView('feed')}
+                className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+              >
+                <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
+                {view === 'feed' && (
+                  <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+                )}
+              </button>
+              <button 
+                onClick={() => setView('schools')}
+                className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
+              >
+                <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Feed</span>
+                {view === 'schools' && (
+                  <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
+                )}
+              </button>
+            </div>
+
+            <div className="flex-1 max-w-md mx-4 relative group hidden md:block">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search institutions or people..." 
+                value={globalSearch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setGlobalSearch(val);
+                  handleSearchUsers(val);
+                  if (val.trim()) setView('search');
+                }}
+                onFocus={() => {
+                  if (globalSearch) setView('search');
+                }}
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-accent/20 outline-none transition-all text-xs font-medium" 
+              />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Main Area */}
       <main 
@@ -28485,7 +28475,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {(view === 'chat' || view === 'institution-channel' || view === 'institution-profile' || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {(['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
