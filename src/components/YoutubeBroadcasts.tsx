@@ -1836,7 +1836,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   if (isImmersiveMode) {
     return (
-      <div className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between overflow-hidden select-none font-sans text-white animate-fade-in" id="youtube_broadcasts_portal">
+      <div className="fixed inset-0 bg-white z-[9990] flex flex-col justify-between overflow-hidden select-none font-sans text-slate-800 animate-fade-in" id="youtube_broadcasts_portal">
         {/* Strict Video Only Escape Hatch */}
         {isStrictVideoOnly && (
           <button
@@ -1845,7 +1845,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               setIsStrictVideoOnly(false);
               showNotification("Controls and floating metrics restored.", "info");
             }}
-            className="fixed top-4 right-4 z-[99999] hover:scale-110 active:scale-95 transition-all text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-black/85 hover:bg-black border border-white/25 hover:border-orange-500 flex items-center gap-2 cursor-pointer shadow-2xl text-white pointer-events-auto"
+            className="fixed top-4 right-4 z-[99999] hover:scale-110 active:scale-95 transition-all text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 pointer-events-auto shadow-md cursor-pointer"
             title="Restore HUD buttons and information panels"
           >
             <EyeOff size={13} className="text-orange-500 animate-pulse" />
@@ -1855,13 +1855,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
         {/* Top Glass Header Bar Overlay */}
         {!isStrictVideoOnly && (
-          <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
+          <div className="absolute top-0 inset-x-0 h-16 bg-white/85 backdrop-blur-md border-b border-gray-100 z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
             {/* Add Broadcast Stream Button */}
             {isAdmin ? (
               <button
                 type="button"
                 onClick={() => setIsImmersiveAddFormOpen(true)}
-                className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-orange-500 rounded-full flex items-center justify-center text-white hover:text-orange-400 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer animate-fade-in"
+                className="h-10 w-10 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-slate-800 hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer animate-fade-in"
                 title="Register new stream/station"
               >
                 <Plus size={20} />
@@ -1883,7 +1883,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   onClose();
                 }
               }}
-              className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-rose-500 rounded-full flex items-center justify-center text-slate-350 hover:text-rose-500 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+              className="h-10 w-10 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:text-rose-600 hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer"
               title="Exit Fullscreen Reels"
             >
               <X size={18} />
@@ -1896,7 +1896,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
           <div
             ref={immersiveContainerRef}
             onScroll={handleImmersiveScroll}
-            className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-black"
+            className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-white"
           >
             {filteredBroadcasts.map((stream, idx) => {
               const isActive = idx === currentIdx;
@@ -1912,13 +1912,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               return (
                 <div
                   key={stream.id}
-                  className="w-full h-full min-h-full snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                  className="w-full h-full min-h-full snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-white"
                 >
                   {/* Video Player Frame */}
                   {isActive ? (
                     <>
                       {isChannelLoading && (
-                        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 pointer-events-none transition-opacity duration-350">
+                        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 pointer-events-none transition-opacity duration-350">
                           <div className="relative flex items-center justify-center">
                             {/* Inner spinning glow */}
                             <div className="h-16 w-16 rounded-full border-4 border-orange-500/10 border-t-orange-500 animate-spin" />
@@ -1953,7 +1953,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                           allowFullScreen
                           onLoad={() => setIsChannelLoading(false)}
-                          className="absolute inset-0 w-full h-full select-none pointer-events-auto bg-black transition-all duration-200"
+                          className="absolute inset-0 w-full h-full select-none pointer-events-auto bg-white transition-all duration-200"
                           style={{
                             filter: `brightness(${videoBrightness}%) contrast(${videoContrast}%) saturate(${videoSaturate}%)`,
                             transform: `scale(${videoZoom / 100})`,
@@ -1963,23 +1963,23 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       )}
                     </>
                   ) : (
-                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
+                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-white">
                       <img 
                         src={getCoverImageUrl(stream)} 
                         alt={stream.title} 
-                        className="absolute inset-0 w-full h-full object-cover opacity-20 select-none pointer-events-none filter blur-md"
+                        className="absolute inset-0 w-full h-full object-cover opacity-10 select-none pointer-events-none filter blur-md"
                       />
                       <div className="z-10 flex flex-col items-center gap-3">
                         {isHlsStream(stream) ? (
-                          <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+                          <div className="h-14 w-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 animate-pulse">
                             <Tv size={24} />
                           </div>
                         ) : (
-                          <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
+                          <div className="h-14 w-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 animate-pulse">
                             <Youtube size={26} />
                           </div>
                         )}
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">CONNECTING CARRIER MATRIX...</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">CONNECTING CARRIER MATRIX...</span>
                       </div>
                     </div>
                   )}
@@ -1997,33 +1997,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         className="h-11 w-11 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 p-[2px] shadow-lg hover:scale-110 duration-200"
                         title={`Inspect ${stream.creatorName}'s School Space`}
                       >
-                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-[11px] font-black uppercase text-white">
+                        <div className="w-full h-full rounded-full bg-gray-150 flex items-center justify-center text-[11px] font-black uppercase text-slate-700 border border-gray-200">
                           {stream.creatorName?.slice(0, 2).toUpperCase() || 'EX'}
                         </div>
                       </div>
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-slate-950 flex items-center justify-center shadow-md">
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-white flex items-center justify-center shadow-md">
                         <Compass size={8} className="animate-pulse" />
                       </div>
                     </div>
 
-                    {/* Interactive Like Action */}
-                    <div className="flex flex-col items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleLikeClick(stream.id, userLikes);
-                        }}
-                        className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg border cursor-pointer ${
-                          hasLiked
-                            ? 'bg-rose-600 border-rose-500 text-white animate-pulse'
-                            : 'bg-black/60 border-white/20 text-slate-200 hover:text-white hover:bg-black/80'
-                        }`}
-                      >
-                        <Heart size={20} fill={hasLiked ? "currentColor" : "none"} />
-                      </button>
-                      <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
-                    </div>
+                    {/* Liking removed as per user instruction */}
 
                     {/* Strict Video-Only Fullscreen Trigger */}
                     <div className="flex flex-col items-center gap-1.5">
@@ -2033,12 +2016,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           setIsStrictVideoOnly(true);
                           showNotification("Strict Video-Only Mode. Click 'Show Controls' at top right to restore HUD panels.", "success");
                         }}
-                        className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer hover:border-orange-500"
+                        className="h-11 w-11 rounded-full bg-gray-100 hover:bg-gray-200 border border-gray-200 text-slate-700 hover:text-slate-950 flex items-center justify-center transition-all shadow-md cursor-pointer"
                         title="Pure Full Screen (Video Only)"
                       >
                         <Maximize size={18} />
                       </button>
-                      <span className="text-[10px] font-extrabold text-white drop-shadow-md">
+                      <span className="text-[10px] font-extrabold text-slate-600 drop-shadow-sm">
                         Fullscreen
                       </span>
                     </div>
@@ -2048,10 +2031,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       <button
                         type="button"
                         onClick={() => setSharingStreamId(sharingStreamId === stream.id ? null : stream.id)}
-                        className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg cursor-pointer ${
+                        className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer ${
                           sharingStreamId === stream.id
-                            ? 'bg-emerald-600 border border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                            : 'bg-black/60 border border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:text-white hover:bg-black/80'
+                            ? 'bg-emerald-600 border border-emerald-500 text-white shadow-md'
+                            : 'bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200'
                         }`}
                         title="Display Size & Sharing Actions Drawer"
                       >
@@ -2071,11 +2054,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           <motion.div
                             initial={{ opacity: 0, scale: 0.9, x: -10 }}
                             animate={{ opacity: 1, scale: 1, x: 0 }}
-                            className="absolute right-13 bottom-0 z-50 w-60 backdrop-blur-md bg-slate-950/95 border border-emerald-500/30 rounded-2xl p-3 shadow-[0_0_30px_rgba(0,0,0,0.8),0_0_15px_rgba(16,185,129,0.15)] flex flex-col gap-2.5"
+                            className="absolute right-13 bottom-0 z-50 w-60 bg-white border border-gray-200 rounded-2xl p-3 shadow-lg flex flex-col gap-2.5"
                           >
-                            <div className="flex flex-col gap-0.5 border-b border-white/5 pb-2 select-none">
-                              <span className="text-[7.5px] font-mono tracking-widest text-emerald-400 uppercase font-black">EXON STREAM HUB</span>
-                              <h5 className="text-[10px] font-black uppercase text-slate-100 truncate max-w-[190px]">
+                            <div className="flex flex-col gap-0.5 border-b border-gray-100 pb-2 select-none">
+                              <span className="text-[7.5px] font-mono tracking-widest text-emerald-600 uppercase font-black">EXON STREAM HUB</span>
+                              <h5 className="text-[10px] font-black uppercase text-slate-800 truncate max-w-[190px]">
                                 {stream.title}
                               </h5>
                             </div>
@@ -2088,14 +2071,14 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                   setSharingStreamId(null);
                                   toggleAppFullscreen();
                                 }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                               >
-                                <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                                <div className="h-6 w-6 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                                   <Monitor size={11} />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">True Full Screen</span>
-                                  <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Expand player workspace</span>
+                                  <span className="text-[9.5px] font-black text-slate-800 uppercase tracking-wide">True Full Screen</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Expand player workspace</span>
                                 </div>
                               </button>
 
@@ -2103,14 +2086,14 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               <button
                                 type="button"
                                 onClick={() => handleDownloadClip(stream)}
-                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                               >
-                                <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                                <div className="h-6 w-6 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                                   <Download size={11} />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">Download 1:30 Clip</span>
-                                  <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Extract continuous buffer</span>
+                                  <span className="text-[9.5px] font-black text-slate-800 uppercase tracking-wide">Download 1:30 Clip</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Extract continuous buffer</span>
                                 </div>
                               </button>
 
@@ -2125,14 +2108,14 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                   showNotification("Live Stream link copy-pasted to clipboard!", "success");
                                   setSharingStreamId(null);
                                 }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-50 border border-transparent hover:border-emerald-200 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                               >
-                                <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
+                                <div className="h-6 w-6 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all">
                                   <Share2 size={11} />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">Copy Share Link</span>
-                                  <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Direct source payload</span>
+                                  <span className="text-[9.5px] font-black text-slate-800 uppercase tracking-wide">Copy Share Link</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Direct source payload</span>
                                 </div>
                               </button>
                             </div>
@@ -2147,7 +2130,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       onClick={() => {
                         showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
                       }}
-                      className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                      className="h-11 w-11 rounded-full bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200 flex items-center justify-center transition-all shadow-md cursor-pointer"
                       title="View system parameters"
                     >
                       <Settings size={18} />
@@ -2161,7 +2144,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           e.stopPropagation();
                           handleDeleteClick(stream);
                         }}
-                        className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
+                        className="h-11 w-11 rounded-full bg-red-50 border border-red-200 text-red-600 hover:scale-105 active:scale-95 transition-all flex items-center justify-center shadow-md cursor-pointer"
                         title="Remove Station"
                       >
                         <Trash2 size={18} />
@@ -2173,16 +2156,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   {/* Bottom overlay detailed caption description (like mobile reels) */}
                   {!isStrictVideoOnly && (
                     <>
-                      <div className="absolute bottom-16 left-0 right-0 p-6 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none flex flex-col gap-2 z-35">
-                        <span className="px-2.5 py-0.5 bg-red-650 text-white rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
-                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                      <div className="absolute bottom-16 left-4 right-16 z-25 p-4 bg-white/90 backdrop-blur-md shadow-lg border border-gray-150 pointer-events-none flex flex-col gap-2 rounded-2xl">
+                        <span className="px-2.5 py-0.5 bg-red-100 text-red-650 border border-red-200 rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
+                          <div className="h-1.5 w-1.5 rounded-full bg-red-650" />
                           Live Broadcast
                         </span>
-                        <h3 className="text-white text-sm font-black uppercase tracking-wider leading-tight drop-shadow-md">{stream.title}</h3>
+                        <h3 className="text-slate-900 text-base sm:text-lg font-black tracking-tight leading-snug select-text pointer-events-auto">{stream.title}</h3>
                         {stream.description && (
-                          <p className="text-slate-200 text-xs font-semibold leading-relaxed drop-shadow-sm max-w-sm line-clamp-2">{stream.description}</p>
+                          <p className="text-slate-700 text-[10.5px] sm:text-xs font-semibold max-w-[90%] line-clamp-3 md:line-clamp-none select-text pointer-events-auto leading-relaxed">{stream.description}</p>
                         )}
-                        <span className="text-[10px] font-bold text-slate-400 tracking-wider">Channel Provider: {stream.creatorName || 'Autonomous Station'}</span>
+                        <span className="text-[10px] font-bold text-slate-500 tracking-wider">Channel Provider: {stream.creatorName || 'Autonomous Station'}</span>
                       </div>
 
                       {/* Thin Bottom Reels progress accent */}
@@ -2196,11 +2179,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             })}
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white">
-            <p className="text-sm font-black uppercase tracking-wider">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-white text-center p-6 text-slate-800">
+            <p className="text-sm font-black uppercase tracking-wider text-slate-900">
               {followedOnly ? 'No followed feeds live' : 'No matching feeds'}
             </p>
-            <p className="text-xs text-slate-400 font-bold max-w-sm mt-1">
+            <p className="text-xs text-slate-500 font-bold max-w-sm mt-1">
               {followedOnly ? "Follow more stations to keep watching live content from them!" : "Change search filters or categories to discover streams."}
             </p>
             <button
@@ -2209,7 +2192,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 setCategoryFilter('All');
                 setFollowedOnly(false);
               }}
-              className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-505 transition-colors cursor-pointer"
+              className="mt-4 px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors cursor-pointer"
             >
               Show All Channels
             </button>
@@ -2218,11 +2201,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
         {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
         {!isStrictVideoOnly && !isLandscape && (
-          <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
+          <div className="h-21 bg-white border-t border-gray-150 flex items-center justify-around text-slate-600 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
             <button 
               type="button"
               onClick={() => { if (onClose) onClose(); }} 
-              className="hover:text-white hover:scale-110 active:scale-90 transition-all cursor-pointer p-2 bg-slate-900/30 rounded-xl" 
+              className="hover:text-slate-950 hover:scale-110 active:scale-95 transition-all cursor-pointer p-2 bg-gray-150 rounded-xl" 
               title="Go Home Dashboard"
             >
               <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -2236,17 +2219,17 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   showNotification("Swipe to explore other live stations!", "info");
                 }
               }}
-              className="text-white bg-slate-900 border border-white/10 hover:border-orange-500 rounded-xl p-2 flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-md" 
+              className="text-orange-600 bg-orange-50 border border-orange-200 hover:border-orange-500 rounded-xl p-2 flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-sm" 
               title="Reels Mode active"
             >
-              <svg className="h-5.5 w-5.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
+              <svg className="h-5.5 w-5.5 text-orange-550" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
             </button>
             <button 
               type="button"
               onClick={() => { 
                 setIsImmersiveChannelsDrawerOpen(true);
               }} 
-              className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
+              className="hover:text-slate-950 hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-600" 
               title="Show Stations Directory"
             >
               <Compass size={22} className="hover:text-orange-500 transition-colors" />
@@ -2260,7 +2243,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   showNotification("Please select a live station first!", "info");
                 }
               }}
-              className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
+              className="hover:text-slate-950 hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
               title="Display Size & Interactive board"
             >
               <Maximize size={20} />
@@ -2271,7 +2254,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 const profileTab = document.getElementById("profile_tab_trigger");
                 if (profileTab) profileTab.click();
               }}
-              className="h-8 w-8 rounded-full border-2 border-orange-500 bg-slate-850 flex items-center justify-center text-[10px] font-black text-rose-450 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-md" 
+              className="h-8 w-8 rounded-full border-2 border-orange-500 bg-orange-50 flex items-center justify-center text-[10px] font-black text-orange-700 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-sm" 
               title="Your User Profile"
             >
               {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
@@ -3051,24 +3034,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                         </div>
                       </div>
 
-                      {/* Like button */}
-                      <div className="flex flex-col items-center gap-0.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleLikeClick(stream.id, userLikes);
-                          }}
-                          className={`h-10 w-10 sm:h-11 sm:w-11 rounded-full flex items-center justify-center transition-all shadow-lg border ${
-                            hasLiked 
-                              ? 'bg-rose-600 border-rose-500 text-white' 
-                              : 'bg-black/60 border-white/20 text-white hover:bg-black/80'
-                          }`}
-                          title="Like Live Stream"
-                        >
-                          <Heart size={18} fill={hasLiked ? "currentColor" : "none"} className={hasLiked ? "animate-pulse" : ""} />
-                        </button>
-                        <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
-                      </div>
+                      {/* Like button removed as per user instruction */}
 
                       {/* External YouTube / Network Link Button */}
                       <a
@@ -3567,7 +3533,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black z-[9990] flex flex-col justify-between overflow-hidden select-none font-sans text-white"
+            className="fixed inset-0 bg-white z-[9990] flex flex-col justify-between overflow-hidden select-none font-sans text-slate-800"
           >
             {/* Strict Video Only Escape Hatch */}
             {isStrictVideoOnly && (
@@ -3604,13 +3570,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
             {/* Top Glass Header Bar Overlay */}
             {!isStrictVideoOnly && (
-              <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
+              <div className="absolute top-0 inset-x-0 h-16 bg-white/85 backdrop-blur-md border-b border-gray-100 z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
                 {/* Add Broadcast Stream Button */}
                 {isAdmin ? (
                   <button
                     type="button"
                     onClick={() => setIsImmersiveAddFormOpen(true)}
-                    className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-orange-500 rounded-full flex items-center justify-center text-white hover:text-orange-400 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+                    className="h-10 w-10 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-slate-800 hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer"
                     title="Register new stream/station"
                   >
                     <Plus size={20} />
@@ -3629,7 +3595,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     setIsImmersiveMode(false);
                     setIsImmersiveCommentsOpen(false);
                   }}
-                  className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-rose-500 rounded-full flex items-center justify-center text-slate-350 hover:text-rose-500 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
+                  className="h-10 w-10 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:text-rose-600 hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer"
                   title="Exit Fullscreen Reels"
                 >
                   <X size={18} />
@@ -3642,7 +3608,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
               <div
                 ref={immersiveContainerRef}
                 onScroll={handleImmersiveScroll}
-                className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-black animate-fade-in"
+                className="w-full h-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar flex flex-col relative bg-white animate-fade-in"
               >
                 {filteredBroadcasts.map((stream, idx) => {
                   const isActive = idx === currentIdx;
@@ -3658,20 +3624,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                   return (
                     <div
                       key={stream.id}
-                      className="w-full h-full min-h-full snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-black"
+                      className="w-full h-full min-h-full snap-start snap-always relative shrink-0 overflow-hidden flex items-center justify-center bg-white"
                     >
                       {/* Video Player Frame */}
                       {isActive ? (
                         <>
                           {isChannelLoading && (
-                            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/95 pointer-events-none transition-opacity duration-350">
-                              <div className="relative flex items-center justify-center">
-                                {/* Inner spinning glow */}
-                                <div className="h-16 w-16 rounded-full border-4 border-orange-500/10 border-t-orange-500 animate-spin" />
-                                {/* Outer broadcasting pulse */}
-                                <div className="absolute h-24 w-24 rounded-full border border-orange-500/30 animate-pulse" />
-                              </div>
-                            </div>
+                            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/95 pointer-events-none transition-opacity duration-350" />
                           )}
                           {isHlsStream(stream) ? (
                             <NetworkStreamPlayer 
@@ -3699,7 +3658,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                               allowFullScreen
                               onLoad={() => setIsChannelLoading(false)}
-                              className="absolute inset-0 w-full h-full select-none pointer-events-auto bg-black transition-all duration-200"
+                              className="absolute inset-0 w-full h-full select-none pointer-events-auto bg-white transition-all duration-200"
                               style={{
                                 filter: `brightness(${videoBrightness}%) contrast(${videoContrast}%) saturate(${videoSaturate}%)`,
                                 transform: `scale(${videoZoom / 100})`,
@@ -3709,23 +3668,23 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           )}
                         </>
                       ) : (
-                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-slate-950">
+                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center relative bg-white">
                           <img 
                             src={getCoverImageUrl(stream)} 
                             alt={stream.title} 
-                            className="absolute inset-0 w-full h-full object-cover opacity-20 select-none pointer-events-none filter blur-md"
+                            className="absolute inset-0 w-full h-full object-cover opacity-10 select-none pointer-events-none filter blur-md"
                           />
                           <div className="z-10 flex flex-col items-center gap-3">
                             {isHlsStream(stream) ? (
-                              <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+                              <div className="h-14 w-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 animate-pulse">
                                 <Tv size={24} />
                               </div>
                             ) : (
-                              <div className="h-14 w-14 rounded-full bg-slate-900/85 border border-slate-800 flex items-center justify-center text-red-500 animate-pulse">
+                              <div className="h-14 w-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center text-red-600 animate-pulse">
                                 <Tv size={24} />
                               </div>
                             )}
-                            <p className="text-white text-xs font-black uppercase tracking-widest px-4 text-center">{stream.title}</p>
+                            <p className="text-slate-800 text-xs font-black uppercase tracking-widest px-4 text-center">{stream.title}</p>
                             <p className="text-slate-400 text-[10px] font-bold">Autoplay loading state...</p>
                           </div>
                         </div>
@@ -3733,20 +3692,20 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
                       {/* Bottom-Left Information Overlays */}
                       {!isStrictVideoOnly && (
-                        <div className="absolute bottom-16 left-4 right-16 z-25 p-4 bg-gradient-to-t from-black/95 via-black/35 to-transparent pointer-events-none flex flex-col gap-2 rounded-xl">
-                          <span className="px-2.5 py-0.5 bg-red-650 rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
-                            <div className="h-1.5 w-1.5 rounded-full bg-white" />
+                        <div className="absolute bottom-16 left-4 right-16 z-25 p-4 bg-white/90 backdrop-blur-md shadow-lg border border-gray-150 pointer-events-none flex flex-col gap-2 rounded-2xl">
+                          <span className="px-2.5 py-0.5 bg-red-100 text-red-600 border border-red-200 rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
+                            <div className="h-1.5 w-1.5 rounded-full bg-red-650" />
                             Live Broadcast
                           </span>
-                          <h3 className="text-white text-base sm:text-lg font-black tracking-tight leading-snug drop-shadow-md select-text pointer-events-auto">
+                          <h3 className="text-slate-900 text-base sm:text-lg font-black tracking-tight leading-snug select-text pointer-events-auto">
                             {stream.title}
                           </h3>
-                          <p className="text-slate-200 text-[10.5px] sm:text-xs font-semibold max-w-[90%] line-clamp-3 md:line-clamp-none drop-shadow-sm select-text pointer-events-auto leading-relaxed">
+                          <p className="text-slate-700 text-[10.5px] sm:text-xs font-semibold max-w-[90%] line-clamp-3 md:line-clamp-none select-text pointer-events-auto leading-relaxed">
                             {stream.description || "Tune in to explore live feeds, study sessions, and academic logs."}
                           </p>
                           
-                          <div className="flex items-center flex-wrap gap-2 mt-1 py-1 text-[10px] font-bold text-slate-300 pointer-events-auto">
-                            <span className="bg-orange-600/25 border border-orange-500/25 px-2 py-0.5 rounded-md text-orange-400 font-mono text-[9px] font-bold">{stream.category}</span>
+                          <div className="flex items-center flex-wrap gap-2 mt-1 py-1 text-[10px] font-bold text-slate-500 pointer-events-auto">
+                            <span className="bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-md text-orange-655 font-mono text-[9px] font-bold">{stream.category}</span>
                             <span>• By {stream.creatorName}</span>
                             <button
                               type="button"
@@ -3762,8 +3721,8 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               }}
                               className={`ml-1.5 px-2.5 py-0.5 font-black text-[9px] uppercase tracking-wider rounded-md border transition-all ${
                                 isFollowed 
-                                  ? 'bg-slate-800 border-white/20 text-slate-300 pointer-events-auto cursor-pointer' 
-                                  : 'bg-rose-650 border-rose-500 text-white shadow-sm hover:scale-105 active:scale-95 pointer-events-auto cursor-pointer'
+                                  ? 'bg-slate-100 border-gray-300 text-slate-655 pointer-events-auto cursor-pointer' 
+                                  : 'bg-rose-600 border-rose-500 text-white shadow-sm hover:scale-105 active:scale-95 pointer-events-auto cursor-pointer'
                               }`}
                             >
                               {isFollowed ? 'Following' : 'Follow'}
@@ -3784,33 +3743,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               className="h-11 w-11 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 p-[2px] shadow-lg hover:scale-110 duration-200"
                               title={`Inspect ${stream.creatorName}'s School Space`}
                             >
-                              <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-[11px] font-black uppercase text-white">
+                              <div className="w-full h-full rounded-full bg-gray-150 flex items-center justify-center text-[11px] font-black uppercase text-slate-700 border border-gray-200">
                                 {stream.creatorName?.slice(0, 2).toUpperCase() || 'EX'}
                               </div>
                             </div>
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-slate-950 flex items-center justify-center shadow-md">
+                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-white flex items-center justify-center shadow-md">
                               <Compass size={8} className="animate-pulse" />
                             </div>
                           </div>
 
-                          {/* Interactive Like Action */}
-                          <div className="flex flex-col items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLikeClick(stream.id, userLikes);
-                              }}
-                              className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg border cursor-pointer ${
-                                hasLiked
-                                  ? 'bg-rose-600 border-rose-500 text-white animate-pulse'
-                                  : 'bg-black/60 border-white/20 text-slate-200 hover:text-white hover:bg-black/80'
-                              }`}
-                            >
-                              <Heart size={20} fill={hasLiked ? "currentColor" : "none"} />
-                            </button>
-                            <span className="text-[10px] font-extrabold text-white drop-shadow-md">{displayLikes}</span>
-                          </div>
+                          {/* Liking buttons removed as per user instruction */}
 
                           {/* Toggle Cinema Video Only Fullscreen */}
                           <div className="flex flex-col items-center gap-1.5">
@@ -3822,12 +3764,12 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                   showNotification("Video Only Cinema mode triggered. Double tap or click Show Controls to exit.", "success");
                                 }
                               }}
-                              className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg border cursor-pointer bg-black/60 border-white/20 text-slate-200 hover:text-white hover:bg-black/80`}
+                              className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-md border cursor-pointer bg-gray-100 hover:bg-gray-200 border-gray-200 text-slate-700 hover:text-slate-950`}
                               title="Toggle Fullscreen Video Only Mode"
                             >
                               <Maximize size={18} />
                             </button>
-                            <span className="text-[10px] font-extrabold text-white drop-shadow-md">Fullscreen</span>
+                            <span className="text-[10px] font-extrabold text-slate-600 drop-shadow-sm">Fullscreen</span>
                           </div>
 
                           {/* Stream Link Sharing Action with Custom Dropdown */}
@@ -3835,10 +3777,10 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           <button
                             type="button"
                             onClick={() => setSharingStreamId(sharingStreamId === stream.id ? null : stream.id)}
-                            className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg cursor-pointer ${
+                            className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer ${
                               sharingStreamId === stream.id
-                                ? 'bg-emerald-600 border border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                                : 'bg-black/60 border border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:text-white hover:bg-black/80'
+                                ? 'bg-emerald-600 border border-emerald-500 text-white shadow-md'
+                                : 'bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200'
                             }`}
                             title="Display Size & Sharing Actions Drawer"
                           >
@@ -3934,7 +3876,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           onClick={() => {
                             showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
                           }}
-                          className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                          className="h-11 w-11 rounded-full bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200 flex items-center justify-center transition-all shadow-md cursor-pointer"
                           title="View system parameters"
                         >
                           <Settings size={18} />
@@ -3948,7 +3890,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               e.stopPropagation();
                               handleDeleteClick(stream);
                             }}
-                            className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
+                            className="h-11 w-11 rounded-full bg-red-50 border border-red-200 text-red-600 hover:scale-105 active:scale-95 transition-all flex items-center justify-center shadow-md cursor-pointer"
                             title="Remove Station"
                           >
                             <Trash2 size={18} />
@@ -3968,11 +3910,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                 })}
               </div>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-center p-6 text-white text-center">
-                <p className="text-sm font-black uppercase tracking-wider">
+              <div className="w-full h-full flex flex-col items-center justify-center bg-white text-center p-6 text-slate-800 text-center">
+                <p className="text-sm font-black uppercase tracking-wider text-slate-900">
                   {followedOnly ? 'No followed feeds live' : 'No matching feeds'}
                 </p>
-                <p className="text-xs text-slate-400 font-bold max-w-sm mt-1">
+                <p className="text-xs text-slate-500 font-bold max-w-sm mt-1">
                   {followedOnly ? "Follow more stations to keep watching live content from them!" : "Change search filters or categories to discover streams."}
                 </p>
                 <button
@@ -3981,7 +3923,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     setCategoryFilter('All');
                     setFollowedOnly(false);
                   }}
-                  className="mt-4 px-4 py-2 bg-indigo-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-505 transition-colors cursor-pointer"
+                  className="mt-4 px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors cursor-pointer"
                 >
                   Show All Channels
                 </button>
@@ -3990,11 +3932,11 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
             {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
             {!isStrictVideoOnly && !isLandscape && (
-              <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
+              <div className="h-21 bg-white border-t border-gray-150 flex items-center justify-around text-slate-600 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
                 <button 
                   type="button"
                   onClick={() => { setIsImmersiveMode(false); }} 
-                  className="hover:text-white hover:scale-110 active:scale-90 transition-all cursor-pointer p-2 bg-slate-900/30 rounded-xl" 
+                  className="hover:text-slate-950 hover:scale-110 active:scale-95 transition-all cursor-pointer p-2 bg-gray-150 rounded-xl" 
                   title="Go Home Dashboard"
                 >
                   <svg className="h-5.5 w-5.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -4008,17 +3950,17 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       showNotification("Swipe to explore other live stations!", "info");
                     }
                   }}
-                  className="text-white bg-slate-900 border border-white/10 hover:border-orange-500 rounded-xl p-2 flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-md" 
+                  className="text-orange-600 bg-orange-50 border border-orange-200 hover:border-orange-500 rounded-xl p-2 flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-sm" 
                   title="Reels Mode active"
                 >
-                  <svg className="h-5.5 w-5.5 text-orange-500" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
+                  <svg className="h-5.5 w-5.5 text-orange-550" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H20V18H4V6M2 4V20H22V4H2M8 10V14L13 12L8 10Z"/></svg>
                 </button>
                 <button 
                   type="button"
                   onClick={() => { 
                     setIsImmersiveChannelsDrawerOpen(true);
                   }} 
-                  className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-400" 
+                  className="hover:text-slate-950 hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer text-slate-600" 
                   title="Show Stations Directory"
                 >
                   <Compass size={22} className="hover:text-orange-500 transition-colors" />
@@ -4032,7 +3974,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       showNotification("Please select a live station first!", "info");
                     }
                   }}
-                  className="hover:text-white hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
+                  className="hover:text-slate-950 hover:scale-110 active:scale-90 p-2 rounded-xl transition-all cursor-pointer" 
                   title="Display Size & Interactive board"
                 >
                   <Maximize size={20} />
@@ -4043,7 +3985,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     const profileTab = document.getElementById("profile_tab_trigger");
                     if (profileTab) profileTab.click();
                   }}
-                  className="h-8 w-8 rounded-full border-2 border-orange-555 bg-slate-850 flex items-center justify-center text-[10px] font-black text-rose-450 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-md" 
+                  className="h-8 w-8 rounded-full border-2 border-orange-500 bg-orange-50 flex items-center justify-center text-[10px] font-black text-orange-700 font-sans cursor-pointer hover:scale-115 active:scale-90 transition-all shadow-sm" 
                   title="Your User Profile"
                 >
                   {user?.displayName?.slice(0, 2).toUpperCase() || 'EX'}
@@ -4066,27 +4008,27 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                    className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-slate-950/98 border-t border-slate-800 z-[9993] flex flex-col p-6 pointer-events-auto"
+                    className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-white border-t border-gray-200 z-[9993] flex flex-col p-6 pointer-events-auto"
                   >
                     {/* Header bar handle */}
                     <div 
-                      className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4 cursor-pointer hover:bg-slate-700 select-none shrink-0" 
+                      className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-pointer hover:bg-gray-300 select-none shrink-0" 
                       onClick={() => setIsImmersiveChannelsDrawerOpen(false)} 
                     />
                     
-                    <div className="flex flex-col gap-3 border-b border-slate-900 pb-3 shrink-0">
+                    <div className="flex flex-col gap-3 border-b border-gray-150 pb-3 shrink-0">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                          <h4 className="text-sm font-black uppercase tracking-wider text-slate-800 flex items-center gap-2">
                             <Tv size={16} className="text-orange-500" />
                             Stations Directory
                           </h4>
-                          <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Select any station to switch transmission instantly</p>
+                          <p className="text-[9px] text-slate-450 font-bold mt-0.5 leading-none">Select any station to switch transmission instantly</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-4 text-slate-350 no-scrollbar">
+                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-4 text-slate-600 no-scrollbar">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-4">
                         {filteredBroadcasts.map((stream, idx) => {
                           const isActive = idx === currentIdx;
@@ -4102,16 +4044,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               }}
                               className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 group relative overflow-hidden select-none items-center ${
                                 isActive 
-                                  ? 'bg-slate-900 border-orange-500 text-white shadow-md' 
-                                  : 'border-slate-800 hover:border-slate-700 bg-slate-950/40 hover:bg-slate-900/40'
+                                  ? 'bg-slate-50 border-orange-500 text-slate-900 shadow-sm' 
+                                  : 'border-gray-150 hover:border-gray-250 bg-white hover:bg-gray-50'
                               }`}
                             >
                               {/* Thumbnail / Symbol left */}
-                              <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0 relative bg-slate-900 flex items-center justify-center border border-white/5">
+                              <div className="h-12 w-12 rounded-xl overflow-hidden shrink-0 relative bg-gray-100 flex items-center justify-center border border-gray-200">
                                 {isHls ? (
-                                  <div className="text-emerald-400 flex flex-col items-center justify-center font-sans">
+                                  <div className="text-emerald-600 flex flex-col items-center justify-center font-sans">
                                     <Tv size={16} />
-                                    <span className="text-[5px] font-mono tracking-wider uppercase font-black text-emerald-500">HLS</span>
+                                    <span className="text-[5px] font-mono tracking-wider uppercase font-black text-emerald-600">HLS</span>
                                   </div>
                                 ) : (
                                   <img 
@@ -4122,7 +4064,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                 )}
                                 
                                 {isActive && (
-                                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                  <div className="absolute inset-0 bg-white/40 flex items-center justify-center">
                                     <span className="flex h-2 w-2 relative">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
                                       <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500"></span>
@@ -4132,16 +4074,16 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               </div>
 
                               <div className="flex-1 min-w-0 flex flex-col text-left">
-                                <span className="text-[10px] font-extrabold text-white truncate uppercase tracking-wide group-hover:text-orange-400 transition-colors">
+                                <span className="text-[10px] font-extrabold text-slate-800 truncate uppercase tracking-wide group-hover:text-orange-600 transition-colors">
                                   {stream.title}
                                 </span>
-                                <span className="text-[8px] font-mono text-slate-500 uppercase tracking-wider mt-0.5">
+                                <span className="text-[8px] font-mono text-slate-400 uppercase tracking-wider mt-0.5">
                                   {stream.category || 'BROADCAST'}
                                 </span>
                               </div>
 
                               {isActive && (
-                                <span className="text-[7.5px] font-mono tracking-widest text-orange-500 uppercase font-black border border-orange-500/30 px-1.5 py-0.5 rounded bg-orange-950/30 animate-pulse">
+                                <span className="text-[7.5px] font-mono tracking-widest text-orange-500 uppercase font-black border border-orange-300 px-1.5 py-0.5 rounded bg-orange-50 animate-pulse">
                                   LIVE
                                 </span>
                               )}
@@ -4170,31 +4112,31 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     animate={{ y: 0 }}
                     exit={{ y: '100%' }}
                     transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-                    className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-slate-950/98 border-t border-slate-800 z-[9993] flex flex-col p-6 pointer-events-auto"
+                    className="absolute bottom-0 inset-x-0 h-[60vh] rounded-t-[2.2rem] bg-white border-t border-gray-200 z-[9993] flex flex-col p-6 pointer-events-auto"
                   >
                     {/* Header bar handle */}
-                    <div className="w-12 h-1.5 bg-slate-800 rounded-full mx-auto mb-4 cursor-pointer hover:bg-slate-700 select-none shrink-0" onClick={() => setIsImmersiveCommentsOpen(false)} />
+                    <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4 cursor-pointer hover:bg-gray-300 select-none shrink-0" onClick={() => setIsImmersiveCommentsOpen(false)} />
                     
-                    <div className="flex flex-col gap-3 border-b border-slate-900 pb-3 shrink-0">
+                    <div className="flex flex-col gap-3 border-b border-gray-150 pb-3 shrink-0">
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-sm font-black uppercase tracking-wider text-white">Display Sizing & Calibration</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-slate-800">Display Sizing & Calibration</h4>
                           <p className="text-[9px] text-slate-500 font-bold mt-0.5 leading-none">Calibrating view style for {activeStream.title}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 text-slate-300">
-                      <div className="flex items-center gap-1.5 px-1 text-emerald-400">
-                        <Maximize size={14} className="text-emerald-400" />
+                    <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-5 text-slate-700">
+                      <div className="flex items-center gap-1.5 px-1 text-emerald-600">
+                        <Maximize size={14} className="text-emerald-600" />
                         <p className="text-[10px] uppercase font-black tracking-widest">DISPLAY SIZING & COVERAGE PROFILE</p>
                       </div>
 
                       {/* Adjustments: Zoom / Scale factor */}
-                      <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
-                        <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                      <div className="bg-slate-55 border border-gray-200/60 p-4 rounded-2xl flex flex-col gap-2">
+                        <div className="flex justify-between items-center text-[9.5px] font-bold uppercase tracking-wider text-slate-500">
                           <span>Video Zoom Factor</span>
-                          <span className="text-emerald-450 font-mono font-black">{videoZoom}%</span>
+                          <span className="text-emerald-600 font-mono font-black">{videoZoom}%</span>
                         </div>
                         <input
                           type="range"
@@ -4203,13 +4145,13 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           step="5"
                           value={videoZoom}
                           onChange={(e) => setVideoZoom(parseInt(e.target.value))}
-                          className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
+                          className="w-full h-1 bg-gray-250 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-gray-300 transition-colors"
                         />
                       </div>
 
                       {/* Adjustments: Fit Mode Selector */}
-                      <div className="bg-slate-900/45 border border-white/5 p-4 rounded-2xl flex flex-col gap-2">
-                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">Fit Coverage Profile</span>
+                      <div className="bg-slate-55 border border-gray-200/60 p-4 rounded-2xl flex flex-col gap-2">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-500">Fit Coverage Profile</span>
                         <div className="grid grid-cols-3 gap-1.5 mt-1">
                           {(['cover', 'contain', 'fill'] as const).map((fitMode) => (
                             <button
@@ -4219,7 +4161,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               className={`py-2 rounded-xl text-[8.5px] uppercase font-black tracking-wider border transition-all cursor-pointer ${
                                 videoFit === fitMode
                                   ? 'bg-emerald-600 border-emerald-500 text-white font-extrabold'
-                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                                  : 'bg-white border-gray-200 text-slate-500 hover:text-slate-800'
                               }`}
                             >
                               {fitMode}
@@ -4236,7 +4178,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           setVideoFit('contain');
                           showNotification('Reset display filters to standard hardware default.', 'info');
                         }}
-                        className="w-full py-3 bg-slate-900 hover:bg-slate-850 hover:text-white border border-slate-800 hover:border-slate-700 rounded-2xl text-[9.5px] font-mono tracking-widest uppercase font-black text-slate-400 transition-all cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-gray-100 hover:bg-gray-200 hover:text-slate-900 border border-gray-200 rounded-2xl text-[9.5px] font-mono tracking-widest uppercase font-black text-slate-500 transition-all cursor-pointer flex items-center justify-center gap-2"
                       >
                         🔄 Reset Calibration Values
                       </button>
