@@ -11722,7 +11722,7 @@ function ExonaApp() {
 
   // 3. Messages Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user || view !== 'chat') return;
+    if (isQuotaExceeded || !user) return;
 
     const messagesQuery = query(collection(db, 'messages'), where('participants', 'array-contains', user.uid));
     const unsubAllMessages = onSnapshot(messagesQuery, (snap) => {
@@ -11732,7 +11732,7 @@ function ExonaApp() {
     });
 
     return () => unsubAllMessages();
-  }, [user?.uid, isQuotaExceeded, view]);
+  }, [user?.uid, isQuotaExceeded]);
 
   // 4. Stories Listener
   useEffect(() => {
@@ -21067,6 +21067,9 @@ function ExonaApp() {
         const filteredInstitutions = [...schools, ...places].filter(inst => 
           inst.name.toLowerCase().includes(query)
         );
+        const filteredGroups = chatGroups.filter(g => 
+          (g.name || 'Group').toLowerCase().includes(query)
+        );
 
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4">
@@ -21081,7 +21084,7 @@ function ExonaApp() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Search..." 
+                  placeholder="Search institutions, people, or groups..." 
                   value={globalSearch}
                   onChange={(e) => {
                     setGlobalSearch(e.target.value);
@@ -21106,9 +21109,9 @@ function ExonaApp() {
                           setSelectedInstitutionForProfile(inst);
                           setView('institution-channel');
                         }}
-                        className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4"
+                        className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4 text-left"
                       >
-                        <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden border border-gray-100">
+                        <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden border border-gray-100 shrink-0">
                           {inst.logo ? (
                             <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
@@ -21126,10 +21129,47 @@ function ExonaApp() {
                 </section>
               )}
 
+              {/* Groups Section */}
+              {query.trim().length > 0 && filteredGroups.length > 0 && (
+                <section>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">Groups</p>
+                  <div className="grid grid-cols-1 gap-3">
+                    {filteredGroups.map(group => (
+                      <button 
+                        key={group.id}
+                        onClick={() => {
+                          setActiveChat({
+                            uid: group.id,
+                            displayName: group.name,
+                            photoURL: group.photoURL,
+                            isGroup: true
+                          });
+                          setView('chat');
+                        }}
+                        className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4 text-left"
+                      >
+                        <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden border border-gray-100 shrink-0">
+                          {group.photoURL ? (
+                            <img src={group.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <Users size={20} />
+                          )}
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <p className="text-[14px] font-bold text-ink tracking-tight truncate">{group.name}</p>
+                          <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{group.members?.length || 0} Members</p>
+                        </div>
+                        <ChevronRight size={14} className="text-muted" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* People Section */}
               {(globalSearchResults.length > 0 || isSearchingUsers) && (
                 <section>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">People</p>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">People / Individuals</p>
                   {isSearchingUsers ? (
                     <div className="p-8 text-center">
                       <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
@@ -21140,7 +21180,7 @@ function ExonaApp() {
                         <button 
                           key={result.uid}
                           onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
-                          className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4"
+                          className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4 text-left"
                         >
                           <div className="h-12 w-12 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
                             {result.photoURL ? (
@@ -21163,7 +21203,7 @@ function ExonaApp() {
                 </section>
               )}
 
-              {filteredInstitutions.length === 0 && globalSearchResults.length === 0 && !isSearchingUsers && (
+              {filteredInstitutions.length === 0 && globalSearchResults.length === 0 && filteredGroups.length === 0 && !isSearchingUsers && (
                 <div className="py-20 text-center px-8">
                   <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
                     <Search size={32} />
@@ -21172,7 +21212,7 @@ function ExonaApp() {
                     {globalSearch ? `No results for "${globalSearch}"` : 'Search for anything'}
                   </h3>
                   <p className="text-sm text-muted">
-                    {globalSearch ? 'Try a different keyword' : 'Search for schools, colleges, institutions, or people on Exona.'}
+                    {globalSearch ? 'Try a different keyword' : 'Search for schools, colleges, institutions, people, or groups.'}
                   </p>
                 </div>
               )}
@@ -28254,7 +28294,7 @@ function ExonaApp() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
               <input 
                 type="text" 
-                placeholder="Search institutions or people..." 
+                placeholder="Search institutions, people, or groups..." 
                 value={globalSearch}
                 onChange={(e) => {
                   const val = e.target.value;
