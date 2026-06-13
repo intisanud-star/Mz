@@ -7712,6 +7712,7 @@ function ExonaApp() {
   const [selectedInstitutionForProfile, setSelectedInstitutionForProfile] = useState<School | Place | null>(null);
   const [globalSearch, setGlobalSearch] = useState('');
   const [globalSearchResults, setGlobalSearchResults] = useState<UserDoc[]>([]);
+  const [searchCategory, setSearchCategory] = useState<'all' | 'people' | 'institutions' | 'groups' | 'posts' | 'classrooms'>('all');
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [recordSearch, setRecordSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
@@ -21106,157 +21107,412 @@ function ExonaApp() {
       }
       case 'search': {
         const query = globalSearch.toLowerCase();
-        const filteredInstitutions = [...schools, ...places].filter(inst => 
-          inst.name.toLowerCase().includes(query)
-        );
-        const filteredGroups = chatGroups.filter(g => 
-          (g.name || 'Group').toLowerCase().includes(query)
-        );
+
+        // 1. Institutions
+        const filteredInstitutions = [...schools, ...places].filter(inst => {
+          if (!query) return false;
+          return (
+            (inst.name || '').toLowerCase().includes(query) ||
+            (inst.type || '').toLowerCase().includes(query) ||
+            (inst.category || '').toLowerCase().includes(query) ||
+            (inst.address || '').toLowerCase().includes(query)
+          );
+        });
+
+        // 2. Chat Groups
+        const filteredGroups = chatGroups.filter(g => {
+          if (!query) return false;
+          return (
+            (g.name || 'Group').toLowerCase().includes(query) ||
+            (g.description || '').toLowerCase().includes(query)
+          );
+        });
+
+        // 3. People / Individuals
+        const localPeopleMatches = [...chatUsers, ...connectedUsers, ...myFollowers].filter(u => {
+          if (!u || !query) return false;
+          if (u.uid === user?.uid) return false;
+          return (
+            (u.displayName || '').toLowerCase().includes(query) ||
+            (u.email || '').toLowerCase().includes(query)
+          );
+        });
+        const peopleMap = new Map<string, any>();
+        localPeopleMatches.forEach(u => peopleMap.set(u.uid, u));
+        globalSearchResults.forEach(u => peopleMap.set(u.uid, u));
+        const combinedPeopleResults = Array.from(peopleMap.values()).filter(u => u.uid !== user?.uid);
+
+        // 4. Feed Posts / Updates
+        const filteredPosts = posts.filter(post => {
+          if (!query) return false;
+          return (
+            (post.caption || '').toLowerCase().includes(query) ||
+            (post.authorName || '').toLowerCase().includes(query) ||
+            (post.schoolName || '').toLowerCase().includes(query) ||
+            (post.category || '').toLowerCase().includes(query)
+          );
+        });
+
+        // 5. Classrooms & Hubs
+        const filteredClassrooms = classrooms.filter(cls => {
+          if (!query) return false;
+          return (
+            (cls.name || '').toLowerCase().includes(query) ||
+            (cls.description || '').toLowerCase().includes(query) ||
+            (cls.subject || '').toLowerCase().includes(query) ||
+            (cls.teacherName || '').toLowerCase().includes(query) ||
+            (cls.code || '').toLowerCase().includes(query)
+          );
+        });
+
+        const hasAnyResults = 
+          filteredInstitutions.length > 0 ||
+          filteredGroups.length > 0 ||
+          combinedPeopleResults.length > 0 ||
+          filteredPosts.length > 0 ||
+          filteredClassrooms.length > 0;
+
+        // Open Classroom helper
+        const handleOpenClassroomInSearch = async (classData: any) => {
+          try {
+            const schoolId = classData.schoolId;
+            let school = schools.find(s => s.id === schoolId) || places.find(p => p.id === schoolId);
+            if (!school && schoolId) {
+              const schoolDoc = await getDoc(doc(db, 'schools', schoolId));
+              if (schoolDoc.exists()) {
+                school = { id: schoolDoc.id, ...schoolDoc.data() } as any;
+              } else {
+                const placeDoc = await getDoc(doc(db, 'places', schoolId));
+                if (placeDoc.exists()) {
+                  school = { id: placeDoc.id, ...placeDoc.data() } as any;
+                }
+              }
+            }
+            if (school) {
+              setSelectedSchool(school as any);
+            }
+            setSelectedClassroom(classData);
+            setClassroomActiveTab('stream');
+            setView('classroom');
+          } catch (err) {
+            console.error('Error opening classroom:', err);
+          }
+        };
+
+        const totalPeopleCount = combinedPeopleResults.length;
+        const totalInstCount = filteredInstitutions.length;
+        const totalGroupCount = filteredGroups.length;
+        const totalPostCount = filteredPosts.length;
+        const totalClassroomCount = filteredClassrooms.length;
+
+        // Categories with counts
+        const searchCategories = [
+          { id: 'all', label: 'All', icon: LayoutGrid, count: null },
+          { id: 'people', label: 'People', icon: Users, count: totalPeopleCount },
+          { id: 'institutions', label: 'Institutions', icon: GraduationCap, count: totalInstCount },
+          { id: 'groups', label: 'Groups', icon: MessageSquare, count: totalGroupCount },
+          { id: 'posts', label: 'Posts', icon: Send, count: totalPostCount },
+          { id: 'classrooms', label: 'Classrooms', icon: BookOpen, count: totalClassroomCount }
+        ];
 
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4">
-            <div className="md:hidden flex items-center gap-4 mb-8">
+          <div className="w-full max-w-xl mx-auto py-6 px-4">
+            {/* Search Input for Mobile only */}
+            <div className="md:hidden flex items-center gap-4 mb-6">
               <button 
                 onClick={() => { setView('feed'); setGlobalSearch(''); }}
-                className="h-12 w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all"
+                className="h-11 w-11 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm shrink-0"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={18} />
               </button>
               <div className="flex-1 relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
                 <input 
                   type="text" 
-                  placeholder="Search institutions, people, or groups..." 
+                  placeholder="Search space..." 
                   value={globalSearch}
                   onChange={(e) => {
                     setGlobalSearch(e.target.value);
                     handleSearchUsers(e.target.value);
                   }}
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-medium" 
+                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-semibold shadow-inner" 
                   autoFocus
                 />
               </div>
             </div>
 
-            <div className="space-y-8">
-              {/* Institutions Section */}
-              {filteredInstitutions.length > 0 && (
-                <section>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">Institutions</p>
-                  <div className="grid grid-cols-1 gap-3">
-                    {filteredInstitutions.map(inst => (
-                      <button 
-                        key={inst.id}
-                        onClick={() => {
-                          setSelectedInstitutionForProfile(inst);
-                          setView('institution-channel');
-                        }}
-                        className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4 text-left"
-                      >
-                        <div className="h-12 w-12 rounded-2xl bg-gray-50 flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden border border-gray-100 shrink-0">
-                          {inst.logo ? (
-                            <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <GraduationCap size={20} />
-                          )}
-                        </div>
-                        <div className="text-left flex-1 min-w-0">
-                          <p className="text-[14px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
-                          <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{inst.type}</p>
-                        </div>
-                        <ChevronRight size={14} className="text-muted" />
-                      </button>
-                    ))}
+            {/* Filter pills */}
+            {query.trim().length > 0 && (
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2 mb-6 border-b border-gray-100 select-none">
+                {searchCategories.map(cat => {
+                  const Icon = cat.icon;
+                  const isActive = searchCategory === cat.id;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSearchCategory(cat.id as any)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all whitespace-nowrap border shrink-0 ${
+                        isActive 
+                          ? 'bg-ink text-white border-ink shadow-sm' 
+                          : 'bg-white text-muted hover:text-ink border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <Icon size={12} />
+                      <span>{cat.label}</span>
+                      {cat.count !== null && cat.count > 0 && (
+                        <span className={`text-[9px] px-1.5 py-0.25 rounded-full font-bold ml-1 ${isActive ? 'bg-white/25 text-white' : 'bg-gray-100 text-muted'}`}>
+                          {cat.count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {query.trim().length === 0 ? (
+                <div className="py-20 text-center px-8">
+                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted border border-gray-100/50">
+                    <Search size={32} />
                   </div>
-                </section>
-              )}
-
-              {/* Groups Section */}
-              {query.trim().length > 0 && filteredGroups.length > 0 && (
-                <section>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">Groups</p>
-                  <div className="grid grid-cols-1 gap-3">
-                    {filteredGroups.map(group => (
-                      <button 
-                        key={group.id}
-                        onClick={() => {
-                          setActiveChat({
-                            uid: group.id,
-                            displayName: group.name,
-                            photoURL: group.photoURL,
-                            isGroup: true
-                          });
-                          setView('chat');
-                        }}
-                        className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4 text-left"
-                      >
-                        <div className="h-12 w-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden border border-gray-100 shrink-0">
-                          {group.photoURL ? (
-                            <img src={group.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <Users size={20} />
-                          )}
-                        </div>
-                        <div className="text-left flex-1 min-w-0">
-                          <p className="text-[14px] font-bold text-ink tracking-tight truncate">{group.name}</p>
-                          <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{group.members?.length || 0} Members</p>
-                        </div>
-                        <ChevronRight size={14} className="text-muted" />
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* People Section */}
-              {(globalSearchResults.length > 0 || isSearchingUsers) && (
-                <section>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-4 px-1">People / Individuals</p>
-                  {isSearchingUsers ? (
-                    <div className="p-8 text-center">
-                      <div className="h-6 w-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                      {globalSearchResults.map(result => (
-                        <button 
-                          key={result.uid}
-                          onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
-                          className="w-full p-4 rounded-[2rem] border border-gray-50 bg-card hover:border-gray-200 transition-all group flex items-center gap-4 text-left"
-                        >
-                          <div className="h-12 w-12 rounded-2xl overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0">
-                            {result.photoURL ? (
-                              <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="h-full w-full bg-gray-50 flex items-center justify-center text-muted">
-                                <UserIcon size={20} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="text-left flex-1 min-w-0">
-                            <p className="text-[14px] font-bold text-ink tracking-tight truncate">{result.displayName}</p>
-                            <p className="text-[10px] text-muted font-medium truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '')}</p>
-                          </div>
-                          <ChevronRight size={14} className="text-muted" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </section>
-              )}
-
-              {filteredInstitutions.length === 0 && globalSearchResults.length === 0 && filteredGroups.length === 0 && !isSearchingUsers && (
+                  <h3 className="text-lg font-bold text-ink mb-2">Search anything on Exona</h3>
+                  <p className="text-sm text-muted">
+                    Search for institutions, classrooms, groups, users, and broadcast feeds.
+                  </p>
+                </div>
+              ) : !hasAnyResults && !isSearchingUsers ? (
                 <div className="py-20 text-center px-8">
                   <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
                     <Search size={32} />
                   </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">
-                    {globalSearch ? `No results for "${globalSearch}"` : 'Search for anything'}
-                  </h3>
-                  <p className="text-sm text-muted">
-                    {globalSearch ? 'Try a different keyword' : 'Search for schools, colleges, institutions, people, or groups.'}
-                  </p>
+                  <h3 className="text-lg font-bold text-ink mb-2">{`No results for "${globalSearch}"`}</h3>
+                  <p className="text-sm text-muted">Try a different keyword or explore other categories.</p>
                 </div>
+              ) : (
+                <>
+                  {/* People / Individuals Section */}
+                  {(searchCategory === 'all' || searchCategory === 'people') && combinedPeopleResults.length > 0 && (
+                    <section className="bg-white/50 p-1.5 rounded-[2.2rem]">
+                      <div className="flex items-center justify-between px-3 mb-3">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">People / Individuals</p>
+                        {searchCategory === 'all' && totalPeopleCount > 4 && (
+                          <button 
+                            onClick={() => setSearchCategory('people')}
+                            className="text-[10px] font-bold text-indigo-650 hover:underline uppercase tracking-wider"
+                          >
+                            See All ({totalPeopleCount})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {combinedPeopleResults.slice(0, searchCategory === 'all' ? 4 : undefined).map(result => (
+                          <button 
+                            key={result.uid}
+                            onClick={() => handleUserClick({ uid: result.uid, name: result.displayName || 'User', photo: result.photoURL || '' })}
+                            className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="h-11 w-11 rounded-2xl overflow-hidden border border-gray-150 bg-white flex items-center justify-center shrink-0">
+                                {result.photoURL ? (
+                                  <img src={result.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="h-full w-full bg-gray-50 flex items-center justify-center text-muted">
+                                    <UserIcon size={18} />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[14px] font-bold text-ink tracking-tight truncate flex items-center gap-1.5">
+                                  <span>{result.displayName || 'Anonymous User'}</span>
+                                  {result.role === 'admin' && <BadgeCheck size={14} className="text-accent shrink-0" />}
+                                </p>
+                                <p className="text-[10px] text-muted font-medium truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '') || 'username'}</p>
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Institutions Section */}
+                  {(searchCategory === 'all' || searchCategory === 'institutions') && filteredInstitutions.length > 0 && (
+                    <section className="bg-white/50 p-1.5 rounded-[2.2rem]">
+                      <div className="flex items-center justify-between px-3 mb-3">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Institutions</p>
+                        {searchCategory === 'all' && totalInstCount > 4 && (
+                          <button 
+                            onClick={() => setSearchCategory('institutions')}
+                            className="text-[10px] font-bold text-indigo-650 hover:underline uppercase tracking-wider"
+                          >
+                            See All ({totalInstCount})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {filteredInstitutions.slice(0, searchCategory === 'all' ? 4 : undefined).map(inst => (
+                          <button 
+                            key={inst.id}
+                            onClick={() => {
+                              setSelectedInstitutionForProfile(inst);
+                              setView('institution-channel');
+                            }}
+                            className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="h-11 w-11 rounded-2xl bg-gray-55 flex items-center justify-center text-accent group-hover:scale-110 transition-all overflow-hidden border border-gray-150 shrink-0">
+                                {inst.logo ? (
+                                  <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <GraduationCap size={18} />
+                                )}
+                              </div>
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[14px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
+                                <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{inst.type || 'institution'}</p>
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Groups Section */}
+                  {(searchCategory === 'all' || searchCategory === 'groups') && filteredGroups.length > 0 && (
+                    <section className="bg-white/50 p-1.5 rounded-[2.2rem]">
+                      <div className="flex items-center justify-between px-3 mb-3">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Groups</p>
+                        {searchCategory === 'all' && totalGroupCount > 4 && (
+                          <button 
+                            onClick={() => setSearchCategory('groups')}
+                            className="text-[10px] font-bold text-indigo-650 hover:underline uppercase tracking-wider"
+                          >
+                            See All ({totalGroupCount})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {filteredGroups.slice(0, searchCategory === 'all' ? 4 : undefined).map(group => (
+                          <button 
+                            key={group.id}
+                            onClick={() => {
+                              setActiveChat({
+                                uid: group.id,
+                                displayName: group.name,
+                                photoURL: group.photoURL,
+                                isGroup: true
+                              });
+                              setView('chat');
+                            }}
+                            className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden border border-gray-150 shrink-0">
+                                {group.photoURL ? (
+                                  <img src={group.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <Users size={18} />
+                                )}
+                              </div>
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[14px] font-bold text-ink tracking-tight truncate">{group.name}</p>
+                                <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{group.members?.length || 0} Members</p>
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-muted group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Classrooms Section */}
+                  {(searchCategory === 'all' || searchCategory === 'classrooms') && filteredClassrooms.length > 0 && (
+                    <section className="bg-white/50 p-1.5 rounded-[2.2rem]">
+                      <div className="flex items-center justify-between px-3 mb-3">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Classrooms & Hubs</p>
+                        {searchCategory === 'all' && totalClassroomCount > 4 && (
+                          <button 
+                            onClick={() => setSearchCategory('classrooms')}
+                            className="text-[10px] font-bold text-indigo-650 hover:underline uppercase tracking-wider"
+                          >
+                            See All ({totalClassroomCount})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {filteredClassrooms.slice(0, searchCategory === 'all' ? 4 : undefined).map(cls => (
+                          <button 
+                            key={cls.id}
+                            onClick={() => handleOpenClassroomInSearch(cls)}
+                            className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="h-11 w-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden border border-gray-150 shrink-0">
+                                <BookOpen size={18} />
+                              </div>
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[14px] font-bold text-ink tracking-tight truncate">{cls.name}</p>
+                                <p className="text-[10px] text-muted font-medium uppercase tracking-widest truncate">{cls.subject || 'Class'} • By {cls.teacherName || 'Instructor'}</p>
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-muted group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Broadcast & Feed Posts Section */}
+                  {(searchCategory === 'all' || searchCategory === 'posts') && filteredPosts.length > 0 && (
+                    <section className="space-y-4">
+                      <div className="flex items-center justify-between px-3 mb-3">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Broadcasts & Posts</p>
+                        {searchCategory === 'all' && totalPostCount > 2 && (
+                          <button 
+                            onClick={() => setSearchCategory('posts')}
+                            className="text-[10px] font-bold text-indigo-650 hover:underline uppercase tracking-wider"
+                          >
+                            See All ({totalPostCount})
+                          </button>
+                        )}
+                      </div>
+                      <div className="space-y-4">
+                        {filteredPosts.slice(0, searchCategory === 'all' ? 2 : undefined).map(post => {
+                          const school = post.schoolId ? (schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId)) : null;
+                          const canManagePost = userDoc?.role === 'admin' || post.authorUid === user?.uid || (post.schoolId && school?.creatorUid === user?.uid);
+                          return (
+                            <div key={post.id} className="border border-gray-100 rounded-[2rem] bg-white p-2 shadow-sm">
+                              <FeedPost 
+                                post={post} 
+                                onUserClick={handleUserClick}
+                                onInstitutionClick={handleInstitutionClick}
+                                onLike={handleLikePost}
+                                onComment={(p: Post) => { 
+                                  setActivePostForComments(p); 
+                                  setIsCommentModalOpen(true); 
+                                }}
+                                onMessage={handleMessageAuthor}
+                                onReshare={handleResharePost}
+                                onForward={handleForwardPost}
+                                onEdit={handleEditPost}
+                                onDelete={(p: Post) => { 
+                                  onDeletePostClick(p); 
+                                }}
+                                currentUserId={user?.uid}
+                                canManage={canManagePost}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+                </>
               )}
             </div>
           </div>
