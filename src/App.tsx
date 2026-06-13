@@ -8532,6 +8532,22 @@ function ExonaApp() {
     setTimeout(() => setNotification(null), 4000);
   };
 
+  const [dismissedInstitutions, setDismissedInstitutions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('exon_dismissed_institutions');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const handleDismissInstitution = (instId: string) => {
+    const updated = [...dismissedInstitutions, instId];
+    setDismissedInstitutions(updated);
+    localStorage.setItem('exon_dismissed_institutions', JSON.stringify(updated));
+    showNotification('Removed from your feed', 'success');
+  };
+
   /**
    * Compresses a base64 data URL to fit within Firestore limit rules.
    */
@@ -11383,12 +11399,12 @@ function ExonaApp() {
 
   // Data listeners - Master data (Schools/Places)
   useEffect(() => {
-    if (isQuotaExceeded || !splashDone || !isOnline || !user) return;
+    if (isQuotaExceeded || !splashDone || !isOnline) return;
 
     let unsubs: (() => void)[] = [];
 
-    // ONLY load a broader list of schools/places if browsing them or if the user is a systems administrator
-    const isBrowsingAll = (view === 'feed' && feedTab === 'institutions') || userDoc?.role === 'admin';
+    // ONLY load a broader list of schools/places if browsing them, if the user is a systems administrator, or if the user is a guest (not logged in)
+    const isBrowsingAll = !user || (view === 'feed' && feedTab === 'institutions') || userDoc?.role === 'admin';
 
     if (isBrowsingAll) {
       const qSchools = query(collection(db, 'schools'), limit(30));
@@ -11835,17 +11851,18 @@ function ExonaApp() {
 
   // 6. Posts & Personalized Social Feed Listener
   useEffect(() => {
-    if (isQuotaExceeded || !user || !userDoc) return;
+    if (isQuotaExceeded) return;
     if (!['feed', 'school-feed', 'institution-profile', 'profile', 'user-profile'].includes(view)) return;
 
     let unsubPosts = () => {};
 
-    const following = userDoc.following || [];
-    const managedIds = [
+    const following = userDoc?.following || [];
+    const managedIds = user ? [
       ...schools.filter(s => s.creatorUid === user.uid || s.administrativeViewers?.includes(user.uid)).map(s => s.id),
       ...places.filter(p => p.creatorUid === user.uid || p.administrativeViewers?.includes(user.uid)).map(p => p.id)
-    ];
-    const relevantIds = [...new Set([user.uid, ...following, ...managedIds, selectedSchool?.id, selectedInstitutionForProfile?.id, selectedUserProfile?.uid].filter(Boolean))];
+    ] : [];
+    const publicIds = !user ? [...schools.map(s => s.id), ...places.map(p => p.id)] : [];
+    const relevantIds = [...new Set([user?.uid, ...following, ...managedIds, ...publicIds, selectedSchool?.id, selectedInstitutionForProfile?.id, selectedUserProfile?.uid].filter(Boolean))];
     
     if (relevantIds.length > 0) {
       const limitedIds = relevantIds.slice(0, 30);
@@ -13344,6 +13361,11 @@ function ExonaApp() {
                 <AnimatePresence mode="popLayout">
                   {(() => {
                     const filteredSchoolsAndPlaces = [...schools, ...places]
+                      .filter(s => {
+                        // Exclude dismissed institutions
+                        if (dismissedInstitutions.includes(s.id)) return false;
+                        return true;
+                      })
                       .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
                       .filter(s => {
                         if (schoolFilter === 'all') return true;
@@ -13357,6 +13379,11 @@ function ExonaApp() {
                       .filter(s => {
                         if (globalSearch.trim() !== '') return true;
                         if (userDoc?.role === 'admin') return true;
+                        
+                        // "Test centre" / "Test center" is visible for everyone
+                        const isTestCentre = s.name?.toLowerCase() === 'test centre' || s.name?.toLowerCase() === 'test center';
+                        if (isTestCentre) return true;
+
                         return s.creatorUid === user?.uid || 
                                s.administrativeViewers?.includes(user?.uid || '') ||
                                s.followers?.includes(user?.uid || '') ||
@@ -13500,6 +13527,20 @@ function ExonaApp() {
                                           </div>
                                         </div>
                                       </div>
+                                      
+                                      {/* Cancel/Dismiss Button */}
+                                      {(school.name?.toLowerCase() === 'test centre' || school.name?.toLowerCase() === 'test center') && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDismissInstitution(school.id);
+                                          }}
+                                          className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 md:opacity-0 md:group-hover:opacity-100 transition-all ml-1 shrink-0 bg-slate-50/50 md:bg-transparent"
+                                          title="Hide from feed"
+                                        >
+                                          <X size={15} />
+                                        </button>
+                                      )}
                                     </motion.div>
                                   );
                                 })}
@@ -13584,6 +13625,20 @@ function ExonaApp() {
                                     </div>
                                   </div>
                                 </div>
+                                
+                                {/* Cancel/Dismiss Button */}
+                                {(school.name?.toLowerCase() === 'test centre' || school.name?.toLowerCase() === 'test center') && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDismissInstitution(school.id);
+                                    }}
+                                    className="h-8 w-8 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 md:opacity-0 md:group-hover:opacity-100 transition-all ml-1 shrink-0 bg-slate-50/50 md:bg-transparent"
+                                    title="Hide from feed"
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                )}
                               </motion.div>
                             );
                           })
