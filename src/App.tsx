@@ -7749,6 +7749,15 @@ function ExonaApp() {
     localStorage.setItem('exon_custom_categories', JSON.stringify(customOnly));
   }, [categories]);
 
+  // Reset global search when leaving the search view
+  useEffect(() => {
+    if (view !== 'search') {
+      setGlobalSearch('');
+      setGlobalSearchResults([]);
+      setSearchCategory('all');
+    }
+  }, [view]);
+
   const getFilterCount = (filterId: string): number => {
     let filtered = [...schools, ...places];
     
