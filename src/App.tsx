@@ -7360,6 +7360,38 @@ function ExonaApp() {
     }
   }, [selectedClassroom, selectedSchool, user?.uid]);
 
+  const handleGroupLinkNavigation = async (groupId: string) => {
+    try {
+      const groupDoc = await getDoc(doc(db, 'chatGroups', groupId));
+      if (!groupDoc.exists()) {
+        showNotification('Group not found.', 'error');
+        return;
+      }
+      const groupData = { id: groupDoc.id, ...groupDoc.data() } as any;
+      
+      const isMember = groupData.members?.includes(user?.uid || '');
+      if (!isMember && user) {
+        await updateDoc(doc(db, 'chatGroups', groupId), {
+          members: arrayUnion(user.uid)
+        });
+        showNotification(`Joined group ${groupData.name}!`, 'success');
+      } else {
+        showNotification(`Welcome back to ${groupData.name}!`, 'success');
+      }
+      
+      setActiveChat({
+        uid: groupId,
+        displayName: groupData.name,
+        photoURL: groupData.photoURL,
+        isGroup: true
+      });
+      setView('chat');
+    } catch (err) {
+      console.error('Error navigating to group:', err);
+      showNotification('Failed to open group link.', 'error');
+    }
+  };
+
   const handleClassroomLinkNavigation = async (classId: string) => {
     try {
       const classDoc = await getDoc(doc(db, 'classrooms', classId));
@@ -7415,6 +7447,8 @@ function ExonaApp() {
     if (!user) return;
     const urlParams = new URLSearchParams(window.location.search);
     const classId = urlParams.get('classId');
+    const groupId = urlParams.get('groupId');
+    
     if (classId) {
       const newParams = new URLSearchParams(window.location.search);
       newParams.delete('classId');
@@ -7423,6 +7457,14 @@ function ExonaApp() {
       window.history.replaceState({}, '', newUrl);
       
       handleClassroomLinkNavigation(classId);
+    } else if (groupId) {
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete('groupId');
+      const searchStr = newParams.toString();
+      const newUrl = window.location.pathname + (searchStr ? '?' + searchStr : '');
+      window.history.replaceState({}, '', newUrl);
+      
+      handleGroupLinkNavigation(groupId);
     }
   }, [user]);
 
@@ -21339,9 +21381,27 @@ function ExonaApp() {
                         ) : (
                           <>
                             <h4 className="text-xl font-black text-ink tracking-tight mb-2">{activeGroup.name}</h4>
-                            <p className="text-sm text-muted font-medium px-4 line-clamp-3">
+                            <p className="text-sm text-muted font-medium px-4 line-clamp-3 mb-4">
                               {activeGroup.description || 'No description provided.'}
                             </p>
+                            <div className="px-6 w-full mb-3">
+                              <button 
+                                onClick={async () => {
+                                  const inviteUrl = `${window.location.origin}?groupId=${activeGroup.id}`;
+                                  try {
+                                    await navigator.clipboard.writeText(inviteUrl);
+                                    showNotification('Invite link copied to clipboard!', 'success');
+                                  } catch (err) {
+                                    console.error('Failed to copy', err);
+                                    showNotification(`Invite link: ${inviteUrl}`, 'info');
+                                  }
+                                }}
+                                className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider transition-colors border border-indigo-100"
+                              >
+                                <Link size={14} />
+                                Invite Member (Copy Link)
+                              </button>
+                            </div>
                           </>
                         )}
                       </div>
@@ -21753,18 +21813,6 @@ function ExonaApp() {
                 )}
                 
                 <div className="flex items-center gap-2 w-full select-none">
-                  {/* Left Action Button (Exona Portal Link) */}
-                  <button 
-                    onClick={() => {
-                      setView('feed');
-                      showNotification("Returned to feed dashboard", "info");
-                    }} 
-                    className="px-3 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm hover:bg-indigo-700 transition-all shrink-0 active:scale-95"
-                  >
-                    <Grid size={13} />
-                    <span>Portal</span>
-                  </button>
-
                   {/* Input widget */}
                   {isRecording ? (
                     <div className="flex-1 bg-red-50/50 flex items-center justify-between px-4 py-2 bg-gray-50 border border-gray-150 rounded-2xl">
