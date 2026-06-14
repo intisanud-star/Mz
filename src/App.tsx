@@ -8319,6 +8319,22 @@ function ExonaApp() {
     educationalLevels: [] as string[],
     replyPermission: 'everyone' as 'everyone' | 'followers' | 'none'
   });
+  const [createGroupChat, setCreateGroupChat] = useState<boolean>(true);
+  const [groupChatName, setGroupChatName] = useState<string>('');
+  const [groupChatDescription, setGroupChatDescription] = useState<string>('');
+
+  // Synchronize Group Chat default values when user types institution details
+  useEffect(() => {
+    if (!editingSchool) {
+      if (!groupChatName || groupChatName.startsWith(newSchool.name.slice(0, -1)) || groupChatName === '') {
+        setGroupChatName(newSchool.name.trim() ? `${newSchool.name.trim()} Group Chat` : '');
+      }
+      if (!groupChatDescription || groupChatDescription === '' || groupChatDescription.startsWith(`Official group chat for ${newSchool.name.slice(0, -1)}`)) {
+        setGroupChatDescription(newSchool.name.trim() ? `Official group chat for ${newSchool.name.trim()}` : '');
+      }
+    }
+  }, [newSchool.name, editingSchool]);
+
   const [customCategoryInput, setCustomCategoryInput] = useState('');
   const [newRecord, setNewRecord] = useState<{
     studentName: string;
@@ -9277,6 +9293,24 @@ function ExonaApp() {
 
         batch.set(doc(db, collectionName, schoolId), institutionData);
         
+        // Auto-create Group Chat if selected
+        if (createGroupChat) {
+          const groupRef = doc(collection(db, 'chatGroups'));
+          const groupData = {
+            id: groupRef.id,
+            name: groupChatName.trim() || `${newSchool.name.trim()} Group Chat`,
+            description: groupChatDescription.trim() || `Official group chat for ${newSchool.name.trim()}`,
+            creatorUid: user.uid,
+            members: [user.uid],
+            admins: [user.uid],
+            timestamp: serverTimestamp(),
+            photoURL: logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(newSchool.name)}&background=random`,
+            institutionId: schoolId
+          };
+          batch.set(groupRef, groupData);
+          console.log('Auto Group Chat creation queued:', groupRef.id);
+        }
+
         // Initialize finance
         batch.set(doc(db, 'finance', schoolId), {
           schoolId: schoolId,
@@ -9312,6 +9346,9 @@ function ExonaApp() {
       }
 
       setNewSchool({ name: '', description: '', logo: '', type: 'school', category: 'School', educationalLevels: [] });
+      setCreateGroupChat(true);
+      setGroupChatName('');
+      setGroupChatDescription('');
       setEditingSchool(null);
       setIsSchoolModalOpen(false);
       setSelectedFile(null);
@@ -27555,6 +27592,48 @@ function ExonaApp() {
                     </div>
                   </div>
                 </div>
+
+                {!editingSchool && (
+                  <div className="p-6 bg-gray-50/50 border border-gray-100 rounded-[2rem] space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-black text-ink uppercase tracking-wider">Group Chat Setup</h4>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Create a community chat space for member discussions</p>
+                      </div>
+                      <button 
+                        type="button"
+                        onClick={() => setCreateGroupChat(!createGroupChat)}
+                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none shrink-0 relative ${createGroupChat ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                      >
+                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${createGroupChat ? 'translate-x-6' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+
+                    {createGroupChat && (
+                      <div className="space-y-4 pt-4 border-t border-gray-100/70">
+                        <div className="group">
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Group Chat Name</label>
+                          <input 
+                            type="text"
+                            value={groupChatName}
+                            onChange={(e) => setGroupChatName(e.target.value)}
+                            placeholder="e.g. Horizon Students & Staff"
+                            className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold shadow-sm"
+                          />
+                        </div>
+                        <div className="group">
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Group Description</label>
+                          <textarea 
+                            value={groupChatDescription}
+                            onChange={(e) => setGroupChatDescription(e.target.value)}
+                            placeholder="Connect, collaborate, and share major updates..."
+                            className="w-full px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold resize-none h-24 leading-relaxed shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col sm:flex-row gap-4 mt-12">
                 <button 
