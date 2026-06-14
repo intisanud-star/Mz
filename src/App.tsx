@@ -14108,6 +14108,23 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
                     </button>
+                    <button 
+                      onClick={() => {
+                        const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
+                        if (!activeInst) {
+                          showNotification('Please select or follow an institution to play their premium game!', 'error');
+                          return;
+                        }
+                        setSelectedSchool(activeInst);
+                        setIsPremiumGameOpen(true);
+                      }}
+                      className="flex flex-col items-center gap-3 p-6 bg-amber-50 rounded-2xl border border-transparent hover:border-amber-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
+                        <Stars size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Premium Game</span>
+                    </button>
                     {canManageInstitution(selectedSchool) && (
                       <button 
                         onClick={() => setIsCategoryManagerOpen(true)}
@@ -21071,6 +21088,16 @@ function ExonaApp() {
                         </span>
                       </button>
                     )}
+                    <button 
+                      onClick={() => {
+                        setSelectedSchool(inst as School);
+                        setIsPremiumGameOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-6 py-4 bg-amber-50 border border-transparent text-amber-900 hover:border-amber-200 rounded-2xl transition-all group"
+                    >
+                      <Stars size={18} className="text-amber-500 fill-amber-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">Premium Game</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -24338,6 +24365,8 @@ function ExonaApp() {
         const userInstitution = canAccessAny ? selectedSchool : (schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid));
         
         const tools = [
+          { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
+          { id: 'exona-premium', name: 'Exona Premium Challenge', description: 'The ultimate challenge for elite members with exclusive rewards.', icon: Stars, color: 'yellow-600' },
           { id: 'calculator', name: 'Balance Calculator', description: 'Quickly calculate member fees and balances', icon: Calculator, color: 'accent' },
           { id: 'export', name: 'Download Center', description: 'Download complete institutional records and full history', icon: Download, color: 'blue-600' },
           { id: 'export-attendance', name: 'Participation Hub', description: 'Export attendance and participation records', icon: Users, color: 'orange-600' },
@@ -24348,8 +24377,6 @@ function ExonaApp() {
           { id: 'reports', name: 'Report Center', description: 'Generate financial and operational reports', icon: FileBarChart, color: 'purple-600' },
           { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for the institution portal', icon: Lock, color: 'indigo-600' },
           { id: 'daily-routine', name: labels.routine, description: 'Manage institutional activity schedule', icon: Activity, color: 'cyan-600' },
-          { id: 'brain-battle', name: 'Brain Battle', description: 'Challenge your intellect and win rewards', icon: Zap, color: 'yellow-500' },
-          { id: 'exona-premium', name: 'Exona Premium Challenge', description: 'The ultimate challenge for elite members with exclusive rewards.', icon: Stars, color: 'yellow-600' },
         ];
 
         if (activeTool === 'export-attendance') {
@@ -28806,6 +28833,19 @@ function ExonaApp() {
                       label={labels.routine} 
                       active={view === 'daily-routine'} 
                       onClick={() => { setView('daily-routine'); setSidebarOpen(false); }} 
+                    />
+                    <SidebarItem 
+                      icon={Stars} 
+                      label="Premium Game" 
+                      active={isPremiumGameOpen} 
+                      onClick={() => {
+                        const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
+                        if (activeInst) {
+                          setSelectedSchool(activeInst);
+                        }
+                        setIsPremiumGameOpen(true);
+                        setSidebarOpen(false);
+                      }} 
                     />
                     {(selectedSchool?.type === 'school' || selectedSchool?.type === 'place') && (
                       <SidebarItem 
