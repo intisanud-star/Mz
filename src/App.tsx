@@ -3968,6 +3968,7 @@ function ExonaApp() {
   const [allMessages, setAllMessages] = useState<any[]>([]);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsProcessing, setNotificationsProcessing] = useState<{[key: string]: 'accept' | 'deny' | null}>({});
   const [notificationTypeFilter, setNotificationTypeFilter] = useState<'all' | 'message' | 'follower_request' | 'system' | 'like' | 'comment'>('all');
   const [notificationReadFilter, setNotificationReadFilter] = useState<'all' | 'unread'>('all');
   const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
@@ -8528,6 +8529,80 @@ function ExonaApp() {
     }
   };
 
+  const handleProcessNotificationRequest = async (notification: Notification, action: 'approve' | 'reject') => {
+    if (!user) return;
+    setNotificationsProcessing(prev => ({ ...prev, [notification.id]: action === 'approve' ? 'accept' : 'deny' }));
+    try {
+      if (notification.type === 'follower_request') {
+        const isUserFollowRequest = !notification.targetId || notification.targetId === '';
+        
+        if (isUserFollowRequest) {
+          // Social User Follow Request
+          if (action === 'approve') {
+            await handleAcceptFollower(notification.senderUid!);
+          } else {
+            await handleDeclineFollower(notification.senderUid!);
+          }
+        } else {
+          // Institution Join Request
+          let schoolDoc = schools.find(s => s.id === notification.targetId) || places.find(p => p.id === notification.targetId);
+          if (!schoolDoc) {
+            let fetchedDoc = await getDoc(doc(db, 'schools', notification.targetId!));
+            let type: 'school' | 'place' = 'school';
+            if (!fetchedDoc.exists()) {
+              fetchedDoc = await getDoc(doc(db, 'places', notification.targetId!));
+              type = 'place';
+            }
+            if (fetchedDoc.exists()) {
+              schoolDoc = { id: fetchedDoc.id, ...fetchedDoc.data(), type } as any;
+            }
+          }
+
+          if (schoolDoc) {
+            if (action === 'approve') {
+              await handleApproveFollower(schoolDoc, notification.senderUid!);
+            } else {
+              await handleRejectFollower(schoolDoc, notification.senderUid!);
+            }
+          } else {
+            showNotification('Institution not found', 'error');
+          }
+        }
+      } else if (notification.title === 'Auditor Request' || notification.link === 'manage') {
+        // Management/Auditor request
+        let schoolDoc = schools.find(s => s.id === notification.targetId) || places.find(p => p.id === notification.targetId);
+        if (!schoolDoc) {
+          let fetchedDoc = await getDoc(doc(db, 'schools', notification.targetId!));
+          let type: 'school' | 'place' = 'school';
+          if (!fetchedDoc.exists()) {
+            fetchedDoc = await getDoc(doc(db, 'places', notification.targetId!));
+            type = 'place';
+          }
+          if (fetchedDoc.exists()) {
+            schoolDoc = { id: fetchedDoc.id, ...fetchedDoc.data(), type } as any;
+          }
+        }
+
+        if (schoolDoc) {
+          if (action === 'approve') {
+            await handleApproveAuditor(schoolDoc, notification.senderUid!);
+          } else {
+            await handleRejectAuditor(schoolDoc, notification.senderUid!);
+          }
+        } else {
+          showNotification('Institution not found', 'error');
+        }
+      }
+
+      await handleMarkNotificationRead(notification.id);
+    } catch (error) {
+      console.error('Error processing notification request:', error);
+      showNotification(`Failed to ${action} request`, 'error');
+    } finally {
+      setNotificationsProcessing(prev => ({ ...prev, [notification.id]: null }));
+    }
+  };
+
   const clearNotifications = async () => {
     if (!user || notifications.length === 0) return;
     const batch = writeBatch(db);
@@ -12402,6 +12477,12 @@ function ExonaApp() {
           return;
         }
         await setDoc(doc(db, 'users', targetUid), { pendingFollowers: [...pending, user.uid] }, { merge: true });
+        await handleCreateNotification(targetUid, {
+          type: 'follower_request',
+          title: 'Follower Request',
+          text: `${userDoc?.displayName || user?.displayName || 'A user'} requested to follow you`,
+          senderUid: user.uid
+        });
         showNotification('Follow request sent');
       } else {
         const currentFollowing = userDoc.following || [];
@@ -12510,28 +12591,41 @@ function ExonaApp() {
       
       if (school.followers?.includes(user.uid)) return;
 
-      await Promise.all([
-        setDoc(schoolRef, { 
-          followers: arrayUnion(user.uid),
-          pendingFollowers: arrayRemove(user.uid)
-        }, { merge: true }),
-        setDoc(userRef, {
-          following: arrayUnion(school.id)
-        }, { merge: true })
-      ]);
-      
-      // Notify institution owner
-      if (school.creatorUid !== user.uid) {
-        await handleCreateNotification(school.creatorUid, {
-          type: 'follower_request',
-          title: 'New Subscriber',
-          text: `${user.displayName || 'A user'} has joined ${school.name}`,
-          senderUid: user.uid,
-          targetId: school.id
-        });
-      }
+      if (school.creatorUid === user.uid) {
+        // Owner joins automatically
+        await Promise.all([
+          setDoc(schoolRef, { 
+            followers: arrayUnion(user.uid),
+            pendingFollowers: arrayRemove(user.uid)
+          }, { merge: true }),
+          setDoc(userRef, {
+            following: arrayUnion(school.id)
+          }, { merge: true })
+        ]);
+        showNotification(`Successfully joined ${school.name}!`, 'success');
+      } else {
+        // Normal user joins as pending
+        if (school.pendingFollowers?.includes(user.uid)) {
+          showNotification('Join request is already pending', 'info');
+          return;
+        }
 
-      showNotification(`Successfully joined ${school.name}!`, 'success');
+        await setDoc(schoolRef, { 
+          pendingFollowers: arrayUnion(user.uid)
+        }, { merge: true });
+
+        // Notify institution owner
+        if (school.creatorUid) {
+          await handleCreateNotification(school.creatorUid, {
+            type: 'follower_request',
+            title: 'Join Request',
+            text: `${userDoc?.displayName || user.displayName || 'A user'} requested to join ${school.name}`,
+            senderUid: user.uid,
+            targetId: school.id
+          });
+        }
+        showNotification(`Request to join ${school.name} sent!`, 'success');
+      }
     } catch (error) {
       console.error('Error following institution:', error);
       handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
@@ -22541,6 +22635,51 @@ function ExonaApp() {
                         <p className="text-[13px] text-muted line-clamp-2 leading-relaxed">
                           {firstNotif.text}
                         </p>
+
+                        {/* Interactive Request Actions */}
+                        {!isRead && (firstNotif.type === 'follower_request' || firstNotif.title === 'Auditor Request' || firstNotif.link === 'manage') && (
+                          <div className="mt-4 p-4 bg-gray-50/70 border border-gray-100 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in text-left">
+                            <span className="text-[10px] sm:text-[11px] text-muted uppercase font-black tracking-wider block">
+                              Pending action required
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                disabled={!!notificationsProcessing[firstNotif.id]}
+                                onClick={() => handleProcessNotificationRequest(firstNotif, 'reject')}
+                                className="px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-650 bg-white border border-gray-150 hover:bg-red-50 hover:text-red-700 hover:border-red-100 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
+                              >
+                                {notificationsProcessing[firstNotif.id] === 'deny' ? (
+                                  <>
+                                    <span className="h-3 w-3 border-2 border-red-500 border-t-transparent animate-spin rounded-full"></span>
+                                    Declining...
+                                  </>
+                                ) : (
+                                  <>
+                                    <X size={12} />
+                                    Deny
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                disabled={!!notificationsProcessing[firstNotif.id]}
+                                onClick={() => handleProcessNotificationRequest(firstNotif, 'approve')}
+                                className="px-5 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest text-white bg-ink hover:bg-ink/90 disabled:opacity-50 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
+                              >
+                                {notificationsProcessing[firstNotif.id] === 'accept' ? (
+                                  <>
+                                    <span className="h-3 w-3 border-2 border-white border-t-transparent animate-spin rounded-full"></span>
+                                    Approving...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check size={12} />
+                                    Accept
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="mt-3 flex items-center gap-3">
                           {!isRead && (
