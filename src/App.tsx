@@ -1667,8 +1667,8 @@ const PremiumGameModal = ({
   const [newQCorrect, setNewQCorrect] = useState('A');
   const [newQCategory, setNewQCategory] = useState('General');
 
-  // Require firebase methods directly or use imported from window/context
-  const { getDocs, collection, query, where, limit, doc, setDoc, updateDoc, serverTimestamp, increment } = require('firebase/firestore');
+  // Use imported firebase methods directly in ESM packaging
+
 
   const canManage = school && user && (
     userDoc?.role === 'admin' ||
@@ -1692,7 +1692,7 @@ const PremiumGameModal = ({
       const snap = await getDocs(q);
       if (!snap.empty) {
         const docSnap = snap.docs[0];
-        const data = { id: docSnap.id, ...docSnap.data() };
+        const data = { id: docSnap.id, ...docSnap.data() } as any;
         setGameConfig(data);
 
         setEditTitle(data.title || '');
@@ -29583,6 +29583,17 @@ function ExonaApp() {
       </AnimatePresence>
 
       {renderBrainBattle()}
+
+      <PremiumGameModal 
+        isOpen={isPremiumGameOpen}
+        onClose={() => setIsPremiumGameOpen(false)}
+        school={selectedSchool}
+        user={user}
+        userDoc={userDoc}
+        exonWallet={exonWallet}
+        excoinBalance={excoinBalance}
+        onNotify={showNotification}
+      />
 
       {/* Story Upload Modal */}
       <AnimatePresence>
