@@ -8314,7 +8314,7 @@ function ExonaApp() {
     name: '', 
     description: '', 
     logo: '', 
-    type: 'school' as 'school' | 'place',
+    type: 'school' as 'school' | 'place' | 'group',
     category: 'School' as Place['category'],
     educationalLevels: [] as string[],
     replyPermission: 'everyone' as 'everyone' | 'followers' | 'none'
@@ -9241,7 +9241,8 @@ function ExonaApp() {
           const response = await fetch(compressedBase64);
           const blob = await response.blob();
           
-          const fileRef = ref(storage, `${newSchool.type === 'school' ? 'schools' : 'places'}/${user.uid}/${Date.now()}_thumb.jpg`);
+          const folder = newSchool.type === 'school' ? 'schools' : newSchool.type === 'place' ? 'places' : 'groups';
+          const fileRef = ref(storage, `${folder}/${user.uid}/${Date.now()}_thumb.jpg`);
           const uploadPromise = uploadBytes(fileRef, blob);
           const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Logo Upload Timeout (25s). Use a smaller image.')), 25000)
@@ -9250,6 +9251,39 @@ function ExonaApp() {
           const snapshot = await Promise.race([uploadPromise, timeoutPromise]) as any;
           logoUrl = await getDownloadURL(snapshot.ref);
         }
+      }
+
+      if (newSchool.type === 'group') {
+        const groupRef = doc(collection(db, 'chatGroups'));
+        const groupData = {
+          id: groupRef.id,
+          name: newSchool.name.trim(),
+          description: newSchool.description.trim() || `Community Group`,
+          creatorUid: user.uid,
+          members: [user.uid, ...(newSchool.educationalLevels || [])],
+          admins: [user.uid],
+          timestamp: serverTimestamp(),
+          photoURL: logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(newSchool.name)}&background=random`
+        };
+        await setDoc(groupRef, groupData);
+        showNotification('Independent group chat created successfully!', 'success');
+        
+        // Navigate directly to the new group chat
+        setActiveChat({
+          uid: groupRef.id,
+          displayName: newSchool.name.trim(),
+          photoURL: groupData.photoURL,
+          isGroup: true
+        });
+        setView('chat');
+
+        // Reset state
+        setNewSchool({ name: '', description: '', logo: '', type: 'school', category: 'School', educationalLevels: [] });
+        setIsSchoolModalOpen(false);
+        setSelectedFile(null);
+        setPreviewUrl('');
+        setIsUploading(false);
+        return;
       }
 
       const collectionName = newSchool.type === 'school' ? 'schools' : 'places';
@@ -13432,11 +13466,38 @@ function ExonaApp() {
                     }
 
                     if (schoolFilter === 'groups') {
-                      return filteredGroupChats.length > 0 ? (
-                        filteredGroupChats.map(renderChatItem)
-                      ) : (
-                        <div className="py-20 text-center text-muted text-sm">
-                          No groups found
+                      return (
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border border-gray-100 rounded-3xl mb-4 shrink-0 shadow-sm">
+                            <div className="shrink-0 min-w-0 pr-4">
+                              <h4 className="text-xs font-black text-ink uppercase tracking-wider animate-pulse">Independent Channels</h4>
+                              <p className="text-[9px] text-muted font-bold uppercase tracking-widest mt-0.5 truncate">Create standalone groups without institutional bounds</p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setNewSchool({
+                                  name: '',
+                                  description: '',
+                                  logo: '',
+                                  type: 'group',
+                                  category: 'School',
+                                  educationalLevels: []
+                                });
+                                setCreateGroupChat(false);
+                                setIsSchoolModalOpen(true);
+                              }}
+                              className="px-4 py-2.5 bg-ink text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:scale-105 active:scale-95 transition-all shadow-md shrink-0 select-none"
+                            >
+                              + New Group
+                            </button>
+                          </div>
+                          {filteredGroupChats.length > 0 ? (
+                            filteredGroupChats.map(renderChatItem)
+                          ) : (
+                            <div className="py-20 text-center text-muted text-sm">
+                              No groups found
+                            </div>
+                          )}
                         </div>
                       );
                     }
@@ -27427,20 +27488,28 @@ function ExonaApp() {
             >
               <div className="flex items-center justify-between mb-8 sm:mb-10">
                 <div>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">{editingSchool ? 'Refine Institution' : 'Create Institution'}</h3>
-                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Profile Setup</p>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-ink mb-1">
+                    {editingSchool 
+                      ? 'Refine Institution' 
+                      : (newSchool.type === 'group' ? 'Create Independent Group Chat' : 'Create Institution')
+                    }
+                  </h3>
+                  <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.3em]">
+                    {newSchool.type === 'group' ? 'Independent Community Space Setup' : 'Institutional Profile Setup'}
+                  </p>
                 </div>
-                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school' }); }} className="h-10 w-10 sm:h-12 sm:w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
+                <button onClick={() => { setIsSchoolModalOpen(false); setEditingSchool(null); setNewSchool({ name: '', description: '', logo: '', type: 'school', category: 'School', educationalLevels: [] }); }} className="h-10 w-10 sm:h-12 sm:w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-all border border-gray-100 active:scale-90">
                   <X size={18} />
                 </button>
               </div>
               <div className="space-y-6">
                 <div>
                   <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Classification</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {['school', 'place'].map((t) => (
+                  <div className="grid grid-cols-3 gap-4">
+                    {['school', 'place', 'group'].map((t) => (
                       <button
                         key={t}
+                        type="button"
                         onClick={() => setNewSchool({ ...newSchool, type: t as any })}
                         className={`py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                           newSchool.type === t 
@@ -27448,7 +27517,7 @@ function ExonaApp() {
                             : 'bg-gray-50 text-muted border border-transparent hover:bg-gray-100'
                         }`}
                       >
-                        {t}
+                        {t === 'group' ? 'Group Chat' : t}
                       </button>
                     ))}
                   </div>
@@ -27505,63 +27574,118 @@ function ExonaApp() {
                   </div>
                 )}
 
-                <div>
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Custom Categories</label>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {(newSchool.educationalLevels || []).filter(l => !['Admin', 'Operations', 'Finance', 'Logistics', 'Resources', 'Equipment', 'School', 'Business', 'Community', 'Personal', 'Other'].includes(l)).map((level) => (
-                      <button
-                        key={level}
+                {newSchool.type !== 'group' ? (
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">Custom Categories</label>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(newSchool.educationalLevels || []).filter(l => !['Admin', 'Operations', 'Finance', 'Logistics', 'Resources', 'Equipment', 'School', 'Business', 'Community', 'Personal', 'Other'].includes(l)).map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => {
+                            const levels = newSchool.educationalLevels || [];
+                            setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
+                          }}
+                          className="px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-ink text-white border border-ink transition-all flex items-center gap-2 group"
+                        >
+                          {level}
+                          <X size={10} className="group-hover:scale-125 transition-transform" />
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <input 
+                        type="text"
+                        value={customCategoryInput}
+                        onChange={(e) => setCustomCategoryInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomCategory())}
+                        placeholder="Add custom category..."
+                        className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
+                      />
+                      <button 
+                        onClick={handleAddCustomCategory}
                         type="button"
-                        onClick={() => {
-                          const levels = newSchool.educationalLevels || [];
-                          setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
-                        }}
-                        className="px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-ink text-white border border-ink transition-all flex items-center gap-2 group"
+                        className="px-8 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
                       >
-                        {level}
-                        <X size={10} className="group-hover:scale-125 transition-transform" />
+                        Add
                       </button>
-                    ))}
+                    </div>
                   </div>
-                  <div className="flex gap-3">
-                    <input 
-                      type="text"
-                      value={customCategoryInput}
-                      onChange={(e) => setCustomCategoryInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomCategory())}
-                      placeholder="Add custom category..."
-                      className="flex-1 px-8 py-4 bg-white border border-gray-100 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-200 transition-all text-sm font-bold"
-                    />
-                    <button 
-                      onClick={handleAddCustomCategory}
-                      type="button"
-                      className="px-8 py-4 bg-gray-50 text-ink rounded-2xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                    >
-                      Add
-                    </button>
+                ) : (
+                  <div>
+                    <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 block ml-4">
+                      Select Group Members ({groupCandidates.length})
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-2 p-1 border border-dashed border-gray-150 rounded-[2rem] p-4 bg-gray-50/20">
+                      {groupCandidates.length === 0 ? (
+                        <p className="p-4 text-center text-xs text-muted italic col-span-2 font-bold select-none">No contacts found to add</p>
+                      ) : (
+                        groupCandidates.map(follower => {
+                          const isSelected = (newSchool.educationalLevels || []).includes(follower.uid);
+                          return (
+                            <button
+                              key={follower.uid}
+                              type="button"
+                              onClick={() => {
+                                const levels = newSchool.educationalLevels || [];
+                                if (isSelected) {
+                                  setNewSchool({ ...newSchool, educationalLevels: levels.filter(id => id !== follower.uid) });
+                                } else {
+                                  setNewSchool({ ...newSchool, educationalLevels: [...levels, follower.uid] });
+                                }
+                              }}
+                              className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left ${
+                                isSelected 
+                                  ? 'bg-ink text-white border-ink' 
+                                  : 'bg-white border-gray-100 hover:border-ink/20 text-ink hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="h-10 w-10 rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100">
+                                {follower.photoURL ? (
+                                  <img src={follower.photoURL} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span className="font-bold text-xs">{follower.displayName?.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold truncate leading-tight">{follower.displayName}</p>
+                                <p className={`text-[9px] font-bold tracking-widest uppercase mt-0.5 ${isSelected ? 'text-white/80' : 'text-muted'}`}>Contact</p>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
+
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Institution Name</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">
+                    {newSchool.type === 'group' ? 'Group Chat Name' : 'Institution Name'}
+                  </label>
                   <input 
                     type="text" 
                     value={newSchool.name}
                     onChange={(e) => setNewSchool({...newSchool, name: e.target.value})}
-                    placeholder="e.g. Horizon International"
+                    placeholder={newSchool.type === 'group' ? "e.g. Friends & Colleagues" : "e.g. Horizon International"}
                     className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold"
                   />
                 </div>
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Description</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">
+                    {newSchool.type === 'group' ? 'Group Description' : 'Description'}
+                  </label>
                   <textarea 
                     value={newSchool.description}
                     onChange={(e) => setNewSchool({...newSchool, description: e.target.value})}
-                    placeholder="Brief institutional overview..."
+                    placeholder={newSchool.type === 'group' ? "Brief group chat overview..." : "Brief institutional overview..."}
                     className="w-full px-8 py-5 bg-white border border-gray-100 rounded-[2rem] outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-sm font-bold resize-none h-32 leading-relaxed"
                   />
                 </div>
                 <div className="group">
-                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">Visual Identity</label>
+                  <label className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-2 block ml-4 group-focus-within:text-ink transition-colors">
+                    {newSchool.type === 'group' ? 'Group Picture' : 'Visual Identity'}
+                  </label>
                   <div className="flex items-center gap-6 p-6 bg-white border border-gray-100 rounded-[2rem] transition-all">
                     <div className="h-20 w-20 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-gray-100">
                       {previewUrl || newSchool.logo ? (
@@ -27573,7 +27697,7 @@ function ExonaApp() {
                     <div className="flex-1">
                       <label className="inline-flex items-center gap-2 px-6 py-3 bg-white rounded-xl text-[10px] font-bold uppercase tracking-widest text-ink transition-all cursor-pointer border border-gray-100">
                         <Upload size={14} />
-                        Upload Logo
+                        {newSchool.type === 'group' ? 'Upload Picture' : 'Upload Logo'}
                         <input 
                           type="file" 
                           className="hidden" 
@@ -27593,7 +27717,7 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                {!editingSchool && (
+                {!editingSchool && newSchool.type !== 'group' && (
                   <div className="p-6 bg-gray-50/50 border border-gray-100 rounded-[2rem] space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -27647,7 +27771,7 @@ function ExonaApp() {
                       {editingSchool ? 'Synchronizing...' : 'Designing...'}
                     </>
                   ) : (
-                    editingSchool ? 'Synchronize Updates' : 'Start Institution'
+                    editingSchool ? 'Synchronize Updates' : (newSchool.type === 'group' ? 'Create Group Chat' : 'Start Institution')
                   )}
                 </button>
                 {editingSchool && editingSchool.creatorUid === user?.uid && (
