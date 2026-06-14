@@ -8359,7 +8359,7 @@ function ExonaApp() {
   useEffect(() => {
     profilesMapRef.current = pendingFollowerProfilesMap;
   }, [pendingFollowerProfilesMap]);
-  const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('feed');
+  const [schoolFeedTab, setSchoolFeedTab] = useState<'feed' | 'manage'>('manage');
 
   // Load classroom student profiles safely without infinite loop
   useEffect(() => {
@@ -13675,22 +13675,7 @@ function ExonaApp() {
                 </div>
               </div>
 
-              {(isManager || isFollowing || isAdmin) && (
-                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-150">
-                  <button 
-                    onClick={() => setSchoolFeedTab('feed')}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'feed' ? 'bg-white text-ink shadow-sm border border-gray-200/50' : 'text-muted hover:bg-gray-100'}`}
-                  >
-                    Feed
-                  </button>
-                  <button 
-                    onClick={() => setSchoolFeedTab('manage')}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${schoolFeedTab === 'manage' ? 'bg-white text-ink shadow-sm border border-gray-200/50' : 'text-muted hover:bg-gray-100'}`}
-                  >
-                    {isManager || isAdmin ? 'Manage' : 'Offline Workspace'}
-                  </button>
-                </div>
-              )}
+
             </div>
 
             {/* Scrollable Contents Pane */}
