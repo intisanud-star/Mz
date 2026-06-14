@@ -354,13 +354,10 @@ const BrainBattleModal = ({
     <AnimatePresence>
       {isActive && (
         <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[500] flex items-center justify-center p-4 sm:p-6 no-print"
+          initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
+          className="fixed inset-0 bg-white z-[500] flex flex-col h-screen w-screen no-print overflow-hidden"
         >
-          <motion.div 
-            initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-            className="w-full max-w-xl bg-white rounded-[3rem] p-8 sm:p-12 border border-gray-100 relative overflow-hidden flex flex-col max-h-[90vh]"
-          >
+          <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden p-6 sm:p-12">
             {/* Background Glow */}
             <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full -mr-32 -mt-32 blur-3xl animate-pulse" />
             <div className="absolute bottom-0 left-0 w-64 h-64 bg-accent/5 rounded-full -ml-32 -mb-32 blur-3xl animate-pulse" />
@@ -1447,7 +1444,7 @@ const BrainBattleModal = ({
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -1999,13 +1996,14 @@ const PremiumGameModal = ({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[500] flex items-center justify-center p-4 overload-no-print no-scrollbar overflow-y-auto">
+      {isOpen && (
         <motion.div
-          initial={{ scale: 0.95, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-2xl bg-white rounded-[2.5rem] border border-gray-100 flex flex-col max-h-[90vh] overflow-hidden shadow-2xl relative"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 30 }}
+          className="fixed inset-0 bg-white z-[500] flex flex-col h-screen w-screen overload-no-print no-scrollbar overflow-hidden"
         >
+          <div className="w-full h-full bg-white flex flex-col overflow-hidden relative">
           {/* Header */}
           <div className="p-6 sm:p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 shrink-0">
             <div className="flex items-center gap-3">
@@ -2480,8 +2478,9 @@ const PremiumGameModal = ({
               </div>
             )}
           </div>
+          </div>
         </motion.div>
-      </div>
+      )}
     </AnimatePresence>
   );
 };
@@ -28860,7 +28859,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!['institution-channel', 'school-feed', 'institution-profile', 'chat', 'records'].includes(view) && (
+      {!isPremiumGameOpen && !isBrainBattleActive && !['institution-channel', 'school-feed', 'institution-profile', 'chat', 'records'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -29071,7 +29070,7 @@ function ExonaApp() {
       );
      })()}
 
-      {user && !['splash', 'login', 'onboarding'].includes(view) && showWealthFloatingChip && (
+      {user && !isPremiumGameOpen && !isBrainBattleActive && !['splash', 'login', 'onboarding'].includes(view) && showWealthFloatingChip && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-3 no-print p-2">
           <motion.button 
             initial={{ opacity: 0, y: 20 }}
@@ -29182,7 +29181,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {(['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
