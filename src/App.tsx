@@ -12435,25 +12435,32 @@ function ExonaApp() {
     try {
       const collectionName = school.type === 'school' ? 'schools' : 'places';
       const schoolRef = doc(db, collectionName, school.id);
+      const userRef = doc(db, 'users', user.uid);
       
-      if (school.followers?.includes(user.uid) || school.pendingFollowers?.includes(user.uid)) return;
+      if (school.followers?.includes(user.uid)) return;
 
-      await setDoc(schoolRef, { 
-        pendingFollowers: arrayUnion(user.uid) 
-      }, { merge: true });
+      await Promise.all([
+        setDoc(schoolRef, { 
+          followers: arrayUnion(user.uid),
+          pendingFollowers: arrayRemove(user.uid)
+        }, { merge: true }),
+        setDoc(userRef, {
+          following: arrayUnion(school.id)
+        }, { merge: true })
+      ]);
       
       // Notify institution owner
       if (school.creatorUid !== user.uid) {
         await handleCreateNotification(school.creatorUid, {
           type: 'follower_request',
-          title: 'New Request',
-          text: `${user.displayName} wants to join ${school.name}`,
+          title: 'New Subscriber',
+          text: `${user.displayName || 'A user'} has joined ${school.name}`,
           senderUid: user.uid,
           targetId: school.id
         });
       }
 
-      showNotification('Follow request sent');
+      showNotification(`Successfully joined ${school.name}!`, 'success');
     } catch (error) {
       console.error('Error following institution:', error);
       handleFirestoreError(error, OperationType.UPDATE, `institutions/${school.id}`);
@@ -20653,7 +20660,7 @@ function ExonaApp() {
 
             {/* Telegram Channel Bottom Input Action Bar */}
             <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex items-center gap-2 shadow-inner">
-              {!isFollowing ? (
+              {!isFollowing && !canManage ? (
                 /* JOIN Channel Accent Overlay */
                 <button 
                   onClick={() => {
