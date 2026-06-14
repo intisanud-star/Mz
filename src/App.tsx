@@ -25740,11 +25740,11 @@ function ExonaApp() {
             className="relative flex items-center justify-center pointer-events-none"
           >
             {/* Glowing background halo */}
-            <div className="absolute -inset-6 bg-[#2563eb]/10 dark:bg-sky-500/10 rounded-full blur-2xl animate-pulse"></div>
+            <div className="absolute -inset-3 bg-[#2563eb]/5 dark:bg-sky-500/5 rounded-full blur-xl animate-pulse"></div>
             
-            {/* Crisp vector logo element matching user's exact design */}
+            {/* Crisp vector logo element matching user's exact design, sized like WhatsApp's icon */}
             <svg 
-              className="w-48 h-36 sm:w-56 sm:h-42 drop-shadow-[0_12px_30px_rgba(59,130,246,0.3)]" 
+              className="w-16 h-12 drop-shadow-[0_4px_12px_rgba(59,130,246,0.15)]" 
               viewBox="0 0 240 180" 
               fill="none" 
               xmlns="http://www.w3.org/2000/svg"
