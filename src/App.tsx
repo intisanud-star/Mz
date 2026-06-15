@@ -4880,6 +4880,13 @@ function ExonaApp() {
   const [currentBattleQuestions, setCurrentBattleQuestions] = useState<any[]>(BRAIN_BATTLE_QUESTIONS);
   const [isPremiumGameOpen, setIsPremiumGameOpen] = useState(false);
   const [isExonWalletOpen, setIsExonWalletOpen] = useState(false);
+  const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
+  const [hideMainBalance, setHideMainBalance] = useState(false);
+  const [activeGTService, setActiveGTService] = useState<string | null>(null);
+  const [loanAmount, setLoanAmount] = useState(150000);
+  const [isApplyingLoan, setIsApplyingLoan] = useState(false);
+  const [savingsAmount, setSavingsAmount] = useState(50000);
+  const [lockedSavings, setLockedSavings] = useState(0);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [showWealthFloatingChip, setShowWealthFloatingChip] = useState(false);
   const [isGhostIdentityEnabled, setIsGhostIdentityEnabled] = useState(false);
@@ -15429,252 +15436,738 @@ function ExonaApp() {
       }
       case 'finance': {
         if (!user) { setView('login'); return null; }
-        if (!selectedSchool) {
-          return (
-            <div className="flex flex-col items-center justify-center h-full p-12 text-center">
-              <div className="h-24 w-24 bg-white border border-gray-100 rounded-[2rem] flex items-center justify-center text-muted mb-8">
-                <Wallet size={48} strokeWidth={1} />
-              </div>
-              <h2 className="text-3xl font-extrabold text-ink mb-4">Select an Institution</h2>
-              <p className="text-muted text-sm font-bold max-w-xs mb-10 leading-relaxed">
-                To access financial data, please first select an institution from your directory.
-              </p>
-              <button 
-                onClick={() => setView('schools')}
-                className="px-10 py-5 bg-ink text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] hover:scale-105 transition-transform"
-              >
-                Open Directory
-              </button>
-            </div>
-          );
-        }
 
-        const canManage = canManageInstitution(selectedSchool);
+        const userInstitutions = [...schools, ...places].filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || ''));
+
+        // Accounts list setup - Moniepoint account style
+        const accountsList = [
+          {
+            id: 'personal',
+            name: 'Personal Wallet',
+            balance: excoinBalance * 10 || 12040.50,
+            bookBalance: excoinBalance * 10 || 12040.50,
+            logo: null,
+            type: 'Personal Wallet',
+            accNo: '0167343656',
+            currency: '₦'
+          },
+          ...userInstitutions.map((inst, index) => {
+            const val = 3016734.36 + index * 12510.40;
+            return {
+              id: inst.id,
+              name: inst.name,
+              balance: finance?.institutionBalance || val,
+              bookBalance: finance?.institutionBalance || val,
+              logo: inst.logo,
+              type: inst.type === 'school' ? 'School Wallet' : 'Business Wallet',
+              accNo: `016${(820459 + index * 415).toString()}`,
+              currency: '₦',
+              instObj: inst
+            };
+          })
+        ];
+
+        // Identify active index
+        let activeIdx = 0;
+        if (selectedSchool) {
+          const sIdx = accountsList.findIndex(acc => acc.id === selectedSchool.id);
+          if (sIdx !== -1) {
+            activeIdx = sIdx;
+          }
+        }
+        const activeAccount = accountsList[activeIdx] || accountsList[0];
+
+        const handlePrevAccount = () => {
+          const prevIdx = (activeIdx - 1 + accountsList.length) % accountsList.length;
+          const targetAcc = accountsList[prevIdx] as any;
+          if (targetAcc.id === 'personal') {
+            setSelectedSchool(null as any);
+          } else if (targetAcc.instObj) {
+            setSelectedSchool(targetAcc.instObj as any);
+          }
+        };
+
+        const handleNextAccount = () => {
+          const nextIdx = (activeIdx + 1) % accountsList.length;
+          const targetAcc = accountsList[nextIdx] as any;
+          if (targetAcc.id === 'personal') {
+            setSelectedSchool(null as any);
+          } else if (targetAcc.instObj) {
+            setSelectedSchool(targetAcc.instObj as any);
+          }
+        };
+
+        const selectAccountById = (id: string) => {
+          if (id === 'personal') {
+            setSelectedSchool(null as any);
+          } else {
+            const acc = accountsList.find(a => a.id === id) as any;
+            if (acc && acc.instObj) {
+              setSelectedSchool(acc.instObj as any);
+            }
+          }
+          setIsAccountSwitcherOpen(false);
+        };
+
+        const rawName = user?.displayName || user?.email?.split('@')[0] || 'Olusola';
+        const capitalizedName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+
+        // Grid quick service items list - 4x4 Grid - Rectangular Rounded Cards
+        const quickActions = [
+          { id: 'transfers', label: 'Transfers', icon: Repeat, action: () => setSettlementStep('other') },
+          { id: 'payment', label: 'Payment', icon: CreditCard, action: () => setSettlementStep('bills') },
+          { id: 'airtime', label: 'Buy Airtime & Data', icon: Smartphone, action: () => setSettlementStep('airtime') },
+          { id: 'manager', label: 'My Account Manager', icon: UserIcon, action: () => setActiveGTService('manager') },
+          { id: 'transactions', label: 'Transaction Details', icon: Clock, action: () => setActiveGTService('transactions') },
+          { id: 'cashout', label: 'CashOut', icon: ArrowUpRight, action: () => setSettlementStep('deposit') },
+          { id: 'makemoney', label: 'Make Money', icon: TrendingUp, action: () => setActiveGTService('makemoney') },
+          { id: 'loans', label: 'Apply for Loans', icon: Coins, action: () => setActiveGTService('loans') },
+          { id: 'enaira', label: 'eNaira', icon: Building2, action: () => setActiveGTService('enaira') },
+          { id: 'cards', label: 'Cards', icon: CreditCard, action: () => setActiveGTService('cards') },
+          { id: 'qr', label: 'Pay with QR', icon: Scan, action: () => setActiveGTService('qr') },
+          { id: 'cheques', label: 'Cheques', icon: CheckCircle2, action: () => setActiveGTService('cheques') },
+          { id: 'statement', label: 'Account Statement', icon: FileText, action: () => setActiveGTService('statement') },
+          { id: 'cashexpress', label: 'CashExpress', icon: Zap, action: () => setActiveGTService('cashexpress') },
+          { id: 'requests', label: 'Requests', icon: MessageSquare, action: () => setActiveGTService('requests') },
+          { id: 'growsavings', label: 'Grow your savings', icon: TrendingDown, action: () => setActiveGTService('growsavings') }
+        ];
 
         return (
-          <WordLayout 
-            title="Institutional Wallet"
-            subtitle="Institutional Financial Terminal"
-            icon={Wallet}
-            branding={{ name: selectedSchool.name }}
-            showNotification={showNotification}
-            handlePrint={handlePrint}
-            hideOfficialBadge={true}
-            hideSaveImage={true}
-            hideBranding={true}
-            hideIcon={true}
-            toolbar={
-              <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-lg">
-                    <span className="text-[10px] font-black text-muted uppercase tracking-widest">Status:</span>
-                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] font-bold text-ink uppercase tracking-widest">Active</span>
+          <div className="min-h-full bg-[#0c0f16] text-[#e1e4ea] flex flex-col font-sans select-none pb-24 relative overflow-y-auto no-scrollbar">
+            
+            {/* Top Navigation Frame - Beautiful Luxury GTBank Dark themed Head */}
+            <div className="flex items-center justify-between px-6 py-5 bg-[#0e121d] border-b border-zinc-800/80 sticky top-0 z-40 shadow-md">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setIsAccountSwitcherOpen(true)}
+                  className="h-10 w-10 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                  title="Switch Account"
+                >
+                  <RefreshCw size={18} className="text-[#FF5500] animate-pulse" />
+                </button>
+                <div className="cursor-pointer" onClick={() => setIsAccountSwitcherOpen(true)}>
+                  <div className="flex items-center gap-1">
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Hi, {capitalizedName}</p>
+                    <ChevronDown size={11} className="text-[#FF5500]" />
+                  </div>
+                  <h4 className="text-xs font-black text-white leading-tight flex items-center gap-1 uppercase tracking-tight">
+                    {activeAccount.name}
+                  </h4>
+                </div>
+              </div>
+
+              {/* Signature GTBank / GTCO logo with a white square on an orange box */}
+              <div className="h-11 w-11 bg-[#FF5500] rounded-xl flex items-center justify-center shadow-lg relative shrink-0">
+                <div className="h-[18px] w-[18px] bg-white rounded-[4px] absolute top-1.5 right-1.5 flex items-center justify-center">
+                  <div className="h-2 w-2 bg-[#FF5500] rounded-sm" />
+                </div>
+                <span className="text-[10px] font-black text-white absolute bottom-1.5 left-2 leading-none">GTCO</span>
+              </div>
+            </div>
+
+            {/* Moniepoint Switch Account Menu Drawer/Bottom Sheet Overlay */}
+            <AnimatePresence>
+              {isAccountSwitcherOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[210] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                  <div 
+                    className="absolute inset-0" 
+                    onClick={() => setIsAccountSwitcherOpen(false)} 
+                  />
+                  <motion.div 
+                    initial={{ y: 200, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 200, opacity: 0 }}
+                    className="w-full sm:max-w-md bg-[#131722] border-t sm:border border-zinc-800 rounded-t-[2rem] sm:rounded-[2rem] p-6 text-white relative z-50 shadow-2xl"
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-black tracking-tight text-[#FF5500]">Switch Banking Profile</h3>
+                        <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">Instant switching powered by Moniepoint</p>
+                      </div>
+                      <button 
+                        onClick={() => setIsAccountSwitcherOpen(false)}
+                        className="h-8 w-8 bg-zinc-900 text-zinc-400 hover:text-white rounded-lg flex items-center justify-center"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 max-h-[50vh] overflow-y-auto no-scrollbar pr-1">
+                      {accountsList.map((acc, sIdx) => {
+                        const isCurrent = activeIdx === sIdx;
+                        return (
+                          <button
+                            key={acc.id}
+                            onClick={() => selectAccountById(acc.id)}
+                            className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left border transition-all ${
+                              isCurrent 
+                                ? 'bg-[#FF5500]/10 border-[#FF5500] text-white shadow-lg shadow-[#FF5500]/5' 
+                                : 'bg-[#181d2d]/80 border-transparent hover:border-zinc-800 text-zinc-300'
+                            }`}
+                          >
+                            <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden">
+                              {acc.logo ? (
+                                <img src={acc.logo} className="h-full w-full object-cover" />
+                              ) : (
+                                <Wallet size={18} className="text-[#FF5500]" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black uppercase tracking-wide truncate">{acc.name}</p>
+                              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mt-0.5">
+                                {acc.type} • {acc.accNo}
+                              </p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-xs font-black text-white">{acc.currency}{acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              {isCurrent && (
+                                <span className="text-[9px] font-black uppercase text-[#FF5500] bg-[#FF5500]/20 px-2 py-0.5 rounded-full mt-1 inline-block">
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* Savings Balance Card with Swipe Arrows */}
+            <div className="p-6">
+              <div className="relative bg-gradient-to-br from-[#FF5500] via-[#E44500] to-[#aa2200] rounded-3xl p-6 overflow-hidden text-white shadow-2xl shadow-[#FF5500]/10 min-h-[170px] flex flex-col justify-between border border-white/10">
+                <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 rotate-12 pointer-events-none">
+                  <Wallet size={120} />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">SAVINGS ACCOUNT</span>
+                    <button 
+                      onClick={() => setHideMainBalance(!hideMainBalance)}
+                      className="h-8 w-8 bg-black/20 hover:bg-black/30 text-white rounded-full flex items-center justify-center transition-colors border border-white/5"
+                    >
+                      {hideMainBalance ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-white/90">{activeAccount.currency}</span>
+                    <h2 className="text-3xl font-black tracking-tight leading-none text-white">
+                      {hideMainBalance ? '•••••••' : activeAccount.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-4">
+                  <div>
+                    <span className="text-[9px] font-bold text-white/60 block uppercase tracking-wider">Book Balance</span>
+                    <span className="text-xs font-black">
+                      {activeAccount.currency} {hideMainBalance ? '•••••••' : activeAccount.bookBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  
+                  {/* Swiper Arrow Swipe Controls - Acc. 1 of X */}
+                  <div className="flex items-center gap-3 bg-black/25 px-3 py-1.5 rounded-2xl border border-white/5 shadow-inner">
+                    <button onClick={handlePrevAccount} className="hover:text-[#FF5500] text-white/80 transition-colors p-0.5" title="Previous Account">
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-[10px] font-black tracking-wider text-white">
+                      {activeIdx + 1} / {accountsList.length}
+                    </span>
+                    <button onClick={handleNextAccount} className="hover:text-[#FF5500] text-white/80 transition-colors p-0.5" title="Next Account">
+                      <ChevronRight size={16} />
+                    </button>
                   </div>
                 </div>
               </div>
-            }
-          >
-            <div className="space-y-12">
-              {/* Balances Grid */}
-              <div className={`grid grid-cols-1 ${selectedSchool.creatorUid === user?.uid ? 'md:grid-cols-2' : ''} gap-6`}>
-                {/* OPay Style Balance Card */}
-                <div className="relative bg-ink rounded-[2.5rem] p-10 overflow-hidden text-white h-64 flex flex-col justify-between shadow-xl shadow-ink/5">
-                  <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12">
-                    <Wallet size={120} />
-                  </div>
-                  <div className="relative z-10">
-                    <div className="flex items-center gap-3 mb-2">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">Total Balance</p>
-                      <button className="h-5 w-5 bg-white/10 rounded-full flex items-center justify-center hover:bg-white/20 transition-all">
-                        <Compass size={10} className="text-white/60" />
-                      </button>
-                    </div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black text-accent">{currencySymbol}</span>
-                      <h2 className="text-5xl font-black tracking-tighter">{(finance?.institutionBalance || 0).toLocaleString()}</h2>
-                    </div>
-                  </div>
+            </div>
 
-                  <div className="relative z-10 flex items-center justify-between border-t border-white/10 pt-6">
-                    <div className="flex gap-8">
-                      <div>
-                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Incoming</p>
-                        <p className="text-sm font-black text-green-400">+{currencySymbol}0</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-widest mb-1">Outgoing</p>
-                        <p className="text-sm font-black text-red-400">-{currencySymbol}0</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => setSettlementStep('deposit')} className="px-5 py-2.5 bg-accent text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all">Deposit</button>
-                      <button onClick={() => setSettlementStep('other')} className="px-5 py-2.5 bg-white/10 text-white border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all">Transfer</button>
-                    </div>
-                  </div>
-                </div>
+            {/* Search Bar section */}
+            <div className="px-6 pb-2">
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                  <Search size={16} />
+                </span>
+                <input 
+                  type="text" 
+                  placeholder="Search transactions, transfers, bills..."
+                  className="w-full pl-11 pr-4 py-3 bg-[#131722] border border-zinc-850 rounded-2xl text-xs font-semibold text-zinc-200 placeholder-zinc-500 outline-none focus:border-[#FF5500]/60 transition-all shadow-inner"
+                />
+              </div>
+            </div>
 
-                {/* Excoin Treasury Card for Creator Owner */}
-                {selectedSchool.creatorUid === user?.uid && (
-                  <div className="relative bg-slate-900 rounded-[2.5rem] p-10 overflow-hidden text-white h-64 flex flex-col justify-between border border-white/5 shadow-xl shadow-black/10">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 scale-150 rotate-12 pointer-events-none">
-                      <Repeat size={120} className="text-orange-400" />
+            {/* Quick Actions 4x4 Grid - STRICTLY ROUNDED RECTANGULAR CARDS */}
+            <div className="px-6 py-4 grid grid-cols-4 gap-3">
+              {quickActions.map((act) => {
+                const IconComp = act.icon;
+                return (
+                  <button
+                    key={act.id}
+                    onClick={act.action}
+                    className="flex flex-col items-center justify-center p-3 bg-[#131722] hover:bg-[#181d2c] border border-zinc-850 text-zinc-300 rounded-2xl hover:text-white transition-all shadow-md group relative h-20 active:scale-95"
+                  >
+                    <div className="h-9 w-9 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center mb-1.5 text-[#FF5500] shrink-0 group-hover:scale-110 transition-transform">
+                      <IconComp size={18} strokeWidth={2.5} />
                     </div>
-                    
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-orange-400">Owner Excoin Treasury</p>
-                        <div className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-2xl font-black text-orange-400">EX</span>
-                        <h2 className="text-5xl font-black tracking-tighter">{excoinBalance}</h2>
-                      </div>
-                      <p className="text-[10px] font-semibold text-white/40 uppercase tracking-widest mt-1">Classroom & Hub Admission Revenue</p>
-                    </div>
+                    <span className="text-[9px] font-black uppercase text-center tracking-tight leading-none text-zinc-400 group-hover:text-white truncate w-full px-0.5">
+                      {act.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-                    <div className="relative z-10 flex items-center justify-between border-t border-white/5 pt-6">
-                      <div className="flex gap-4">
+            {/* Interactive Dynamic Overlays / Drawers for Custom Services */}
+            <AnimatePresence>
+              {activeGTService && (
+                <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+                  <div className="absolute inset-0" onClick={() => setActiveGTService(null)} />
+                  <motion.div 
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="w-full max-w-sm bg-[#131722] border border-zinc-800 rounded-[2rem] p-6 text-white relative z-50 shadow-2xl"
+                  >
+                    <button 
+                      onClick={() => setActiveGTService(null)} 
+                      className="absolute top-5 right-5 h-8 w-8 bg-zinc-900 text-zinc-400 hover:text-white rounded-lg flex items-center justify-center"
+                    >
+                      <X size={16} />
+                    </button>
+
+                    {/* MANAGER */}
+                    {activeGTService === 'manager' && (
+                      <div className="text-center space-y-4 pt-4">
+                        <div className="h-20 w-20 bg-[#FF5500]/10 border border-[#FF5500]/20 text-[#FF5500] rounded-2xl flex items-center justify-center mx-auto">
+                          <UserIcon size={36} />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black uppercase">Mrs. Bunmi Alao</h4>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">GTBank Account Manager</p>
+                        </div>
+                        <div className="p-4 bg-zinc-900/60 border border-zinc-850 rounded-2xl text-left space-y-2.5">
+                          <p className="text-xs font-semibold text-zinc-300">📞 Phone: <span className="font-mono text-white text-[13px] ml-1">+234 803 219 9845</span></p>
+                          <p className="text-xs font-semibold text-zinc-300">✉ Email: <span className="font-mono text-white text-[13px] ml-1">bunmi.alao@gtco.com</span></p>
+                          <p className="text-xs font-semibold text-zinc-300">📍 Branch: <span className="text-white text-[13px] ml-1">Victoria Island Hub</span></p>
+                        </div>
                         <button 
                           onClick={() => {
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(user.uid);
-                              showNotification('Receiving ID (UID) Copied!', 'success');
-                            }
+                            showNotification('Call placed to representative');
+                            setActiveGTService(null);
                           }}
-                          className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-white/60 hover:text-white transition-colors"
-                          title="Copy Receiving ID"
+                          className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-lg"
                         >
-                          <Copy size={11} /> ID: {user.uid.slice(0, 6)}...
+                          Place Call
                         </button>
                       </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => setIsExonWealthOpen(true)} 
-                          className="px-5 py-2.5 bg-orange-500 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-600 transition-all shadow-md shadow-orange-500/15"
-                        >
-                          Send via UID
-                        </button>
-                        <button 
-                          onClick={() => setView('penalty')} 
-                          className="px-5 py-2.5 bg-white/10 text-white border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/20 transition-all"
-                        >
-                          Sell P2P
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                {/* Left Panel: Services & Actions */}
-                <div className="space-y-10">
-                  <div className="flex items-center justify-between px-2">
-                    <div className="border-l-4 border-accent pl-6">
-                      <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Financial Services</h4>
-                      <p className="text-xs text-muted font-medium mt-1">Manage platform settlements and direct transfers.</p>
-                    </div>
-                    {settlementStep !== 'selection' && (
-                      <button 
-                        onClick={() => setSettlementStep('selection')}
-                        className="px-4 py-2 bg-gray-50 text-ink rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                      >
-                        Back to Services
-                      </button>
                     )}
-                  </div>
 
-                  {settlementStep === 'selection' ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Transfer Actions */}
-                      <button 
-                        onClick={() => setSettlementStep('exona')}
-                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent transition-all group"
-                      >
-                        <div className="h-14 w-14 bg-accent/10 text-accent rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <UserIcon size={24} strokeWidth={2.5} />
+                    {/* TRANSACTION DETAILS */}
+                    {activeGTService === 'transactions' && (
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-3">
+                          <Clock className="text-[#FF5500]" size={20} />
+                          <h4 className="text-sm font-black uppercase tracking-wider">Transaction History</h4>
                         </div>
-                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">To Exona</span>
-                      </button>
+                        <div className="space-y-2.5 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
+                          {[
+                            { title: 'POS Settlement Exona', date: 'Today, 2:40 PM', price: '-₦45,000.00', success: true },
+                            { title: 'Airtime MTN Nigeria', date: 'Yesterday', price: '-₦2,000.00', success: true },
+                            { title: 'Received from CBN Ref', date: 'June 12, 10:15 AM', price: '+₦350,000.00', success: true },
+                            { title: 'Web Subscription Payment', date: 'June 09', price: '-₦18,200.00', success: true },
+                            { title: 'Self Deposit Wallet', date: 'June 02', price: '+₦5,000.00', success: true }
+                          ].map((t, idx) => (
+                            <div key={idx} className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl flex items-center justify-between">
+                              <div>
+                                <p className="text-[11px] font-black uppercase tracking-tight text-white">{t.title}</p>
+                                <p className="text-[9px] font-semibold text-zinc-500 uppercase mt-0.5">{t.date}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className={`text-xs font-black ${t.price.startsWith('+') ? 'text-green-500' : 'text-zinc-200'}`}>{t.price}</p>
+                                <span className="text-[8px] font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded uppercase font-mono mt-0.5 inline-block">SUCCESS</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                      <button 
-                        onClick={() => setSettlementStep('other')}
-                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent transition-all group"
-                      >
-                        <div className="h-14 w-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Banknote size={24} strokeWidth={2.5} />
+                    {/* MAKE MONEY */}
+                    {activeGTService === 'makemoney' && (
+                      <div className="text-center space-y-4 pt-4">
+                        <div className="h-16 w-16 bg-[#FF5500]/10 text-[#FF5500] border border-[#FF5500]/20 rounded-2xl flex items-center justify-center mx-auto">
+                          <Gift size={32} />
                         </div>
-                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">To Bank</span>
-                      </button>
-
-                      <button 
-                        onClick={() => setSettlementStep('airtime')}
-                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent transition-all group"
-                      >
-                        <div className="h-14 w-14 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Smartphone size={24} strokeWidth={2.5} />
+                        <div>
+                          <h4 className="text-md font-black uppercase tracking-wide">Refer & Earn Real Cash</h4>
+                          <p className="text-xs text-zinc-400 mt-1">Get ₦1,500 cash reward instantly for every user you invite to Exona Wallet.</p>
                         </div>
-                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Airtime</span>
-                      </button>
-
-                      <button 
-                        onClick={() => setSettlementStep('data')}
-                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent transition-all group"
-                      >
-                        <div className="h-14 w-14 bg-pink-50 text-pink-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Globe size={24} strokeWidth={2.5} />
-                        </div>
-                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Data Plan</span>
-                      </button>
-
-                      <button 
-                        onClick={() => setSettlementStep('bills')}
-                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-gray-100 hover:border-accent transition-all group"
-                      >
-                        <div className="h-14 w-14 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Receipt size={24} strokeWidth={2.5} />
-                        </div>
-                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Pay Bills</span>
-                      </button>
-
-                      <button 
-                        onClick={() => setSettlementStep('deposit')}
-                        className="flex flex-col items-center gap-3 p-6 bg-white rounded-3xl border border-dotted border-accent/30 hover:border-accent transition-all group"
-                      >
-                        <div className="h-14 w-14 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                          <Plus size={24} strokeWidth={2.5} />
-                        </div>
-                        <span className="text-[10px] font-black text-ink uppercase tracking-wider">Deposit Hub</span>
-                      </button>
-                    </div>
-                ) : (settlementStep === 'exona' || settlementStep === 'other') ? (
-                  <div className="space-y-8">
-                    {/* Settlement Detail Form */}
-                    <div className={`${settlementStep === 'exona' ? 'bg-ink text-white' : 'bg-white border border-gray-100'} rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden`}>
-                      <div className="relative z-10">
-                        <div className="flex items-center gap-4 mb-8">
-                          <div className={`h-14 w-14 rounded-2xl flex items-center justify-center backdrop-blur-md ${settlementStep === 'exona' ? 'bg-white/10 text-white' : 'bg-accent/10 text-accent'}`}>
-                            {settlementStep === 'exona' ? <BadgeCheck size={32} /> : <Banknote size={32} />}
+                        <div className="p-4 bg-zinc-900 rounded-2xl border border-zinc-850 text-left">
+                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-1.5">Your Referral Link</p>
+                          <div className="flex items-center justify-between gap-2">
+                            <input 
+                              type="text" 
+                              readOnly 
+                              value={`https://exona.io/join?ref=${user.uid.slice(0, 6)}`} 
+                              className="bg-transparent text-xs font-semibold overflow-hidden text-[#FF5500] outline-none flex-1 truncate"
+                            />
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(`https://exona.io/join?ref=${user.uid.slice(0, 6)}`);
+                                showNotification('Copied Referral Link!', 'success');
+                              }}
+                              className="px-3 py-1.5 bg-[#FF5500] text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-[#e04500] transition-all shrink-0"
+                            >
+                              Copy
+                            </button>
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PAYDAY LOANS */}
+                    {activeGTService === 'loans' && (
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-3">
+                          <Coins className="text-[#FF5500]" size={20} />
+                          <h4 className="text-sm font-black uppercase tracking-wider">GTBank Instant Credit</h4>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">Select payday loan size. Approved funds are deposited instantly.</p>
+                        
+                        <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-2xl space-y-4">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] text-zinc-400 font-bold uppercase">Requested Amount</span>
+                            <span className="text-sm font-black text-[#FF5500]">₦{loanAmount.toLocaleString()}</span>
+                          </div>
+                          
+                          <input 
+                            type="range" 
+                            min="50000" 
+                            max="500000" 
+                            step="25000"
+                            value={loanAmount} 
+                            onChange={(e) => setLoanAmount(parseInt(e.target.value))}
+                            className="w-full accent-[#FF5500] h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                          />
+
+                          <div className="flex justify-between items-center text-[9px] text-zinc-500 font-bold uppercase">
+                            <span>₦50k</span>
+                            <span>Max: ₦500k Eligibility</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            setIsApplyingLoan(true);
+                            setTimeout(() => {
+                              setIsApplyingLoan(false);
+                              setActiveGTService(null);
+                              showNotification(`Instant Payday Loan of ₦${loanAmount.toLocaleString()} approved and credited!`, 'success');
+                            }, 1800);
+                          }}
+                          disabled={isApplyingLoan}
+                          className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-md flex items-center justify-center gap-2"
+                        >
+                          {isApplyingLoan ? 'Crediting Account...' : 'Apply & Disburse Instant Credit'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* CARDS MANAGER */}
+                    {activeGTService === 'cards' && (
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-3">
+                          <CreditCard className="text-[#FF5500]" size={20} />
+                          <h4 className="text-sm font-black uppercase tracking-wider font-mono">My Global Cards</h4>
+                        </div>
+
+                        {/* Physical Mastercard graphics representation */}
+                        <div className="h-44 w-full bg-gradient-to-tr from-zinc-900 via-zinc-800 to-zinc-900 border-2 border-zinc-700/80 rounded-2xl p-5 relative flex flex-col justify-between shadow-2xl overflow-hidden">
+                          <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 rotate-45">
+                            <CreditCard size={120} />
+                          </div>
+                          <div className="flex justify-between items-start z-10">
+                            <span className="text-[10px] font-black tracking-widest text-zinc-400 font-mono">GTWORLD GOLD</span>
+                            <span className="text-xs font-black text-[#FF5500] font-serif">mastercard</span>
+                          </div>
+                          
+                          <div className="z-10 mt-6">
+                            <p className="text-lg font-bold font-mono tracking-widest text-white">5399 4120 8820 3656</p>
+                            <div className="flex items-center gap-4 mt-2">
+                              <div>
+                                <span className="text-[7px] text-zinc-500 uppercase block font-mono">Expiry</span>
+                                <span className="text-[10px] font-bold font-mono text-zinc-300">12 / 28</span>
+                              </div>
+                              <div>
+                                <span className="text-[7px] text-zinc-500 uppercase block font-mono">CVV</span>
+                                <span className="text-[10px] font-bold font-mono text-zinc-300">•••</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-end z-10 mt-2">
+                            <span className="text-[9px] font-black uppercase text-zinc-300 font-mono tracking-tight">{capitalizedName}</span>
+                            <div className="h-6 w-9 bg-amber-500 rounded-md opacity-20 shrink-0" />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2.5 bg-zinc-900 p-4 border border-zinc-850 rounded-2xl">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-400 font-semibold">Freeze Card Status</span>
+                            <button 
+                              onClick={() => showNotification('Card Lock State updated')}
+                              className="px-2.5 py-1 bg-[#FF5500]/10 border border-[#FF5500]/20 text-[#FF5500] rounded text-[10px] font-bold uppercase tracking-wider"
+                            >
+                              Active / Unlocked
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PAY WITH QR */}
+                    {activeGTService === 'qr' && (
+                      <div className="text-center space-y-4 pt-4">
+                        <div className="h-44 w-full bg-zinc-950 rounded-2xl border-2 border-zinc-800 relative flex items-center justify-center overflow-hidden">
+                          {/* Green scanning focus frame */}
+                          <div className="h-28 w-28 border-2 border-dashed border-[#FF5500] rounded-xl relative animate-pulse flex items-center justify-center">
+                            <div className="absolute inset-2 border border-zinc-800 rounded bg-white/5" />
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black uppercase">Pay Merchant QR</h4>
+                          <p className="text-xs text-zinc-400 mt-1">Point your camera block at any GTBank or eNaira QR stand to authorize instant transfers.</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            showNotification('Scan completed. No invoice detected');
+                            setActiveGTService(null);
+                          }}
+                          className="w-full py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-850 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                        >
+                          Manual Input Code
+                        </button>
+                      </div>
+                    )}
+
+                    {/* GROW YOUR SAVINGS */}
+                    {activeGTService === 'growsavings' && (
+                      <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-3">
+                          <TrendingUp className="text-[#FF5500]" size={20} />
+                          <h4 className="text-sm font-black uppercase tracking-wider">GT World Vault Yield</h4>
+                        </div>
+                        <p className="text-xs text-zinc-400 leading-relaxed">Lock your idle balance and earn daily compound yields at 12.5% APY.</p>
+                        
+                        <div className="space-y-3">
                           <div>
-                            <h5 className={`font-black text-xl tracking-tight ${settlementStep === 'exona' ? 'text-white' : 'text-ink'}`}>
-                              {settlementStep === 'exona' ? 'Transfer to Exona Bank' : 'Transfer to Other Bank'}
-                            </h5>
-                            <p className={`text-[10px] font-bold uppercase tracking-[0.3em] ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>
-                              {settlementStep === 'exona' ? 'Direct Settlement' : 'Global Network Settlements'}
-                            </p>
+                            <label className="text-[10px] text-zinc-400 font-bold uppercase block mb-1.5">Amount to lock</label>
+                            <input 
+                              type="number" 
+                              placeholder="0.00" 
+                              value={savingsAmount}
+                              onChange={(e) => setSavingsAmount(e.target.value)}
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-850 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500]"
+                            />
                           </div>
-                        </div>
 
-                        <div className="space-y-6">
+                          <div className="p-3.5 bg-zinc-900 border border-zinc-850 rounded-xl flex justify-between items-center">
+                            <div>
+                              <span className="text-[9px] text-zinc-500 font-semibold block uppercase">Estimated Year Yield</span>
+                              <span className="text-xs font-black text-green-400">₦{parseFloat(savingsAmount || '0') * 0.125}</span>
+                            </div>
+                            <span className="text-[8px] font-black uppercase bg-[#FF5500]/10 text-[#FF5500] px-2 py-1 rounded">12.5% APY</span>
+                          </div>
+
+                          <button 
+                            onClick={() => {
+                              if (!savingsAmount) return;
+                              setLockedSavings(prev => prev + parseFloat(savingsAmount));
+                              setSavingsAmount('');
+                              showNotification(`Successfully locked Funds in Yield Vault!`, 'success');
+                            }}
+                            className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-md"
+                          >
+                            Lock Funds Now
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* GENERIC OTHER SERVICES */}
+                    {!['manager', 'transactions', 'makemoney', 'loans', 'cards', 'qr', 'growsavings'].includes(activeGTService) && (
+                      <div className="text-center space-y-4 pt-4">
+                        <div className="h-16 w-16 bg-[#FF5500]/10 border border-[#FF5500]/20 text-[#FF5500] rounded-2xl flex items-center justify-center mx-auto">
+                          <Cpu size={32} />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-black uppercase tracking-wide">{quickActions.find(q => q.id === activeGTService)?.label || 'Service Hub'}</h4>
+                          <p className="text-xs text-zinc-400 mt-1">This GTBank channel is fully simulated. Operations are optimized internally.</p>
+                        </div>
+                        <button 
+                          onClick={() => setActiveGTService(null)} 
+                          className="w-full py-3 bg-[#FF5500] text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-[#e04500] transition-all"
+                        >
+                          Confirm & Back
+                        </button>
+                      </div>
+                    )}
+
+                  </motion.div>
+                </div>
+              )}
+            </AnimatePresence>
+
+            {/* If settlement form is active, slide it up beautifully */}
+            <AnimatePresence>
+              {settlementStep !== 'selection' && (
+                <div className="fixed inset-0 bg-black/95 z-50 flex flex-col justify-end p-0 sm:p-6 no-scrollbar overflow-y-auto">
+                  
+                  {/* Backdrop Closer */}
+                  <div className="absolute inset-0" onClick={() => {
+                    setSettlementStep('selection');
+                    setSettlementAmount('');
+                    setRecipientAccount('');
+                    setVerifiedName('');
+                    setTransactionPin('');
+                  }} />
+
+                  <motion.div 
+                    initial={{ y: 300, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 300, opacity: 0 }}
+                    className="w-full max-w-md mx-auto bg-[#131722] border-t sm:border border-zinc-800 rounded-t-[2.5rem] sm:rounded-[2.5rem] p-6 relative z-10 text-white"
+                  >
+                    <button 
+                      onClick={() => {
+                        setSettlementStep('selection');
+                        setSettlementAmount('');
+                        setRecipientAccount('');
+                        setVerifiedName('');
+                        setTransactionPin('');
+                      }} 
+                      className="absolute top-5 right-5 h-8 w-8 bg-zinc-900 text-zinc-400 hover:text-white rounded-lg flex items-center justify-center"
+                    >
+                      <X size={16} />
+                    </button>
+
+                    {/* SETTLEMENT STEPS: AIRTIME / DATA / BILLS */}
+                    {(settlementStep === 'airtime' || settlementStep === 'data' || settlementStep === 'bills') && (
+                      <div className="space-y-5 pt-2">
+                        <h4 className="text-base font-black uppercase text-[#FF5500]">
+                          {settlementStep === 'airtime' ? 'Buy Airtime' : settlementStep === 'data' ? 'Buy Internet Data' : 'Utility Bills Payment'}
+                        </h4>
+
+                        <div className="space-y-4">
+                          {(settlementStep === 'airtime' || settlementStep === 'data') && (
+                            <div>
+                              <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">Network Provider</label>
+                              <div className="grid grid-cols-4 gap-2">
+                                {NETWORK_PROVIDERS.map(net => (
+                                  <button 
+                                    key={net}
+                                    onClick={() => setSelectedProvider(net)}
+                                    className={`py-2 rounded-xl text-[10px] font-black border transition-all ${
+                                      selectedProvider === net ? 'bg-[#FF5500] border-[#FF5500] text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                    }`}
+                                  >
+                                    {net}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {settlementStep === 'bills' && (
+                            <div>
+                              <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">Biller Category</label>
+                              <select 
+                                value={selectedBillType}
+                                onChange={(e) => setSelectedBillType(e.target.value)}
+                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-[#FF5500] appearance-none cursor-pointer"
+                              >
+                                <option value="">Select Category</option>
+                                {BILL_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
+                              </select>
+                            </div>
+                          )}
+
+                          <div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">
+                              {settlementStep === 'bills' ? 'Meter or Customer ID' : 'Phone Number'}
+                            </label>
+                            <input 
+                              type="text" 
+                              value={phoneNumber} 
+                              onChange={(e) => setPhoneNumber(e.target.value)}
+                              placeholder={settlementStep === 'bills' ? 'e.g. 1029384756' : '08134567890'}
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                            />
+                          </div>
+
+                          {settlementStep === 'data' && (
+                            <div>
+                              <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">Select Bundle</label>
+                              <div className="space-y-2 max-h-[25vh] overflow-y-auto no-scrollbar">
+                                {DATA_PLANS.filter(p => p.network === selectedProvider).map(plan => (
+                                  <button
+                                    key={plan.id}
+                                    onClick={() => {
+                                      setSelectedDataPlan(plan.id);
+                                      setSettlementAmount(plan.price.toString());
+                                    }}
+                                    className={`w-full p-3 rounded-xl border flex justify-between items-center text-left ${
+                                      selectedDataPlan === plan.id ? 'bg-[#FF5500]/10 border-[#FF5500]' : 'bg-zinc-900 border-zinc-850'
+                                    }`}
+                                  >
+                                    <span className="text-xs font-bold">{plan.name}</span>
+                                    <span className="text-xs font-black text-[#FF5500]">{activeAccount.currency}{plan.price}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {settlementStep !== 'data' && (
+                            <div>
+                              <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5 font-mono">Amount</label>
+                              <input 
+                                type="number" 
+                                placeholder="0.00" 
+                                value={settlementAmount}
+                                onChange={(e) => setSettlementAmount(e.target.value)}
+                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                              />
+                            </div>
+                          )}
+
+                          <button 
+                            disabled={!settlementAmount}
+                            onClick={() => setSettlementStep('pin')}
+                            className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                          >
+                            Proceed to Payment
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TRANSFER TO OTHER BANKS / EXONA BANK */}
+                    {(settlementStep === 'other' || settlementStep === 'exona') && (
+                      <div className="space-y-5 pt-2">
+                        <h4 className="text-base font-black uppercase text-[#FF5500]">
+                          {settlementStep === 'exona' ? 'Send to Exona Wallet' : 'Send to Other Banks'}
+                        </h4>
+
+                        <div className="space-y-4">
                           {settlementStep === 'other' && (
                             <div>
-                              <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Select Destination Bank</label>
+                              <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">Receiver's Bank</label>
                               <select 
                                 value={selectedSettlementBank}
                                 onChange={(e) => setSelectedSettlementBank(e.target.value)}
-                                className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-bold text-ink outline-none focus:border-accent appearance-none cursor-pointer"
+                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-[#FF5500] appearance-none cursor-pointer"
                               >
                                 {NIGERIAN_BANKS.map(bank => (
                                   <option key={bank} value={bank}>{bank}</option>
@@ -15684,383 +16177,143 @@ function ExonaApp() {
                           )}
 
                           <div>
-                            <label className={`text-[10px] font-bold uppercase tracking-widest mb-3 block ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Account Number</label>
-                            <div className="relative">
-                              <input 
-                                type="text"
-                                maxLength={10}
-                                value={recipientAccount}
-                                onChange={(e) => setRecipientAccount(e.target.value.replace(/\D/g, ''))}
-                                className={`w-full px-5 py-5 rounded-2xl text-2xl font-black outline-none transition-all ${
-                                  settlementStep === 'exona' 
-                                    ? 'bg-white/10 text-white focus:bg-white/15 border-white/10' 
-                                    : 'bg-gray-50 text-ink focus:bg-white border-gray-100 focus:border-accent'
-                                }`}
-                                placeholder="10 Digits Account No."
-                              />
-                            </div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">10-Digit Account Number</label>
+                            <input 
+                              type="text" 
+                              maxLength={10}
+                              value={recipientAccount}
+                              onChange={(e) => setRecipientAccount(e.target.value.replace(/\D/g, ''))}
+                              placeholder="Account Number"
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-base font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                            />
                             {isVerifying ? (
-                              <div className="mt-2 flex items-center gap-2">
-                                <div className="h-2 w-2 bg-accent rounded-full animate-ping" />
-                                <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Verifying Account...</p>
-                              </div>
+                              <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1.5 animate-pulse">Verifying Account...</p>
                             ) : verificationError ? (
-                                <p className="mt-2 text-[10px] font-bold text-red-500 uppercase tracking-widest">{verificationError}</p>
+                              <p className="text-[10px] text-red-500 font-semibold uppercase tracking-wider mt-1.5">{verificationError}</p>
                             ) : verifiedName && (
-                              <div className="mt-2 flex items-center justify-between">
-                                <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest">{verifiedName}</p>
-                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${settlementStep === 'exona' ? 'bg-accent/20 text-accent' : 'bg-green-100 text-green-600'}`}>Verified</span>
-                              </div>
+                              <p className="text-[10px] text-green-400 font-bold uppercase tracking-wider mt-1.5 flex items-center gap-1">
+                                ✓ Verified Name: {verifiedName}
+                              </p>
                             )}
                           </div>
 
                           <div>
-                            <label className={`text-[10px] font-bold uppercase tracking-widest mb-3 block ${settlementStep === 'exona' ? 'text-white/40' : 'text-muted'}`}>Enter Amount</label>
-                            <div className="relative">
-                              <span className={`absolute left-5 top-1/2 -translate-y-1/2 font-black text-xl ${settlementStep === 'exona' ? 'text-white' : 'text-ink'}`}>{currencySymbol}</span>
-                              <input 
-                                type="number"
-                                value={settlementAmount}
-                                onChange={(e) => setSettlementAmount(e.target.value)}
-                                className={`w-full pl-12 pr-5 py-5 rounded-2xl text-2xl font-black outline-none transition-all ${
-                                  settlementStep === 'exona' 
-                                    ? 'bg-white/10 text-white focus:bg-white/15 border-white/10' 
-                                    : 'bg-gray-50 text-ink focus:bg-white border-gray-100 focus:border-accent'
-                                }`}
-                                placeholder="0.00"
-                              />
-                            </div>
-                            <div className="mt-2 flex justify-between px-1">
-                              <p className={`text-[10px] font-bold uppercase tracking-widest ${settlementStep === 'exona' ? 'text-white/30' : 'text-muted'}`}>Available Balance</p>
-                              <p className={`text-[10px] font-black ${settlementStep === 'exona' ? 'text-accent' : 'text-ink'}`}>{currencySymbol}{(finance?.institutionBalance || 0).toLocaleString()}</p>
-                            </div>
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase block mb-1.5">Enter Amount</label>
+                            <input 
+                              type="number" 
+                              placeholder="0.00" 
+                              value={settlementAmount}
+                              onChange={(e) => setSettlementAmount(e.target.value)}
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                            />
                           </div>
 
                           <button 
                             disabled={!verifiedName || !settlementAmount || parseFloat(settlementAmount) <= 0}
                             onClick={() => setSettlementStep('pin')}
-                            className={`w-full py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-                              settlementStep === 'exona' ? 'bg-white text-ink hover:bg-gray-100' : 'bg-ink text-white hover:bg-ink/90'
-                            }`}
+                            className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             Continue
                           </button>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ) : (settlementStep === 'airtime' || settlementStep === 'data' || settlementStep === 'bills') ? (
-                  <div className="bg-white border border-gray-100 rounded-[3rem] p-10">
-                    <div className="flex items-center gap-4 mb-10">
-                      <div className={`h-14 w-14 rounded-2xl flex items-center justify-center ${
-                        settlementStep === 'airtime' ? 'bg-green-50 text-green-600' : 
-                        settlementStep === 'data' ? 'bg-pink-50 text-pink-600' : 'bg-blue-50 text-blue-600'
-                      }`}>
-                        {settlementStep === 'airtime' ? <Smartphone size={32} /> : 
-                         settlementStep === 'data' ? <Globe size={32} /> : <Receipt size={32} />}
-                      </div>
-                      <div>
-                        <h5 className="font-black text-xl text-ink tracking-tight uppercase">
-                          {settlementStep === 'airtime' ? 'Buy Airtime' : 
-                           settlementStep === 'data' ? 'Buy Data' : 'Pay Bills'}
-                        </h5>
-                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Institutional Settlement</p>
-                      </div>
-                    </div>
+                    )}
 
-                    <div className="space-y-6">
-                      {(settlementStep === 'airtime' || settlementStep === 'data') && (
-                        <div>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Select Network</label>
-                          <div className="grid grid-cols-4 gap-3">
-                            {NETWORK_PROVIDERS.map(net => (
-                              <button 
-                                key={net}
-                                onClick={() => setSelectedProvider(net)}
-                                className={`py-4 rounded-xl font-black text-[10px] border transition-all ${
-                                  selectedProvider === net ? 'bg-accent text-white border-accent' : 'bg-gray-50 text-muted border-gray-100'
-                                }`}
-                              >
-                                {net}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {settlementStep === 'bills' && (
-                        <div>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Biller Category</label>
-                          <select 
-                            value={selectedBillType}
-                            onChange={(e) => setSelectedBillType(e.target.value)}
-                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-bold text-ink outline-none focus:border-accent appearance-none"
-                          >
-                            <option value="">Select Category</option>
-                            {BILL_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
-                          </select>
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">
-                          {settlementStep === 'bills' ? 'Customer/Meter ID' : 'Phone Number'}
-                        </label>
-                        <input 
-                          type="text"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-lg font-black text-ink outline-none focus:border-accent"
-                          placeholder={settlementStep === 'bills' ? 'e.g. 1029384756' : '081...'}
-                        />
-                      </div>
-
-                      {settlementStep === 'data' && (
-                        <div>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Select Data Plan</label>
-                          <div className="space-y-3">
-                            {DATA_PLANS.filter(p => p.network === selectedProvider).map(plan => (
-                              <button 
-                                key={plan.id}
-                                onClick={() => {
-                                  setSelectedDataPlan(plan.id);
-                                  setSettlementAmount(plan.price.toString());
-                                }}
-                                className={`w-full p-4 rounded-2xl border flex items-center justify-between transition-all ${
-                                  selectedDataPlan === plan.id ? 'border-accent bg-accent/5' : 'border-gray-100 bg-gray-50'
-                                }`}
-                              >
-                                <span className="font-bold text-xs text-ink">{plan.name}</span>
-                                <span className="font-black text-accent text-sm">{currencySymbol}{plan.price}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {settlementStep !== 'data' && (
-                        <div>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mb-3 block">Amount</label>
-                          <input 
-                            type="number"
-                            value={settlementAmount}
-                            onChange={(e) => setSettlementAmount(e.target.value)}
-                            className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl text-[13px] font-bold text-ink outline-none focus:border-accent"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      )}
-
-                      <button 
-                        disabled={!settlementAmount || (settlementStep !== 'bills' && !selectedProvider)}
-                        onClick={() => setSettlementStep('pin')}
-                        className="w-full py-5 bg-ink text-white rounded-[1.5rem] font-bold text-xs uppercase tracking-[0.2em]"
-                      >
-                        Proceed to Payment
-                      </button>
-                    </div>
-                  </div>
-                ) : settlementStep === 'pin' ? (
-                  <div className="bg-[#f8f9fc] rounded-[3rem] p-12 flex flex-col items-center">
-                    <div className="h-24 w-24 bg-accent/10 text-accent rounded-full flex items-center justify-center mb-8">
-                      <Lock size={40} />
-                    </div>
-                    <h5 className="text-[32px] font-black text-ink mb-2 tracking-tight">Security PIN</h5>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mb-12">Enter your 4-digit transaction PIN</p>
-                    
-                    <div className="w-full max-w-[280px] space-y-8">
-                      <input 
-                        type="password"
-                        maxLength={4}
-                        value={transactionPin}
-                        onChange={(e) => setTransactionPin(e.target.value.replace(/\D/g, ''))}
-                        className="w-full px-5 py-6 bg-white border-2 border-gray-100 rounded-[2rem] text-4xl font-black tracking-[1em] text-center text-ink outline-none focus:border-accent transition-all"
-                        placeholder="••••"
-                      />
-                      
-                      <button 
-                        disabled={transactionPin.length !== 4 || isProcessingSettlement}
-                        onClick={handleInitiateSettlement}
-                        className="w-full py-5 bg-ink text-white rounded-[1.5rem] font-black text-xs uppercase tracking-[0.2em] hover:scale-[1.02] transition-all active:scale-[0.98] disabled:opacity-50"
-                      >
-                        {isProcessingSettlement ? 'Initiating...' : 'Confirm Transfer'}
-                      </button>
-
-                      <button 
-                        onClick={() => setSettlementStep('exona')}
-                        className="w-full text-[10px] font-black text-muted uppercase tracking-widest hover:text-ink transition-colors"
-                      >
-                        Back to details
-                      </button>
-                    </div>
-                  </div>
-                ) : settlementStep === 'deposit' ? (
-                  <div className="bg-ink text-white rounded-[2.5rem] p-8 sm:p-10 border border-white/5 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700 font-black text-6xl">
-                      DEPOSIT
-                    </div>
-                    
-                    <div className="relative z-10">
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className="h-14 w-14 bg-accent text-white rounded-2xl flex items-center justify-center">
-                          <Plus size={32} strokeWidth={3} />
+                    {/* CASH OUT / DEPOSIT FUNDING HUB */}
+                    {settlementStep === 'deposit' && (
+                      <div className="space-y-5 pt-2 text-center">
+                        <div className="h-14 w-14 bg-[#FF5500]/10 border border-[#FF5500]/20 rounded-2xl flex items-center justify-center mx-auto text-[#FF5500]">
+                          <Plus size={32} />
                         </div>
                         <div>
-                          <h5 className="font-black text-xl tracking-tight">Add Funds to Wallet</h5>
-                          <p className="text-[10px] font-bold text-white/40 uppercase tracking-[0.3em]">Institutional Deposit Path</p>
+                          <h4 className="text-base font-black uppercase">Rapid Deposit Hub</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed mt-1">Transfer directly from any mobile banking app to get instantly credited:</p>
                         </div>
-                      </div>
-                      
-                      <div className="bg-white/5 rounded-3xl p-6 sm:p-8 border border-white/5 space-y-6 backdrop-blur-sm">
-                        <div className="flex justify-between items-start">
+                        <div className="p-4 bg-zinc-900 rounded-2xl border border-zinc-850 text-left space-y-3">
                           <div>
-                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">Settlement Bank</p>
-                            <p className="text-[15px] font-bold tracking-tight">OPAY / Exona Reserve</p>
+                            <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest block">Settlement Bank</span>
+                            <span className="text-xs font-black text-white">OPay / Signature Bank</span>
                           </div>
-                          <span className="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full border border-accent/20">Instant Funding</span>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-6">
                           <div>
-                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">Your Deposit Account</p>
-                            <div className="flex items-center gap-3">
-                              <p className="text-[28px] font-mono font-black text-accent tracking-tighter">8134567890</p>
+                            <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest block">Instant Deposit Account</span>
+                            <div className="flex justify-between items-center gap-2 mt-1">
+                              <span className="text-lg font-mono font-black text-[#FF5500]">0167343656</span>
                               <button 
                                 onClick={() => {
-                                  navigator.clipboard.writeText('8134567890');
-                                  showNotification('Account copied to clipboard');
+                                  navigator.clipboard.writeText('0167343656');
+                                  showNotification('Account Number Copied!');
                                 }}
-                                className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-all border border-white/10"
+                                className="px-2.5 py-1 bg-zinc-800 rounded text-[10px] uppercase font-bold text-white"
                               >
-                                <Copy size={16} />
+                                Copy
                               </button>
                             </div>
                           </div>
-                          <div>
-                            <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em] mb-2">Beneficiary Name</p>
-                            <p className="text-[15px] font-bold tracking-tight uppercase">EXONA • {selectedSchool.name}</p>
-                          </div>
                         </div>
                       </div>
+                    )}
 
-                      <div className="mt-8 flex items-start gap-4 p-5 bg-white/5 rounded-2xl border border-white/5">
-                        <div className="mt-1"><ShieldCheck size={18} className="text-accent" /></div>
+                    {/* PIN BLOCK */}
+                    {settlementStep === 'pin' && (
+                      <div className="space-y-5 pt-2 text-center">
+                        <div className="h-12 w-12 bg-[#FF5500]/10 text-[#FF5500] border border-[#FF5500]/20 rounded-2xl flex items-center justify-center mx-auto">
+                          <Lock size={24} />
+                        </div>
                         <div>
-                          <p className="text-[11px] text-white/80 leading-relaxed font-bold uppercase tracking-tight mb-1">Direct Bank Transfer</p>
-                          <p className="text-[10px] text-white/50 leading-relaxed font-medium">
-                            Transfer any amount to the account details above from your banking app. Your wallet will be credited automatically once fixed.
+                          <h4 className="text-base font-black uppercase">Transaction PIN</h4>
+                          <p className="text-xs text-zinc-400">Enter your 4-digit transaction Pin to verify</p>
+                        </div>
+                        <input 
+                          type="password" 
+                          maxLength={4}
+                          value={transactionPin}
+                          onChange={(e) => setTransactionPin(e.target.value.replace(/\D/g, ''))}
+                          className="w-32 mx-auto px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-2xl font-black text-center text-white outline-none focus:border-[#FF5500] tracking-[0.5em] font-mono"
+                          placeholder="••••"
+                        />
+                        <button
+                          disabled={transactionPin.length !== 4 || isProcessingSettlement}
+                          onClick={handleInitiateSettlement}
+                          className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                        >
+                          {isProcessingSettlement ? 'Reconciling Ledger...' : 'Confirm Disburse'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* SUCCESS PAGE */}
+                    {settlementStep === 'success' && (
+                      <div className="space-y-5 pt-2 text-center">
+                        <div className="h-16 w-16 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full flex items-center justify-center mx-auto">
+                          <Check size={36} strokeWidth={3} />
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-black uppercase text-green-400">Transaction Successful</h4>
+                          <p className="text-xs text-zinc-400 leading-relaxed mt-1">
+                            Disbursement of <span className="text-white font-extrabold">{activeAccount.currency}{parseFloat(settlementAmount).toLocaleString()}</span> completed.
                           </p>
                         </div>
+                        <button
+                          onClick={() => {
+                            setSettlementStep('selection');
+                            setSettlementAmount('');
+                            setRecipientAccount('');
+                            setVerifiedName('');
+                            setTransactionPin('');
+                          }}
+                          className="w-full py-4 bg-zinc-900 hover:bg-zinc-850 rounded-xl font-bold text-[10px] uppercase tracking-widest"
+                        >
+                          Done
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                ) : settlementStep === 'success' ? (
-                  <div className="bg-white border-2 border-green-500/10 rounded-[3rem] p-12 flex flex-col items-center text-center">
-                    <div className="h-24 w-24 bg-green-500 text-white rounded-full flex items-center justify-center mb-10">
-                      <Check size={48} strokeWidth={3} />
-                    </div>
-                    <h5 className="text-[32px] font-black text-ink mb-3 tracking-tight">Transfer Sent!</h5>
-                    <p className="text-[11px] font-bold text-muted uppercase tracking-[0.2em] mb-12 max-w-[240px] leading-relaxed">
-                      Your transfer of <span className="text-ink">{currencySymbol}{parseFloat(settlementAmount).toLocaleString()}</span> to <span className="text-ink">{verifiedName}</span> was successful.
-                    </p>
-                    <button 
-                      onClick={() => {
-                        setSettlementStep('selection');
-                        setSettlementAmount('');
-                        setRecipientAccount('');
-                        setVerifiedName('');
-                        setTransactionPin('');
-                      }}
-                      className="px-12 py-5 bg-ink text-white rounded-[1.5rem] font-bold text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform"
-                    >
-                      Done
-                    </button>
-                  </div>
-                ) : (
-                  <div />
-                )}
+                    )}
 
-              </div>
-
-              {/* Settlement History */}
-              <div className="space-y-10">
-                <div className="border-l-4 border-accent pl-6 flex items-center justify-between">
-                  <div>
-                    <h4 className="font-extrabold text-xl text-ink uppercase tracking-tight">Recent Activity</h4>
-                    <p className="text-xs text-muted font-medium mt-1">Transaction history and settlement status.</p>
-                  </div>
+                  </motion.div>
                 </div>
+              )}
+            </AnimatePresence>
 
-                            <div className="space-y-4">
-                              {settlements.length === 0 ? (
-                                <div className="py-20 text-center bg-gray-50 rounded-[3rem] border border-dashed border-gray-200">
-                                  <div className="h-16 w-16 bg-white rounded-full flex items-center justify-center text-gray-200 mx-auto mb-4 border border-gray-100">
-                                    <Clock size={24} />
-                                  </div>
-                                  <p className="font-bold text-muted uppercase tracking-widest text-[10px]">No recent transactions</p>
-                                </div>
-                              ) : (
-                                settlements.map((s) => (
-                                  <div 
-                                    key={s.id}
-                                    className="group bg-white p-5 rounded-3xl border border-gray-50 hover:border-accent/10 transition-all flex items-center justify-between"
-                                  >
-                                    <div className="flex items-center gap-4">
-                                      <div className={`h-11 w-11 rounded-xl flex items-center justify-center shrink-0 ${
-                                        s.status === 'completed' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'
-                                      }`}>
-                                        <ArrowUpDown size={18} strokeWidth={2.5} />
-                                      </div>
-                                      <div className="min-w-0">
-                                        <h6 className="font-black text-ink tracking-tight uppercase text-[11px] truncate whitespace-nowrap">{s.bankName || 'Wallet Transfer'}</h6>
-                                        <div className="flex items-center gap-2">
-                                          <p className="text-[10px] text-muted font-bold tracking-widest uppercase truncate max-w-[80px]">{s.recipientId}</p>
-                                          <span className="w-1 h-1 bg-gray-200 rounded-full shrink-0" />
-                                          <p className="text-[10px] text-muted font-medium truncate">
-                                            {s.timestamp?.toDate ? s.timestamp.toDate().toLocaleDateString() : 'Processing...'}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="text-right shrink-0">
-                                      <p className="font-black text-ink tracking-tight text-sm">-{currencySymbol}{s.amount.toLocaleString()}</p>
-                                      <p className={`text-[9px] font-black uppercase ${
-                                        s.status === 'completed' ? 'text-green-600' : 'text-orange-500'
-                                      }`}>{s.status}</p>
-                                    </div>
-                                  </div>
-                                ))
-                              )}
-                            </div>
-
-                <div className="bg-[#f0f9ff] p-8 rounded-[2.5rem] border border-[#bae6fd]">
-                  <div className="flex gap-4">
-                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-[#0284c7] shrink-0 border border-[#bae6fd]">
-                      <ShieldCheck size={20} />
-                    </div>
-                    <div>
-                      <h6 className="text-[11px] font-black text-[#0369a1] uppercase tracking-widest mb-1.5 line-clamp-1">Financial Integrity Unit</h6>
-                      <p className="text-[10px] text-[#075985] font-medium leading-relaxed opacity-80">
-                        Exona employs military-grade encryption for all financial settlements. Our automated reconciliation system ensures 100% accuracy in platform disbursements.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-
-            <div className="mt-20 pt-12 border-t border-gray-100 flex justify-between items-end">
-              <div>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Financial Integrity Unit</p>
-                <p className="text-[10px] text-muted tracking-tight font-medium">Verified by Exona SecNet</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Report Generated</p>
-                <p className="text-[10px] text-muted font-medium">{new Date().toLocaleString()}</p>
-              </div>
-            </div>
-          </WordLayout>
         );
       }
       case 'daily-routine': {
@@ -30076,8 +30329,8 @@ function ExonaApp() {
               {/* Sleek Minimalist Top Header */}
               <div className="p-4 sm:p-6 border-b border-zinc-100 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 shadow-md">
-                    <Sparkles size={14} className="text-[#4F46E5]" />
+                  <div className="h-9 w-9 rounded-xl bg-[#128C7E] flex items-center justify-center shrink-0 shadow-sm text-white">
+                    <MessageCircle size={18} className="text-white" />
                   </div>
                   <div>
                     <h2 className="text-md font-extrabold tracking-tight text-zinc-900 font-sans flex items-center gap-2">
@@ -30120,8 +30373,8 @@ function ExonaApp() {
                 </div>
               </div>
 
-              {/* Dynamic Immersive Scroll Area */}
-              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-8 bg-zinc-50/55">
+              {/* Dynamic Immersive Scroll Area - Spotless pure white background */}
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-8 bg-white">
                 <div className="max-w-3xl mx-auto w-full flex flex-col h-full justify-between">
                   {exonaAiChat.length <= 1 ? (
                     /* Elegant Welcome Hero in Center Stage */
@@ -30130,9 +30383,9 @@ function ExonaApp() {
                         initial={{ scale: 0.92, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.4 }}
-                        className="h-16 w-16 rounded-[1.25rem] bg-[#E4E9FC] flex items-center justify-center shadow-2xl mb-2"
+                        className="h-16 w-16 rounded-[1.25rem] bg-[#128C7E] flex items-center justify-center shadow-lg mb-2 text-white"
                       >
-                        <Sparkles size={28} className="text-[#4F46E5]" />
+                        <MessageCircle size={32} className="text-white" />
                       </motion.div>
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight leading-tight">
                         What's on your mind?
@@ -30162,18 +30415,18 @@ function ExonaApp() {
                                 )}
                               </div>
                             ) : (
-                              <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 shadow-md">
-                                <Sparkles size={13} className="text-[#4F46E5]" />
+                              <div className="h-8 w-8 rounded-xl bg-[#128C7E] flex items-center justify-center shrink-0 shadow-md text-white">
+                                <MessageCircle size={14} className="text-white" />
                               </div>
                             )}
                           </div>
 
-                          {/* Subtle Exona-Style Message Area (border-less alignment for AI blocks, clean light gray or white paper card for user) */}
+                          {/* Subtle Exona-Style Message Area (WhatsApp inspired user green & modern light gray for AI bubble) */}
                           <div className="max-w-[85%] space-y-1">
                             <div className={`p-4 rounded-xl text-[14.5px] leading-relaxed ${
                               msg.sender === 'user'
-                                ? 'bg-[#E4E9FC] text-zinc-900 border border-[#D5DCFB]/60 rounded-tr-none shadow-sm' 
-                                : 'text-zinc-800 select-text rounded-tl-none prose max-w-none text-[14.5px]'
+                                ? 'bg-[#DCF8C6] text-zinc-900 border border-[#D9E6C8] rounded-tr-none shadow-sm' 
+                                : 'bg-[#F2F2F2] text-zinc-800 select-text rounded-tl-none prose max-w-none text-[14.5px] border border-zinc-100 shadow-sm'
                             }`}>
                               {msg.sender === 'ai' ? (
                                 <div className="markdown-body text-zinc-800 prose leading-relaxed">
@@ -30197,11 +30450,11 @@ function ExonaApp() {
                           animate={{ opacity: 1 }}
                           className="flex gap-4"
                         >
-                          <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 animate-bounce shadow-md">
-                            <Sparkles size={13} className="text-[#4F46E5]" />
+                          <div className="h-8 w-8 rounded-xl bg-[#128C7E] flex items-center justify-center shrink-0 animate-bounce shadow-md">
+                            <MessageCircle size={13} className="text-white" />
                           </div>
                           <div className="text-zinc-500 p-4 rounded-xl border border-zinc-200 bg-zinc-50 text-[13.5px] flex items-center gap-3">
-                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse text-[#4F46E5]">Running Queries</span>
+                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse text-[#128C7E]">Running Queries</span>
                             <div className="flex gap-1">
                               <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                               <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -30243,7 +30496,7 @@ function ExonaApp() {
                     type="button"
                     onClick={() => handleSendExonaAiMessage()}
                     disabled={exonaAiLoading || !exonaAiInput.trim()}
-                    className="h-12 w-12 bg-[#4F46E5] text-white hover:bg-[#4338CA] rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-100 disabled:text-zinc-400 border border-transparent transition-all font-bold shrink-0 shadow-md cursor-pointer"
+                    className="h-12 w-12 bg-[#128C7E] text-white hover:bg-[#0E6251] rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-100 disabled:text-zinc-400 border border-transparent transition-all font-bold shrink-0 shadow-md cursor-pointer"
                   >
                     <Send size={18} />
                   </button>
@@ -30260,7 +30513,7 @@ function ExonaApp() {
             key="floating-action-buttons-container"
             className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-4 no-print select-none"
           >
-            {/* Exona AI FAB */}
+            {/* Exona AI FAB - Premium WhatsApp green rounded rectangle */}
             <motion.button
               key="exona-ai-fab"
               initial={{ scale: 0, opacity: 0, y: 20 }}
@@ -30268,10 +30521,10 @@ function ExonaApp() {
               exit={{ scale: 0, opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
               onClick={() => setIsExonaAiModalOpen(true)}
-              className="h-12 w-12 rounded-[1.25rem] bg-[#E4E9FC] border border-[#D5DCFB]/60 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all outline-none group"
+              className="h-14 w-14 rounded-[1.25rem] bg-[#128C7E] border-0 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all outline-none group text-white font-bold"
               title="Exona AI"
             >
-              <Sparkles size={20} className="text-[#4F46E5] group-hover:scale-110 transition-transform" />
+              <MessageCircle size={26} className="text-white group-hover:scale-110 transition-transform" />
             </motion.button>
 
             {/* Create Institution FAB */}
