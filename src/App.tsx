@@ -30076,12 +30076,12 @@ function ExonaApp() {
               {/* Sleek Minimalist Top Header */}
               <div className="p-4 sm:p-6 border-b border-zinc-900/80 flex items-center justify-between bg-black shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 flex items-center justify-center">
-                    <Sparkles size={16} />
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-md">
+                    <Sparkles size={14} className="animate-pulse" />
                   </div>
                   <div>
                     <h2 className="text-md font-extrabold tracking-tight text-white font-sans flex items-center gap-2">
-                      Grok <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-md font-mono font-semibold uppercase tracking-wider">Exona Mode</span>
+                      Grok
                     </h2>
                   </div>
                 </div>
@@ -30130,9 +30130,9 @@ function ExonaApp() {
                         initial={{ scale: 0.92, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.4 }}
-                        className="h-16 w-16 rounded-2xl bg-zinc-900 hover:border-zinc-700 text-white flex items-center justify-center shadow-2xl border border-zinc-800/80 mb-2"
+                        className="h-16 w-16 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-2xl mb-2"
                       >
-                        <Sparkles size={28} className="text-zinc-100 animate-pulse" />
+                        <Sparkles size={26} className="text-white animate-pulse" />
                       </motion.div>
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
                         What's on your mind?
@@ -30152,10 +30152,10 @@ function ExonaApp() {
                           className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                         >
                           {/* Avatar icon */}
-                          <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${
+                          <div className={`h-8 w-8 flex items-center justify-center shrink-0 font-bold text-xs ${
                             msg.sender === 'user' 
-                              ? 'bg-zinc-900 border border-zinc-800 text-zinc-100' 
-                              : 'bg-zinc-800/80 border border-zinc-700 text-zinc-350'
+                              ? 'rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-100' 
+                              : 'rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white shadow-md'
                           }`}>
                             {msg.sender === 'user' ? (
                               user?.photoURL ? (
@@ -30164,7 +30164,7 @@ function ExonaApp() {
                                 user?.displayName?.charAt(0) || 'U'
                               )
                             ) : (
-                              <Sparkles size={13} className="text-zinc-200" />
+                              <Sparkles size={13} className="text-white animate-pulse" />
                             )}
                           </div>
 
@@ -30197,7 +30197,7 @@ function ExonaApp() {
                           animate={{ opacity: 1 }}
                           className="flex gap-4"
                         >
-                          <div className="h-8 w-8 rounded-lg bg-zinc-900 text-zinc-500 border border-zinc-850 flex items-center justify-center shrink-0 animate-bounce">
+                          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shrink-0 animate-bounce shadow-md">
                             <Sparkles size={13} />
                           </div>
                           <div className="text-zinc-500 p-4 rounded-xl border border-zinc-900 bg-zinc-950/25 text-[13.5px] flex items-center gap-3">
