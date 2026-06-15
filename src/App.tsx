@@ -4365,6 +4365,15 @@ function ExonaApp() {
   };
 
   const handleWorkspaceToolClick = (toolId: string) => {
+    if (toolId === 'finance') {
+      handleWalletClick();
+      return;
+    }
+    if (toolId === 'videos') {
+      setActiveChat(null);
+      setView('videos');
+      return;
+    }
     if (toolId === 'editor') {
       setActiveWorkspaceTool('editor');
       return;
@@ -4441,19 +4450,37 @@ function ExonaApp() {
   };
 
   const [activeWorkspaceTool, setActiveWorkspaceTool] = useState<string | null>(null);
+  const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
+  const [selectedShortcutApp, setSelectedShortcutApp] = useState<any | null>(null);
   const [enabledAppIds, setEnabledAppIds] = useState<string[]>(() => {
     const saved = localStorage.getItem('exonasoft_enabled_workspace_apps');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const updated = [...parsed];
+          if (!updated.includes('finance')) updated.push('finance');
+          if (!updated.includes('videos')) updated.push('videos');
+          return updated;
+        }
       } catch (e) {}
     }
-    return ['app-center', 'editor', 'pdf', 'file-share', 'storage', 'e-test'];
+    return ['app-center', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'finance', 'videos'];
   });
 
   const [customApps, setCustomApps] = useState<any[]>(() => {
     const saved = localStorage.getItem('exonasoft_custom_workspace_apps');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  const [dockApps, setDockApps] = useState<any[]>(() => {
+    const saved = localStorage.getItem('exonasoft_simulated_dock_apps');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -7462,6 +7489,7 @@ function ExonaApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const classId = urlParams.get('classId');
     const groupId = urlParams.get('groupId');
+    const app = urlParams.get('app') || urlParams.get('workspaceApp');
     
     if (classId) {
       const newParams = new URLSearchParams(window.location.search);
@@ -7479,6 +7507,23 @@ function ExonaApp() {
       window.history.replaceState({}, '', newUrl);
       
       handleGroupLinkNavigation(groupId);
+    } else if (app) {
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete('app');
+      newParams.delete('workspaceApp');
+      const searchStr = newParams.toString();
+      const newUrl = window.location.pathname + (searchStr ? '?' + searchStr : '');
+      window.history.replaceState({}, '', newUrl);
+      
+      if (app === 'finance') {
+        handleWalletClick();
+      } else if (app === 'videos') {
+        setActiveChat(null);
+        setView('videos');
+      } else {
+        setView('workspace');
+        setActiveWorkspaceTool(app);
+      }
     }
   }, [user]);
 
@@ -13437,7 +13482,73 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-6 md:px-8">
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+              
+              {/* Modern Inline Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 mb-6 border-b border-gray-100/80">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
+                </div>
+                
+                {/* Segmented control for HOME (institution list) vs FEED (all posts) */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                  >
+                    Home
+                  </button>
+                  <button 
+                    onClick={() => setView('schools')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'schools' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                  >
+                    Feed
+                  </button>
+                </div>
+
+                {/* Long, beautiful search bar filling the gap for a premium look */}
+                <div className="flex items-center gap-3 w-full sm:w-auto flex-1 sm:flex-initial sm:max-w-md justify-between sm:justify-end">
+                  <div className="relative flex-1 group min-w-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Search institutions, people, groups..." 
+                      value={globalSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGlobalSearch(val);
+                        handleSearchUsers(val);
+                        if (val.trim()) setView('search');
+                      }}
+                      onFocus={() => {
+                        if (globalSearch) setView('search');
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => setView('notifications')}
+                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                    >
+                      <Bell size={20} />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                          {unreadNotificationsCount}
+                        </span>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => setSidebarOpen(true)}
+                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                    >
+                      <Menu size={20} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="block">
               <div 
                 className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
@@ -14457,7 +14568,73 @@ function ExonaApp() {
       case 'schools': {
         return (
           <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-6 md:px-8">
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+              
+              {/* Modern Inline Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 mb-6 border-b border-gray-100/80">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
+                </div>
+                
+                {/* Segmented control for HOME (institution list) vs FEED (all posts) */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                  >
+                    Home
+                  </button>
+                  <button 
+                    onClick={() => setView('schools')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'schools' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                  >
+                    Feed
+                  </button>
+                </div>
+
+                {/* Long, beautiful search bar filling the gap for a premium look */}
+                <div className="flex items-center gap-3 w-full sm:w-auto flex-1 sm:flex-initial sm:max-w-md justify-between sm:justify-end">
+                  <div className="relative flex-1 group min-w-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Search institutions, people, groups..." 
+                      value={globalSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGlobalSearch(val);
+                        handleSearchUsers(val);
+                        if (val.trim()) setView('search');
+                      }}
+                      onFocus={() => {
+                        if (globalSearch) setView('search');
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => setView('notifications')}
+                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                    >
+                      <Bell size={20} />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                          {unreadNotificationsCount}
+                        </span>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => setSidebarOpen(true)}
+                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                    >
+                      <Menu size={20} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <BroadcastFeed
                 user={user}
                 userDoc={userDoc}
@@ -23015,7 +23192,9 @@ function ExonaApp() {
           'pdf': { id: 'pdf', name: 'PDF Studio', description: 'Advanced PDF tools for conversion, compression, and signing.', icon: FileJson, color: 'red-600' },
           'file-share': { id: 'file-share', name: 'Exona Drop (AirDrop)', description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', icon: Radio, color: 'blue-600' },
           'storage': { id: 'storage', name: 'Cloud Storage', description: "Secure cloud storage for your institution's important assets.", icon: HardDrive, color: 'emerald-600' },
-          'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' }
+          'e-test': { id: 'e-test', name: 'E-Test Portal', description: 'Conduct and manage electronic tests for students and staff with real-time tracking.', icon: BadgeCheck, color: 'indigo-600' },
+          'finance': { id: 'finance', name: 'Exona Wallet', description: 'Access standard and multi-institution banking, manage wallets, statements, secure terminal billing, and cash express.', icon: Wallet, color: 'sky-600' },
+          'videos': { id: 'videos', name: 'Stream Portal', description: 'Watch and broadcast real-time secure multi-channel institutional lessons, lectures, and live streams.', icon: Video, color: 'red-600' }
         };
 
         const workspaceFeatures = [
@@ -23023,7 +23202,7 @@ function ExonaApp() {
         ];
 
         // Add standard ones if enabled in App Center
-        const standardIds = ['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'];
+        const standardIds = ['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'finance', 'videos'];
         standardIds.forEach(id => {
           if (enabledAppIds.includes(id)) {
             const item = catalogAppsById[id];
@@ -23063,7 +23242,12 @@ function ExonaApp() {
               customApps={customApps}
               setCustomApps={setCustomApps}
               onLaunchApp={(id) => {
-                if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'].includes(id)) {
+                if (id === 'finance') {
+                  handleWalletClick();
+                } else if (id === 'videos') {
+                  setActiveChat(null);
+                  setView('videos');
+                } else if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'].includes(id)) {
                   setActiveWorkspaceTool(id);
                 } else {
                   // Custom App
@@ -24596,29 +24780,92 @@ function ExonaApp() {
         }
 
         return (
-          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-4 px-4 sm:px-6 md:px-8">
-              <h2 className="text-lg font-black text-ink mb-6 uppercase tracking-wider">Workspace</h2>
+          <div className="w-full min-h-screen bg-slate-50/50 pb-32 overflow-x-hidden">
+            <div className="w-full pt-6 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+              <div className="mb-8">
+                <h2 className="text-3xl font-black text-ink mb-2 uppercase tracking-tight">Workspace</h2>
+                <p className="text-xs font-bold text-muted uppercase tracking-[0.2em]">Institutional portals, utilities and shortcut tools</p>
+              </div>
               
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {workspaceFeatures.map(item => (
-                  <button
+                  <div
                     key={item.id}
                     onClick={() => handleWorkspaceToolClick(item.id)}
-                    className="flex items-center gap-4 p-5 bg-white border border-gray-100 rounded-2xl hover:border-accent hover:shadow-sm transition-all text-left w-full group"
+                    className="flex items-start gap-4 p-5 bg-white border border-gray-100 rounded-3xl hover:border-accent hover:shadow-md transition-all text-left w-full group cursor-pointer relative"
                   >
-                    <div className="h-12 w-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="h-12 w-12 bg-accent/5 text-accent rounded-2xl flex items-center justify-center shrink-0">
                       <item.icon size={22} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base font-bold text-ink truncate">{item.name}</h3>
+                    <div className="flex-1 min-w-0 pr-10">
+                      <h3 className="text-sm font-black text-ink group-hover:text-accent transition-colors uppercase tracking-tight mb-1">{item.name}</h3>
+                      <p className="text-xs leading-relaxed text-muted font-medium line-clamp-2">{item.description || 'Access and manage standard system tools and records seamlessly.'}</p>
                     </div>
-                    <div className="h-8 w-8 bg-gray-50 rounded-full flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all shrink-0">
-                      <ArrowUpRight size={14} />
+                    <div className="absolute top-5 right-5 flex items-center gap-2">
+                      {item.id !== 'app-center' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const deepLinkUrl = `${window.location.origin}?app=${item.id}`;
+                            setSelectedShortcutApp({
+                              ...item,
+                              deepLinkUrl
+                            });
+                            setIsShortcutModalOpen(true);
+                          }}
+                          className="h-8 w-8 bg-gray-50 hover:bg-[#2481CC]/10 hover:text-[#2481CC] border border-gray-100 hover:border-[#2481CC]/20 rounded-xl flex items-center justify-center text-muted transition-all shrink-0"
+                          title="Add Shortcut to Home Screen"
+                        >
+                          <Smartphone size={14} />
+                        </button>
+                      )}
+                      <div className="h-8 w-8 bg-gray-50 rounded-xl flex items-center justify-center text-muted group-hover:bg-accent/10 group-hover:text-accent transition-all shrink-0">
+                        <ArrowUpRight size={14} />
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
+
+              {/* Simulated Smartphone Dock */}
+              {dockApps.length > 0 && (
+                <div className="mt-12 p-6 bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-gray-100 shadow-sm no-print">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="text-xs font-black text-ink uppercase tracking-wider">Simulated Device Dock</h4>
+                      <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mt-0.5">Your pinned home screen shortcuts</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        localStorage.removeItem('exonasoft_simulated_dock_apps');
+                        setDockApps([]);
+                        showNotification('Simulated dock links cleared.');
+                      }}
+                      className="text-[9px] font-black text-rose-600 hover:text-rose-700 uppercase tracking-widest bg-rose-50 px-3 py-1.5 rounded-xl transition-all cursor-pointer border border-transparent"
+                    >
+                      Clear Dock
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-4 py-2 overflow-x-auto no-scrollbar scrollbar-hide">
+                    {dockApps.map((dockItem) => {
+                      const matchedIcon = catalogAppsById[dockItem.id]?.icon || LayoutGrid;
+                      return (
+                        <div
+                          key={dockItem.id}
+                          onClick={() => handleWorkspaceToolClick(dockItem.id)}
+                          className="flex flex-col items-center gap-1.5 cursor-pointer shrink-0 text-center select-none group"
+                        >
+                          <div className="h-14 w-14 bg-gradient-to-tr from-zinc-900 to-zinc-800 text-white rounded-[1.25rem] flex items-center justify-center shadow-lg group-hover:scale-105 group-hover:shadow-indigo-600/10 transition-all">
+                            {React.createElement(matchedIcon, { size: 24 })}
+                          </div>
+                          <span className="text-[9.5px] font-black text-ink uppercase tracking-tight max-w-[70px] truncate">{dockItem.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -29166,7 +29413,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isPremiumGameOpen && !isBrainBattleActive && !['institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance'].includes(view) && (
+      {!isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -29488,7 +29735,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'finance'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
@@ -29601,8 +29848,14 @@ function ExonaApp() {
             animate={{ y: 0, opacity: 1, x: '-50%' }}
             exit={{ y: 80, opacity: 0, x: '-50%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[420px] no-print"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[500px] no-print"
           >
+            <NavButton 
+              active={view === 'feed' || view === 'schools'} 
+              onClick={() => setView('feed')} 
+              icon={Home} 
+              label="Home"
+            />
             <NavButton 
               active={view === 'workspace'} 
               onClick={() => setView('workspace')} 
@@ -30492,6 +30745,131 @@ function ExonaApp() {
                 <Plus size={26} />
               </motion.button>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Home Screen Shortcut Modal */}
+      <AnimatePresence>
+        {isShortcutModalOpen && selectedShortcutApp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-zinc-950/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            onClick={() => setIsShortcutModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl relative border border-gray-100"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setIsShortcutModalOpen(false)}
+                className="absolute top-5 right-5 h-8 w-8 hover:bg-gray-50 border border-transparent hover:border-gray-100 rounded-full flex items-center justify-center text-muted transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="p-8 sm:p-10">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="h-14 w-14 rounded-2xl bg-[#2481CC]/10 text-[#2481CC] flex items-center justify-center shrink-0">
+                    {React.createElement(selectedShortcutApp.icon || LayoutGrid, { size: 28 })}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-black text-ink uppercase tracking-tight">{selectedShortcutApp.name}</h3>
+                      <span className="bg-green-100 text-green-800 text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Shortcut Ready</span>
+                    </div>
+                    <p className="text-xs font-bold text-muted uppercase tracking-wider mt-0.5">Mobile Shortcut Generator</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted leading-relaxed font-semibold mb-6">
+                  Create a home screen shortcut on your smartphone to launch <strong className="text-ink">{selectedShortcutApp.name}</strong> as a dedicated standalone app, just like launching from Telegram or Chrome.
+                </p>
+
+                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 flex items-start gap-3">
+                  <Smartphone size={18} className="text-[#2481CC] shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">Generated Shortcut Link</span>
+                    <div className="font-mono text-[10px] text-[#2481CC] font-bold truncate select-all">{selectedShortcutApp.deepLinkUrl}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="border-t border-gray-100 pt-4">
+                    <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Install Instructions</h4>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col p-3.5 bg-sky-50/40 rounded-2xl border border-sky-100/50">
+                        <span className="text-sky-600 mb-2 font-black text-xs leading-none">Chrome</span>
+                        <span className="text-[10px] font-black text-sky-900 uppercase tracking-wider mb-1">Android Chrome</span>
+                        <ol className="text-[10px] text-sky-800/80 font-bold list-decimal pl-3 space-y-1">
+                          <li>Tap menu icon (three dots)</li>
+                          <li>Select "Add to Home Screen"</li>
+                          <li>Enter name & tap "Add"</li>
+                        </ol>
+                      </div>
+
+                      <div className="flex flex-col p-3.5 bg-indigo-50/40 rounded-2xl border border-indigo-100/50">
+                        <span className="text-indigo-600 mb-2 font-black text-xs leading-none">Safari</span>
+                        <span className="text-[10px] font-black text-indigo-900 uppercase tracking-wider mb-1">iOS Safari</span>
+                        <ol className="text-[10px] text-indigo-800/80 font-bold list-decimal pl-3 space-y-1">
+                          <li>Tap Share button</li>
+                          <li>Select "Add to Home Screen"</li>
+                          <li>Confirm by tapping "Add"</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedShortcutApp.deepLinkUrl);
+                      showNotification('Shortcut deep link copied to clipboard!', 'success');
+                    }}
+                    className="flex-1 py-4 bg-ink text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-black/10 text-xs text-center"
+                  >
+                    <Copy size={13} />
+                    Copy Shortcut Link
+                  </button>
+                  <button
+                    onClick={() => {
+                      const savedDockList = localStorage.getItem('exonasoft_simulated_dock_apps') || '[]';
+                      let dockList = [];
+                      try {
+                        dockList = JSON.parse(savedDockList);
+                      } catch(err){}
+                      if (!Array.isArray(dockList)) dockList = [];
+                      
+                      if (!dockList.some((d: any) => d.id === selectedShortcutApp.id)) {
+                        dockList.push({
+                          id: selectedShortcutApp.id,
+                          name: selectedShortcutApp.name,
+                          iconName: selectedShortcutApp.id,
+                          color: selectedShortcutApp.color
+                        });
+                        localStorage.setItem('exonasoft_simulated_dock_apps', JSON.stringify(dockList));
+                        setDockApps(dockList);
+                        showNotification(`${selectedShortcutApp.name} added to your Simulated System Dock!`);
+                      } else {
+                        showNotification(`${selectedShortcutApp.name} is already in your System Dock.`);
+                      }
+                      setIsShortcutModalOpen(false);
+                    }}
+                    className="flex-1 py-4 bg-sky-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-600/10 text-xs text-center"
+                  >
+                    <Smartphone size={13} />
+                    Pin to Simulator Dock
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
