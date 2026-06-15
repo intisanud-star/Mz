@@ -29691,7 +29691,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'finance'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
@@ -29804,7 +29804,7 @@ function ExonaApp() {
             animate={{ y: 0, opacity: 1, x: '-50%' }}
             exit={{ y: 80, opacity: 0, x: '-50%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[420px] no-print"
+            className="fixed bottom-4 sm:bottom-6 left-1/2 z-50 bg-card/90 backdrop-blur-xl border border-gray-100 h-16 sm:h-18 px-6 flex items-center justify-around rounded-[2rem] w-[92%] sm:w-auto sm:min-w-[500px] no-print"
           >
             <NavButton 
               active={view === 'feed' || view === 'schools'} 
@@ -29823,6 +29823,21 @@ function ExonaApp() {
               onClick={() => setView('tools')} 
               icon={Cpu} 
               label="Tools"
+            />
+            <NavButton 
+              active={view === 'videos'} 
+              onClick={() => {
+                setActiveChat(null);
+                setView('videos');
+              }} 
+              icon={Video} 
+              label="Stream"
+            />
+            <NavButton 
+              active={view === 'finance'} 
+              onClick={handleWalletClick} 
+              icon={Wallet} 
+              label="Wallet"
             />
             <NavButton 
               active={view === 'profile'} 
