@@ -29166,7 +29166,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isPremiumGameOpen && !isBrainBattleActive && !['institution-channel', 'school-feed', 'institution-profile', 'chat', 'records'].includes(view) && (
+      {!isPremiumGameOpen && !isBrainBattleActive && !['institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -29488,7 +29488,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'finance'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
