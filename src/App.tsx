@@ -30067,206 +30067,168 @@ function ExonaApp() {
         <AnimatePresence>
           {isExonaAiModalOpen && (
             <motion.div 
-              key="exona-ai-modal-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 backdrop-blur-md z-[1000] flex items-center justify-center p-4 sm:p-6"
+              key="exona-ai-modal"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 15 }}
+              className="fixed inset-0 bg-[#060606] text-zinc-100 z-[1000] flex flex-col h-screen w-screen overflow-hidden select-none"
             >
-              <motion.div 
-                key="exona-ai-modal-content"
-                initial={{ scale: 0.95, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.95, y: 20 }}
-                className="bg-white rounded-[2.5rem] shadow-2xl border border-gray-100 max-w-4xl w-full h-[90vh] md:h-[80vh] flex flex-col overflow-hidden relative select-none"
-              >
-                {/* Modal Header */}
-                <div className="p-6 pb-4 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
-                      <Sparkles size={22} />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-extrabold text-ink tracking-tight font-display">
-                        Exona AI
-                      </h2>
-                      <p className="text-muted text-[10px] font-bold uppercase tracking-widest leading-none">
-                        Advanced AI Partner Desk
+              {/* Sleek Minimalist Top Header */}
+              <div className="p-4 sm:p-6 border-b border-zinc-900/80 flex items-center justify-between bg-black shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 flex items-center justify-center">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <h2 className="text-md font-extrabold tracking-tight text-white font-sans flex items-center gap-2">
+                      Grok <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-md font-mono font-semibold uppercase tracking-wider">Exona Mode</span>
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {/* Clear Chat session button */}
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to clear your current Exona AI chat session?")) {
+                        setExonaAiChat([
+                          {
+                            sender: 'ai',
+                            text: "Session cleared. Ask me anything.",
+                            timestamp: new Date()
+                          }
+                        ]);
+                        setExonaAiError(null);
+                      }
+                    }}
+                    title="Clear Chat Session"
+                    className="px-3 py-1.5 text-[11px] font-bold text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5"
+                  >
+                    <RefreshCw size={11} />
+                    <span>Clear</span>
+                  </button>
+
+                  {/* Close button */}
+                  <button 
+                    type="button"
+                    onClick={() => setIsExonaAiModalOpen(false)}
+                    className="h-9 w-9 rounded-xl hover:bg-zinc-800 border border-zinc-800/80 text-zinc-400 hover:text-white transition-colors flex items-center justify-center"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Dynamic Immersive Scroll Area */}
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-8 bg-black">
+                <div className="max-w-3xl mx-auto w-full flex flex-col h-full justify-between">
+                  {exonaAiChat.length <= 1 ? (
+                    /* Elegant Welcome Hero in Center Stage */
+                    <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto py-12 space-y-5">
+                      <motion.div
+                        initial={{ scale: 0.92, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ duration: 0.4 }}
+                        className="h-16 w-16 rounded-2xl bg-zinc-900 hover:border-zinc-700 text-white flex items-center justify-center shadow-2xl border border-zinc-800/80 mb-2"
+                      >
+                        <Sparkles size={28} className="text-zinc-100 animate-pulse" />
+                      </motion.div>
+                      <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                        What's on your mind?
+                      </h1>
+                      <p className="text-zinc-500 text-sm leading-relaxed max-w-sm">
+                        Zero distractions. Real-time reasoning assistant optimized for institutional workflows and smart strategy development.
                       </p>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* Reset session button */}
-                    <button 
-                      onClick={() => {
-                        if (window.confirm("Are you sure you want to clear your current Exona AI chat session?")) {
-                          setExonaAiChat([
-                            {
-                              sender: 'ai',
-                              text: "Welcome to **Exona AI**. I am your advanced, high-end artificial intelligence partner.\n\nHow can I elevate your day? Select one of our premium task presets or message me directly.",
-                              timestamp: new Date()
-                            }
-                          ]);
-                          setExonaAiError(null);
-                        }
-                      }}
-                      title="Clear Chat Session"
-                      className="p-2 sm:px-4 sm:py-2 text-[11px] font-bold text-muted hover:text-accent hover:border-accent/10 rounded-xl transition-all border border-gray-100 flex items-center gap-1.5"
-                    >
-                      <RefreshCw size={12} />
-                      <span className="hidden sm:inline">Clear Session</span>
-                    </button>
-
-                    {/* Close button */}
-                    <button 
-                      onClick={() => setIsExonaAiModalOpen(false)}
-                      className="h-10 w-10 rounded-xl hover:bg-slate-50 border border-gray-100 text-slate-500 hover:text-slate-900 transition-colors flex items-center justify-center animate-none"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Modal Body (Scrollable Chat & Presets) */}
-                <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
-                  {/* Chat Conversation Stream */}
-                  <div className="space-y-6 flex-1">
-                    {exonaAiChat.map((msg, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-                      >
-                        {/* Avatar Element */}
-                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${msg.sender === 'user' ? 'bg-indigo-50 text-indigo-600' : 'bg-accent/10 text-accent'}`}>
-                          {msg.sender === 'user' ? (
-                            user?.photoURL ? (
-                              <img src={user.photoURL} className="h-full w-full object-cover rounded-xl" />
-                            ) : (
-                              user?.displayName?.charAt(0) || 'U'
-                            )
-                          ) : (
-                            <Sparkles size={16} />
-                          )}
-                        </div>
-
-                        {/* Chat Bubble Layout */}
-                        <div className="max-w-[80%]">
-                          <div className={`p-5 rounded-2xl text-[14px] leading-relaxed ${
-                            msg.sender === 'user'
-                              ? 'bg-ink text-white rounded-tr-none' 
-                              : 'bg-gray-50 text-ink rounded-tl-none border border-gray-100/50'
+                  ) : (
+                    /* Compact Simple Timeline UI */
+                    <div className="space-y-6 flex-1 py-4">
+                      {exonaAiChat.map((msg, i) => (
+                        <motion.div
+                          key={i}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                        >
+                          {/* Avatar icon */}
+                          <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-xs ${
+                            msg.sender === 'user' 
+                              ? 'bg-zinc-900 border border-zinc-800 text-zinc-100' 
+                              : 'bg-zinc-800/80 border border-zinc-700 text-zinc-350'
                           }`}>
-                            {msg.sender === 'ai' ? (
-                              <div className="markdown-body prose prose-slate max-w-none text-ink text-[14px]">
-                                <Markdown>{msg.text}</Markdown>
-                              </div>
+                            {msg.sender === 'user' ? (
+                              user?.photoURL ? (
+                                <img src={user.photoURL} className="h-full w-full object-cover rounded-lg" />
+                              ) : (
+                                user?.displayName?.charAt(0) || 'U'
+                              )
                             ) : (
-                              <p className="whitespace-pre-line">{msg.text}</p>
+                              <Sparkles size={13} className="text-zinc-200" />
                             )}
                           </div>
-                          <span className="text-[9px] text-muted/50 font-medium font-mono mt-1.5 block">
-                            {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </motion.div>
-                    ))}
 
-                    {/* AI Loading state placeholder */}
-                    {exonaAiLoading && (
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex gap-4"
-                      >
-                        <div className="h-9 w-9 rounded-xl bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                          <Sparkles size={16} className="animate-spin" />
-                        </div>
-                        <div className="bg-gray-50 text-muted p-5 rounded-2xl rounded-tl-none border border-gray-100/50 max-w-[80%] flex items-center gap-3">
-                          <span className="text-xs font-semibold uppercase tracking-wider">Exona AI is thinking</span>
-                          <div className="flex gap-1">
-                            <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <span className="h-1.5 w-1.5 bg-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Error Banner */}
-                    {exonaAiError && (
-                      <div className="p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center gap-3 text-xs font-bold">
-                        <AlertTriangle size={16} />
-                        <span>{exonaAiError}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Smart Presets Bento Row */}
-                  <div className="pt-6 border-t border-gray-100">
-                    <h3 className="text-[11px] font-black text-accent uppercase tracking-[0.25em] mb-4 px-1">
-                      AI Preset Triggers
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {[
-                        {
-                          title: "Announcement Draft",
-                          description: "Compose a beautiful formal community update.",
-                          prompt: "Compose a beautiful, formal, high-impact community and institution update. Mention milestone achievements and maintain an inspiring community tone."
-                        },
-                        {
-                          title: "Story Video Script",
-                          description: "Generate a premium 3-slide status script.",
-                          prompt: "Generate a beautifully structured, highly visual 3-slide storytelling status script for Sunnah TV and modern stream channels."
-                        },
-                        {
-                          title: "Workspace Balance Strategy",
-                          description: "Analyze budgeting & digital records setup.",
-                          prompt: "Write a high-end strategic overview for organizing school records and tracking daily routines within a cloud platform."
-                        },
-                        {
-                          title: "Platform AI Integration",
-                          description: "Explore localized AI benefits & use cases.",
-                          prompt: "Provide an elegant, authoritative assessment of using integrated AI to bridge community networks with technical workspaces."
-                        }
-                      ].map((p, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            if (!exonaAiLoading) {
-                              handleSendExonaAiMessage(p.prompt);
-                            }
-                          }}
-                          disabled={exonaAiLoading}
-                          className="p-4 text-left bg-slate-50 hover:bg-slate-100/50 border border-slate-100/70 rounded-2xl transition-all duration-200 flex flex-col justify-between group disabled:opacity-60"
-                        >
-                          <div>
-                            <h4 className="font-bold text-ink text-[13.5px] mb-1 tracking-tight group-hover:text-accent transition-colors">
-                              {p.title}
-                            </h4>
-                            <p className="text-[11.5px] text-muted font-medium pr-4 leading-relaxed">
-                              {p.description}
-                            </p>
-                          </div>
-                          <div className="flex justify-end mt-3">
-                            <span className="text-[9.5px] bg-white group-hover:bg-accent group-hover:text-white border border-gray-100 px-2.5 py-1 rounded-lg text-muted font-semibold uppercase tracking-wider transition-all">
-                              Execute Preset →
+                          {/* Subtle Grok-Style Message Area (border-less alignment for AI blocks, dark gray for user) */}
+                          <div className="max-w-[85%] space-y-1">
+                            <div className={`p-4 rounded-xl text-[14.5px] leading-relaxed ${
+                              msg.sender === 'user'
+                                ? 'bg-zinc-900 text-zinc-100 border border-zinc-800/70 rounded-tr-none' 
+                                : 'text-zinc-200 select-text rounded-tl-none prose prose-invert max-w-none text-[14.5px]'
+                            }`}>
+                              {msg.sender === 'ai' ? (
+                                <div className="markdown-body text-zinc-200 prose prose-invert leading-relaxed">
+                                  <Markdown>{msg.text}</Markdown>
+                                </div>
+                              ) : (
+                                <p className="whitespace-pre-line text-zinc-200">{msg.text}</p>
+                              )}
+                            </div>
+                            <span className="text-[9px] text-zinc-600 font-medium font-mono block px-1">
+                              {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                        </button>
+                        </motion.div>
                       ))}
-                    </div>
-                  </div>
-                </div>
 
-                {/* Chat Input Area */}
-                <div className="p-4 sm:p-6 bg-slate-50 border-t border-gray-100 flex gap-3 items-center shrink-0">
+                      {/* AI computing status indicator */}
+                      {exonaAiLoading && (
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex gap-4"
+                        >
+                          <div className="h-8 w-8 rounded-lg bg-zinc-900 text-zinc-500 border border-zinc-850 flex items-center justify-center shrink-0 animate-bounce">
+                            <Sparkles size={13} />
+                          </div>
+                          <div className="text-zinc-500 p-4 rounded-xl border border-zinc-900 bg-zinc-950/25 text-[13.5px] flex items-center gap-3">
+                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse">Running Queries</span>
+                            <div className="flex gap-1">
+                              <span className="h-1.5 w-1.5 bg-zinc-700 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="h-1.5 w-1.5 bg-zinc-700 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="h-1.5 w-1.5 bg-zinc-700 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {/* Inline error indicator */}
+                      {exonaAiError && (
+                        <div className="p-4 bg-red-950/40 text-red-400 rounded-xl border border-red-900/50 flex items-center gap-3 text-xs font-bold font-mono">
+                          <AlertTriangle size={15} />
+                          <span>{exonaAiError}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Chat Input Dock Area (Pill layout placed perfectly center-bottom) */}
+              <div className="p-4 sm:p-6 bg-black border-t border-zinc-900/60 shrink-0">
+                <div className="max-w-3xl mx-auto w-full flex gap-3.5 items-center">
                   <input
                     type="text"
-                    placeholder="Ask Exona AI anything..."
+                    placeholder="Ask anything..."
                     value={exonaAiInput}
                     onChange={(e) => setExonaAiInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -30275,18 +30237,18 @@ function ExonaApp() {
                       }
                     }}
                     disabled={exonaAiLoading}
-                    className="flex-1 px-5 py-3.5 bg-white border border-gray-100 focus:border-accent/20 rounded-2xl outline-none transition-all text-sm font-sans placeholder:text-muted/40 text-ink text-[14px]"
+                    className="flex-grow px-5 py-4 bg-zinc-900/75 border border-zinc-800/80 focus:border-zinc-700 rounded-2xl outline-none transition-all text-[15px] placeholder:text-zinc-650 text-white shadow-lg"
                   />
                   <button
                     type="button"
                     onClick={() => handleSendExonaAiMessage()}
                     disabled={exonaAiLoading || !exonaAiInput.trim()}
-                    className="h-12 w-12 bg-accent text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:opacity-50 disabled:hover:scale-100 transition-all font-bold shrink-0"
+                    className="h-12 w-12 bg-white text-black hover:bg-zinc-200 rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-900 disabled:text-zinc-700 border border-transparent transition-all font-bold shrink-0 shadow-lg cursor-pointer"
                   >
                     <Send size={18} />
                   </button>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
