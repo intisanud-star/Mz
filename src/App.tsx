@@ -7095,7 +7095,7 @@ function ExonaApp() {
                   onClick={() => {
                     setShowInsufficientStarsAlert(false);
                     // Open wallet view
-                    setIsExonWalletOpen(true);
+                    handleWalletClick();
                   }}
                   className="py-5 bg-ink text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-ink/90 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
@@ -7117,7 +7117,14 @@ function ExonaApp() {
 
   const handleWalletClick = () => {
     if (user) {
-      setIsExonWalletOpen(true);
+      const userInstitutions = [...schools, ...places].filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || ''));
+      if (userInstitutions.length > 0) {
+        setSelectedSchool(userInstitutions[0] as School);
+      } else {
+        setSelectedSchool(null as any);
+      }
+      setView('finance');
+      setSettlementStep('selection');
     } else {
       setView('login');
     }
@@ -15533,22 +15540,29 @@ function ExonaApp() {
         ];
 
         return (
-          <div className="min-h-full bg-[#0c0f16] text-[#e1e4ea] flex flex-col font-sans select-none pb-24 relative overflow-y-auto no-scrollbar">
+          <div className="min-h-full bg-[#0c0f16] text-[#e1e4ea] flex flex-col font-sans select-none pb-8 relative overflow-y-auto no-scrollbar">
             
             {/* Top Navigation Frame - Beautiful Luxury GTBank Dark themed Head */}
             <div className="flex items-center justify-between px-6 py-5 bg-[#0e121d] border-b border-zinc-800/80 sticky top-0 z-40 shadow-md">
               <div className="flex items-center gap-3">
                 <button 
+                  onClick={() => setView('workspace')}
+                  className="h-10 w-10 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                  title="Back to Workspace"
+                >
+                  <ArrowLeft size={18} className="text-[#2481CC]" />
+                </button>
+                <button 
                   onClick={() => setIsAccountSwitcherOpen(true)}
                   className="h-10 w-10 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
                   title="Switch Account"
                 >
-                  <RefreshCw size={18} className="text-[#FF5500] animate-pulse" />
+                  <RefreshCw size={18} className="text-[#2481CC] animate-pulse" />
                 </button>
                 <div className="cursor-pointer" onClick={() => setIsAccountSwitcherOpen(true)}>
                   <div className="flex items-center gap-1">
                     <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Hi, {capitalizedName}</p>
-                    <ChevronDown size={11} className="text-[#FF5500]" />
+                    <ChevronDown size={11} className="text-[#2481CC]" />
                   </div>
                   <h4 className="text-xs font-black text-white leading-tight flex items-center gap-1 uppercase tracking-tight">
                     {activeAccount.name}
@@ -15557,11 +15571,11 @@ function ExonaApp() {
               </div>
 
               {/* Signature GTBank / GTCO logo with a white square on an orange box */}
-              <div className="h-11 w-11 bg-[#FF5500] rounded-xl flex items-center justify-center shadow-lg relative shrink-0">
+              <div className="h-11 w-11 bg-[#2481CC] rounded-xl flex items-center justify-center shadow-lg relative shrink-0">
                 <div className="h-[18px] w-[18px] bg-white rounded-[4px] absolute top-1.5 right-1.5 flex items-center justify-center">
-                  <div className="h-2 w-2 bg-[#FF5500] rounded-sm" />
+                  <div className="h-2 w-2 bg-[#2481CC] rounded-sm" />
                 </div>
-                <span className="text-[10px] font-black text-white absolute bottom-1.5 left-2 leading-none">GTCO</span>
+                <span className="text-[10px] font-black text-white absolute bottom-1.5 left-2 leading-none">EXONA</span>
               </div>
             </div>
 
@@ -15581,7 +15595,7 @@ function ExonaApp() {
                   >
                     <div className="flex items-center justify-between mb-6">
                       <div>
-                        <h3 className="text-lg font-black tracking-tight text-[#FF5500]">Switch Banking Profile</h3>
+                        <h3 className="text-lg font-black tracking-tight text-[#2481CC]">Switch Banking Profile</h3>
                         <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">Instant switching powered by Moniepoint</p>
                       </div>
                       <button 
@@ -15601,7 +15615,7 @@ function ExonaApp() {
                             onClick={() => selectAccountById(acc.id)}
                             className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left border transition-all ${
                               isCurrent 
-                                ? 'bg-[#FF5500]/10 border-[#FF5500] text-white shadow-lg shadow-[#FF5500]/5' 
+                                ? 'bg-[#2481CC]/10 border-[#2481CC] text-white shadow-lg shadow-[#2481CC]/5' 
                                 : 'bg-[#181d2d]/80 border-transparent hover:border-zinc-800 text-zinc-300'
                             }`}
                           >
@@ -15609,19 +15623,19 @@ function ExonaApp() {
                               {acc.logo ? (
                                 <img src={acc.logo} className="h-full w-full object-cover" />
                               ) : (
-                                <Wallet size={18} className="text-[#FF5500]" />
+                                <Wallet size={18} className="text-[#2481CC]" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-black uppercase tracking-wide truncate">{acc.name}</p>
-                              <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mt-0.5">
-                                {acc.type} • {acc.accNo}
-                              </p>
+                                <p className="text-xs font-black uppercase tracking-wide truncate">{acc.name}</p>
+                                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mt-0.5">
+                                  {acc.type} • {acc.accNo}
+                                </p>
                             </div>
                             <div className="text-right shrink-0">
                               <p className="text-xs font-black text-white">{acc.currency}{acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                               {isCurrent && (
-                                <span className="text-[9px] font-black uppercase text-[#FF5500] bg-[#FF5500]/20 px-2 py-0.5 rounded-full mt-1 inline-block">
+                                <span className="text-[9px] font-black uppercase text-[#2481CC] bg-[#2481CC]/20 px-2 py-0.5 rounded-full mt-1 inline-block">
                                   Active
                                 </span>
                               )}
@@ -15637,7 +15651,7 @@ function ExonaApp() {
 
             {/* Savings Balance Card with Swipe Arrows */}
             <div className="p-6">
-              <div className="relative bg-gradient-to-br from-[#FF5500] via-[#E44500] to-[#aa2200] rounded-3xl p-6 overflow-hidden text-white shadow-2xl shadow-[#FF5500]/10 min-h-[170px] flex flex-col justify-between border border-white/10">
+              <div className="relative bg-gradient-to-br from-[#2481CC] via-[#1E6EA9] to-[#0F4E7A] rounded-3xl p-6 overflow-hidden text-white shadow-2xl shadow-[#2481CC]/15 min-h-[170px] flex flex-col justify-between border border-white/10">
                 <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 rotate-12 pointer-events-none">
                   <Wallet size={120} />
                 </div>
@@ -15669,13 +15683,13 @@ function ExonaApp() {
                   
                   {/* Swiper Arrow Swipe Controls - Acc. 1 of X */}
                   <div className="flex items-center gap-3 bg-black/25 px-3 py-1.5 rounded-2xl border border-white/5 shadow-inner">
-                    <button onClick={handlePrevAccount} className="hover:text-[#FF5500] text-white/80 transition-colors p-0.5" title="Previous Account">
+                    <button onClick={handlePrevAccount} className="hover:text-[#2481CC] text-white/80 transition-colors p-0.5" title="Previous Account">
                       <ChevronLeft size={16} />
                     </button>
                     <span className="text-[10px] font-black tracking-wider text-white">
                       {activeIdx + 1} / {accountsList.length}
                     </span>
-                    <button onClick={handleNextAccount} className="hover:text-[#FF5500] text-white/80 transition-colors p-0.5" title="Next Account">
+                    <button onClick={handleNextAccount} className="hover:text-[#2481CC] text-white/80 transition-colors p-0.5" title="Next Account">
                       <ChevronRight size={16} />
                     </button>
                   </div>
@@ -15692,7 +15706,7 @@ function ExonaApp() {
                 <input 
                   type="text" 
                   placeholder="Search transactions, transfers, bills..."
-                  className="w-full pl-11 pr-4 py-3 bg-[#131722] border border-zinc-850 rounded-2xl text-xs font-semibold text-zinc-200 placeholder-zinc-500 outline-none focus:border-[#FF5500]/60 transition-all shadow-inner"
+                  className="w-full pl-11 pr-4 py-3 bg-[#131722] border border-zinc-850 rounded-2xl text-xs font-semibold text-zinc-200 placeholder-zinc-500 outline-none focus:border-[#2481CC]/60 transition-all shadow-inner"
                 />
               </div>
             </div>
@@ -15707,7 +15721,7 @@ function ExonaApp() {
                     onClick={act.action}
                     className="flex flex-col items-center justify-center p-3 bg-[#131722] hover:bg-[#181d2c] border border-zinc-850 text-zinc-300 rounded-2xl hover:text-white transition-all shadow-md group relative h-20 active:scale-95"
                   >
-                    <div className="h-9 w-9 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center mb-1.5 text-[#FF5500] shrink-0 group-hover:scale-110 transition-transform">
+                    <div className="h-9 w-9 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center mb-1.5 text-[#2481CC] shrink-0 group-hover:scale-110 transition-transform">
                       <IconComp size={18} strokeWidth={2.5} />
                     </div>
                     <span className="text-[9px] font-black uppercase text-center tracking-tight leading-none text-zinc-400 group-hover:text-white truncate w-full px-0.5">
@@ -15739,7 +15753,7 @@ function ExonaApp() {
                     {/* MANAGER */}
                     {activeGTService === 'manager' && (
                       <div className="text-center space-y-4 pt-4">
-                        <div className="h-20 w-20 bg-[#FF5500]/10 border border-[#FF5500]/20 text-[#FF5500] rounded-2xl flex items-center justify-center mx-auto">
+                        <div className="h-20 w-20 bg-[#2481CC]/10 border border-[#2481CC]/20 text-[#2481CC] rounded-2xl flex items-center justify-center mx-auto">
                           <UserIcon size={36} />
                         </div>
                         <div>
@@ -15756,7 +15770,7 @@ function ExonaApp() {
                             showNotification('Call placed to representative');
                             setActiveGTService(null);
                           }}
-                          className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-lg"
+                          className="w-full py-4 bg-[#2481CC] hover:bg-[#1E6EA9] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-lg"
                         >
                           Place Call
                         </button>
@@ -15767,7 +15781,7 @@ function ExonaApp() {
                     {activeGTService === 'transactions' && (
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
-                          <Clock className="text-[#FF5500]" size={20} />
+                          <Clock className="text-[#2481CC]" size={20} />
                           <h4 className="text-sm font-black uppercase tracking-wider">Transaction History</h4>
                         </div>
                         <div className="space-y-2.5 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
@@ -15796,7 +15810,7 @@ function ExonaApp() {
                     {/* MAKE MONEY */}
                     {activeGTService === 'makemoney' && (
                       <div className="text-center space-y-4 pt-4">
-                        <div className="h-16 w-16 bg-[#FF5500]/10 text-[#FF5500] border border-[#FF5500]/20 rounded-2xl flex items-center justify-center mx-auto">
+                        <div className="h-16 w-16 bg-[#2481CC]/10 text-[#2481CC] border border-[#2481CC]/20 rounded-2xl flex items-center justify-center mx-auto">
                           <Gift size={32} />
                         </div>
                         <div>
@@ -15810,14 +15824,14 @@ function ExonaApp() {
                               type="text" 
                               readOnly 
                               value={`https://exona.io/join?ref=${user.uid.slice(0, 6)}`} 
-                              className="bg-transparent text-xs font-semibold overflow-hidden text-[#FF5500] outline-none flex-1 truncate"
+                              className="bg-transparent text-xs font-semibold overflow-hidden text-[#2481CC] outline-none flex-1 truncate"
                             />
                             <button 
                               onClick={() => {
                                 navigator.clipboard.writeText(`https://exona.io/join?ref=${user.uid.slice(0, 6)}`);
                                 showNotification('Copied Referral Link!', 'success');
                               }}
-                              className="px-3 py-1.5 bg-[#FF5500] text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-[#e04500] transition-all shrink-0"
+                              className="px-3 py-1.5 bg-[#2481CC] text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-[#1E6EA9] transition-all shrink-0"
                             >
                               Copy
                             </button>
@@ -15830,7 +15844,7 @@ function ExonaApp() {
                     {activeGTService === 'loans' && (
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
-                          <Coins className="text-[#FF5500]" size={20} />
+                          <Coins className="text-[#2481CC]" size={20} />
                           <h4 className="text-sm font-black uppercase tracking-wider">GTBank Instant Credit</h4>
                         </div>
                         <p className="text-xs text-zinc-400 leading-relaxed">Select payday loan size. Approved funds are deposited instantly.</p>
@@ -15838,7 +15852,7 @@ function ExonaApp() {
                         <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-2xl space-y-4">
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] text-zinc-400 font-bold uppercase">Requested Amount</span>
-                            <span className="text-sm font-black text-[#FF5500]">₦{loanAmount.toLocaleString()}</span>
+                            <span className="text-sm font-black text-[#2481CC]">₦{loanAmount.toLocaleString()}</span>
                           </div>
                           
                           <input 
@@ -15848,7 +15862,7 @@ function ExonaApp() {
                             step="25000"
                             value={loanAmount} 
                             onChange={(e) => setLoanAmount(parseInt(e.target.value))}
-                            className="w-full accent-[#FF5500] h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                            className="w-full accent-[#2481CC] h-1 bg-zinc-800 rounded-lg cursor-pointer"
                           />
 
                           <div className="flex justify-between items-center text-[9px] text-zinc-500 font-bold uppercase">
@@ -15867,7 +15881,7 @@ function ExonaApp() {
                             }, 1800);
                           }}
                           disabled={isApplyingLoan}
-                          className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-md flex items-center justify-center gap-2"
+                          className="w-full py-4 bg-[#2481CC] hover:bg-[#1E6EA9] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-md flex items-center justify-center gap-2"
                         >
                           {isApplyingLoan ? 'Crediting Account...' : 'Apply & Disburse Instant Credit'}
                         </button>
@@ -15878,7 +15892,7 @@ function ExonaApp() {
                     {activeGTService === 'cards' && (
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
-                          <CreditCard className="text-[#FF5500]" size={20} />
+                          <CreditCard className="text-[#2481CC]" size={20} />
                           <h4 className="text-sm font-black uppercase tracking-wider font-mono">My Global Cards</h4>
                         </div>
 
@@ -15889,7 +15903,7 @@ function ExonaApp() {
                           </div>
                           <div className="flex justify-between items-start z-10">
                             <span className="text-[10px] font-black tracking-widest text-zinc-400 font-mono">GTWORLD GOLD</span>
-                            <span className="text-xs font-black text-[#FF5500] font-serif">mastercard</span>
+                            <span className="text-xs font-black text-[#2481CC] font-serif">mastercard</span>
                           </div>
                           
                           <div className="z-10 mt-6">
@@ -15917,7 +15931,7 @@ function ExonaApp() {
                             <span className="text-zinc-400 font-semibold">Freeze Card Status</span>
                             <button 
                               onClick={() => showNotification('Card Lock State updated')}
-                              className="px-2.5 py-1 bg-[#FF5500]/10 border border-[#FF5500]/20 text-[#FF5500] rounded text-[10px] font-bold uppercase tracking-wider"
+                              className="px-2.5 py-1 bg-[#2481CC]/10 border border-[#2481CC]/20 text-[#2481CC] rounded text-[10px] font-bold uppercase tracking-wider"
                             >
                               Active / Unlocked
                             </button>
@@ -15931,7 +15945,7 @@ function ExonaApp() {
                       <div className="text-center space-y-4 pt-4">
                         <div className="h-44 w-full bg-zinc-950 rounded-2xl border-2 border-zinc-800 relative flex items-center justify-center overflow-hidden">
                           {/* Green scanning focus frame */}
-                          <div className="h-28 w-28 border-2 border-dashed border-[#FF5500] rounded-xl relative animate-pulse flex items-center justify-center">
+                          <div className="h-28 w-28 border-2 border-dashed border-[#2481CC] rounded-xl relative animate-pulse flex items-center justify-center">
                             <div className="absolute inset-2 border border-zinc-800 rounded bg-white/5" />
                           </div>
                         </div>
@@ -15955,7 +15969,7 @@ function ExonaApp() {
                     {activeGTService === 'growsavings' && (
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
-                          <TrendingUp className="text-[#FF5500]" size={20} />
+                          <TrendingUp className="text-[#2481CC]" size={20} />
                           <h4 className="text-sm font-black uppercase tracking-wider">GT World Vault Yield</h4>
                         </div>
                         <p className="text-xs text-zinc-400 leading-relaxed">Lock your idle balance and earn daily compound yields at 12.5% APY.</p>
@@ -15968,7 +15982,7 @@ function ExonaApp() {
                               placeholder="0.00" 
                               value={savingsAmount}
                               onChange={(e) => setSavingsAmount(e.target.value)}
-                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-850 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500]"
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-850 rounded-xl text-sm font-bold text-white outline-none focus:border-[#2481CC]"
                             />
                           </div>
 
@@ -15977,7 +15991,7 @@ function ExonaApp() {
                               <span className="text-[9px] text-zinc-500 font-semibold block uppercase">Estimated Year Yield</span>
                               <span className="text-xs font-black text-green-400">₦{parseFloat(savingsAmount || '0') * 0.125}</span>
                             </div>
-                            <span className="text-[8px] font-black uppercase bg-[#FF5500]/10 text-[#FF5500] px-2 py-1 rounded">12.5% APY</span>
+                            <span className="text-[8px] font-black uppercase bg-[#2481CC]/10 text-[#2481CC] px-2 py-1 rounded">12.5% APY</span>
                           </div>
 
                           <button 
@@ -15987,7 +16001,7 @@ function ExonaApp() {
                               setSavingsAmount('');
                               showNotification(`Successfully locked Funds in Yield Vault!`, 'success');
                             }}
-                            className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-md"
+                            className="w-full py-4 bg-[#2481CC] hover:bg-[#1E6EA9] rounded-xl font-bold text-xs uppercase tracking-widest text-white transition-all shadow-md"
                           >
                             Lock Funds Now
                           </button>
@@ -15998,7 +16012,7 @@ function ExonaApp() {
                     {/* GENERIC OTHER SERVICES */}
                     {!['manager', 'transactions', 'makemoney', 'loans', 'cards', 'qr', 'growsavings'].includes(activeGTService) && (
                       <div className="text-center space-y-4 pt-4">
-                        <div className="h-16 w-16 bg-[#FF5500]/10 border border-[#FF5500]/20 text-[#FF5500] rounded-2xl flex items-center justify-center mx-auto">
+                        <div className="h-16 w-16 bg-[#2481CC]/10 border border-[#2481CC]/20 text-[#2481CC] rounded-2xl flex items-center justify-center mx-auto">
                           <Cpu size={32} />
                         </div>
                         <div>
@@ -16007,7 +16021,7 @@ function ExonaApp() {
                         </div>
                         <button 
                           onClick={() => setActiveGTService(null)} 
-                          className="w-full py-3 bg-[#FF5500] text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-[#e04500] transition-all"
+                          className="w-full py-3 bg-[#2481CC] text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-[#1E6EA9] transition-all"
                         >
                           Confirm & Back
                         </button>
@@ -16055,7 +16069,7 @@ function ExonaApp() {
                     {/* SETTLEMENT STEPS: AIRTIME / DATA / BILLS */}
                     {(settlementStep === 'airtime' || settlementStep === 'data' || settlementStep === 'bills') && (
                       <div className="space-y-5 pt-2">
-                        <h4 className="text-base font-black uppercase text-[#FF5500]">
+                        <h4 className="text-base font-black uppercase text-[#2481CC]">
                           {settlementStep === 'airtime' ? 'Buy Airtime' : settlementStep === 'data' ? 'Buy Internet Data' : 'Utility Bills Payment'}
                         </h4>
 
@@ -16069,7 +16083,7 @@ function ExonaApp() {
                                     key={net}
                                     onClick={() => setSelectedProvider(net)}
                                     className={`py-2 rounded-xl text-[10px] font-black border transition-all ${
-                                      selectedProvider === net ? 'bg-[#FF5500] border-[#FF5500] text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+                                      selectedProvider === net ? 'bg-[#2481CC] border-[#2481CC] text-white' : 'bg-zinc-900 border-zinc-800 text-zinc-400'
                                     }`}
                                   >
                                     {net}
@@ -16085,7 +16099,7 @@ function ExonaApp() {
                               <select 
                                 value={selectedBillType}
                                 onChange={(e) => setSelectedBillType(e.target.value)}
-                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-[#FF5500] appearance-none cursor-pointer"
+                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-[#2481CC] appearance-none cursor-pointer"
                               >
                                 <option value="">Select Category</option>
                                 {BILL_TYPES.map(b => <option key={b} value={b}>{b}</option>)}
@@ -16102,7 +16116,7 @@ function ExonaApp() {
                               value={phoneNumber} 
                               onChange={(e) => setPhoneNumber(e.target.value)}
                               placeholder={settlementStep === 'bills' ? 'e.g. 1029384756' : '08134567890'}
-                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#2481CC] font-mono"
                             />
                           </div>
 
@@ -16118,11 +16132,11 @@ function ExonaApp() {
                                       setSettlementAmount(plan.price.toString());
                                     }}
                                     className={`w-full p-3 rounded-xl border flex justify-between items-center text-left ${
-                                      selectedDataPlan === plan.id ? 'bg-[#FF5500]/10 border-[#FF5500]' : 'bg-zinc-900 border-zinc-850'
+                                      selectedDataPlan === plan.id ? 'bg-[#2481CC]/10 border-[#2481CC]' : 'bg-zinc-900 border-zinc-850'
                                     }`}
                                   >
                                     <span className="text-xs font-bold">{plan.name}</span>
-                                    <span className="text-xs font-black text-[#FF5500]">{activeAccount.currency}{plan.price}</span>
+                                    <span className="text-xs font-black text-[#2481CC]">{activeAccount.currency}{plan.price}</span>
                                   </button>
                                 ))}
                               </div>
@@ -16137,7 +16151,7 @@ function ExonaApp() {
                                 placeholder="0.00" 
                                 value={settlementAmount}
                                 onChange={(e) => setSettlementAmount(e.target.value)}
-                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#2481CC] font-mono"
                               />
                             </div>
                           )}
@@ -16145,7 +16159,7 @@ function ExonaApp() {
                           <button 
                             disabled={!settlementAmount}
                             onClick={() => setSettlementStep('pin')}
-                            className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                            className="w-full py-4 bg-[#2481CC] hover:bg-[#1E6EA9] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
                           >
                             Proceed to Payment
                           </button>
@@ -16156,7 +16170,7 @@ function ExonaApp() {
                     {/* TRANSFER TO OTHER BANKS / EXONA BANK */}
                     {(settlementStep === 'other' || settlementStep === 'exona') && (
                       <div className="space-y-5 pt-2">
-                        <h4 className="text-base font-black uppercase text-[#FF5500]">
+                        <h4 className="text-base font-black uppercase text-[#2481CC]">
                           {settlementStep === 'exona' ? 'Send to Exona Wallet' : 'Send to Other Banks'}
                         </h4>
 
@@ -16167,7 +16181,7 @@ function ExonaApp() {
                               <select 
                                 value={selectedSettlementBank}
                                 onChange={(e) => setSelectedSettlementBank(e.target.value)}
-                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-[#FF5500] appearance-none cursor-pointer"
+                                className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-xs font-semibold text-white outline-none focus:border-[#2481CC] appearance-none cursor-pointer"
                               >
                                 {NIGERIAN_BANKS.map(bank => (
                                   <option key={bank} value={bank}>{bank}</option>
@@ -16184,7 +16198,7 @@ function ExonaApp() {
                               value={recipientAccount}
                               onChange={(e) => setRecipientAccount(e.target.value.replace(/\D/g, ''))}
                               placeholder="Account Number"
-                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-base font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-base font-bold text-white outline-none focus:border-[#2481CC] font-mono"
                             />
                             {isVerifying ? (
                               <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider mt-1.5 animate-pulse">Verifying Account...</p>
@@ -16204,14 +16218,14 @@ function ExonaApp() {
                               placeholder="0.00" 
                               value={settlementAmount}
                               onChange={(e) => setSettlementAmount(e.target.value)}
-                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#FF5500] font-mono"
+                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-bold text-white outline-none focus:border-[#2481CC] font-mono"
                             />
                           </div>
 
                           <button 
                             disabled={!verifiedName || !settlementAmount || parseFloat(settlementAmount) <= 0}
                             onClick={() => setSettlementStep('pin')}
-                            className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="w-full py-4 bg-[#2481CC] hover:bg-[#1E6EA9] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             Continue
                           </button>
@@ -16222,7 +16236,7 @@ function ExonaApp() {
                     {/* CASH OUT / DEPOSIT FUNDING HUB */}
                     {settlementStep === 'deposit' && (
                       <div className="space-y-5 pt-2 text-center">
-                        <div className="h-14 w-14 bg-[#FF5500]/10 border border-[#FF5500]/20 rounded-2xl flex items-center justify-center mx-auto text-[#FF5500]">
+                        <div className="h-14 w-14 bg-[#2481CC]/10 border border-[#2481CC]/20 rounded-2xl flex items-center justify-center mx-auto text-[#2481CC]">
                           <Plus size={32} />
                         </div>
                         <div>
@@ -16237,7 +16251,7 @@ function ExonaApp() {
                           <div>
                             <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-widest block">Instant Deposit Account</span>
                             <div className="flex justify-between items-center gap-2 mt-1">
-                              <span className="text-lg font-mono font-black text-[#FF5500]">0167343656</span>
+                              <span className="text-lg font-mono font-black text-[#2481CC]">0167343656</span>
                               <button 
                                 onClick={() => {
                                   navigator.clipboard.writeText('0167343656');
@@ -16256,7 +16270,7 @@ function ExonaApp() {
                     {/* PIN BLOCK */}
                     {settlementStep === 'pin' && (
                       <div className="space-y-5 pt-2 text-center">
-                        <div className="h-12 w-12 bg-[#FF5500]/10 text-[#FF5500] border border-[#FF5500]/20 rounded-2xl flex items-center justify-center mx-auto">
+                        <div className="h-12 w-12 bg-[#2481CC]/10 text-[#2481CC] border border-[#2481CC]/20 rounded-2xl flex items-center justify-center mx-auto">
                           <Lock size={24} />
                         </div>
                         <div>
@@ -16268,13 +16282,13 @@ function ExonaApp() {
                           maxLength={4}
                           value={transactionPin}
                           onChange={(e) => setTransactionPin(e.target.value.replace(/\D/g, ''))}
-                          className="w-32 mx-auto px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-2xl font-black text-center text-white outline-none focus:border-[#FF5500] tracking-[0.5em] font-mono"
+                          className="w-32 mx-auto px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-xl text-2xl font-black text-center text-white outline-none focus:border-[#2481CC] tracking-[0.5em] font-mono"
                           placeholder="••••"
                         />
                         <button
                           disabled={transactionPin.length !== 4 || isProcessingSettlement}
                           onClick={handleInitiateSettlement}
-                          className="w-full py-4 bg-[#FF5500] hover:bg-[#e04500] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                          className="w-full py-4 bg-[#2481CC] hover:bg-[#1E6EA9] text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
                         >
                           {isProcessingSettlement ? 'Reconciling Ledger...' : 'Confirm Disburse'}
                         </button>
@@ -29612,13 +29626,7 @@ function ExonaApp() {
             />
             <NavButton 
               active={view === 'finance'} 
-              onClick={() => {
-                if (user) {
-                  setIsExonWalletOpen(true);
-                } else {
-                  setView('login');
-                }
-              }} 
+              onClick={handleWalletClick} 
               icon={Wallet} 
               label="Wallet"
             />
@@ -30139,65 +30147,7 @@ function ExonaApp() {
         )}
       </AnimatePresence>
 
-      {/* Wallet Selector Modal */}
-      <AnimatePresence>
-        {isExonWalletOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[300] flex items-center justify-center p-6"
-            onClick={(e) => e.target === e.currentTarget && setIsExonWalletOpen(false)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[2.5rem] p-8 relative overflow-hidden"
-            >
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-2xl font-black text-ink mb-1">Select Wallet</h3>
-                  <p className="text-[11px] font-bold text-muted uppercase tracking-[0.3em]">Choose institution to access terminal</p>
-                </div>
-                <button onClick={() => setIsExonWalletOpen(false)} className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center">
-                  <X size={20} />
-                </button>
-              </div>
 
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pr-1">
-                {[...schools, ...places].filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')).length === 0 ? (
-                  <div className="py-12 text-center text-muted font-bold text-sm italic">
-                    No institutional wallets found.
-                  </div>
-                ) : (
-                  [...schools, ...places].filter(s => s.creatorUid === user?.uid || s.administrativeViewers?.includes(user?.uid || '')).map(s => (
-                    <button 
-                      key={s.id}
-                      onClick={() => {
-                        setSelectedSchool(s as School);
-                        setView('finance');
-                        setSettlementStep('selection');
-                        setIsExonWalletOpen(false);
-                      }}
-                      className="w-full flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-accent hover:bg-accent/[0.02] transition-all group"
-                    >
-                      <div className="h-12 w-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 overflow-hidden">
-                        {s.logo ? (
-                          <img src={s.logo} className="h-full w-full object-cover" />
-                        ) : (
-                          <Wallet size={20} className="text-muted" />
-                        )}
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <p className="text-sm font-black text-ink truncate uppercase tracking-tight">{s.name}</p>
-                        <p className="text-[11px] font-bold text-muted uppercase tracking-widest">{s.type === 'school' ? 'School' : 'Business'}</p>
-                      </div>
-                      <ChevronRight size={18} className="text-gray-300 group-hover:text-accent transition-colors" />
-                    </button>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Institution Sub-pass Selector Modal */}
       <AnimatePresence>
@@ -30329,7 +30279,7 @@ function ExonaApp() {
               {/* Sleek Minimalist Top Header */}
               <div className="p-4 sm:p-6 border-b border-zinc-100 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-[#128C7E] flex items-center justify-center shrink-0 shadow-sm text-white">
+                  <div className="h-9 w-9 rounded-xl bg-[#2481CC] flex items-center justify-center shrink-0 shadow-sm text-white">
                     <MessageCircle size={18} className="text-white" />
                   </div>
                   <div>
@@ -30383,7 +30333,7 @@ function ExonaApp() {
                         initial={{ scale: 0.92, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.4 }}
-                        className="h-16 w-16 rounded-[1.25rem] bg-[#128C7E] flex items-center justify-center shadow-lg mb-2 text-white"
+                        className="h-16 w-16 rounded-[1.25rem] bg-[#2481CC] flex items-center justify-center shadow-lg mb-2 text-white"
                       >
                         <MessageCircle size={32} className="text-white" />
                       </motion.div>
@@ -30415,7 +30365,7 @@ function ExonaApp() {
                                 )}
                               </div>
                             ) : (
-                              <div className="h-8 w-8 rounded-xl bg-[#128C7E] flex items-center justify-center shrink-0 shadow-md text-white">
+                              <div className="h-8 w-8 rounded-xl bg-[#2481CC] flex items-center justify-center shrink-0 shadow-md text-white">
                                 <MessageCircle size={14} className="text-white" />
                               </div>
                             )}
@@ -30425,7 +30375,7 @@ function ExonaApp() {
                           <div className="max-w-[85%] space-y-1">
                             <div className={`p-4 rounded-xl text-[14.5px] leading-relaxed ${
                               msg.sender === 'user'
-                                ? 'bg-[#DCF8C6] text-zinc-900 border border-[#D9E6C8] rounded-tr-none shadow-sm' 
+                                ? 'bg-[#E0F2FE] text-zinc-900 border border-[#BAE6FD] rounded-tr-none shadow-sm' 
                                 : 'bg-[#F2F2F2] text-zinc-800 select-text rounded-tl-none prose max-w-none text-[14.5px] border border-zinc-100 shadow-sm'
                             }`}>
                               {msg.sender === 'ai' ? (
@@ -30450,11 +30400,11 @@ function ExonaApp() {
                           animate={{ opacity: 1 }}
                           className="flex gap-4"
                         >
-                          <div className="h-8 w-8 rounded-xl bg-[#128C7E] flex items-center justify-center shrink-0 animate-bounce shadow-md">
+                          <div className="h-8 w-8 rounded-xl bg-[#2481CC] flex items-center justify-center shrink-0 animate-bounce shadow-md">
                             <MessageCircle size={13} className="text-white" />
                           </div>
                           <div className="text-zinc-500 p-4 rounded-xl border border-zinc-200 bg-zinc-50 text-[13.5px] flex items-center gap-3">
-                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse text-[#128C7E]">Running Queries</span>
+                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse text-[#2481CC]">Running Queries</span>
                             <div className="flex gap-1">
                               <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                               <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -30496,7 +30446,7 @@ function ExonaApp() {
                     type="button"
                     onClick={() => handleSendExonaAiMessage()}
                     disabled={exonaAiLoading || !exonaAiInput.trim()}
-                    className="h-12 w-12 bg-[#128C7E] text-white hover:bg-[#0E6251] rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-100 disabled:text-zinc-400 border border-transparent transition-all font-bold shrink-0 shadow-md cursor-pointer"
+                    className="h-12 w-12 bg-[#2481CC] text-white hover:bg-[#1E6EA9] rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-100 disabled:text-zinc-400 border border-transparent transition-all font-bold shrink-0 shadow-md cursor-pointer"
                   >
                     <Send size={18} />
                   </button>
@@ -30521,7 +30471,7 @@ function ExonaApp() {
               exit={{ scale: 0, opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
               onClick={() => setIsExonaAiModalOpen(true)}
-              className="h-14 w-14 rounded-[1.25rem] bg-[#128C7E] border-0 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all outline-none group text-white font-bold"
+              className="h-14 w-14 rounded-[1.25rem] bg-[#2481CC] border-0 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all outline-none group text-white font-bold"
               title="Exona AI"
             >
               <MessageCircle size={26} className="text-white group-hover:scale-110 transition-transform" />
