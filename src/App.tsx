@@ -30076,12 +30076,12 @@ function ExonaApp() {
               {/* Sleek Minimalist Top Header */}
               <div className="p-4 sm:p-6 border-b border-zinc-900/80 flex items-center justify-between bg-black shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-md">
-                    <Sparkles size={14} className="animate-pulse" />
+                  <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 shadow-md">
+                    <Sparkles size={14} className="text-[#4F46E5]" />
                   </div>
                   <div>
                     <h2 className="text-md font-extrabold tracking-tight text-white font-sans flex items-center gap-2">
-                      Grok
+                      Exona
                     </h2>
                   </div>
                 </div>
@@ -30130,9 +30130,9 @@ function ExonaApp() {
                         initial={{ scale: 0.92, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 0.4 }}
-                        className="h-16 w-16 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-2xl mb-2"
+                        className="h-16 w-16 rounded-[1.25rem] bg-[#E4E9FC] flex items-center justify-center shadow-2xl mb-2"
                       >
-                        <Sparkles size={26} className="text-white animate-pulse" />
+                        <Sparkles size={28} className="text-[#4F46E5]" />
                       </motion.div>
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
                         What's on your mind?
@@ -30152,23 +30152,23 @@ function ExonaApp() {
                           className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                         >
                           {/* Avatar icon */}
-                          <div className={`h-8 w-8 flex items-center justify-center shrink-0 font-bold text-xs ${
-                            msg.sender === 'user' 
-                              ? 'rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-100' 
-                              : 'rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white shadow-md'
-                          }`}>
+                          <div className="shrink-0">
                             {msg.sender === 'user' ? (
-                              user?.photoURL ? (
-                                <img src={user.photoURL} className="h-full w-full object-cover rounded-lg" />
-                              ) : (
-                                user?.displayName?.charAt(0) || 'U'
-                              )
+                              <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs bg-zinc-900 border border-zinc-800 text-zinc-100">
+                                {user?.photoURL ? (
+                                  <img src={user.photoURL} className="h-full w-full object-cover rounded-lg" />
+                                ) : (
+                                  user?.displayName?.charAt(0) || 'U'
+                                )}
+                              </div>
                             ) : (
-                              <Sparkles size={13} className="text-white animate-pulse" />
+                              <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 shadow-md">
+                                <Sparkles size={13} className="text-[#4F46E5]" />
+                              </div>
                             )}
                           </div>
 
-                          {/* Subtle Grok-Style Message Area (border-less alignment for AI blocks, dark gray for user) */}
+                          {/* Subtle Exona-Style Message Area (border-less alignment for AI blocks, dark gray for user) */}
                           <div className="max-w-[85%] space-y-1">
                             <div className={`p-4 rounded-xl text-[14.5px] leading-relaxed ${
                               msg.sender === 'user'
@@ -30197,8 +30197,8 @@ function ExonaApp() {
                           animate={{ opacity: 1 }}
                           className="flex gap-4"
                         >
-                          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shrink-0 animate-bounce shadow-md">
-                            <Sparkles size={13} />
+                          <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 animate-bounce shadow-md">
+                            <Sparkles size={13} className="text-[#4F46E5]" />
                           </div>
                           <div className="text-zinc-500 p-4 rounded-xl border border-zinc-900 bg-zinc-950/25 text-[13.5px] flex items-center gap-3">
                             <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse">Running Queries</span>
@@ -30268,10 +30268,10 @@ function ExonaApp() {
               exit={{ scale: 0, opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
               onClick={() => setIsExonaAiModalOpen(true)}
-              className="h-12 w-12 rounded-full bg-gradient-to-tr from-[#2481CC] via-[#8B5CF6] to-[#D946EF] text-white flex items-center justify-center shadow-lg shadow-purple-500/25 border border-white/20 hover:scale-105 active:scale-95 transition-all outline-none"
+              className="h-12 w-12 rounded-[1.25rem] bg-[#E4E9FC] border border-[#D5DCFB]/60 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all outline-none group"
               title="Exona AI"
             >
-              <Sparkles size={20} className="animate-pulse" />
+              <Sparkles size={20} className="text-[#4F46E5] group-hover:scale-110 transition-transform" />
             </motion.button>
 
             {/* Create Institution FAB */}
