@@ -30071,16 +30071,16 @@ function ExonaApp() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="fixed inset-0 bg-[#060606] text-zinc-100 z-[1000] flex flex-col h-screen w-screen overflow-hidden select-none"
+              className="fixed inset-0 bg-white text-zinc-800 z-[1000] flex flex-col h-screen w-screen overflow-hidden select-none"
             >
               {/* Sleek Minimalist Top Header */}
-              <div className="p-4 sm:p-6 border-b border-zinc-900/80 flex items-center justify-between bg-black shrink-0">
+              <div className="p-4 sm:p-6 border-b border-zinc-100 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 shadow-md">
                     <Sparkles size={14} className="text-[#4F46E5]" />
                   </div>
                   <div>
-                    <h2 className="text-md font-extrabold tracking-tight text-white font-sans flex items-center gap-2">
+                    <h2 className="text-md font-extrabold tracking-tight text-zinc-900 font-sans flex items-center gap-2">
                       Exona
                     </h2>
                   </div>
@@ -30103,7 +30103,7 @@ function ExonaApp() {
                       }
                     }}
                     title="Clear Chat Session"
-                    className="px-3 py-1.5 text-[11px] font-bold text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-xl transition-all flex items-center gap-1.5"
+                    className="px-3 py-1.5 text-[11px] font-bold text-zinc-500 hover:text-zinc-800 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl transition-all flex items-center gap-1.5"
                   >
                     <RefreshCw size={11} />
                     <span>Clear</span>
@@ -30113,7 +30113,7 @@ function ExonaApp() {
                   <button 
                     type="button"
                     onClick={() => setIsExonaAiModalOpen(false)}
-                    className="h-9 w-9 rounded-xl hover:bg-zinc-800 border border-zinc-800/80 text-zinc-400 hover:text-white transition-colors flex items-center justify-center"
+                    className="h-9 w-9 rounded-xl hover:bg-zinc-100 border border-zinc-200 text-zinc-500 hover:text-zinc-800 transition-colors flex items-center justify-center"
                   >
                     <X size={18} />
                   </button>
@@ -30121,7 +30121,7 @@ function ExonaApp() {
               </div>
 
               {/* Dynamic Immersive Scroll Area */}
-              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-8 bg-black">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-6 space-y-8 bg-zinc-50/55">
                 <div className="max-w-3xl mx-auto w-full flex flex-col h-full justify-between">
                   {exonaAiChat.length <= 1 ? (
                     /* Elegant Welcome Hero in Center Stage */
@@ -30134,7 +30134,7 @@ function ExonaApp() {
                       >
                         <Sparkles size={28} className="text-[#4F46E5]" />
                       </motion.div>
-                      <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                      <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight leading-tight">
                         What's on your mind?
                       </h1>
                       <p className="text-zinc-500 text-sm leading-relaxed max-w-sm">
@@ -30154,7 +30154,7 @@ function ExonaApp() {
                           {/* Avatar icon */}
                           <div className="shrink-0">
                             {msg.sender === 'user' ? (
-                              <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs bg-zinc-900 border border-zinc-800 text-zinc-100">
+                              <div className="h-8 w-8 rounded-lg flex items-center justify-center font-bold text-xs bg-zinc-100 border border-zinc-200 text-zinc-800">
                                 {user?.photoURL ? (
                                   <img src={user.photoURL} className="h-full w-full object-cover rounded-lg" />
                                 ) : (
@@ -30168,22 +30168,22 @@ function ExonaApp() {
                             )}
                           </div>
 
-                          {/* Subtle Exona-Style Message Area (border-less alignment for AI blocks, dark gray for user) */}
+                          {/* Subtle Exona-Style Message Area (border-less alignment for AI blocks, clean light gray or white paper card for user) */}
                           <div className="max-w-[85%] space-y-1">
                             <div className={`p-4 rounded-xl text-[14.5px] leading-relaxed ${
                               msg.sender === 'user'
-                                ? 'bg-zinc-900 text-zinc-100 border border-zinc-800/70 rounded-tr-none' 
-                                : 'text-zinc-200 select-text rounded-tl-none prose prose-invert max-w-none text-[14.5px]'
+                                ? 'bg-[#E4E9FC] text-zinc-900 border border-[#D5DCFB]/60 rounded-tr-none shadow-sm' 
+                                : 'text-zinc-800 select-text rounded-tl-none prose max-w-none text-[14.5px]'
                             }`}>
                               {msg.sender === 'ai' ? (
-                                <div className="markdown-body text-zinc-200 prose prose-invert leading-relaxed">
+                                <div className="markdown-body text-zinc-800 prose leading-relaxed">
                                   <Markdown>{msg.text}</Markdown>
                                 </div>
                               ) : (
-                                <p className="whitespace-pre-line text-zinc-200">{msg.text}</p>
+                                <p className="whitespace-pre-line text-zinc-900">{msg.text}</p>
                               )}
                             </div>
-                            <span className="text-[9px] text-zinc-600 font-medium font-mono block px-1">
+                            <span className="text-[9px] text-zinc-400 font-medium font-mono block px-1">
                               {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
@@ -30200,12 +30200,12 @@ function ExonaApp() {
                           <div className="h-8 w-8 rounded-xl bg-[#E4E9FC] flex items-center justify-center shrink-0 animate-bounce shadow-md">
                             <Sparkles size={13} className="text-[#4F46E5]" />
                           </div>
-                          <div className="text-zinc-500 p-4 rounded-xl border border-zinc-900 bg-zinc-950/25 text-[13.5px] flex items-center gap-3">
-                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse">Running Queries</span>
+                          <div className="text-zinc-500 p-4 rounded-xl border border-zinc-200 bg-zinc-50 text-[13.5px] flex items-center gap-3">
+                            <span className="font-bold text-[10px] tracking-widest uppercase font-mono animate-pulse text-[#4F46E5]">Running Queries</span>
                             <div className="flex gap-1">
-                              <span className="h-1.5 w-1.5 bg-zinc-700 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                              <span className="h-1.5 w-1.5 bg-zinc-700 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                              <span className="h-1.5 w-1.5 bg-zinc-700 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                              <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                              <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                              <span className="h-1.5 w-1.5 bg-zinc-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                             </div>
                           </div>
                         </motion.div>
@@ -30213,7 +30213,7 @@ function ExonaApp() {
 
                       {/* Inline error indicator */}
                       {exonaAiError && (
-                        <div className="p-4 bg-red-950/40 text-red-400 rounded-xl border border-red-900/50 flex items-center gap-3 text-xs font-bold font-mono">
+                        <div className="p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 flex items-center gap-3 text-xs font-bold font-mono">
                           <AlertTriangle size={15} />
                           <span>{exonaAiError}</span>
                         </div>
@@ -30224,7 +30224,7 @@ function ExonaApp() {
               </div>
 
               {/* Chat Input Dock Area (Pill layout placed perfectly center-bottom) */}
-              <div className="p-4 sm:p-6 bg-black border-t border-zinc-900/60 shrink-0">
+              <div className="p-4 sm:p-6 bg-white border-t border-zinc-100 shrink-0">
                 <div className="max-w-3xl mx-auto w-full flex gap-3.5 items-center">
                   <input
                     type="text"
@@ -30237,13 +30237,13 @@ function ExonaApp() {
                       }
                     }}
                     disabled={exonaAiLoading}
-                    className="flex-grow px-5 py-4 bg-zinc-900/75 border border-zinc-800/80 focus:border-zinc-700 rounded-2xl outline-none transition-all text-[15px] placeholder:text-zinc-650 text-white shadow-lg"
+                    className="flex-grow px-5 py-4 bg-zinc-50 border border-zinc-200/80 focus:border-zinc-300 focus:bg-white rounded-2xl outline-none transition-all text-[15px] placeholder:text-zinc-400 text-zinc-900 shadow-sm"
                   />
                   <button
                     type="button"
                     onClick={() => handleSendExonaAiMessage()}
                     disabled={exonaAiLoading || !exonaAiInput.trim()}
-                    className="h-12 w-12 bg-white text-black hover:bg-zinc-200 rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-900 disabled:text-zinc-700 border border-transparent transition-all font-bold shrink-0 shadow-lg cursor-pointer"
+                    className="h-12 w-12 bg-[#4F46E5] text-white hover:bg-[#4338CA] rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 disabled:bg-zinc-100 disabled:text-zinc-400 border border-transparent transition-all font-bold shrink-0 shadow-md cursor-pointer"
                   >
                     <Send size={18} />
                   </button>
