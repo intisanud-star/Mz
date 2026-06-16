@@ -2499,7 +2499,7 @@ const NIGERIAN_BANKS = [
   'First Bank of Nigeria',
   'Zenith Bank',
   'United Bank for Africa (UBA)',
-  'Guaranty Trust Bank (GTBank)',
+  'Exona Bank',
   'Union Bank of Nigeria',
   'Fidelity Bank',
   'First City Monument Bank (FCMB)',
@@ -15872,20 +15872,19 @@ function ExonaApp() {
           {
             id: 'personal',
             name: 'Personal Wallet',
-            balance: excoinBalance * 10 || 12040.50,
-            bookBalance: excoinBalance * 10 || 12040.50,
+            balance: (excoinBalance || 0) * 10,
+            bookBalance: (excoinBalance || 0) * 10,
             logo: null,
             type: 'Personal Wallet',
             accNo: '0167343656',
             currency: '₦'
           },
           ...userInstitutions.map((inst, index) => {
-            const val = 3016734.36 + index * 12510.40;
             return {
               id: inst.id,
               name: inst.name,
-              balance: finance?.institutionBalance || val,
-              bookBalance: finance?.institutionBalance || val,
+              balance: finance?.institutionBalance || 0,
+              bookBalance: finance?.institutionBalance || 0,
               logo: inst.logo,
               type: inst.type === 'school' ? 'School Wallet' : 'Business Wallet',
               accNo: `016${(820459 + index * 415).toString()}`,
@@ -15963,7 +15962,7 @@ function ExonaApp() {
         return (
           <div className="min-h-full bg-white text-zinc-900 flex flex-col font-sans select-none pb-8 relative overflow-y-auto no-scrollbar">
             
-            {/* Top Navigation Frame - Beautiful Luxury GTBank White themed Head */}
+            {/* Top Navigation Frame - Beautiful Luxury Exona Bank White themed Head */}
             <div className="flex items-center justify-between px-6 py-5 bg-white border-b border-zinc-200/80 sticky top-0 z-40 shadow-xs">
               <div className="flex items-center gap-3">
                 <button 
@@ -15997,7 +15996,7 @@ function ExonaApp() {
                 <span className="text-[9px] font-black uppercase tracking-widest font-mono">Ledger Live</span>
               </div>
 
-              {/* Signature GTBank / GTCO logo with a white square on an orange box */}
+              {/* Signature Exona Bank / EXONA logo */}
               <div className="h-11 w-11 bg-[#2481CC] rounded-xl flex items-center justify-center shadow-md relative shrink-0">
                 <div className="h-[18px] w-[18px] bg-white rounded-[4px] absolute top-1.5 right-1.5 flex items-center justify-center">
                   <div className="h-2 w-2 bg-[#2481CC] rounded-sm" />
@@ -16185,11 +16184,11 @@ function ExonaApp() {
                         </div>
                         <div>
                           <h4 className="text-base font-black uppercase text-zinc-900">Mrs. Bunmi Alao</h4>
-                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">GTBank Account Manager</p>
+                          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">Exona Bank Account Manager</p>
                         </div>
                         <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-left space-y-2.5">
                           <p className="text-xs font-semibold text-zinc-600">📞 Phone: <span className="font-mono text-zinc-900 text-[13px] ml-1 font-bold">+234 803 219 9845</span></p>
-                          <p className="text-xs font-semibold text-zinc-600">✉ Email: <span className="font-mono text-zinc-900 text-[13px] ml-1 font-bold">bunmi.alao@gtco.com</span></p>
+                          <p className="text-xs font-semibold text-zinc-600">✉ Email: <span className="font-mono text-zinc-900 text-[13px] ml-1 font-bold">bunmi.alao@exona.com</span></p>
                           <p className="text-xs font-semibold text-zinc-600">📍 Branch: <span className="text-zinc-900 text-[13px] ml-1 font-bold">Victoria Island Hub</span></p>
                         </div>
                         <button 
@@ -16272,7 +16271,7 @@ function ExonaApp() {
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
                           <Coins className="text-[#2481CC]" size={20} />
-                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900">GTBank Instant Credit</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900">Exona Bank Instant Credit</h4>
                         </div>
                         <p className="text-xs text-zinc-500 leading-relaxed">Select payday loan size. Approved funds are deposited instantly.</p>
                         
@@ -16329,7 +16328,7 @@ function ExonaApp() {
                             <CreditCard size={120} />
                           </div>
                           <div className="flex justify-between items-start z-10">
-                            <span className="text-[10px] font-black tracking-widest text-zinc-400 font-mono">GTWORLD GOLD</span>
+                            <span className="text-[10px] font-black tracking-widest text-zinc-400 font-mono">EXONA GOLD</span>
                             <span className="text-xs font-black text-[#2481CC] font-serif">mastercard</span>
                           </div>
                           
@@ -16378,7 +16377,7 @@ function ExonaApp() {
                         </div>
                         <div>
                           <h4 className="text-base font-black uppercase text-zinc-900">Pay Merchant QR</h4>
-                          <p className="text-xs text-zinc-500 mt-1">Point your camera block at any GTBank or eNaira QR stand to authorize instant transfers.</p>
+                          <p className="text-xs text-zinc-500 mt-1">Point your camera block at any Exona Bank or eNaira QR stand to authorize instant transfers.</p>
                         </div>
                         <button 
                           onClick={() => {
@@ -16397,7 +16396,7 @@ function ExonaApp() {
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
                           <TrendingUp className="text-[#2481CC]" size={20} />
-                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900">GT World Vault Yield</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900">Exona World Vault Yield</h4>
                         </div>
                         <p className="text-xs text-zinc-500 leading-relaxed">Lock your idle balance and earn daily compound yields at 12.5% APY.</p>
                         
@@ -16444,7 +16443,7 @@ function ExonaApp() {
                         </div>
                         <div>
                           <h4 className="text-base font-black uppercase tracking-wide text-zinc-900">{quickActions.find(q => q.id === activeGTService)?.label || 'Service Hub'}</h4>
-                          <p className="text-xs text-zinc-500 mt-1">This GTBank channel is fully simulated. Operations are optimized internally.</p>
+                          <p className="text-xs text-zinc-500 mt-1">This Exona Bank channel is fully simulated. Operations are optimized internally.</p>
                         </div>
                         <button 
                           onClick={() => setActiveGTService(null)} 
