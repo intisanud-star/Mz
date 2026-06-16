@@ -13728,7 +13728,7 @@ function ExonaApp() {
             <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
               
               {/* Modern Inline Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 mb-5 border-b border-gray-100/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 mb-6 border-b border-gray-100/80">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
@@ -13748,123 +13748,29 @@ function ExonaApp() {
                     Feed
                   </button>
                 </div>
-              </div>
 
-              {/* Clustered Search Bar and Category Buttons Hub side-by-side with Notifications */}
-              <div className="block">
-                <div className="flex items-start gap-2.5 w-full mb-6">
-                  {/* Flexible remaining space occupied by the Search Bar and Categories Card */}
-                  <div className="flex-1 min-w-0 bg-slate-50/55 hover:bg-slate-50/80 border border-slate-100 p-3 rounded-2xl transition-all space-y-2.5">
-                    {/* Search Bar Input */}
-                    <div className="relative group w-full">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
-                      <input 
-                        type="text" 
-                        placeholder="Search institutions, people, groups..." 
-                        value={globalSearch}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setGlobalSearch(val);
-                          handleSearchUsers(val);
-                          if (val.trim()) setView('search');
-                        }}
-                        onFocus={() => {
-                          if (globalSearch) setView('search');
-                        }}
-                        className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200/60 focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-xs" 
-                      />
-                    </div>
-
-                    {/* Categories Slider */}
-                    <div 
-                      className="flex items-center gap-2 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-0.5 select-none"
-                      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                    >
-                      {categories.map((c) => {
-                        const count = getFilterCount(c.id);
-                        const isSelected = schoolFilter === c.id;
-                        return (
-                          <div key={c.id} className="relative group shrink-0 flex items-center">
-                            <button
-                              onClick={() => setSchoolFilter(c.id)}
-                              className={`h-7.5 px-3 rounded-full text-[10.5px] uppercase tracking-wider font-extrabold transition-all outline-none flex items-center justify-center font-sans border ${
-                                isSelected 
-                                  ? 'bg-[#2481CC] text-white border-transparent' 
-                                  : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 hover:text-slate-800'
-                              }`}
-                            >
-                              <span className="flex items-center gap-1">
-                                {c.label}
-                                {count > 0 && (
-                                  <span className={`text-[8.5px] font-black px-1.5 py-0.2 rounded-full ${
-                                    isSelected ? 'bg-white text-[#2481CC]' : 'bg-slate-150 text-slate-600'
-                                  }`}>
-                                    {count}
-                                  </span>
-                                )}
-                              </span>
-                            </button>
-                            {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteCategory(c.id);
-                                }}
-                                className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                title="Delete category"
-                              >
-                                <X size={8} />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                      
-                      {/* Plus button to add custom category */}
-                      {isAddingCategory ? (
-                        <form 
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            handleCreateCustomCategory();
-                          }}
-                          className="flex items-center gap-1 bg-white border border-slate-200 rounded-full h-7.5 pl-3 pr-1.5 shrink-0 animate-in fade-in zoom-in-95 duration-150"
-                        >
-                          <input
-                            type="text"
-                            value={newCategoryInput}
-                            onChange={(e) => setNewCategoryInput(e.target.value)}
-                            placeholder="New category"
-                            className="bg-transparent text-[11px] font-bold outline-none w-20 text-[#54656f] placeholder:text-[#54656f]/40"
-                            autoFocus
-                          />
-                          <button 
-                            type="submit"
-                            className="h-5.5 w-5.5 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
-                          >
-                            <Check size={9} />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setIsAddingCategory(false)}
-                            className="h-5.5 w-5.5 bg-slate-100 text-slate-500 rounded-full flex items-center justify-center hover:bg-slate-200 shrink-0"
-                          >
-                            <X size={9} />
-                          </button>
-                        </form>
-                      ) : (
-                        <button
-                          onClick={() => setIsAddingCategory(true)}
-                          className="h-7.5 px-3 bg-white border border-dashed border-slate-300 hover:border-slate-500 text-slate-500 hover:text-slate-800 rounded-full flex items-center justify-center text-[10.5px] font-extrabold uppercase tracking-wider transition-all shrink-0"
-                          title="Add Category"
-                        >
-                          + Add
-                        </button>
-                      )}
-                    </div>
+                {/* Long, beautiful search bar filling the gap for a premium look */}
+                <div className="flex items-center gap-3 w-full sm:w-auto flex-1 sm:flex-initial sm:max-w-md justify-between sm:justify-end">
+                  <div className="relative flex-1 group min-w-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Search institutions, people, groups..." 
+                      value={globalSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGlobalSearch(val);
+                        handleSearchUsers(val);
+                        if (val.trim()) setView('search');
+                      }}
+                      onFocus={() => {
+                        if (globalSearch) setView('search');
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                    />
                   </div>
 
-                  {/* Right side notification & menu button column aligning seamlessly */}
-                  <div className="flex items-center gap-2 shrink-0 pt-1.5">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button 
                       onClick={() => setView('notifications')}
                       className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
@@ -13884,6 +13790,93 @@ function ExonaApp() {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <div className="block">
+              <div 
+                className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {categories.map((c) => {
+                  const count = getFilterCount(c.id);
+                  const isSelected = schoolFilter === c.id;
+                  return (
+                    <div key={c.id} className="relative group shrink-0 flex items-center">
+                      <button
+                        onClick={() => setSchoolFilter(c.id)}
+                        className={`h-8 px-3.5 rounded-full text-[11.5px] uppercase tracking-wider font-bold transition-all outline-none flex items-center justify-center font-sans ${
+                          isSelected 
+                            ? 'bg-[#2481CC]/10 text-[#2481CC]' 
+                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {c.label}
+                          {count > 0 && (
+                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${
+                              isSelected ? 'bg-[#2481CC] text-white' : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              {count}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                      {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteCategory(c.id);
+                          }}
+                          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          title="Delete category"
+                        >
+                          <X size={8} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                
+                {/* Plus button to add custom category */}
+                {isAddingCategory ? (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleCreateCustomCategory();
+                    }}
+                    className="flex items-center gap-1 bg-slate-100 rounded-full h-8 pl-3 pr-1.5 shrink-0"
+                  >
+                    <input
+                      type="text"
+                      value={newCategoryInput}
+                      onChange={(e) => setNewCategoryInput(e.target.value)}
+                      placeholder="New category"
+                      className="bg-transparent text-[12px] font-semibold outline-none w-20 text-[#54656f] placeholder:text-[#54656f]/40"
+                      autoFocus
+                    />
+                    <button 
+                      type="submit"
+                      className="h-6 w-6 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
+                    >
+                      <Check size={11} />
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setIsAddingCategory(false)}
+                      className="h-6 w-6 bg-slate-200 text-muted rounded-full flex items-center justify-center hover:bg-slate-300 shrink-0"
+                    >
+                      <X size={11} />
+                    </button>
+                  </form>
+                ) : (
+                  <button
+                    onClick={() => setIsAddingCategory(true)}
+                    className="h-8 w-8 bg-slate-50 text-slate-500 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all select-none shrink-0"
+                    title="Add Category"
+                  >
+                    <Plus size={15} />
+                  </button>
+                )}
               </div>
 
               <div className="divide-y divide-gray-100">
@@ -14173,6 +14166,7 @@ function ExonaApp() {
                   })()}
                 </AnimatePresence>
               </div>
+            </div>
             </div>
           </div>
         );
