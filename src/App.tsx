@@ -8116,6 +8116,7 @@ function ExonaApp() {
 
   const [recordSort, setRecordSort] = useState<'alphabet' | 'amount' | 'date' | 'department'>('alphabet');
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
@@ -31144,9 +31145,9 @@ function ExonaApp() {
         {showFABs && view === 'feed' && (
           <motion.div 
             key="floating-action-buttons-container"
-            className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-4 no-print select-none"
+            className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-3.5 no-print select-none"
           >
-            {/* Exona AI FAB - Premium WhatsApp green rounded rectangle */}
+            {/* Exona AI FAB - Premium ChatGPT styled AI icon */}
             <motion.button
               key="exona-ai-fab"
               initial={{ scale: 0, opacity: 0, y: 20 }}
@@ -31154,26 +31155,77 @@ function ExonaApp() {
               exit={{ scale: 0, opacity: 0, y: 20 }}
               transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
               onClick={() => setIsExonaAiModalOpen(true)}
-              className="h-14 w-14 rounded-[1.25rem] bg-[#2481CC] border-0 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all outline-none group text-white font-bold"
+              className="h-12 w-12 rounded-[1.125rem] bg-gradient-to-tr from-[#2481CC] to-[#2DA5FF] border-0 flex items-center justify-center shadow-lg shadow-[#2481CC]/20 hover:scale-105 active:scale-95 transition-all outline-none group text-white font-bold cursor-pointer"
               title="Exona AI"
             >
-              <MessageCircle size={26} className="text-white group-hover:scale-110 transition-transform" />
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white transform group-hover:rotate-12 transition-transform duration-300">
+                <path d="M21.36 10.13a4.7 4.7 0 0 0-.35-1.74 4.5 4.5 0 0 0-1.51-1.67 4.7 4.7 0 0 0-2.14-.83 4.7 4.7 0 0 0-.33-2.61 4.5 4.5 0 0 0-2-2.1A4.7 4.7 0 0 0 12.43 1c-.88 0-1.72.24-2.43.68a4.7 4.7 0 0 0-2 2.1 4.7 4.7 0 0 0-.33 2.6A4.5 4.5 0 0 0 5.5 7.21a4.7 4.7 0 0 0-1.41 1.49 4.7 4.7 0 0 0-.36 1.75c0 .1 0 .2 0 .3a4.5 4.5 0 0 0 1.6 3.53c-.35.32-.65.7-.87 1.13a4.7 4.7 0 0 0-.3 2.14 4.5 4.5 0 0 0 1.47 1.54 4.7 4.7 0 0 0 2.44.68c.75 0 1.47-.18 2.13-.51a4.7 4.7 0 0 0 1.4 2.5c.87.72 1.96 1.1 3.08 1.1h.16a4.6 4.6 0 0 0 3-.95 4.7 4.7 0 0 0 2.13-.83 4.5 4.5 0 0 0 1.51-1.67 4.7 4.7 0 0 0 .34-2.6c.1-.03.21-.07.31-.12a4.5 4.5 0 0 0 1.6-3.53 4.5 4.5 0 0 0-1.6-3.53zm-1.57 3.32a3.1 3.1 0 0 1-1.57.42c-.06-.04-.13-.08-.19-.13L15.31 18a1.59 1.59 0 0 0 .8-1.39V12.06L18.79 14a1.64 1.64 0 0 0 .76.19 1.59 1.59 0 0 0 1.38-.8 1.61 1.61 0 0 0 0-1.61L18.25 10.2l2.31-1.34A1.61 1.61 0 0 0 21.32 7a1.53 1.53 0 0 0-1.35-.85 1.68 1.68 0 0 0-.81.22L14.52 9l-2.09-3.62A1.56 1.56,0,0,0,11,4.55h-.16a1.58,1.58,0,0,0-1.33.88c-.06.1-.11.22-.16.33L11.41,12V16.6H6.77L4.46 15.27a1.61 1.61 0 0 0-2.14.73 1.58 1.58,0,0,0,.78 2.06l4.64 2.68c.07.04.14.07.21.1a3.11,3.11,0,0,1,1.5-.38l3,.17zm-6.57-7V9.75L10 7.39a1.6,1.6,0,0,0,.8-1.39V1.35A3.1,3.1,0,0,1,12.41 1a3.11,3.11,0,0,1,1.53.42c.07.03.14.07.21.11L10 5.17A1.59,1.59,0,0,0,9.22 6.56V11.1l-4.05-2.34a1.61 1.61,0,0,0-2.14.58A1.58,1.58,0,0,0,3.61,11.4l4.63,2.67c.07.04.14.07.21.1a3.09,3.09,0,0,1,1.13-.19A3.14,3.14,0,0,1,11.16,14zm6.56-4.59L8.28 7.39a1.64,1.64,0,0,0-.77-.19,1.59,1.59,0,0,0-1.38.8a1.61,1.61,0,0,0,6.13,9.6l2.67,1.55v4.18H4.16L2.68 14.46a3.1,3.1,0,0,1-.42-1.56,3.11,3.11,0,0,1,.42-1.6h.1l4.05 2.34c.07.04.14.07.21.1a3.13,3.13,0,0,1,1.5-.38,3.1,3.1,0,0,1,1.57.42Z" />
+              </svg>
             </motion.button>
-
-            {/* Create Institution FAB */}
+ 
+            {/* Create Institution & Groups Menu Button (Plus sign) */}
             {user && (
-              <motion.button
-                key="create-institution-fab"
-                initial={{ scale: 0, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0, opacity: 0, y: 20 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                onClick={() => setIsSchoolModalOpen(true)}
-                className="h-14 w-14 rounded-full bg-[#2481CC] text-white flex items-center justify-center shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 transition-all outline-none"
-                title="Create Institution"
-              >
-                <Plus size={26} />
-              </motion.button>
+              <div className="relative">
+                {/* Expandable popup choices */}
+                <AnimatePresence>
+                  {isPlusMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 15, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 15, scale: 0.9 }}
+                      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                      className="absolute bottom-14 right-0 flex flex-col gap-2 items-end z-50 min-w-[210px]"
+                    >
+                      {/* Option 1: Create Institution */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsSchoolModalOpen(true);
+                          setIsPlusMenuOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl shadow-xl hover:bg-gray-50 transition-all text-[11px] font-black uppercase tracking-wider text-ink shrink-0 cursor-pointer text-right w-full justify-between"
+                      >
+                        <span className="text-slate-600">Institution</span>
+                        <span className="p-1.5 bg-[#2481CC]/10 text-[#2481CC] rounded-xl flex items-center justify-center shrink-0">
+                          <GraduationCap size={15} />
+                        </span>
+                      </button>
+                      {/* Option 2: Create Group */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsCreateGroupModalOpen(true);
+                          setIsPlusMenuOpen(false);
+                        }}
+                        className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl shadow-xl hover:bg-gray-50 transition-all text-[11px] font-black uppercase tracking-wider text-ink shrink-0 cursor-pointer text-right w-full justify-between"
+                      >
+                        <span className="text-slate-600">Group Chat</span>
+                        <span className="p-1.5 bg-[#2481CC]/10 text-[#2481CC] rounded-xl flex items-center justify-center shrink-0">
+                          <Users size={15} />
+                        </span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <motion.button
+                  key="create-institution-fab"
+                  initial={{ scale: 0, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0, opacity: 0, y: 20 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                  onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
+                  className="h-12 w-12 rounded-full bg-gradient-to-tr from-[#2481CC] to-[#2DA5FF] text-white flex items-center justify-center shadow-lg shadow-blue-500/10 hover:scale-105 active:scale-95 transition-all outline-none cursor-pointer"
+                  title="Create Menu"
+                >
+                  <motion.div
+                    animate={{ rotate: isPlusMenuOpen ? 45 : 0 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  >
+                    <Plus size={22} />
+                  </motion.div>
+                </motion.button>
+              </div>
             )}
           </motion.div>
         )}
