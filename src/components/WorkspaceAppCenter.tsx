@@ -43,6 +43,7 @@ export interface AppCenterItem {
   version: string;
   size: string;
   featuresList?: string[];
+  appUrl?: string;
 }
 
 interface WorkspaceAppCenterProps {
@@ -72,6 +73,7 @@ export default function WorkspaceAppCenter({
   // Custom App Creation formulation
   const [newAppName, setNewAppName] = useState('');
   const [newAppDesc, setNewAppDesc] = useState('');
+  const [newAppUrl, setNewAppUrl] = useState('');
   const [newAppCat, setNewAppCat] = useState<'Productivity' | 'Media & Creative' | 'Assessment' | 'Utility' | 'Custom'>('Productivity');
   const [newAppIcon, setNewAppIcon] = useState('Code');
   const [newAppColor, setNewAppColor] = useState('blue-600');
@@ -207,11 +209,17 @@ export default function WorkspaceAppCenter({
       return;
     }
 
+    // Standardize URL protocol if needed
+    let sanitizedUrl = newAppUrl.trim();
+    if (sanitizedUrl && !/^https?:\/\//i.test(sanitizedUrl)) {
+      sanitizedUrl = 'https://' + sanitizedUrl;
+    }
+
     const newId = `custom-app-${Date.now()}`;
     const newApp: AppCenterItem = {
       id: newId,
       name: newAppName,
-      description: newAppDesc || 'Custom application placeholder registered for later development.',
+      description: newAppDesc || 'Custom application shortcut/platform.',
       category: newAppCat,
       iconName: newAppIcon,
       color: newAppColor,
@@ -220,9 +228,12 @@ export default function WorkspaceAppCenter({
       creator: 'Your Institution Labs',
       isDefault: false,
       isCustom: true,
-      version: 'v1.0.0 (Concept Sketch)',
-      size: '200 KB',
-      featuresList: ['Specs Registered', 'Custom Action Handlers', 'Placeholder Dashboard Layout']
+      version: sanitizedUrl ? 'v1.0.0 (Active Live URL Link)' : 'v1.0.0 (Concept Sketch)',
+      size: sanitizedUrl ? 'Direct Link' : '200 KB',
+      featuresList: sanitizedUrl 
+        ? ['Instantly launches live URL shortcut', 'Stand-alone mobile home screen shortcut ready', 'Zero-latency direct routing']
+        : ['Specs Registered', 'Custom Action Handlers', 'Placeholder Dashboard Layout'],
+      appUrl: sanitizedUrl || undefined
     };
 
     const updatedCatalog = [...customApps, newApp];
@@ -235,10 +246,11 @@ export default function WorkspaceAppCenter({
     // Reset Form
     setNewAppName('');
     setNewAppDesc('');
+    setNewAppUrl('');
     setNewAppIcon('Code');
     setNewAppColor('blue-600');
     setActiveTab('browse');
-    showNotification(`Custom concept app "${newAppName}" added & activated in Workspace!`, 'success');
+    showNotification(`Custom shortcut app "${newAppName}" added & activated in Workspace!`, 'success');
   };
 
   // Delete custom apps
@@ -646,6 +658,21 @@ export default function WorkspaceAppCenter({
                     />
                   </div>
 
+                  {/* App or Website URL */}
+                  <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
+                    <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center justify-between">
+                      <span>Direct Portal App or Website URL (Optional)</span>
+                      <span className="text-blue-500 font-extrabold normal-case">e.g. Google, Telegram, external page</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newAppUrl}
+                      onChange={(e) => setNewAppUrl(e.target.value)}
+                      placeholder="e.g. https://t.me/username, https://my-app.netlify.app or domain.com"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+
                   {/* Description */}
                   <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
                     <label className="text-[10px] font-black uppercase text-zinc-400">App Specs & Purpose Description</label>
@@ -755,7 +782,12 @@ export default function WorkspaceAppCenter({
                     <h4 className="font-extrabold text-zinc-950 text-base leading-tight">
                       {newAppName || 'Example App Title'}
                     </h4>
-                    <p className="text-[9px] font-extrabold text-zinc-400 uppercase tracking-widest leading-none mt-1">YOUR CAMPUS LABS</p>
+                    {newAppUrl && (
+                      <div className="mt-1 text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md inline-block w-max font-mono truncate max-w-full">
+                        link: {newAppUrl}
+                      </div>
+                    )}
+                    <p className="text-[9px] font-extrabold text-[#2481CC] uppercase tracking-widest leading-none mt-1">EXONASOFT SHIFT WORKSPACE</p>
                     <p className="text-xs text-zinc-500 leading-relaxed font-bold mt-2.5">
                       {newAppDesc || 'Define details, features, and specs in the left input fields to instantly mock draft. This concept app will immediately integrate into your workspace layout matrix.'}
                     </p>
