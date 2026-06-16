@@ -44,6 +44,7 @@ export interface AppCenterItem {
   size: string;
   featuresList?: string[];
   appUrl?: string;
+  iconUrl?: string;
 }
 
 interface WorkspaceAppCenterProps {
@@ -74,6 +75,7 @@ export default function WorkspaceAppCenter({
   const [newAppName, setNewAppName] = useState('');
   const [newAppDesc, setNewAppDesc] = useState('');
   const [newAppUrl, setNewAppUrl] = useState('');
+  const [newAppIconUrl, setNewAppIconUrl] = useState('');
   const [newAppCat, setNewAppCat] = useState<'Productivity' | 'Media & Creative' | 'Assessment' | 'Utility' | 'Custom'>('Productivity');
   const [newAppIcon, setNewAppIcon] = useState('Code');
   const [newAppColor, setNewAppColor] = useState('blue-600');
@@ -233,7 +235,8 @@ export default function WorkspaceAppCenter({
       featuresList: sanitizedUrl 
         ? ['Instantly launches live URL shortcut', 'Stand-alone mobile home screen shortcut ready', 'Zero-latency direct routing']
         : ['Specs Registered', 'Custom Action Handlers', 'Placeholder Dashboard Layout'],
-      appUrl: sanitizedUrl || undefined
+      appUrl: sanitizedUrl || undefined,
+      iconUrl: newAppIconUrl.trim() || undefined
     };
 
     const updatedCatalog = [...customApps, newApp];
@@ -247,6 +250,7 @@ export default function WorkspaceAppCenter({
     setNewAppName('');
     setNewAppDesc('');
     setNewAppUrl('');
+    setNewAppIconUrl('');
     setNewAppIcon('Code');
     setNewAppColor('blue-600');
     setActiveTab('browse');
@@ -406,8 +410,12 @@ export default function WorkspaceAppCenter({
                           <div className={`absolute top-0 left-0 w-2 h-full bg-${app.color}`} />
 
                           <div className="flex justify-between items-start gap-3 mb-6">
-                            <div className={`h-14 w-14 bg-gradient-to-tr from-${app.color.split('-')[0]}-100 to-${app.color.split('-')[0]}-50 text-${app.color} rounded-2xl flex items-center justify-center shadow-md shadow-${app.color.split('-')[0]}-300/10 shrink-0 group-hover:scale-105 transition-transform duration-300`}>
-                              <AppIcon size={26} strokeWidth={2.5} />
+                            <div className={`h-14 w-14 bg-gradient-to-tr from-${app.color.split('-')[0]}-100 to-${app.color.split('-')[0]}-50 text-${app.color} rounded-2xl flex items-center justify-center shadow-md shadow-${app.color.split('-')[0]}-300/10 shrink-0 group-hover:scale-105 transition-transform duration-300 overflow-hidden`}>
+                              {app.iconUrl ? (
+                                <img src={app.iconUrl} className="h-full w-full object-cover rounded-2xl" alt={app.name} referrerPolicy="no-referrer" />
+                              ) : (
+                                <AppIcon size={26} strokeWidth={2.5} />
+                              )}
                             </div>
 
                             {/* Stars rating and badge info */}
@@ -673,6 +681,24 @@ export default function WorkspaceAppCenter({
                     />
                   </div>
 
+                  {/* Icon Profile Picture / Image URL */}
+                  <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
+                    <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center justify-between">
+                      <span>App Profile Picture / Custom Icon Image URL (Optional)</span>
+                      <span className="text-indigo-500 font-extrabold normal-case">Displays as Phone Home Screen App Icon!</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newAppIconUrl}
+                      onChange={(e) => setNewAppIconUrl(e.target.value)}
+                      placeholder="Paste image URL (e.g. https://images.unsplash.com/...)"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                    <p className="text-[9px] text-zinc-400 mt-1 leading-normal font-medium normal-case">
+                      Paste any public image link (from Unsplash, Imgur, or direct uploads). When adding this shortcut link to your mobile home screen, browsers will use this profile picture as the app launcher icon!
+                    </p>
+                  </div>
+
                   {/* Description */}
                   <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
                     <label className="text-[10px] font-black uppercase text-zinc-400">App Specs & Purpose Description</label>
@@ -771,8 +797,12 @@ export default function WorkspaceAppCenter({
                     <div className={`absolute top-0 left-0 w-2 h-full bg-${newAppColor}`} />
                     
                     <div className="flex justify-between items-start gap-4 mb-6">
-                      <div className={`h-11 w-11 bg-white border border-gray-150 text-${newAppColor} rounded-xl flex items-center justify-center shadow-2xs`}>
-                        {React.createElement(getAppIcon(newAppIcon), { size: 20 })}
+                      <div className={`h-11 w-11 bg-white border border-gray-150 text-${newAppColor} rounded-xl flex items-center justify-center shadow-2xs overflow-hidden`}>
+                        {newAppIconUrl ? (
+                          <img src={newAppIconUrl} className="h-full w-full object-cover rounded-xl" alt="Preview Icon" referrerPolicy="no-referrer" />
+                        ) : (
+                          React.createElement(getAppIcon(newAppIcon), { size: 20 })
+                        )}
                       </div>
                       <span className="text-[8px] font-black uppercase tracking-wider bg-white border px-2 py-0.5 rounded-md text-zinc-500">
                         {newAppCat}
