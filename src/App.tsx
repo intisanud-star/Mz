@@ -11568,6 +11568,14 @@ function ExonaApp() {
   // WhatsApp-style automatic splash dismiss timer
   useEffect(() => {
     if (view === 'splash' && !splashDone) {
+      // Direct deep link bypass for immediate micro-app loading (Telegram state style!)
+      const urlParams = new URLSearchParams(window.location.search);
+      const directApp = urlParams.get('app') || urlParams.get('workspaceApp');
+      if (directApp) {
+        setSplashDone(true);
+        return;
+      }
+
       const timer = setTimeout(() => {
         setSplashDone(true);
       }, 2000); // 2 seconds auto-transition
@@ -30756,87 +30764,130 @@ function ExonaApp() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-zinc-950/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-0 z-[1000] bg-zinc-950/70 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
             onClick={() => setIsShortcutModalOpen(false)}
           >
             <motion.div
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl relative border border-gray-100"
+              className="bg-white rounded-[2.5rem] w-full max-w-xl overflow-hidden shadow-2xl relative border border-gray-100 my-8"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={() => setIsShortcutModalOpen(false)}
-                className="absolute top-5 right-5 h-8 w-8 hover:bg-gray-50 border border-transparent hover:border-gray-100 rounded-full flex items-center justify-center text-muted transition-colors cursor-pointer"
+                className="absolute top-6 right-6 h-9 w-9 bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 rounded-full flex items-center justify-center text-muted transition-all cursor-pointer z-10"
               >
                 <X size={16} />
               </button>
 
-              <div className="p-8 sm:p-10">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="h-14 w-14 rounded-2xl bg-[#2481CC]/10 text-[#2481CC] flex items-center justify-center shrink-0">
-                    {React.createElement(selectedShortcutApp.icon || LayoutGrid, { size: 28 })}
+              <div className="p-6 sm:p-8">
+                {/* Simulated Smartphone Screen Widget Preview - Showing EXACT, highly polished App Icon */}
+                <div className="mb-6 p-6 bg-gradient-to-b from-slate-900 to-slate-950 rounded-[2rem] border border-slate-800 shadow-inner relative overflow-hidden">
+                  <div className="absolute right-3 top-3 flex items-center gap-1.5 text-[8px] font-mono text-zinc-500 font-semibold uppercase tracking-wider select-none">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Live Phone Preview
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-black text-ink uppercase tracking-tight">{selectedShortcutApp.name}</h3>
-                      <span className="bg-green-100 text-green-800 text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Shortcut Ready</span>
+
+                  <div className="flex flex-col items-center justify-center py-4">
+                    {/* The EXACT App Icon being created */}
+                    <div className="relative group mb-3">
+                      <div className="absolute -inset-1 rounded-[1.6rem] bg-indigo-500/10 blur-md opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+                      <div className={`relative h-20 w-20 rounded-[1.4rem] flex items-center justify-center shadow-2xl transform hover:scale-105 transition-all duration-300 ${
+                        selectedShortcutApp.id === 'finance' 
+                          ? 'bg-gradient-to-tr from-emerald-600 via-teal-550 to-cyan-500' 
+                          : selectedShortcutApp.id === 'videos' 
+                          ? 'bg-gradient-to-tr from-rose-600 via-red-500 to-amber-500' 
+                          : 'bg-gradient-to-tr from-[#2481CC] to-blue-500'
+                      }`}>
+                        {/* Glossy overlay to look like a high-end application icon */}
+                        <div className="absolute inset-x-0 top-0 h-[40%] bg-white/10 rounded-t-[1.4rem] pointer-events-none"></div>
+                        {React.createElement(selectedShortcutApp.icon || LayoutGrid, { 
+                          size: 38, 
+                          className: "text-white drop-shadow-md" 
+                        })}
+                      </div>
                     </div>
-                    <p className="text-xs font-bold text-muted uppercase tracking-wider mt-0.5">Mobile Shortcut Generator</p>
+                    {/* Exact App Labeled Name */}
+                    <div className="text-center">
+                      <h4 className="text-white text-xs font-black uppercase tracking-widest">{selectedShortcutApp.name}</h4>
+                      <p className="text-[9px] font-mono font-bold text-zinc-400 mt-0.5 tracking-wider uppercase">Standalone Micro-App</p>
+                    </div>
+                  </div>
+
+                  {/* Dock / Grid Simulator Background Elements */}
+                  <div className="border-t border-slate-800/60 pt-3 flex justify-around opacity-40 select-none">
+                    <div className="h-6 w-6 rounded-md bg-slate-800 flex items-center justify-center"><Smartphone size={10} className="text-slate-500" /></div>
+                    <div className="h-6 w-6 rounded-md bg-slate-800 flex items-center justify-center"><Bell size={10} className="text-slate-500" /></div>
+                    <div className="h-6 w-6 rounded-md bg-slate-800 flex items-center justify-center"><Menu size={10} className="text-slate-500" /></div>
                   </div>
                 </div>
 
-                <p className="text-xs text-muted leading-relaxed font-semibold mb-6">
-                  Create a home screen shortcut on your smartphone to launch <strong className="text-ink">{selectedShortcutApp.name}</strong> as a dedicated standalone app, just like launching from Telegram or Chrome.
-                </p>
+                {/* Ecosystem explanation (Telegram Style) */}
+                <div className="mb-6 p-4 bg-sky-50/50 rounded-2xl border border-sky-100/40 text-[11px] leading-relaxed">
+                  <div className="flex items-center gap-2 text-sky-700 font-bold uppercase tracking-wider mb-1.5">
+                    <span>🤖 Telegram-Style Integration</span>
+                    <span className="bg-sky-100 text-sky-800 text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Container-Isolated</span>
+                  </div>
+                  <p className="text-slate-600 font-semibold">
+                    Just like launching a dedicated bot inside Telegram, this home-screen shortcut directs your device to bypass the standard feeds and open <strong className="text-slate-900">{selectedShortcutApp.name}</strong> as an insulated fullscreen workspace.
+                  </p>
+                </div>
 
-                <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 mb-6 flex items-start gap-3">
-                  <Smartphone size={18} className="text-[#2481CC] shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">Generated Shortcut Link</span>
-                    <div className="font-mono text-[10px] text-[#2481CC] font-bold truncate select-all">{selectedShortcutApp.deepLinkUrl}</div>
+                {/* Critical Browser Instruction */}
+                <div className="mb-6 p-4 bg-amber-50/50 rounded-2xl border border-amber-100/40 text-[11px] leading-relaxed">
+                  <div className="flex items-center gap-2 text-amber-700 font-bold uppercase tracking-wider mb-1.5">
+                    <span>⚠️ Direct Browser Required</span>
+                  </div>
+                  <p className="text-slate-600 font-semibold mb-2">
+                    Shortcut addition requires a <strong className="text-slate-900">native mobile browser</strong>. If you are inside an in-app frame (such as Slack, Telegram, or AI Studio preview), you must switch to Google Chrome or Safari to proceed.
+                  </p>
+                  <div className="flex select-all items-center gap-2 bg-white/70 px-3 py-2 rounded-xl text-[10px] font-mono text-amber-900 border border-amber-200/40 truncate">
+                    <span>Launcher URL:</span>
+                    <strong className="truncate font-semibold text-indigo-700">{selectedShortcutApp.deepLinkUrl}</strong>
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <div className="border-t border-gray-100 pt-4">
+                {/* Operating System Instructions */}
+                <div className="space-y-4 mb-6">
+                  <div className="border-t border-gray-100 pt-5">
                     <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Install Instructions</h4>
                     
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col p-3.5 bg-sky-50/40 rounded-2xl border border-sky-100/50">
-                        <span className="text-sky-600 mb-2 font-black text-xs leading-none">Chrome</span>
-                        <span className="text-[10px] font-black text-sky-900 uppercase tracking-wider mb-1">Android Chrome</span>
-                        <ol className="text-[10px] text-sky-800/80 font-bold list-decimal pl-3 space-y-1">
-                          <li>Tap menu icon (three dots)</li>
-                          <li>Select "Add to Home Screen"</li>
-                          <li>Enter name & tap "Add"</li>
+                      <div className="flex flex-col p-4 bg-slate-50 hover:bg-slate-100/40 rounded-2xl border border-gray-100 transition-colors">
+                        <span className="text-sky-600 mb-2 font-black text-xs leading-none">Android Chrome</span>
+                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-2">Google Chrome</span>
+                        <ol className="text-[10px] text-slate-600 font-semibold list-decimal pl-3 space-y-1.5 leading-snug">
+                          <li>Tap three-dot menu</li>
+                          <li>Select <strong className="text-ink">"Add to Home Screen"</strong></li>
+                          <li>Tap "Add" & launch from your launcher!</li>
                         </ol>
                       </div>
 
-                      <div className="flex flex-col p-3.5 bg-indigo-50/40 rounded-2xl border border-indigo-100/50">
-                        <span className="text-indigo-600 mb-2 font-black text-xs leading-none">Safari</span>
-                        <span className="text-[10px] font-black text-indigo-900 uppercase tracking-wider mb-1">iOS Safari</span>
-                        <ol className="text-[10px] text-indigo-800/80 font-bold list-decimal pl-3 space-y-1">
-                          <li>Tap Share button</li>
-                          <li>Select "Add to Home Screen"</li>
-                          <li>Confirm by tapping "Add"</li>
+                      <div className="flex flex-col p-4 bg-slate-50 hover:bg-slate-100/40 rounded-2xl border border-gray-100 transition-colors">
+                        <span className="text-indigo-600 mb-2 font-black text-xs leading-none">iOS Safari</span>
+                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-2">Apple Safari</span>
+                        <ol className="text-[10px] text-slate-600 font-semibold list-decimal pl-3 space-y-1.5 leading-snug">
+                          <li>Tap the browser Share button</li>
+                          <li>Select <strong className="text-ink">"Add to Home Screen"</strong></li>
+                          <li>Tap "Add" on the top right!</li>
                         </ol>
                       </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Primary Action Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(selectedShortcutApp.deepLinkUrl);
-                      showNotification('Shortcut deep link copied to clipboard!', 'success');
+                      showNotification(`Direct link for ${selectedShortcutApp.name} copied to clipboard! Paste in Chrome/Safari to save.`, 'success');
                     }}
-                    className="flex-1 py-4 bg-ink text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-black/10 text-xs text-center"
+                    className="flex-1 py-4 bg-ink text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-black/10 text-xs text-center"
                   >
                     <Copy size={13} />
-                    Copy Shortcut Link
+                    Copy Launcher URL
                   </button>
                   <button
                     onClick={() => {
@@ -30862,7 +30913,7 @@ function ExonaApp() {
                       }
                       setIsShortcutModalOpen(false);
                     }}
-                    className="flex-1 py-4 bg-sky-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-600/10 text-xs text-center"
+                    className="flex-1 py-4 bg-[#2481CC] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-600/10 text-xs text-center"
                   >
                     <Smartphone size={13} />
                     Pin to Simulator Dock
