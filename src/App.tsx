@@ -8700,6 +8700,7 @@ function ExonaApp() {
   }, [selectedClassroom?.id, selectedClassroom?.students?.join(',')]);
 
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+  const [isMiddleMenuOpen, setIsMiddleMenuOpen] = useState(false);
   const unreadNotificationsCount = useMemo(() => notifications.filter(n => !n.isRead).length, [notifications]);
   const unreadMessagesCount = useMemo(() => {
     if (!user) return 0;
@@ -15959,21 +15960,21 @@ function ExonaApp() {
         ];
 
         return (
-          <div className="min-h-full bg-[#0c0f16] text-[#e1e4ea] flex flex-col font-sans select-none pb-8 relative overflow-y-auto no-scrollbar">
+          <div className="min-h-full bg-white text-zinc-900 flex flex-col font-sans select-none pb-8 relative overflow-y-auto no-scrollbar">
             
-            {/* Top Navigation Frame - Beautiful Luxury GTBank Dark themed Head */}
-            <div className="flex items-center justify-between px-6 py-5 bg-[#0e121d] border-b border-zinc-800/80 sticky top-0 z-40 shadow-md">
+            {/* Top Navigation Frame - Beautiful Luxury GTBank White themed Head */}
+            <div className="flex items-center justify-between px-6 py-5 bg-white border-b border-zinc-200/80 sticky top-0 z-40 shadow-xs">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setView('workspace')}
-                  className="h-10 w-10 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="h-10 w-10 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-center text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 transition-colors cursor-pointer shrink-0"
                   title="Back to Workspace"
                 >
                   <ArrowLeft size={18} className="text-[#2481CC]" />
                 </button>
                 <button 
                   onClick={() => setIsAccountSwitcherOpen(true)}
-                  className="h-10 w-10 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 hover:text-white transition-colors"
+                  className="h-10 w-10 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-center text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 transition-colors"
                   title="Switch Account"
                 >
                   <RefreshCw size={18} className="text-[#2481CC] animate-pulse" />
@@ -15983,20 +15984,20 @@ function ExonaApp() {
                     <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Hi, {capitalizedName}</p>
                     <ChevronDown size={11} className="text-[#2481CC]" />
                   </div>
-                  <h4 className="text-xs font-black text-white leading-tight flex items-center gap-1 uppercase tracking-tight">
+                  <h4 className="text-xs font-black text-zinc-900 leading-tight flex items-center gap-1 uppercase tracking-tight">
                     {activeAccount.name}
                   </h4>
                 </div>
               </div>
 
               {/* Active Ledger Live badge */}
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-[#10b981]/10 text-[#10b981] rounded-full border border-[#10b981]/20 select-none">
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 select-none">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span className="text-[9px] font-black uppercase tracking-widest font-mono">Ledger Live</span>
               </div>
 
               {/* Signature GTBank / GTCO logo with a white square on an orange box */}
-              <div className="h-11 w-11 bg-[#2481CC] rounded-xl flex items-center justify-center shadow-lg relative shrink-0">
+              <div className="h-11 w-11 bg-[#2481CC] rounded-xl flex items-center justify-center shadow-md relative shrink-0">
                 <div className="h-[18px] w-[18px] bg-white rounded-[4px] absolute top-1.5 right-1.5 flex items-center justify-center">
                   <div className="h-2 w-2 bg-[#2481CC] rounded-sm" />
                 </div>
@@ -16007,7 +16008,7 @@ function ExonaApp() {
             {/* Moniepoint Switch Account Menu Drawer/Bottom Sheet Overlay */}
             <AnimatePresence>
               {isAccountSwitcherOpen && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[210] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[210] flex items-end sm:items-center justify-center p-0 sm:p-4">
                   <div 
                     className="absolute inset-0" 
                     onClick={() => setIsAccountSwitcherOpen(false)} 
@@ -16016,16 +16017,16 @@ function ExonaApp() {
                     initial={{ y: 200, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 200, opacity: 0 }}
-                    className="w-full sm:max-w-md bg-[#131722] border-t sm:border border-zinc-800 rounded-t-[2rem] sm:rounded-[2rem] p-6 text-white relative z-50 shadow-2xl"
+                    className="w-full sm:max-w-md bg-white border-t sm:border border-zinc-200 rounded-t-[2rem] sm:rounded-[2rem] p-6 text-zinc-900 relative z-50 shadow-2xl"
                   >
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h3 className="text-lg font-black tracking-tight text-[#2481CC]">Switch Banking Profile</h3>
-                        <p className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest mt-0.5">Instant switching powered by Moniepoint</p>
+                        <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest mt-0.5">Instant switching powered by Moniepoint</p>
                       </div>
                       <button 
                         onClick={() => setIsAccountSwitcherOpen(false)}
-                        className="h-8 w-8 bg-zinc-900 text-zinc-400 hover:text-white rounded-lg flex items-center justify-center"
+                        className="h-8 w-8 bg-zinc-100 text-zinc-650 hover:bg-zinc-200 hover:text-zinc-900 rounded-lg flex items-center justify-center"
                       >
                         <X size={16} />
                       </button>
@@ -16040,11 +16041,11 @@ function ExonaApp() {
                             onClick={() => selectAccountById(acc.id)}
                             className={`w-full flex items-center gap-4 p-4 rounded-2xl text-left border transition-all ${
                               isCurrent 
-                                ? 'bg-[#2481CC]/10 border-[#2481CC] text-white shadow-lg shadow-[#2481CC]/5' 
-                                : 'bg-[#181d2d]/80 border-transparent hover:border-zinc-800 text-zinc-300'
+                                ? 'bg-blue-50/70 border-[#2481CC] text-zinc-900 shadow-md shadow-blue-50/10' 
+                                : 'bg-zinc-50 border-zinc-200 hover:border-zinc-300 text-zinc-700'
                             }`}
                           >
-                            <div className="h-10 w-10 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 shrink-0 overflow-hidden">
+                            <div className="h-10 w-10 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-zinc-500 shrink-0 overflow-hidden">
                               {acc.logo ? (
                                 <img src={acc.logo} className="h-full w-full object-cover" />
                               ) : (
@@ -16052,15 +16053,15 @@ function ExonaApp() {
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-black uppercase tracking-wide truncate">{acc.name}</p>
-                                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mt-0.5">
+                                <p className="text-xs font-black uppercase tracking-wide truncate text-zinc-900">{acc.name}</p>
+                                <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mt-0.5">
                                   {acc.type} • {acc.accNo}
                                 </p>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-xs font-black text-white">{acc.currency}{acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                              <p className="text-xs font-black text-zinc-900">{acc.currency}{acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                               {isCurrent && (
-                                <span className="text-[9px] font-black uppercase text-[#2481CC] bg-[#2481CC]/20 px-2 py-0.5 rounded-full mt-1 inline-block">
+                                <span className="text-[9px] font-black uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mt-1 inline-block">
                                   Active
                                 </span>
                               )}
@@ -16074,47 +16075,47 @@ function ExonaApp() {
               )}
             </AnimatePresence>
 
-            {/* Savings Balance Card with Swipe Arrows */}
+            {/* Savings Balance Card with Swipe Arrows - Exquisite light theme styling */}
             <div className="p-6">
-              <div className="relative bg-gradient-to-br from-[#2481CC] via-[#1E6EA9] to-[#0F4E7A] rounded-3xl p-6 overflow-hidden text-white shadow-2xl shadow-[#2481CC]/15 min-h-[170px] flex flex-col justify-between border border-white/10">
-                <div className="absolute top-0 right-0 p-8 opacity-5 scale-150 rotate-12 pointer-events-none">
+              <div className="relative bg-white border border-zinc-200 rounded-[2rem] p-6 overflow-hidden text-zinc-900 shadow-md min-h-[170px] flex flex-col justify-between">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] scale-150 rotate-12 pointer-events-none">
                   <Wallet size={120} />
                 </div>
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/70">SAVINGS ACCOUNT</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-400">SAVINGS ACCOUNT</span>
                     <button 
                       onClick={() => setHideMainBalance(!hideMainBalance)}
-                      className="h-8 w-8 bg-black/20 hover:bg-black/30 text-white rounded-full flex items-center justify-center transition-colors border border-white/5"
+                      className="h-8 w-8 bg-zinc-50 hover:bg-zinc-100 text-zinc-500 rounded-full flex items-center justify-center transition-colors border border-zinc-200"
                     >
                       {hideMainBalance ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-white/90">{activeAccount.currency}</span>
-                    <h2 className="text-3xl font-black tracking-tight leading-none text-white">
+                    <span className="text-xl font-bold text-[#2481CC]">{activeAccount.currency}</span>
+                    <h2 className="text-4xl font-extrabold tracking-tight leading-none text-zinc-900">
                       {hideMainBalance ? '•••••••' : activeAccount.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h2>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-4">
+                <div className="flex items-center justify-between border-t border-zinc-100 pt-4 mt-4">
                   <div>
-                    <span className="text-[9px] font-bold text-white/60 block uppercase tracking-wider">Book Balance</span>
-                    <span className="text-xs font-black">
+                    <span className="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Book Balance</span>
+                    <span className="text-xs font-black text-zinc-700">
                       {activeAccount.currency} {hideMainBalance ? '•••••••' : activeAccount.bookBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                   
                   {/* Swiper Arrow Swipe Controls - Acc. 1 of X */}
-                  <div className="flex items-center gap-3 bg-black/25 px-3 py-1.5 rounded-2xl border border-white/5 shadow-inner">
-                    <button onClick={handlePrevAccount} className="hover:text-[#2481CC] text-white/80 transition-colors p-0.5" title="Previous Account">
+                  <div className="flex items-center gap-3 bg-zinc-50 px-3 py-1.5 rounded-2xl border border-zinc-200 shadow-xs">
+                    <button onClick={handlePrevAccount} className="text-zinc-500 hover:text-[#2481CC] transition-colors p-0.5 rounded-full hover:bg-zinc-100" title="Previous Account">
                       <ChevronLeft size={16} />
                     </button>
-                    <span className="text-[10px] font-black tracking-wider text-white">
+                    <span className="text-[10px] font-black tracking-wider text-zinc-700">
                       {activeIdx + 1} / {accountsList.length}
                     </span>
-                    <button onClick={handleNextAccount} className="hover:text-[#2481CC] text-white/80 transition-colors p-0.5" title="Next Account">
+                    <button onClick={handleNextAccount} className="text-zinc-500 hover:text-[#2481CC] transition-colors p-0.5 rounded-full hover:bg-zinc-100" title="Next Account">
                       <ChevronRight size={16} />
                     </button>
                   </div>
@@ -16125,13 +16126,13 @@ function ExonaApp() {
             {/* Search Bar section */}
             <div className="px-6 pb-2">
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
                   <Search size={16} />
                 </span>
                 <input 
                   type="text" 
                   placeholder="Search transactions, transfers, bills..."
-                  className="w-full pl-11 pr-4 py-3 bg-[#131722] border border-zinc-850 rounded-2xl text-xs font-semibold text-zinc-200 placeholder-zinc-500 outline-none focus:border-[#2481CC]/60 transition-all shadow-inner"
+                  className="w-full pl-11 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-semibold text-zinc-800 placeholder-zinc-400 outline-none focus:border-[#2481CC]/60 focus:bg-white transition-all shadow-inner"
                 />
               </div>
             </div>
@@ -16144,12 +16145,12 @@ function ExonaApp() {
                   <button
                     key={act.id}
                     onClick={act.action}
-                    className="flex flex-col items-center justify-center p-3 bg-[#131722] hover:bg-[#181d2c] border border-zinc-850 text-zinc-300 rounded-2xl hover:text-white transition-all shadow-md group relative h-20 active:scale-95"
+                    className="flex flex-col items-center justify-center p-3 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 rounded-2xl transition-all shadow-xs group relative h-20 active:scale-95"
                   >
-                    <div className="h-9 w-9 bg-zinc-900 border border-zinc-800 rounded-xl flex items-center justify-center mb-1.5 text-[#2481CC] shrink-0 group-hover:scale-110 transition-transform">
+                    <div className="h-9 w-9 bg-zinc-50 border border-zinc-100 rounded-xl flex items-center justify-center mb-1.5 text-[#2481CC] shrink-0 group-hover:scale-110 transition-transform">
                       <IconComp size={18} strokeWidth={2.5} />
                     </div>
-                    <span className="text-[9px] font-black uppercase text-center tracking-tight leading-none text-zinc-400 group-hover:text-white truncate w-full px-0.5">
+                    <span className="text-[9px] font-extrabold uppercase text-center tracking-tight leading-none text-zinc-500 group-hover:text-zinc-900 truncate w-full px-0.5">
                       {act.label}
                     </span>
                   </button>
@@ -16160,17 +16161,17 @@ function ExonaApp() {
             {/* Interactive Dynamic Overlays / Drawers for Custom Services */}
             <AnimatePresence>
               {activeGTService && (
-                <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-md z-[200] flex items-center justify-center p-6">
                   <div className="absolute inset-0" onClick={() => setActiveGTService(null)} />
                   <motion.div 
                     initial={{ scale: 0.95, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.95, opacity: 0 }}
-                    className="w-full max-w-sm bg-[#131722] border border-zinc-800 rounded-[2rem] p-6 text-white relative z-50 shadow-2xl"
+                    className="w-full max-w-sm bg-white border border-zinc-200 rounded-[2rem] p-6 text-zinc-900 relative z-50 shadow-2xl"
                   >
                     <button 
                       onClick={() => setActiveGTService(null)} 
-                      className="absolute top-5 right-5 h-8 w-8 bg-zinc-900 text-zinc-400 hover:text-white rounded-lg flex items-center justify-center"
+                      className="absolute top-5 right-5 h-8 w-8 bg-zinc-100 text-zinc-500 hover:text-zinc-800 rounded-lg flex items-center justify-center"
                     >
                       <X size={16} />
                     </button>
@@ -16182,13 +16183,13 @@ function ExonaApp() {
                           <UserIcon size={36} />
                         </div>
                         <div>
-                          <h4 className="text-base font-black uppercase">Mrs. Bunmi Alao</h4>
+                          <h4 className="text-base font-black uppercase text-zinc-900">Mrs. Bunmi Alao</h4>
                           <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">GTBank Account Manager</p>
                         </div>
-                        <div className="p-4 bg-zinc-900/60 border border-zinc-850 rounded-2xl text-left space-y-2.5">
-                          <p className="text-xs font-semibold text-zinc-300">📞 Phone: <span className="font-mono text-white text-[13px] ml-1">+234 803 219 9845</span></p>
-                          <p className="text-xs font-semibold text-zinc-300">✉ Email: <span className="font-mono text-white text-[13px] ml-1">bunmi.alao@gtco.com</span></p>
-                          <p className="text-xs font-semibold text-zinc-300">📍 Branch: <span className="text-white text-[13px] ml-1">Victoria Island Hub</span></p>
+                        <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-left space-y-2.5">
+                          <p className="text-xs font-semibold text-zinc-600">📞 Phone: <span className="font-mono text-zinc-900 text-[13px] ml-1 font-bold">+234 803 219 9845</span></p>
+                          <p className="text-xs font-semibold text-zinc-600">✉ Email: <span className="font-mono text-zinc-900 text-[13px] ml-1 font-bold">bunmi.alao@gtco.com</span></p>
+                          <p className="text-xs font-semibold text-zinc-600">📍 Branch: <span className="text-zinc-900 text-[13px] ml-1 font-bold">Victoria Island Hub</span></p>
                         </div>
                         <button 
                           onClick={() => {
@@ -16207,7 +16208,7 @@ function ExonaApp() {
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
                           <Clock className="text-[#2481CC]" size={20} />
-                          <h4 className="text-sm font-black uppercase tracking-wider">Transaction History</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900 font-bold">Transaction History</h4>
                         </div>
                         <div className="space-y-2.5 max-h-[40vh] overflow-y-auto no-scrollbar pr-1">
                           {[
@@ -16217,14 +16218,14 @@ function ExonaApp() {
                             { title: 'Web Subscription Payment', date: 'June 09', price: '-₦18,200.00', success: true },
                             { title: 'Self Deposit Wallet', date: 'June 02', price: '+₦5,000.00', success: true }
                           ].map((t, idx) => (
-                            <div key={idx} className="p-3 bg-zinc-900 border border-zinc-850 rounded-xl flex items-center justify-between">
+                            <div key={idx} className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between">
                               <div>
-                                <p className="text-[11px] font-black uppercase tracking-tight text-white">{t.title}</p>
-                                <p className="text-[9px] font-semibold text-zinc-500 uppercase mt-0.5">{t.date}</p>
+                                <p className="text-[11px] font-black uppercase tracking-tight text-zinc-900">{t.title}</p>
+                                <p className="text-[9px] font-semibold text-zinc-400 uppercase mt-0.5">{t.date}</p>
                               </div>
                               <div className="text-right">
-                                <p className={`text-xs font-black ${t.price.startsWith('+') ? 'text-green-500' : 'text-zinc-200'}`}>{t.price}</p>
-                                <span className="text-[8px] font-bold text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded uppercase font-mono mt-0.5 inline-block">SUCCESS</span>
+                                <p className={`text-xs font-black ${t.price.startsWith('+') ? 'text-green-600 font-extrabold' : 'text-zinc-800 font-bold'}`}>{t.price}</p>
+                                <span className="text-[8px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded uppercase font-mono mt-0.5 inline-block">SUCCESS</span>
                               </div>
                             </div>
                           ))}
@@ -16239,17 +16240,17 @@ function ExonaApp() {
                           <Gift size={32} />
                         </div>
                         <div>
-                          <h4 className="text-md font-black uppercase tracking-wide">Refer & Earn Real Cash</h4>
-                          <p className="text-xs text-zinc-400 mt-1">Get ₦1,500 cash reward instantly for every user you invite to Exona Wallet.</p>
+                          <h4 className="text-md font-black uppercase tracking-wide text-zinc-900">Refer & Earn Real Cash</h4>
+                          <p className="text-xs text-zinc-500 mt-1">Get ₦1,500 cash reward instantly for every user you invite to Exona Wallet.</p>
                         </div>
-                        <div className="p-4 bg-zinc-900 rounded-2xl border border-zinc-850 text-left">
-                          <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mb-1.5">Your Referral Link</p>
+                        <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-200 text-left">
+                          <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mb-1.5">Your Referral Link</p>
                           <div className="flex items-center justify-between gap-2">
                             <input 
                               type="text" 
                               readOnly 
                               value={`https://exona.io/join?ref=${user.uid.slice(0, 6)}`} 
-                              className="bg-transparent text-xs font-semibold overflow-hidden text-[#2481CC] outline-none flex-1 truncate"
+                              className="bg-transparent text-xs font-semibold overflow-hidden text-[#2481CC] outline-none flex-1 truncate font-mono font-bold"
                             />
                             <button 
                               onClick={() => {
@@ -16270,11 +16271,11 @@ function ExonaApp() {
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
                           <Coins className="text-[#2481CC]" size={20} />
-                          <h4 className="text-sm font-black uppercase tracking-wider">GTBank Instant Credit</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900">GTBank Instant Credit</h4>
                         </div>
-                        <p className="text-xs text-zinc-400 leading-relaxed">Select payday loan size. Approved funds are deposited instantly.</p>
+                        <p className="text-xs text-zinc-500 leading-relaxed">Select payday loan size. Approved funds are deposited instantly.</p>
                         
-                        <div className="p-4 bg-zinc-900 border border-zinc-850 rounded-2xl space-y-4">
+                        <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl space-y-4">
                           <div className="flex justify-between items-center">
                             <span className="text-[10px] text-zinc-400 font-bold uppercase">Requested Amount</span>
                             <span className="text-sm font-black text-[#2481CC]">₦{loanAmount.toLocaleString()}</span>
@@ -16287,10 +16288,10 @@ function ExonaApp() {
                             step="25000"
                             value={loanAmount} 
                             onChange={(e) => setLoanAmount(parseInt(e.target.value))}
-                            className="w-full accent-[#2481CC] h-1 bg-zinc-800 rounded-lg cursor-pointer"
+                            className="w-full accent-[#2481CC] h-1 bg-zinc-200 rounded-lg cursor-pointer"
                           />
 
-                          <div className="flex justify-between items-center text-[9px] text-zinc-500 font-bold uppercase">
+                          <div className="flex justify-between items-center text-[9px] text-zinc-400 font-bold uppercase">
                             <span>₦50k</span>
                             <span>Max: ₦500k Eligibility</span>
                           </div>
@@ -16318,7 +16319,7 @@ function ExonaApp() {
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
                           <CreditCard className="text-[#2481CC]" size={20} />
-                          <h4 className="text-sm font-black uppercase tracking-wider font-mono">My Global Cards</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider font-mono text-zinc-900">My Global Cards</h4>
                         </div>
 
                         {/* Physical Mastercard graphics representation */}
@@ -16351,9 +16352,9 @@ function ExonaApp() {
                           </div>
                         </div>
 
-                        <div className="space-y-2.5 bg-zinc-900 p-4 border border-zinc-850 rounded-2xl">
+                        <div className="space-y-2.5 bg-zinc-50 p-4 border border-zinc-200 rounded-2xl">
                           <div className="flex items-center justify-between text-xs">
-                            <span className="text-zinc-400 font-semibold">Freeze Card Status</span>
+                            <span className="text-zinc-500 font-semibold">Freeze Card Status</span>
                             <button 
                               onClick={() => showNotification('Card Lock State updated')}
                               className="px-2.5 py-1 bg-[#2481CC]/10 border border-[#2481CC]/20 text-[#2481CC] rounded text-[10px] font-bold uppercase tracking-wider"
@@ -16368,22 +16369,22 @@ function ExonaApp() {
                     {/* PAY WITH QR */}
                     {activeGTService === 'qr' && (
                       <div className="text-center space-y-4 pt-4">
-                        <div className="h-44 w-full bg-zinc-950 rounded-2xl border-2 border-zinc-800 relative flex items-center justify-center overflow-hidden">
+                        <div className="h-44 w-full bg-zinc-950 rounded-2xl border-2 border-zinc-850 relative flex items-center justify-center overflow-hidden">
                           {/* Green scanning focus frame */}
                           <div className="h-28 w-28 border-2 border-dashed border-[#2481CC] rounded-xl relative animate-pulse flex items-center justify-center">
                             <div className="absolute inset-2 border border-zinc-800 rounded bg-white/5" />
                           </div>
                         </div>
                         <div>
-                          <h4 className="text-base font-black uppercase">Pay Merchant QR</h4>
-                          <p className="text-xs text-zinc-400 mt-1">Point your camera block at any GTBank or eNaira QR stand to authorize instant transfers.</p>
+                          <h4 className="text-base font-black uppercase text-zinc-900">Pay Merchant QR</h4>
+                          <p className="text-xs text-zinc-500 mt-1">Point your camera block at any GTBank or eNaira QR stand to authorize instant transfers.</p>
                         </div>
                         <button 
                           onClick={() => {
                             showNotification('Scan completed. No invoice detected');
                             setActiveGTService(null);
                           }}
-                          className="w-full py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-850 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                          className="w-full py-3 bg-zinc-50 border border-zinc-200 text-zinc-750 hover:bg-zinc-100 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
                         >
                           Manual Input Code
                         </button>
@@ -16395,9 +16396,9 @@ function ExonaApp() {
                       <div className="space-y-4 pt-2">
                         <div className="flex items-center gap-3">
                           <TrendingUp className="text-[#2481CC]" size={20} />
-                          <h4 className="text-sm font-black uppercase tracking-wider">GT World Vault Yield</h4>
+                          <h4 className="text-sm font-black uppercase tracking-wider text-zinc-900">GT World Vault Yield</h4>
                         </div>
-                        <p className="text-xs text-zinc-400 leading-relaxed">Lock your idle balance and earn daily compound yields at 12.5% APY.</p>
+                        <p className="text-xs text-zinc-500 leading-relaxed">Lock your idle balance and earn daily compound yields at 12.5% APY.</p>
                         
                         <div className="space-y-3">
                           <div>
@@ -16407,14 +16408,14 @@ function ExonaApp() {
                               placeholder="0.00" 
                               value={savingsAmount}
                               onChange={(e) => setSavingsAmount(e.target.value)}
-                              className="w-full px-4 py-3 bg-zinc-900 border border-zinc-850 rounded-xl text-sm font-bold text-white outline-none focus:border-[#2481CC]"
+                              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-bold text-zinc-900 outline-none focus:border-[#2481CC]"
                             />
                           </div>
 
-                          <div className="p-3.5 bg-zinc-900 border border-zinc-850 rounded-xl flex justify-between items-center">
+                          <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl flex justify-between items-center">
                             <div>
                               <span className="text-[9px] text-zinc-500 font-semibold block uppercase">Estimated Year Yield</span>
-                              <span className="text-xs font-black text-green-400">₦{parseFloat(savingsAmount || '0') * 0.125}</span>
+                              <span className="text-xs font-black text-green-600">₦{parseFloat(savingsAmount || '0') * 0.125}</span>
                             </div>
                             <span className="text-[8px] font-black uppercase bg-[#2481CC]/10 text-[#2481CC] px-2 py-1 rounded">12.5% APY</span>
                           </div>
@@ -16441,8 +16442,8 @@ function ExonaApp() {
                           <Cpu size={32} />
                         </div>
                         <div>
-                          <h4 className="text-base font-black uppercase tracking-wide">{quickActions.find(q => q.id === activeGTService)?.label || 'Service Hub'}</h4>
-                          <p className="text-xs text-zinc-400 mt-1">This GTBank channel is fully simulated. Operations are optimized internally.</p>
+                          <h4 className="text-base font-black uppercase tracking-wide text-zinc-900">{quickActions.find(q => q.id === activeGTService)?.label || 'Service Hub'}</h4>
+                          <p className="text-xs text-zinc-500 mt-1">This GTBank channel is fully simulated. Operations are optimized internally.</p>
                         </div>
                         <button 
                           onClick={() => setActiveGTService(null)} 
@@ -30139,8 +30140,68 @@ function ExonaApp() {
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
             className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-200/70 h-[54px] flex items-center justify-center w-full no-print select-none"
           >
-            <div className="w-full max-w-lg h-full flex items-center justify-around">
-              {/* Icon 1: Home */}
+            <div className="w-full max-w-lg h-full flex items-center justify-around relative">
+              
+              {/* Floating Workspace & Tools submenu above Middle Button */}
+              <AnimatePresence>
+                {isMiddleMenuOpen && (
+                  <>
+                    {/* Tiny transparent clickaway overlay */}
+                    <div 
+                      className="fixed inset-0 z-40 bg-transparent no-print cursor-default" 
+                      onClick={() => setIsMiddleMenuOpen(false)}
+                    />
+                    
+                    {/* Modern sub-icons popover container */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
+                      animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
+                      exit={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
+                      transition={{ type: 'spring', damping: 20, stiffness: 300 }}
+                      className="absolute bottom-[60px] left-1/2 z-50 bg-white border border-zinc-200/90 rounded-[1.5rem] p-3 shadow-xl flex items-center gap-4 no-print min-w-[200px]"
+                    >
+                      {/* Sub-icon 1: Workspace */}
+                      <button
+                        onClick={() => {
+                          setActiveChat(null);
+                          setView('workspace');
+                          setIsMiddleMenuOpen(false);
+                        }}
+                        className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
+                          view === 'workspace' ? 'bg-zinc-50 text-[#2481CC] font-bold' : 'text-zinc-650 hover:bg-zinc-50 hover:text-zinc-950'
+                        }`}
+                      >
+                        <div className="h-8 w-8 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-lg mb-1 shadow-xs">
+                          <LayoutGrid size={16} />
+                        </div>
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none">Workspace</span>
+                      </button>
+
+                      {/* Divider */}
+                      <div className="h-8 w-[1px] bg-zinc-200" />
+
+                      {/* Sub-icon 2: Tools */}
+                      <button
+                        onClick={() => {
+                          setActiveChat(null);
+                          setView('tools');
+                          setIsMiddleMenuOpen(false);
+                        }}
+                        className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
+                          view === 'tools' ? 'bg-zinc-50 text-[#2481CC] font-bold' : 'text-zinc-650 hover:bg-zinc-50 hover:text-zinc-950'
+                        }`}
+                      >
+                        <div className="h-8 w-8 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-lg mb-1 shadow-xs">
+                          <Cpu size={16} />
+                        </div>
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none">Tools</span>
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+
+              {/* Icon 1: Home (Pristine High-Clarity SVGs) */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -30149,13 +30210,13 @@ function ExonaApp() {
                 className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 animate-in fade-in zoom-in-95 duration-200"
               >
                 {view === 'feed' || view === 'schools' ? (
-                  <svg className="w-[24px] h-[24px] text-zinc-950" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M22 11h-2v8a1 1 0 01-1 1h-4v-5h-2v5H9a1 1 0 01-1-1v-8H6a1 1 0 01-.76-1.65l6-7a1 1 0 011.52 0l6 7A1 1 0 0122 11z" />
+                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 20C20 21.1046 19.1046 22 18 22H14V14H10V22H6C4.89543 22 4 21.1046 4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20Z" />
                   </svg>
                 ) : (
-                  <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" />
+                  <svg className="w-[24px] h-[24px] text-zinc-700 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20Z" />
+                    <path d="M10 14H14V22H10V14Z" fill="currentColor" fillOpacity="0.1" />
                   </svg>
                 )}
               </button>
@@ -30187,17 +30248,15 @@ function ExonaApp() {
                 )}
               </button>
 
-              {/* Icon 3: Messages / DM (Chat) with red badge "4" */}
+              {/* Icon 3: Middle Hub Button with red badge */}
               <button 
                 onClick={() => {
-                  setActiveChat(null);
-                  setSchoolFilter('chats');
-                  setView('feed');
+                  setIsMiddleMenuOpen(!isMiddleMenuOpen);
                 }}
                 className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 relative"
               >
                 <div className="relative">
-                  {schoolFilter === 'chats' && (view === 'feed' || view === 'schools') ? (
+                  {isMiddleMenuOpen ? (
                     <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M22 2L11 13" fill="none" />
                       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
