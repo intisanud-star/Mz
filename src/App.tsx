@@ -3548,7 +3548,7 @@ function ExonaApp() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools'].includes(view);
+    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', ...(isStandalone ? ['videos'] : [])].includes(view);
     if (isFixedLayoutView) {
       startY.current = 0;
       return;
@@ -3561,7 +3561,7 @@ function ExonaApp() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools'].includes(view);
+    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', ...(isStandalone ? ['videos'] : [])].includes(view);
     if (isFixedLayoutView) return;
     if (startY.current === 0 || refreshing) return;
     const currentY = e.touches[0].pageY;
@@ -5210,10 +5210,16 @@ function ExonaApp() {
     });
     return () => unsub();
   }, [user?.uid]);
-  const [isStandalone, setIsStandalone] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasApp = params.has('app') || params.has('workspaceApp');
+    return hasApp || window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+  });
 
   useEffect(() => {
-    setIsStandalone(window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone);
+    const params = new URLSearchParams(window.location.search);
+    const hasApp = params.has('app') || params.has('workspaceApp');
+    setIsStandalone(hasApp || window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone);
   }, []);
 
   enum OperationType {
@@ -11795,10 +11801,24 @@ function ExonaApp() {
 
   useEffect(() => {
     if (splashDone && !loading && view === 'splash') {
-      if (userDoc?.role === 'admin') {
-        setView('admin');
+      const urlParams = new URLSearchParams(window.location.search);
+      const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
+      if (appParam) {
+        if (appParam === 'finance') {
+          handleWalletClick();
+        } else if (appParam === 'videos') {
+          setActiveChat(null);
+          setView('videos');
+        } else {
+          setView('workspace');
+          setActiveWorkspaceTool(appParam);
+        }
       } else {
-        setView('feed');
+        if (userDoc?.role === 'admin') {
+          setView('admin');
+        } else {
+          setView('feed');
+        }
       }
     }
   }, [splashDone, loading, user, userDoc, view]);
@@ -23410,6 +23430,13 @@ function ExonaApp() {
         );
       }
       case 'workspace': {
+        if (isStandalone && !activeWorkspaceTool) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
+          if (appParam && appParam !== 'finance' && appParam !== 'videos') {
+            setActiveWorkspaceTool(appParam);
+          }
+        }
         const catalogAppsById: { [key: string]: { id: string; name: string; description: string; icon: any; color: string } } = {
           'docs': { id: 'docs', name: 'Documents', description: 'Create and manage your professional documents with ease.', icon: FileText, color: 'blue-600' },
           'editor': { id: 'editor', name: 'Creative Editor', description: 'Powerful editor for technical writing with free trial and template tools.', icon: PenTool, color: 'purple-600' },
@@ -23506,13 +23533,15 @@ function ExonaApp() {
               handlePrint={handlePrint}
               hideSaveImage={true}
               toolbar={
-                <button 
-                  onClick={() => setActiveWorkspaceTool(null)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
-                >
-                  <ArrowLeft size={14} />
-                  Workspace
-                </button>
+                !isStandalone ? (
+                  <button 
+                    onClick={() => setActiveWorkspaceTool(null)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-100 transition-all"
+                  >
+                    <ArrowLeft size={14} />
+                    Workspace
+                  </button>
+                ) : undefined
               }
             >
               <div className="max-w-5xl">
@@ -24989,15 +25018,17 @@ function ExonaApp() {
                   </div>
                 )}
 
-                <div className="flex justify-start mt-8 no-print">
-                  <button 
-                    onClick={() => setActiveWorkspaceTool(null)}
-                    className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all cursor-pointer"
-                  >
-                    <ArrowLeft size={14} />
-                    Back to Workspace
-                  </button>
-                </div>
+                {!isStandalone && (
+                  <div className="flex justify-start mt-8 no-print">
+                    <button 
+                      onClick={() => setActiveWorkspaceTool(null)}
+                      className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted hover:text-ink transition-all cursor-pointer"
+                    >
+                      <ArrowLeft size={14} />
+                      Back to Workspace
+                    </button>
+                  </div>
+                )}
               </div>
             </WordLayout>
           );
@@ -29659,7 +29690,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -29747,7 +29778,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools'].includes(view);
+        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', ...(isStandalone ? ['videos'] : [])].includes(view);
         return (
           <main 
             ref={scrollContainerRef}
@@ -29981,7 +30012,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {(isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
