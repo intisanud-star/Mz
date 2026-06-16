@@ -2940,7 +2940,13 @@ const WordLayout = ({
               <p className="text-[10px] text-muted font-bold uppercase tracking-[0.2em] mt-1 truncate">{subtitle}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 md:gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+            {/* Realtime Live Sync Status Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100 select-none scroll-smooth">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[9px] font-black uppercase tracking-widest font-mono">Cloud Sync Live</span>
+            </div>
+
             <button 
               onClick={handlePrint}
               className="flex items-center gap-2 px-3 py-1.5 bg-white text-ink border border-gray-100 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-gray-50 transition-all"
@@ -3328,6 +3334,87 @@ const FALLBACK_POSTS = [
     category: "groups"
   }
 ];
+
+// --- DYNAMIC APP SHORTCUT ICON GENERATOR ---
+function getDynamicSvgIcon(appId: string): string {
+  const themes: { [key: string]: { startColor: string; endColor: string; iconPath: string } } = {
+    finance: {
+      startColor: '#10B981', // Premium Rich Emerald/Mint Banking
+      endColor: '#047857',
+      iconPath: `<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1 M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    },
+    videos: {
+      startColor: '#EF4444', // Stream Crimson/Red
+      endColor: '#B91C1C',
+      iconPath: `<path d="m22 8-6 4 6 4V8Z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><rect x="2" y="6" width="14" height="12" rx="3" ry="3" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    },
+    editor: {
+      startColor: '#8B5CF6', // Creative Purple
+      endColor: '#6D28D9',
+      iconPath: `<path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    },
+    docs: {
+      startColor: '#3B82F6', // Corporate Papers Blue
+      endColor: '#1D4ED8',
+      iconPath: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M14 2v6h6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M16 13H8 M16 17H8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    },
+    pdf: {
+      startColor: '#F43F5E', // PDF Rose Red
+      endColor: '#BE123C',
+      iconPath: `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M14 2v6h6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    },
+    'file-share': {
+      startColor: '#EC4899', // AirDrop Magenta
+      endColor: '#C026D3',
+      iconPath: `<circle cx="12" cy="12" r="2" stroke="white" stroke-width="2.5" fill="none"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    },
+    storage: {
+      startColor: '#10B981', // Cloud Storage Emerald
+      endColor: '#059669',
+      iconPath: `<rect x="2" y="2" width="20" height="20" rx="4" stroke="white" stroke-width="2.5" fill="none"/><line x1="2" y1="14" x2="22" y2="14" stroke="white" stroke-width="2.5"/><line x1="6" y1="18" x2="6.01" y2="18" stroke="white" stroke-width="2.5" stroke-linecap="round"/><line x1="10" y1="18" x2="10.01" y2="18" stroke="white" stroke-width="2.5" stroke-linecap="round"/>`
+    },
+    'e-test': {
+      startColor: '#6366F1', // E-Test Indigo
+      endColor: '#4F46E5',
+      iconPath: `<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="m9 11 2 2 4-4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+    }
+  };
+
+  const theme = themes[appId] || {
+    startColor: '#3B82F6',
+    endColor: '#1D4ED8',
+    iconPath: `<rect x="3" y="3" width="18" height="18" rx="4" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>`
+  };
+
+  return `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+      <defs>
+        <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${theme.startColor}"/>
+          <stop offset="100%" stop-color="${theme.endColor}"/>
+        </linearGradient>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.35"/>
+        </filter>
+        <linearGradient id="gloss" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="white" stop-opacity="0.25"/>
+          <stop offset="100%" stop-color="white" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      
+      <!-- Rounded Icon Base -->
+      <rect x="24" y="24" width="464" height="464" rx="116" fill="url(#bgGrad)"/>
+      
+      <!-- Premium Gloss Highlight -->
+      <path d="M24 130 C24 70, 70 24, 130 24 L382 24 C442 24, 488 70, 488 130 L488 230 C488 230, 400 190, 256 230 C112 270, 24 230, 24 230 Z" fill="url(#gloss)"/>
+      
+      <!-- Centered Vector Icon Graphics scaled up -->
+      <g transform="translate(144, 144) scale(9.33)" filter="url(#shadow)">
+        ${theme.iconPath}
+      </g>
+    </svg>
+  `.trim();
+}
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
@@ -4493,6 +4580,136 @@ function ExonaApp() {
   useEffect(() => {
     localStorage.setItem('exonasoft_enabled_workspace_apps', JSON.stringify(enabledAppIds));
   }, [enabledAppIds]);
+
+  // Force cloud firebase engines on direct deep link launches to make apps completely live
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
+    if (appParam) {
+      setRecordStorageEngine('firebase');
+      setClassroomEngine('firebase');
+      setBroadcastEngine('firebase');
+    }
+  }, []);
+
+  // --- DYNAMIC PWA ENGINE FOR INDEPENDENT HOME SCREEN LAUNCHING ---
+  useEffect(() => {
+    // Determine active workspace tool or sub-app
+    let targetApp = '';
+    if (view === 'finance') {
+      targetApp = 'finance';
+    } else if (view === 'videos') {
+      targetApp = 'videos';
+    } else if (view === 'workspace' && activeWorkspaceTool && activeWorkspaceTool !== 'app-center') {
+      targetApp = activeWorkspaceTool;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
+
+    if (targetApp) {
+      // Synchronize address bar parameter without reloading for complete live representation
+      if (appParam !== targetApp) {
+        urlParams.set('app', targetApp);
+        urlParams.delete('workspaceApp');
+        const newUrl = window.location.pathname + '?' + urlParams.toString();
+        window.history.replaceState({}, '', newUrl);
+      }
+
+      const titleMap: { [key: string]: string } = {
+        finance: 'Exona Wallet',
+        videos: 'Exona Stream',
+        docs: 'Documents',
+        editor: 'Creative Editor',
+        pdf: 'PDF Studio',
+        'file-share': 'Exona Drop',
+        storage: 'Cloud Storage',
+        'e-test': 'E-Test Portal'
+      };
+
+      const appName = titleMap[targetApp] || 'Exona App';
+      document.title = appName;
+
+      // Generate pristine High-Res Vector SVG icon
+      const svgString = getDynamicSvgIcon(targetApp);
+      const base64Svg = btoa(unescape(encodeURIComponent(svgString)));
+      const dataUrl = `data:image/svg+xml;base64,${base64Svg}`;
+
+      // Dynamically update shortcut icons and Apple touch icons live
+      const updateLinkIcon = (rel: string, size?: string) => {
+        let link: HTMLLinkElement | null = document.querySelector(`link[rel="${rel}"]`);
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = rel;
+          if (size) link.setAttribute('sizes', size);
+          document.head.appendChild(link);
+        }
+        link.href = dataUrl;
+      };
+
+      updateLinkIcon('icon');
+      updateLinkIcon('shortcut icon');
+      updateLinkIcon('apple-touch-icon');
+      updateLinkIcon('apple-touch-icon-precomposed');
+
+      // Dynamically inject dynamic Web App Manifest URL so when Chrome/Safari prompts "Add to Home Screen",
+      // the browser registers the custom name, standalone display mode, and the direct launching sub-URL parameter.
+      const manifest = {
+        name: appName,
+        short_name: appName.split(' ').pop() || appName,
+        description: `Insulated standalone workspace for ${appName}`,
+        start_url: `${window.location.origin}${window.location.pathname}?app=${targetApp}&standalone=true`,
+        display: 'standalone',
+        background_color: '#0F172A',
+        theme_color: '#1e293b',
+        icons: [
+          {
+            src: dataUrl,
+            sizes: "512x512",
+            type: "image/svg+xml"
+          }
+        ]
+      };
+
+      const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      const manifestURL = URL.createObjectURL(blob);
+      const manifestLink: HTMLLinkElement | null = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        manifestLink.setAttribute('href', manifestURL);
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestURL;
+        document.head.appendChild(link);
+      }
+    } else {
+      // Revert to standard system branding and manifest files when leaving micro-apps
+      if (appParam) {
+        urlParams.delete('app');
+        urlParams.delete('workspaceApp');
+        const searchStr = urlParams.toString();
+        const newUrl = window.location.pathname + (searchStr ? '?' + searchStr : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+      document.title = 'Exona | Enterprise Records';
+
+      // Restore standard site manifest and icons
+      const manifestLink: HTMLLinkElement | null = document.querySelector('link[rel="manifest"]');
+      if (manifestLink) {
+        manifestLink.setAttribute('href', '/manifest.json');
+      }
+
+      const restoreLinkIcon = (rel: string) => {
+        const link: HTMLLinkElement | null = document.querySelector(`link[rel="${rel}"]`);
+        if (link) {
+          link.href = '/favicon.ico';
+        }
+      };
+      restoreLinkIcon('icon');
+      restoreLinkIcon('shortcut icon');
+      restoreLinkIcon('apple-touch-icon');
+    }
+  }, [view, activeWorkspaceTool]);
 
   const [activePdfTool, setActivePdfTool] = useState<string | null>(null);
   const [uploadedPdfFiles, setUploadedPdfFiles] = useState<File[]>([]);
@@ -7508,19 +7725,12 @@ function ExonaApp() {
       
       handleGroupLinkNavigation(groupId);
     } else if (app) {
-      const newParams = new URLSearchParams(window.location.search);
-      newParams.delete('app');
-      newParams.delete('workspaceApp');
-      const searchStr = newParams.toString();
-      const newUrl = window.location.pathname + (searchStr ? '?' + searchStr : '');
-      window.history.replaceState({}, '', newUrl);
-      
-      if (app === 'finance') {
+      if (app === 'finance' && view !== 'finance') {
         handleWalletClick();
-      } else if (app === 'videos') {
+      } else if (app === 'videos' && view !== 'videos') {
         setActiveChat(null);
         setView('videos');
-      } else {
+      } else if (app !== 'finance' && app !== 'videos' && (view !== 'workspace' || activeWorkspaceTool !== app)) {
         setView('workspace');
         setActiveWorkspaceTool(app);
       }
@@ -15753,6 +15963,12 @@ function ExonaApp() {
                     {activeAccount.name}
                   </h4>
                 </div>
+              </div>
+
+              {/* Active Ledger Live badge */}
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-[#10b981]/10 text-[#10b981] rounded-full border border-[#10b981]/20 select-none">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[9px] font-black uppercase tracking-widest font-mono">Ledger Live</span>
               </div>
 
               {/* Signature GTBank / GTCO logo with a white square on an orange box */}
@@ -24814,15 +25030,37 @@ function ExonaApp() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const deepLinkUrl = `${window.location.origin}?app=${item.id}`;
-                            setSelectedShortcutApp({
-                              ...item,
-                              deepLinkUrl
-                            });
-                            setIsShortcutModalOpen(true);
+                            const liveUrl = `https://exona-400371160094.europe-west2.run.app?app=${item.id}`;
+                            
+                            // Visual notification feedback
+                            showNotification(`Launching Live Standalone ${item.name}... URL copied to clipboard!`, 'success');
+                            
+                            // Copy pristine production URL to clipboard
+                            try {
+                              navigator.clipboard.writeText(liveUrl);
+                            } catch (err) {
+                              console.warn('Clipboard copy failed:', err);
+                            }
+
+                            // Trigger real browser launch cleanly
+                            const urlWithoutScheme = liveUrl.replace(/^https?:\/\//, '');
+                            const ua = navigator.userAgent.toLowerCase();
+                            const isAndroid = /android/.test(ua);
+                            const isIOS = /iphone|ipad|ipod/.test(ua);
+
+                            if (isAndroid) {
+                              window.location.href = `intent://${urlWithoutScheme}#Intent;scheme=https;package=com.android.chrome;end`;
+                            } else if (isIOS) {
+                              window.location.href = `googlechromes://${urlWithoutScheme}`;
+                              setTimeout(() => {
+                                window.open(liveUrl, '_blank');
+                              }, 800);
+                            } else {
+                              window.open(liveUrl, '_blank');
+                            }
                           }}
-                          className="h-8 w-8 bg-gray-50 hover:bg-[#2481CC]/10 hover:text-[#2481CC] border border-gray-100 hover:border-[#2481CC]/20 rounded-xl flex items-center justify-center text-muted transition-all shrink-0"
-                          title="Add Shortcut to Home Screen"
+                          className="h-8 w-8 bg-gray-50 hover:bg-[#2481CC]/10 hover:text-[#2481CC] border border-gray-100 hover:border-[#2481CC]/20 rounded-xl flex items-center justify-center text-muted transition-all shrink-0 cursor-pointer"
+                          title="Launch Standalone App"
                         >
                           <Smartphone size={14} />
                         </button>
@@ -30759,170 +30997,176 @@ function ExonaApp() {
 
       {/* Create Home Screen Shortcut Modal */}
       <AnimatePresence>
-        {isShortcutModalOpen && selectedShortcutApp && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-zinc-950/70 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
-            onClick={() => setIsShortcutModalOpen(false)}
-          >
+        {isShortcutModalOpen && selectedShortcutApp && (() => {
+          const cleanUrl = `${window.location.origin}${window.location.pathname}?app=${selectedShortcutApp.id}`;
+          const isWallet = selectedShortcutApp.id === 'finance';
+          const isStream = selectedShortcutApp.id === 'videos';
+          const isEditor = selectedShortcutApp.id === 'editor';
+
+          const handleForceNativeBrowserLaunch = () => {
+            const urlWithoutScheme = cleanUrl.replace(/^https?:\/\//, '');
+            const ua = navigator.userAgent.toLowerCase();
+            const isAndroid = /android/.test(ua);
+            const isIOS = /iphone|ipad|ipod/.test(ua);
+            
+            if (isAndroid) {
+              window.location.href = `intent://${urlWithoutScheme}#Intent;scheme=https;package=com.android.chrome;end`;
+            } else if (isIOS) {
+              window.location.href = `googlechromes://${urlWithoutScheme}`;
+              setTimeout(() => {
+                window.open(cleanUrl, '_blank');
+              }, 1200);
+            } else {
+              window.open(cleanUrl, '_blank', 'width=480,height=850,menubar=no,status=no,toolbar=no');
+            }
+          };
+
+          return (
             <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-xl overflow-hidden shadow-2xl relative border border-gray-100 my-8"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[1000] bg-zinc-950/75 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 overflow-y-auto font-sans"
+              onClick={() => setIsShortcutModalOpen(false)}
             >
-              <button
-                onClick={() => setIsShortcutModalOpen(false)}
-                className="absolute top-6 right-6 h-9 w-9 bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 rounded-full flex items-center justify-center text-muted transition-all cursor-pointer z-10"
+              <motion.div
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl relative border border-gray-100 my-8"
+                onClick={(e) => e.stopPropagation()}
               >
-                <X size={16} />
-              </button>
+                <button
+                  onClick={() => setIsShortcutModalOpen(false)}
+                  className="absolute top-6 right-6 h-9 w-9 bg-gray-50 hover:bg-gray-100 border border-gray-100 hover:border-gray-200 rounded-full flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-all cursor-pointer z-10"
+                >
+                  <X size={16} />
+                </button>
 
-              <div className="p-6 sm:p-8">
-                {/* Simulated Smartphone Screen Widget Preview - Showing EXACT, highly polished App Icon */}
-                <div className="mb-6 p-6 bg-gradient-to-b from-slate-900 to-slate-950 rounded-[2rem] border border-slate-800 shadow-inner relative overflow-hidden">
-                  <div className="absolute right-3 top-3 flex items-center gap-1.5 text-[8px] font-mono text-zinc-500 font-semibold uppercase tracking-wider select-none">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Live Phone Preview
-                  </div>
+                <div className="p-6 sm:p-8">
+                  {/* Smartphone Icon Preview Area */}
+                  <div className="mb-6 p-6 bg-gradient-to-b from-slate-900 to-slate-950 rounded-[2.25rem] border border-slate-800 shadow-inner relative overflow-hidden">
+                    <div className="absolute right-4 top-4 flex items-center gap-1.5 text-[8px] font-mono text-zinc-500 font-semibold uppercase tracking-wider select-none">
+                      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                      Device Preview
+                    </div>
 
-                  <div className="flex flex-col items-center justify-center py-4">
-                    {/* The EXACT App Icon being created */}
-                    <div className="relative group mb-3">
-                      <div className="absolute -inset-1 rounded-[1.6rem] bg-indigo-500/10 blur-md opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-                      <div className={`relative h-20 w-20 rounded-[1.4rem] flex items-center justify-center shadow-2xl transform hover:scale-105 transition-all duration-300 ${
-                        selectedShortcutApp.id === 'finance' 
-                          ? 'bg-gradient-to-tr from-emerald-600 via-teal-550 to-cyan-500' 
-                          : selectedShortcutApp.id === 'videos' 
-                          ? 'bg-gradient-to-tr from-rose-600 via-red-500 to-amber-500' 
-                          : 'bg-gradient-to-tr from-[#2481CC] to-blue-500'
-                      }`}>
-                        {/* Glossy overlay to look like a high-end application icon */}
-                        <div className="absolute inset-x-0 top-0 h-[40%] bg-white/10 rounded-t-[1.4rem] pointer-events-none"></div>
-                        {React.createElement(selectedShortcutApp.icon || LayoutGrid, { 
-                          size: 38, 
-                          className: "text-white drop-shadow-md" 
-                        })}
+                    <div className="flex flex-col items-center justify-center py-5">
+                      <div className="relative group mb-4">
+                        <div className="absolute -inset-1.5 rounded-[2rem] bg-indigo-500/15 blur-lg opacity-75 group-hover:opacity-100 transition duration-1000"></div>
+                        <div className={`relative h-24 w-24 rounded-[1.8rem] flex items-center justify-center shadow-2xl transform hover:scale-105 transition-all duration-300 ${
+                          isWallet 
+                            ? 'bg-gradient-to-tr from-emerald-600 to-teal-500' 
+                            : isStream 
+                            ? 'bg-gradient-to-tr from-rose-600 to-red-500'
+                            : isEditor
+                            ? 'bg-gradient-to-tr from-purple-600 to-indigo-500'
+                            : 'bg-gradient-to-tr from-blue-600 to-sky-500'
+                        }`}>
+                          {/* Inner Gloss */}
+                          <div className="absolute inset-x-0 top-0 h-[45%] bg-white/10 rounded-t-[1.8rem] pointer-events-none"></div>
+                          {React.createElement(selectedShortcutApp.icon || LayoutGrid, { 
+                            size: 44, 
+                            className: "text-white drop-shadow-md" 
+                          })}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <h4 className="text-white text-sm font-black uppercase tracking-widest leading-none mb-1">{selectedShortcutApp.name}</h4>
+                        <p className="text-[9px] font-mono font-bold text-indigo-400 tracking-wider uppercase">Independent Micro-App</p>
                       </div>
                     </div>
-                    {/* Exact App Labeled Name */}
-                    <div className="text-center">
-                      <h4 className="text-white text-xs font-black uppercase tracking-widest">{selectedShortcutApp.name}</h4>
-                      <p className="text-[9px] font-mono font-bold text-zinc-400 mt-0.5 tracking-wider uppercase">Standalone Micro-App</p>
+
+                    {/* Simulated dock elements */}
+                    <div className="border-t border-slate-800/65 pt-3.5 flex justify-around opacity-40 select-none">
+                      <div className="h-7 w-7 rounded-lg bg-slate-800 flex items-center justify-center"><Smartphone size={12} className="text-slate-500" /></div>
+                      <div className="h-7 w-7 rounded-lg bg-slate-850 border border-slate-800 flex items-center justify-center"><Sparkles size={11} className="text-indigo-400" /></div>
+                      <div className="h-7 w-7 rounded-lg bg-slate-800 flex items-center justify-center"><Menu size={12} className="text-slate-500" /></div>
                     </div>
                   </div>
 
-                  {/* Dock / Grid Simulator Background Elements */}
-                  <div className="border-t border-slate-800/60 pt-3 flex justify-around opacity-40 select-none">
-                    <div className="h-6 w-6 rounded-md bg-slate-800 flex items-center justify-center"><Smartphone size={10} className="text-slate-500" /></div>
-                    <div className="h-6 w-6 rounded-md bg-slate-800 flex items-center justify-center"><Bell size={10} className="text-slate-500" /></div>
-                    <div className="h-6 w-6 rounded-md bg-slate-800 flex items-center justify-center"><Menu size={10} className="text-slate-500" /></div>
-                  </div>
-                </div>
-
-                {/* Ecosystem explanation (Telegram Style) */}
-                <div className="mb-6 p-4 bg-sky-50/50 rounded-2xl border border-sky-100/40 text-[11px] leading-relaxed">
-                  <div className="flex items-center gap-2 text-sky-700 font-bold uppercase tracking-wider mb-1.5">
-                    <span>🤖 Telegram-Style Integration</span>
-                    <span className="bg-sky-100 text-sky-800 text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Container-Isolated</span>
-                  </div>
-                  <p className="text-slate-600 font-semibold">
-                    Just like launching a dedicated bot inside Telegram, this home-screen shortcut directs your device to bypass the standard feeds and open <strong className="text-slate-900">{selectedShortcutApp.name}</strong> as an insulated fullscreen workspace.
-                  </p>
-                </div>
-
-                {/* Critical Browser Instruction */}
-                <div className="mb-6 p-4 bg-amber-50/50 rounded-2xl border border-amber-100/40 text-[11px] leading-relaxed">
-                  <div className="flex items-center gap-2 text-amber-700 font-bold uppercase tracking-wider mb-1.5">
-                    <span>⚠️ Direct Browser Required</span>
-                  </div>
-                  <p className="text-slate-600 font-semibold mb-2">
-                    Shortcut addition requires a <strong className="text-slate-900">native mobile browser</strong>. If you are inside an in-app frame (such as Slack, Telegram, or AI Studio preview), you must switch to Google Chrome or Safari to proceed.
-                  </p>
-                  <div className="flex select-all items-center gap-2 bg-white/70 px-3 py-2 rounded-xl text-[10px] font-mono text-amber-900 border border-amber-200/40 truncate">
-                    <span>Launcher URL:</span>
-                    <strong className="truncate font-semibold text-indigo-700">{selectedShortcutApp.deepLinkUrl}</strong>
-                  </div>
-                </div>
-
-                {/* Operating System Instructions */}
-                <div className="space-y-4 mb-6">
-                  <div className="border-t border-gray-100 pt-5">
-                    <h4 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3">Install Instructions</h4>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col p-4 bg-slate-50 hover:bg-slate-100/40 rounded-2xl border border-gray-100 transition-colors">
-                        <span className="text-sky-600 mb-2 font-black text-xs leading-none">Android Chrome</span>
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-2">Google Chrome</span>
-                        <ol className="text-[10px] text-slate-600 font-semibold list-decimal pl-3 space-y-1.5 leading-snug">
-                          <li>Tap three-dot menu</li>
-                          <li>Select <strong className="text-ink">"Add to Home Screen"</strong></li>
-                          <li>Tap "Add" & launch from your launcher!</li>
-                        </ol>
-                      </div>
-
-                      <div className="flex flex-col p-4 bg-slate-50 hover:bg-slate-100/40 rounded-2xl border border-gray-100 transition-colors">
-                        <span className="text-indigo-600 mb-2 font-black text-xs leading-none">iOS Safari</span>
-                        <span className="text-[9px] font-bold text-muted uppercase tracking-wider mb-2">Apple Safari</span>
-                        <ol className="text-[10px] text-slate-600 font-semibold list-decimal pl-3 space-y-1.5 leading-snug">
-                          <li>Tap the browser Share button</li>
-                          <li>Select <strong className="text-ink">"Add to Home Screen"</strong></li>
-                          <li>Tap "Add" on the top right!</li>
-                        </ol>
-                      </div>
+                  {/* Fully Live Sub-App URL Info Display */}
+                  <div className="mb-6 p-4.5 bg-zinc-50 border border-zinc-100 rounded-2xl">
+                    <div className="text-[10px] font-mono font-black text-zinc-400 uppercase tracking-widest mb-1">Live Endpoint URL</div>
+                    <div className="flex select-all items-center gap-2 bg-white px-3 py-2 rounded-xl border border-zinc-200/60 truncate font-mono text-[11px] text-zinc-800">
+                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0"></div>
+                      <strong className="truncate font-semibold text-[#1e293b]">{cleanUrl}</strong>
                     </div>
                   </div>
-                </div>
 
-                {/* Primary Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Primary CTA: Directly forces opening in native chrome/safari for active PWA install */}
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(selectedShortcutApp.deepLinkUrl);
-                      showNotification(`Direct link for ${selectedShortcutApp.name} copied to clipboard! Paste in Chrome/Safari to save.`, 'success');
-                    }}
-                    className="flex-1 py-4 bg-ink text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-black/10 text-xs text-center"
+                    onClick={handleForceNativeBrowserLaunch}
+                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/15 hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mb-6"
                   >
-                    <Copy size={13} />
-                    Copy Launcher URL
+                    <Smartphone size={14} className="animate-pulse" />
+                    Open & Install Standalone App
                   </button>
-                  <button
-                    onClick={() => {
-                      const savedDockList = localStorage.getItem('exonasoft_simulated_dock_apps') || '[]';
-                      let dockList = [];
-                      try {
-                        dockList = JSON.parse(savedDockList);
-                      } catch(err){}
-                      if (!Array.isArray(dockList)) dockList = [];
-                      
-                      if (!dockList.some((d: any) => d.id === selectedShortcutApp.id)) {
-                        dockList.push({
-                          id: selectedShortcutApp.id,
-                          name: selectedShortcutApp.name,
-                          iconName: selectedShortcutApp.id,
-                          color: selectedShortcutApp.color
-                        });
-                        localStorage.setItem('exonasoft_simulated_dock_apps', JSON.stringify(dockList));
-                        setDockApps(dockList);
-                        showNotification(`${selectedShortcutApp.name} added to your Simulated System Dock!`);
-                      } else {
-                        showNotification(`${selectedShortcutApp.name} is already in your System Dock.`);
-                      }
-                      setIsShortcutModalOpen(false);
-                    }}
-                    className="flex-1 py-4 bg-[#2481CC] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.01] active:scale-95 transition-all text-center flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-sky-600/10 text-xs text-center"
-                  >
-                    <Smartphone size={13} />
-                    Pin to Simulator Dock
-                  </button>
+
+                  <div className="grid grid-cols-2 gap-4 text-left border-t border-gray-100 pt-5 mb-6">
+                    <div>
+                      <h4 className="text-[10px] font-black text-zinc-800 uppercase tracking-wider mb-2">Android Chrome</h4>
+                      <ul className="text-[10.5px] text-zinc-600 space-y-1 pl-1 list-none leading-relaxed">
+                        <li className="flex items-start gap-1"><span className="text-indigo-500 font-bold">1.</span> Tap the Chrome menu <strong className="text-black font-semibold">(⋮)</strong></li>
+                        <li className="flex items-start gap-1"><span className="text-indigo-500 font-bold">2.</span> Choose <strong className="text-indigo-600 font-bold">"Add to Home screen"</strong></li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h4 className="text-[10px] font-black text-zinc-800 uppercase tracking-wider mb-2">iOS Safari</h4>
+                      <ul className="text-[10.5px] text-zinc-600 space-y-1 pl-1 list-none leading-relaxed">
+                        <li className="flex items-start gap-1"><span className="text-indigo-500 font-bold">1.</span> Tap Safari <strong className="text-black font-semibold">Share</strong> button</li>
+                        <li className="flex items-start gap-1"><span className="text-indigo-500 font-bold">2.</span> Scroll & tap <strong className="text-indigo-600 font-bold">"Add to Home Screen"</strong></li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Secondary Utility Actions */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(cleanUrl);
+                        showNotification(`Live sub-app URL for ${selectedShortcutApp.name} copied! Open in Chrome or Safari.`, 'success');
+                      }}
+                      className="flex-1 py-3 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Copy size={12} />
+                      Copy Live URL
+                    </button>
+                    <button
+                      onClick={() => {
+                        const savedDockList = localStorage.getItem('exonasoft_simulated_dock_apps') || '[]';
+                        let dockList = [];
+                        try {
+                          dockList = JSON.parse(savedDockList);
+                        } catch(err){}
+                        if (!Array.isArray(dockList)) dockList = [];
+                        
+                        if (!dockList.some((d: any) => d.id === selectedShortcutApp.id)) {
+                          dockList.push({
+                            id: selectedShortcutApp.id,
+                            name: selectedShortcutApp.name,
+                            iconName: selectedShortcutApp.id,
+                            color: selectedShortcutApp.color
+                          });
+                          localStorage.setItem('exonasoft_simulated_dock_apps', JSON.stringify(dockList));
+                          setDockApps(dockList);
+                          showNotification(`${selectedShortcutApp.name} added to your Simulated System Dock!`);
+                        } else {
+                          showNotification(`${selectedShortcutApp.name} is already in your System Dock.`);
+                        }
+                        setIsShortcutModalOpen(false);
+                      }}
+                      className="flex-1 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Sparkles size={12} />
+                      Simulated Dock
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
+          );
+        })()}
       </AnimatePresence>
       </div>
     );
