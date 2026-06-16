@@ -30215,23 +30215,24 @@ function ExonaApp() {
                 </div>
               </button>
 
-              {/* Icon 4: Search & Explore (Workspace) */}
+              {/* Icon 4: Wallet */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
-                  setView('workspace');
+                  handleWalletClick();
                 }}
                 className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
               >
-                {view === 'workspace' ? (
-                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                {view === 'finance' ? (
+                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="3" fill="currentColor" />
+                    <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" stroke="white" strokeWidth="1.8" fill="none" />
+                    <circle cx="16" cy="12" r="1.2" fill="white" />
                   </svg>
                 ) : (
                   <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <rect x="2" y="5" width="20" height="14" rx="3" />
+                    <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" />
                   </svg>
                 )}
               </button>
