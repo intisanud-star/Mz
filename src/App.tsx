@@ -13728,7 +13728,7 @@ function ExonaApp() {
             <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
               
               {/* Modern Inline Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 mb-6 border-b border-gray-100/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-100/80">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
@@ -14814,7 +14814,7 @@ function ExonaApp() {
             <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
               
               {/* Modern Inline Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4 mb-6 border-b border-gray-100/80">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-100/80">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
