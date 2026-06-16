@@ -30248,7 +30248,7 @@ function ExonaApp() {
                 )}
               </button>
 
-              {/* Icon 3: Middle Hub Button with red badge */}
+              {/* Icon 3: Middle Hub Button */}
               <button 
                 onClick={() => {
                   setIsMiddleMenuOpen(!isMiddleMenuOpen);
@@ -30267,10 +30267,6 @@ function ExonaApp() {
                       <path d="M22 2L15 22L11 13L2 9L22 2Z" />
                     </svg>
                   )}
-                  {/* Badge "4" from screen overlay or active messages */}
-                  <span className="absolute -top-1.5 -right-2 bg-red-500 text-white font-black text-[9px] h-4 w-4 rounded-full flex items-center justify-center border-2 border-white pointer-events-none select-none">
-                    {unreadMessagesCount > 0 ? unreadMessagesCount : 4}
-                  </span>
                 </div>
               </button>
 
