@@ -3,7 +3,20 @@ import cors from 'cors';
 import path from 'path';
 import { Telegraf } from 'telegraf';
 import { initializeApp as initializeClientApp } from 'firebase/app';
-import { getFirestore as getClientFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, limit, getCountFromServer, serverTimestamp } from 'firebase/firestore';
+import { 
+  getFirestore as getClientFirestore, 
+  doc, 
+  getDoc as firebaseGetDoc, 
+  setDoc as firebaseSetDoc, 
+  updateDoc as firebaseUpdateDoc, 
+  collection, 
+  getDocs as firebaseGetDocs, 
+  query, 
+  where, 
+  limit, 
+  getCountFromServer as firebaseGetCountFromServer, 
+  serverTimestamp 
+} from 'firebase/firestore';
 import fs from 'fs';
 import multer from 'multer';
 import axios from 'axios';
@@ -58,6 +71,315 @@ if ((firebaseConfig as any).projectId) {
   }
 } else {
   console.error('CRITICAL: Firebase projectId is missing from configuration. API functionality will be limited.');
+}
+
+// ==========================================
+// RESILIENT FIRESTORE WRAPPERS WITH OFFLINE DISK CACHE FALLBACK
+// ==========================================
+interface LocalDb {
+  users: Record<string, any>;
+  broadcasts: Record<string, any>;
+  schools: Record<string, any>;
+  places: Record<string, any>;
+  studentRecords: Record<string, any>;
+  teacherAttendance: Record<string, any>;
+  [key: string]: Record<string, any>;
+}
+
+let localDbCache: LocalDb = {
+  users: {},
+  broadcasts: {},
+  schools: {},
+  places: {},
+  studentRecords: {},
+  teacherAttendance: {}
+};
+
+const LOCAL_DB_FILE = path.join(process.cwd(), 'local_db_backup.json');
+
+// Initialize local database cache from backup JSON file
+try {
+  if (fs.existsSync(LOCAL_DB_FILE)) {
+    const rawData = fs.readFileSync(LOCAL_DB_FILE, 'utf8');
+    const parsed = JSON.parse(rawData);
+    localDbCache = {
+      users: parsed.users || {},
+      broadcasts: parsed.broadcasts || {},
+      schools: parsed.schools || {},
+      places: parsed.places || {},
+      studentRecords: parsed.studentRecords || {},
+      teacherAttendance: parsed.teacherAttendance || {}
+    };
+    console.log('Successfully loaded local database backup from disk.');
+  } else {
+    fs.writeFileSync(LOCAL_DB_FILE, JSON.stringify(localDbCache, null, 2), 'utf8');
+  }
+} catch (e) {
+  console.error('Failed to parse local database backup file:', e);
+}
+
+const persistLocalDb = () => {
+  try {
+    fs.writeFileSync(LOCAL_DB_FILE, JSON.stringify(localDbCache, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error writing to local backup database file:', err);
+  }
+};
+
+// Safe wrapper for getDoc
+async function getDoc(docRef: any): Promise<any> {
+  let colName = docRef._path?.segments?.[0] || docRef.parent?.path || '';
+  if (!colName && docRef.path) {
+    const parts = docRef.path.split('/');
+    if (parts.length > 0) colName = parts[0];
+  }
+  const docId = docRef.id;
+
+  try {
+    const snap = await firebaseGetDoc(docRef);
+    if (colName && docId && snap.exists()) {
+      if (!localDbCache[colName]) {
+        localDbCache[colName] = {};
+      }
+      localDbCache[colName][docId] = snap.data();
+      persistLocalDb();
+    }
+    return snap;
+  } catch (err: any) {
+    const isQuota = err.message?.toLowerCase().includes('quota') || err.message?.toLowerCase().includes('limit') || err.message?.toLowerCase().includes('exceeded') || err.code === 'resource-exhausted';
+    if (isQuota && colName && docId && localDbCache[colName]?.[docId]) {
+      console.warn(`⚠️ FIRESTORE QUOTA EXCEEDED (getDoc). Falling back to local cache of "${colName}/${docId}"`);
+      const cached = localDbCache[colName][docId];
+      return {
+        id: docId,
+        ref: docRef,
+        exists: () => true,
+        data: () => cached
+      };
+    }
+    throw err;
+  }
+}
+
+// Safe wrapper for setDoc
+async function setDoc(docRef: any, data: any, options?: any): Promise<any> {
+  let colName = docRef._path?.segments?.[0] || docRef.parent?.path || '';
+  if (!colName && docRef.path) {
+    const parts = docRef.path.split('/');
+    if (parts.length > 0) colName = parts[0];
+  }
+  const docId = docRef.id;
+
+  // Optimistically write to local JSON file
+  if (colName && docId) {
+    if (!localDbCache[colName]) {
+      localDbCache[colName] = {};
+    }
+    if (options?.merge && localDbCache[colName][docId]) {
+      localDbCache[colName][docId] = {
+        ...localDbCache[colName][docId],
+        ...data
+      };
+    } else {
+      localDbCache[colName][docId] = data;
+    }
+    persistLocalDb();
+  }
+
+  try {
+    return await firebaseSetDoc(docRef, data, options);
+  } catch (err: any) {
+    const isQuota = err.message?.toLowerCase().includes('quota') || err.message?.toLowerCase().includes('limit') || err.message?.toLowerCase().includes('exceeded') || err.code === 'resource-exhausted';
+    if (isQuota) {
+      console.warn(`⚠️ FIRESTORE QUOTA EXCEEDED (setDoc). Written target payload directly to local disk cache only.`);
+      return; // Resolve gracefully
+    }
+    throw err;
+  }
+}
+
+// Safe wrapper for updateDoc
+async function updateDoc(docRef: any, data: any): Promise<any> {
+  let colName = docRef._path?.segments?.[0] || docRef.parent?.path || '';
+  if (!colName && docRef.path) {
+    const parts = docRef.path.split('/');
+    if (parts.length > 0) colName = parts[0];
+  }
+  const docId = docRef.id;
+
+  // Optimistically update local JSON file
+  if (colName && docId) {
+    if (!localDbCache[colName]) {
+      localDbCache[colName] = {};
+    }
+    localDbCache[colName][docId] = {
+      ...(localDbCache[colName][docId] || {}),
+      ...data
+    };
+    persistLocalDb();
+  }
+
+  try {
+    return await firebaseUpdateDoc(docRef, data);
+  } catch (err: any) {
+    const isQuota = err.message?.toLowerCase().includes('quota') || err.message?.toLowerCase().includes('limit') || err.message?.toLowerCase().includes('exceeded') || err.code === 'resource-exhausted';
+    if (isQuota) {
+      console.warn(`⚠️ FIRESTORE QUOTA EXCEEDED (updateDoc). Updated local copy only.`);
+      return; // Resolve gracefully
+    }
+    throw err;
+  }
+}
+
+// Safe wrapper for getDocs
+async function getDocs(queryOrColRef: any): Promise<any> {
+  let colName = queryOrColRef.path;
+  if (!colName && queryOrColRef._query?.path?.segments) {
+    colName = queryOrColRef._query.path.segments[0];
+  }
+  if (!colName && queryOrColRef.query?.path?.segments) {
+    colName = queryOrColRef.query.path.segments[0];
+  }
+  if (!colName && queryOrColRef._path?.segments) {
+    colName = queryOrColRef._path.segments[0];
+  }
+
+  try {
+    const snap = await firebaseGetDocs(queryOrColRef);
+    if (colName) {
+      if (!localDbCache[colName]) {
+        localDbCache[colName] = {};
+      }
+      snap.docs.forEach((doc: any) => {
+        localDbCache[colName][doc.id] = doc.data();
+      });
+      persistLocalDb();
+    }
+    return snap;
+  } catch (err: any) {
+    const isQuota = err.message?.toLowerCase().includes('quota') || err.message?.toLowerCase().includes('limit') || err.message?.toLowerCase().includes('exceeded') || err.code === 'resource-exhausted';
+    if (isQuota) {
+      console.warn(`⚠️ FIRESTORE QUOTA EXCEEDED (getDocs). Falling back to local offline JSON cache for collection: "${colName || 'unknown'}"`);
+      
+      if (colName && localDbCache[colName]) {
+        const cachedCol = localDbCache[colName];
+        let allItems = Object.keys(cachedCol).map(id => ({
+          id,
+          data: () => cachedCol[id],
+          exists: () => true
+        }));
+
+        // Dynamically apply filters from queries
+        const queryObj = queryOrColRef._query || queryOrColRef.query;
+        const filters = queryObj?.filters || [];
+        for (const filter of filters) {
+          try {
+            const field = filter.field?.segments?.[0] || filter.field?.path || '';
+            const op = filter.op;
+            let val = filter.value?.stringValue || filter.value?.integerValue || filter.value?.booleanValue || filter.value;
+            if (filter.value && typeof filter.value === 'object') {
+              const keys = Object.keys(filter.value);
+              if (keys.length > 0) {
+                val = filter.value[keys[0]];
+              }
+            }
+            if (field && val !== undefined) {
+              allItems = allItems.filter(item => {
+                const itemVal = item.data()?.[field];
+                if (op === '==' || op === 'equal') return String(itemVal) === String(val);
+                return true;
+              });
+            }
+          } catch(filterErr) {
+            console.error('Error in local filter app:', filterErr);
+          }
+        }
+
+        // Apply simple descending sort
+        allItems.sort((a, b) => {
+          const tA = a.data()?.timestamp || a.data()?.join_date || a.id || '';
+          const tB = b.data()?.timestamp || b.data()?.join_date || b.id || '';
+          return String(tB).localeCompare(String(tA));
+        });
+
+        const limitVal = queryObj?.limit || 100;
+        const sliced = allItems.slice(0, limitVal);
+
+        return {
+          docs: sliced,
+          size: sliced.length,
+          empty: sliced.length === 0,
+          forEach: (cb: any) => sliced.forEach(cb)
+        };
+      } else {
+        return {
+          docs: [],
+          size: 0,
+          empty: true,
+          forEach: () => {}
+        };
+      }
+    }
+    throw err;
+  }
+}
+
+// Safe wrapper for getCountFromServer
+async function getCountFromServer(queryOrColRef: any): Promise<any> {
+  try {
+    return await firebaseGetCountFromServer(queryOrColRef);
+  } catch (err: any) {
+    const isQuota = err.message?.toLowerCase().includes('quota') || err.message?.toLowerCase().includes('limit') || err.message?.toLowerCase().includes('exceeded') || err.code === 'resource-exhausted';
+    if (isQuota) {
+      let colName = queryOrColRef.path;
+      if (!colName && queryOrColRef._query?.path?.segments) {
+        colName = queryOrColRef._query.path.segments[0];
+      }
+      if (!colName && queryOrColRef.query?.path?.segments) {
+        colName = queryOrColRef.query.path.segments[0];
+      }
+      if (!colName && queryOrColRef._path?.segments) {
+        colName = queryOrColRef._path.segments[0];
+      }
+
+      console.warn(`⚠️ FIRESTORE QUOTA EXCEEDED (getCountFromServer). Falling back to local cache count for: "${colName || 'unknown'}"`);
+      
+      let count = 0;
+      if (colName && localDbCache[colName]) {
+        const cachedCol = localDbCache[colName];
+        let allItems = Object.keys(cachedCol).map(id => cachedCol[id]);
+
+        const queryObj = queryOrColRef._query || queryOrColRef.query;
+        const filters = queryObj?.filters || [];
+        for (const filter of filters) {
+          try {
+            const field = filter.field?.segments?.[0] || filter.field?.path || '';
+            const op = filter.op;
+            let val = filter.value?.stringValue || filter.value?.integerValue || filter.value?.booleanValue || filter.value;
+            if (filter.value && typeof filter.value === 'object') {
+              const keys = Object.keys(filter.value);
+              if (keys.length > 0) {
+                val = filter.value[keys[0]];
+              }
+            }
+            if (field && val !== undefined) {
+              allItems = allItems.filter(item => {
+                const itemVal = item?.[field];
+                if (op === '==' || op === 'equal') return String(itemVal) === String(val);
+                return true;
+              });
+            }
+          } catch(e) {}
+        }
+        count = allItems.length;
+      }
+
+      return {
+        data: () => ({ count })
+      };
+    }
+    throw err;
+  }
 }
 
 // Helper function for delays
