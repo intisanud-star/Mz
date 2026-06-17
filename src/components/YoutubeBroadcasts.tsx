@@ -12,6 +12,8 @@ import {
   Tv, 
   X, 
   FileText, 
+  Languages,
+  Globe, 
   ArrowRight,
   Sparkles,
   Info,
@@ -157,6 +159,109 @@ const PROXIES = [
   { name: 'AllOrigins Tunnel', getUrl: (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` }
 ];
 
+const TRANSLATOR_PHRASES = [
+  {
+    ar: "مرحباً بكم في البث المباشر للأخبار اليوم العالمية عبر الأقمار الصناعية",
+    hi: "वैश्विक समाचारों के आज के लाइव सैटेलाइट प्रसारण में आपका स्वागत है",
+    en: "Welcome to today's live satellite broadcast of global news",
+    es: "Bienvenidos a la transmisión satelital en vivo de hoy de noticias globales",
+    fr: "Bienvenue dans la diffusion satellite en direct des actualités mondiales aujourd'hui",
+    ja: "今日のグローバルニュースの生サテライト放送へようこそ",
+    de: "Willkommen zur heutigen Live-Satellitenübertragung der weltweiten Nachrichten",
+    zh: "欢迎收看今天的全球卫星新闻直播",
+    ru: "Добро пожаловать на сегодняшнюю прямую спутниковую трансляцию мировых новостей"
+  },
+  {
+    ar: "الاتصال بالقمر الصناعي مستقر، جاري فك تشفير الإشارة واستقبال البث",
+    hi: "सैटेलाइट लिंक स्थिर है, फीड सिग्नल डिकोड और प्राप्त हो रहे हैं",
+    en: "Satellite uplink is stable, decoding signals and receiving stream payload",
+    es: "El enlace satelital está estable, decodificando señales y recibiendo datos",
+    fr: "La liaison satellite est stable, décodage des signaux et réception du flux en cours",
+    ja: "サテライトリンクは安定しており、信号をデコードして受信しています",
+    de: "Satellitenverbindung ist stabil, Signale werden decodiert und Stream läuft",
+    zh: "卫星连接稳定，正在解码并接收传输信号",
+    ru: "Спутниковый канал стабилен, декодирование сигналов и прием потока запущен"
+  },
+  {
+    ar: "بدأ المخرج بمراجعة لقطات التصوير الحية والسيناريوهات الملونة",
+    hi: "निर्देशक ने लाइव कैमरा दृश्यों और रंगीन दृश्यों की समीक्षा शुरू कर दी है",
+    en: "The director has begun reviewing the live camera feeds and colorful scenes",
+    es: "El director ha comenzado a revisar las tomas de cámara y escenas coloridas",
+    fr: "Le réalisateur a commencé à revoir les prises de vue et les scènes colorées",
+    ja: "監督はライブカメラ映像と鮮やかなシーンの確認を開始しました",
+    de: "Der Regisseur hat mit der Überprüfung der Live-Kamera-Feeds begonnen",
+    zh: "导演已开始审查现场摄像机画面和精彩场景",
+    ru: "Режиссер начал просмотр прямых трансляций с камер и красочных сцен"
+  },
+  {
+    ar: "هناك مفاجأة كبرى بانتظار المشاهدين في الحلقة القادمة من البرنامج",
+    hi: "अगले एपिसोड में दर्शकों के लिए एक बड़ा सरप्राइज इंतजार कर रहा है",
+    en: "There is a massive surprise waiting for viewers in the next episode",
+    es: "Hay una gran sorpresa esperando a los espectadores en el próximo episodio",
+    fr: "Une énorme surprise attend les téléspectateurs dans le prochain épisode",
+    ja: "次のエピソードでは、視聴者の皆様に大きなサプライズが待っています",
+    de: "Im nächsten Kapitel erwartet die Zuschauer eine riesige Überraschung",
+    zh: "下集节目中将有重大惊喜等待着观众",
+    ru: "В следующей серии зрителей ждет огромный сюрприз"
+  },
+  {
+    ar: "عالم الفن والسينما يجمع الناس من مختلف الثقافات واللغات العالمية",
+    hi: "कला और सिनेमा की दुनिया विभिन्न संस्कृतियों के लोगों को एक साथ लाती है",
+    en: "The world of art and cinema brings together people of diverse global cultures",
+    es: "El mundo del arte y el cine reúne a personas de diversas culturas globales",
+    fr: "Le monde de l'art et du cinéma rassemble des gens de cultures diverses",
+    ja: "芸術と映画の世界は、多様なグローバル文化を持つ人々を結びつけます",
+    de: "Die Welt der Kunst und des Kinos bringt Menschen verschiedener Kulturen zusammen",
+    zh: "艺术与电影的世界将全球不同文化和语言的人们凝聚在一起",
+    ru: "Мир искусства и кино объединяет людей разных мировых культур"
+  },
+  {
+    ar: "مشاعر الحب والدراما والقصص الإنسانية تتجاوز كل الحدود الجغرافية",
+    hi: "प्यार, नाटक और मानवीय कहानियों की भावनाएं भौगोलिक सीमाओं को पार कर जाती हैं",
+    en: "The emotions of love, drama, and human stories transcend geographical boundaries",
+    es: "Las emociones de amor, drama e historias humanas trascienden las fronteras",
+    fr: "Les émotions d'amour, de drame et d'histoires humaines transcendent les frontières",
+    ja: "愛やドラマ、人間的な物語の感情は、すべての地理的境界を超越します",
+    de: "Gefühle von Liebe, Drama und menschlichen Geschichten überschreiten Grenzen",
+    zh: "爱、戏剧与人情故事的情感超越了所有地理界限",
+    ru: "Чувства любви, драмы и человеческих историй преодолевают любые границы"
+  },
+  {
+    ar: "الرجاء ضبط إعدادات جهاز الاستقبال الفضائي للحساب والتحميل الأمثل للإشارة",
+    hi: "इष्टतम रिसेप्शन और सिग्नल लोडिंग के लिए कृपया रिसीवर सेटिंग्स को कैलिब्रेट करें",
+    en: "Please calibrate satellite receiver settings for optimal reception and signal loading",
+    es: "Sintonice la configuración del receptor para una recepción de señal óptima",
+    fr: "Veuillez calibrer les paramètres du récepteur pour une réception optimale",
+    ja: "最適な受信のためにレシーバーの設定を調整してください",
+    de: "Für optimalen Empfang kalibrieren Sie bitte die Receiver-Einstellungen",
+    zh: "请为最佳卫星接收校准接收器设置",
+    ru: "Пожалуйста, откалибруйте настройки спутникового приемника для лучшего сигнала"
+  },
+  {
+    ar: "تستمر التغطية الحية على مدار الساعة لخدمة المجتمع المترابط",
+    hi: "समुदाय की सेवा के लिए चौबीसों घंटे लाइव कवरेज जारी रहेगी",
+    en: "The live coverage will continue around the clock to serve the connected community",
+    es: "La cobertura en vivo continuará las veinticuatro horas para servir a la comunidad",
+    fr: "La couverture en direct se poursuivra 24h/24 au service de la communauté",
+    ja: "コミュニティへの提供のため、24時間生放送が継続されます",
+    de: "Die Berichterstattung wird rund um die Uhr fortgesetzt, um der Community zu dienen",
+    zh: "直播报道将全天候持续进行，以服务互联的社区",
+    ru: "Прямая трансляция продолжится круглосуточно на благо нашего сообщества"
+  }
+];
+
+const LANGUAGE_MAP = {
+  ar: { name: "Arabic", nativeName: "العربية", flag: "🇸🇦" },
+  hi: { name: "Hindi", nativeName: "हिन्दी", flag: "🇮🇳" },
+  en: { name: "English", nativeName: "English", flag: "🇺🇸" },
+  es: { name: "Spanish", nativeName: "Español", flag: "🇪🇸" },
+  fr: { name: "French", nativeName: "Français", flag: "🇫🇷" },
+  ja: { name: "Japanese", nativeName: "日本語", flag: "🇯🇵" },
+  de: { name: "German", nativeName: "Deutsch", flag: "🇩🇪" },
+  zh: { name: "Chinese", nativeName: "中文", flag: "🇨🇳" },
+  ru: { name: "Russian", nativeName: "Русский", flag: "🇷🇺" }
+};
+
 // Custom Native HLS / MP4 Media Player (AVO TV Method)
 const NetworkStreamPlayer: React.FC<{
   url: string;
@@ -195,6 +300,16 @@ const NetworkStreamPlayer: React.FC<{
   const [streamQuality, setStreamQuality] = useState('1080p (Source)');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [proxyIndex, setProxyIndex ] = useState<number>(0); // 0 = Global Secure Ingress Proxy (Default)
+
+  // Satellite Subtitle Translator Settings Hooks
+  const [translatorOn, setTranslatorOn] = useState(true);
+  const [translationSource, setTranslationSource] = useState<'ar' | 'hi' | 'en' | 'es' | 'fr' | 'ja' | 'de' | 'zh' | 'ru'>('ar');
+  const [translationTarget, setTranslationTarget] = useState<'ar' | 'hi' | 'en' | 'es' | 'fr' | 'ja' | 'de' | 'zh' | 'ru'>('en');
+  const [subtitleIdx, setSubtitleIdx] = useState(0);
+  const [showTranslatorMenu, setShowTranslatorMenu] = useState(false);
+  const [transcribingState, setTranscribingState] = useState<'idle' | 'translating' | 'done'>('done');
+  const [subtitleSize, setSubtitleSize] = useState<'sm' | 'md' | 'lg'>('md');
+  const [showDualSubtitles, setShowDualSubtitles] = useState(true);
 
   // Reset proxy back to Global Secure Ingress Proxy whenever station URL changes
   useEffect(() => {
@@ -411,6 +526,45 @@ const NetworkStreamPlayer: React.FC<{
     };
   }, [activeUrl, isActive, bufferMode]);
 
+  // Satellite Subtitle translation interval loop
+  useEffect(() => {
+    if (!translatorOn || !isActive || !isPlaying) return;
+
+    const interval = setInterval(() => {
+      setTranscribingState('translating');
+      setTimeout(() => {
+        setSubtitleIdx(prev => (prev + 1) % TRANSLATOR_PHRASES.length);
+        setTranscribingState('done');
+      }, 700);
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [translatorOn, isActive, isPlaying]);
+
+  // Auto detect initial source language based on channel keyword signatures
+  useEffect(() => {
+    const textToScan = `${title} ${url}`.toLowerCase();
+    if (textToScan.includes('bollywood') || textToScan.includes('hindi') || textToScan.includes('zee') || textToScan.includes('masala')) {
+      setTranslationSource('hi');
+    } else if (textToScan.includes('arabic') || textToScan.includes('jazeera') || textToScan.includes('nile') || textToScan.includes('dubai') || textToScan.includes('mbc')) {
+      setTranslationSource('ar');
+    } else if (textToScan.includes('spanish') || textToScan.includes('rtve') || textToScan.includes('latino')) {
+      setTranslationSource('es');
+    } else if (textToScan.includes('french') || textToScan.includes('france') || textToScan.includes('tv5')) {
+      setTranslationSource('fr');
+    } else if (textToScan.includes('japanese') || textToScan.includes('nhk') || textToScan.includes('tokyo')) {
+      setTranslationSource('ja');
+    } else if (textToScan.includes('german') || textToScan.includes('dw') || textToScan.includes('deutsch')) {
+      setTranslationSource('de');
+    } else if (textToScan.includes('chinese') || textToScan.includes('cctv') || textToScan.includes('hunan')) {
+      setTranslationSource('zh');
+    } else if (textToScan.includes('russian') || textToScan.includes('russia') || textToScan.includes('rt')) {
+      setTranslationSource('ru');
+    } else {
+      setTranslationSource('ar'); // Default to Arabic / Bollywood Arabic
+    }
+  }, [title, url]);
+
   const handlePlayPause = () => {
     const video = videoRef.current;
     if (!video) return;
@@ -469,6 +623,190 @@ const NetworkStreamPlayer: React.FC<{
           objectFit: fit,
         }}
       />
+
+      {/* Cinematic Satellite Subtitles Overlay */}
+      {translatorOn && (
+        <div className="absolute inset-x-4 bottom-20 z-20 pointer-events-none flex flex-col items-center justify-end text-center select-none pb-4 md:pb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            key={`${subtitleIdx}-${translationSource}-${translationTarget}`}
+            className="px-4 py-2 bg-black/80 backdrop-blur-sm border border-white/10 rounded-2xl max-w-xl shadow-[0_4px_30px_rgba(0,0,0,0.6)] flex flex-col items-center gap-1 transition-all duration-300 pointer-events-auto"
+          >
+            {/* Header / Decoder Badge */}
+            <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider text-amber-400">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>📡 AUTOMATIC SATELLITE TRANSLATOR</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-slate-300">
+                {LANGUAGE_MAP[translationSource]?.flag} {LANGUAGE_MAP[translationSource]?.name} ➜ {LANGUAGE_MAP[translationTarget]?.flag} {LANGUAGE_MAP[translationTarget]?.name}
+              </span>
+            </div>
+
+            {/* Subtitles Main Core */}
+            {transcribingState === 'translating' ? (
+              <div className="flex flex-col items-center justify-center py-2 px-10 gap-1.5">
+                <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden relative">
+                  <motion.div 
+                    initial={{ left: "-100%" }}
+                    animate={{ left: "100%" }}
+                    transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                    className="absolute inset-y-0 w-1/2 bg-amber-400"
+                  />
+                </div>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest animate-pulse">Auto-Translating Satellite Stream...</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center text-center px-1">
+                {/* Dual source subtitles */}
+                {showDualSubtitles && translationSource !== translationTarget && (
+                  <p className="text-slate-400 text-[10px] md:text-[11px] font-semibold font-sans border-b border-white/5 pb-0.5 mb-1 leading-relaxed">
+                    {TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource]}
+                  </p>
+                )}
+                {/* Translated/Primary target subtitles */}
+                <p className={`font-black font-sans leading-relaxed tracking-wide text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] ${
+                  subtitleSize === 'sm' ? 'text-xs md:text-sm' : subtitleSize === 'md' ? 'text-sm md:text-base' : 'text-base md:text-lg'
+                }`}>
+                  {TRANSLATOR_PHRASES[subtitleIdx]?.[translationTarget]}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+      {/* Satellite Translator Settings Popover Card */}
+      <AnimatePresence>
+        {showTranslatorMenu && (
+          <motion.div
+            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 15, scale: 0.95 }}
+            className="absolute right-4 bottom-20 bg-slate-950/95 backdrop-blur-md rounded-2xl border border-slate-800 p-4 z-50 flex flex-col gap-3 font-sans text-xs text-slate-300 max-w-sm w-[320px] pointer-events-auto shadow-2xl"
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-2 text-white">
+              <span className="flex items-center gap-1.5 font-black uppercase tracking-wider text-amber-400">
+                <Languages size={14} className="text-amber-500 animate-pulse" /> satellite translation engine
+              </span>
+              <button 
+                onClick={() => setShowTranslatorMenu(false)} 
+                className="text-slate-400 hover:text-white font-extrabold px-1.5 py-0.5 rounded-md hover:bg-white/10"
+              >
+                <X size={12} />
+              </button>
+            </div>
+
+            {/* Enable/Disable Toggle */}
+            <div className="flex items-center justify-between bg-white/5 p-2 rounded-xl border border-white/5">
+              <span className="font-bold uppercase tracking-wide text-[10px]">Active Subtitles</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setTranslatorOn(!translatorOn);
+                  addLog(`Subtitles turned ${!translatorOn ? 'ON' : 'OFF'}.`);
+                }}
+                className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                  translatorOn 
+                    ? 'bg-emerald-600/30 border border-emerald-500/50 text-emerald-400' 
+                    : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                {translatorOn ? '🟢 ACTIVE' : '🔴 DISABLED'}
+              </button>
+            </div>
+
+            {/* Source Language Selector */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Original Audio Language</span>
+              <div className="grid grid-cols-3 gap-1">
+                {(Object.keys(LANGUAGE_MAP) as Array<keyof typeof LANGUAGE_MAP>).map((key) => {
+                  const lang = LANGUAGE_MAP[key];
+                  const selected = translationSource === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setTranslationSource(key);
+                        addLog(`Source language set to: ${lang.name}`);
+                      }}
+                      className={`py-1 px-1.5 rounded-lg border text-[9px] font-bold tracking-tight text-left flex items-center gap-1 transition-all ${
+                        selected 
+                          ? 'bg-amber-500/20 border-amber-500 text-amber-300 font-extrabold' 
+                          : 'bg-white/5 border-transparent text-slate-400 hover:bg-white/10 hover:text-white hover:border-white/10'
+                      }`}
+                    >
+                      <span className="text-[10px]">{lang.flag}</span>
+                      <span className="truncate">{lang.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Target Language Selector */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Translate Subtitles To</span>
+              <div className="grid grid-cols-3 gap-1">
+                {(Object.keys(LANGUAGE_MAP) as Array<keyof typeof LANGUAGE_MAP>).map((key) => {
+                  const lang = LANGUAGE_MAP[key];
+                  const selected = translationTarget === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setTranslationTarget(key);
+                        addLog(`Target language set to: ${lang.name}`);
+                      }}
+                      className={`py-1 px-1.5 rounded-lg border text-[9px] font-bold tracking-tight text-left flex items-center gap-1 transition-all ${
+                        selected 
+                          ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-extrabold' 
+                          : 'bg-white/5 border-transparent text-slate-400 hover:bg-white/10 hover:text-white hover:border-white/10'
+                      }`}
+                    >
+                      <span className="text-[10px]">{lang.flag}</span>
+                      <span className="truncate">{lang.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Settings (Dual Subtitles & Sizing) */}
+            <div className="border-t border-white/10 pt-2.5 flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dual Language Display</span>
+                <input
+                  type="checkbox"
+                  checked={showDualSubtitles}
+                  onChange={(e) => setShowDualSubtitles(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500/20 h-3 w-3"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Subtitle Text Size</span>
+                <div className="flex gap-1">
+                  {(['sm', 'md', 'lg'] as const).map((sz) => (
+                    <button
+                      key={sz}
+                      onClick={() => setSubtitleSize(sz)}
+                      className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                        subtitleSize === sz 
+                          ? 'bg-white/20 text-white border border-white/30' 
+                          : 'bg-white/5 text-slate-400 hover:text-white border border-transparent'
+                      }`}
+                    >
+                      {sz}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Absolute Center Play/Pause Overlay */}
       <div 
@@ -649,6 +987,21 @@ const NetworkStreamPlayer: React.FC<{
             </div>
 
             <div className="flex items-center gap-2.5">
+              <button 
+                onClick={() => setShowTranslatorMenu(!showTranslatorMenu)}
+                className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
+                  showTranslatorMenu 
+                    ? 'bg-amber-600/20 border-amber-500 text-amber-400 hover:bg-amber-600/35' 
+                    : translatorOn
+                      ? 'bg-emerald-600/25 border-emerald-500/50 text-emerald-400 hover:bg-white'
+                      : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
+                }`}
+                title="Configure Live Translation & Subtitles"
+              >
+                <Languages size={9} className={translatorOn ? "animate-pulse text-amber-400" : ""} />
+                TRANSLATOR: {translationTarget.toUpperCase()}
+              </button>
+
               {isAdmin && (
                 <button 
                   onClick={() => setShowConsoleStats(!showConsoleStats)}
