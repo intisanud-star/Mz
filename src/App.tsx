@@ -30286,15 +30286,9 @@ function ExonaApp() {
               >
                 <div className="relative">
                   {isMiddleMenuOpen ? (
-                    <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 2L11 13" fill="none" />
-                      <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-                    </svg>
+                    <X size={24} className="text-zinc-950" strokeWidth={2.4} />
                   ) : (
-                    <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 2L11 13" />
-                      <path d="M22 2L15 22L11 13L2 9L22 2Z" />
-                    </svg>
+                    <LayoutGrid size={24} className="text-zinc-800 hover:text-zinc-950" strokeWidth={2.4} />
                   )}
                 </div>
               </button>
