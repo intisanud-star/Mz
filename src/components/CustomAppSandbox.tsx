@@ -173,52 +173,58 @@ export default function CustomAppSandbox({ app, onClose, showNotification, setCu
   if (app.appUrl && viewMode === 'immersive') {
     return (
       <div className="flex-1 flex flex-col bg-white overflow-hidden relative text-left">
-        {/* Full-Screen Sleek Ultra-Thin Header */}
-        <div className="bg-zinc-900 border-b border-zinc-805 text-white h-12 px-4 flex items-center justify-between shrink-0 select-none z-30">
-          <div className="flex items-center gap-3">
+        {/* Full-Screen Sleek Ultra-Thin Header - Blends perfectly with local native applications */}
+        <div className="bg-white border-b border-gray-150 h-14 px-6 flex items-center justify-between shrink-0 select-none z-30 shadow-2xs">
+          <div className="flex items-center gap-4">
             <button
               onClick={onClose}
-              className="h-8 px-3 bg-zinc-850 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
-              title="Return to Workspace App Center"
+              className="group h-9 px-4 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl flex items-center justify-center gap-2 transition-all text-xs font-black uppercase tracking-wider cursor-pointer text-zinc-700"
+              title="Return to Workspace"
             >
-              <ArrowLeft size={13} strokeWidth={2.5} />
-              <span>Back</span>
+              <ArrowLeft size={14} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
+              <span>Workspace</span>
             </button>
-            <div className="flex items-center gap-2">
+            <div className="h-4 w-px bg-gray-200" />
+            <div className="flex items-center gap-2.5">
               {app.iconUrl ? (
-                <img src={app.iconUrl} className="h-5 w-5 object-cover rounded-md" alt={app.name} referrerPolicy="no-referrer" />
+                <img src={app.iconUrl} className="h-6 w-6 object-cover rounded-lg shadow-2xs border border-gray-150" alt={app.name} referrerPolicy="no-referrer" />
               ) : (
-                <div className={`h-5 w-5 rounded-md flex items-center justify-center bg-zinc-800 text-${app.color.split('-')[0] || 'blue'}-400`}>
-                  <IconComponent size={12} strokeWidth={2.5} />
+                <div className={`h-6 w-6 rounded-lg flex items-center justify-center bg-zinc-50 text-${app.color ? app.color.split('-')[0] : 'blue'}-600 border border-zinc-200 shadow-2xs`}>
+                  <IconComponent size={13} strokeWidth={2.5} />
                 </div>
               )}
-              <span className="text-xs font-extrabold font-sans tracking-tight text-zinc-100">{app.name}</span>
+              <span className="text-sm font-black tracking-tight text-zinc-900">{app.name}</span>
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-black uppercase tracking-wider border border-emerald-150 font-sans">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live Portal
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setIframeKey(k => k + 1)}
-              className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-              title="Reload Frame"
+              className="p-2 hover:bg-gray-50 text-zinc-400 hover:text-zinc-805 rounded-xl transition-all cursor-pointer border border-transparent hover:border-gray-100"
+              title="Reload App"
             >
-              <RefreshCw size={13} />
+              <RefreshCw size={14} className="hover:rotate-180 transition-transform duration-500 text-zinc-500" />
             </button>
             
             <button
               onClick={handleLaunchExternal}
-              className="px-3 py-1 bg-zinc-800 hover:bg-zinc-750 border border-zinc-750 rounded-lg text-[9px] font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
-              title="Open Target Link in Standalone New Tab"
+              className="h-9 px-4 bg-zinc-90 w-max bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="Open in Standalone Browser Window"
             >
-              <ExternalLink size={10} /> Standalone
+              <ExternalLink size={12} strokeWidth={2.5} />
+              <span>Standalone</span>
             </button>
-
+            
             <button
               onClick={() => setViewMode('console')}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-550 border border-blue-500 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all cursor-pointer"
-              title="Configure Link Settings & Shortcuts"
+              className="h-9 px-3.5 bg-gray-100 hover:bg-gray-200 text-zinc-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              title="Configure app metadata"
             >
-              Settings
+              Config
             </button>
           </div>
         </div>

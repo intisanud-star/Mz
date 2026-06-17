@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Search, Plus, ArrowLeft, Star, Grid, Check, HelpCircle, Laptop, Smartphone,
+  Search, Plus, ArrowLeft, Star, Grid as GridIcon, Check, HelpCircle, Laptop, Smartphone,
   Shield, Play, Heart, CloudLightning, RefreshCw, Layers, Sparkles, AlertCircle, ShoppingBag, 
-  Trash2, Sliders, Smartphone as PhoneIcon, Code, Eye, ExternalLink, Settings, Download, Info,
+  Trash2, Sliders, Code, Eye, ExternalLink, Settings, Download, Info, ArrowRight, Bell,
   FileText, PenTool, FileJson, Radio, HardDrive, BadgeCheck, Video, HelpCircle as QuestionIcon,
-  Upload, Image as ImageIcon
+  Upload, Image as ImageIcon, User, Gamepad2
 } from 'lucide-react';
 import { db, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
 import { collection, addDoc, serverTimestamp, deleteDoc, doc, setDoc } from 'firebase/firestore';
@@ -27,7 +27,8 @@ export const getAppIcon = (iconName: string) => {
     case 'Shield': return Shield;
     case 'Settings': return Settings;
     case 'Heart': return Heart;
-    default: return Grid;
+    case 'Gamepad2': return Gamepad2;
+    default: return GridIcon;
   }
 };
 
@@ -69,12 +70,18 @@ export default function WorkspaceAppCenter({
   setCustomApps,
   onLaunchApp
 }: WorkspaceAppCenterProps) {
-  const [activeTab, setActiveTab] = useState<'browse' | 'installed' | 'sandbox'>('browse');
+  // We use active tabs matching the exact Google Play UI:
+  // - games: Battle assessments & interactive quiz apps
+  // - apps: Productivity suite, utility launchers, and custom URL apps
+  // - search: Comprehensive Google Play search tool
+  // - you: User's Developer Publisher Console & Active Layout Switches
+  const [activeTab, setActiveTab] = useState<'games' | 'apps' | 'search' | 'you'>('apps');
+  const [subTab, setSubTab] = useState<'foryou' | 'topcharts' | 'education' | 'categories'>('foryou');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedApp, setSelectedApp] = useState<AppCenterItem | null>(null);
 
-  // Custom App Creation formulation
+  // Custom App Form States
   const [newAppName, setNewAppName] = useState('');
   const [newAppDesc, setNewAppDesc] = useState('');
   const [newAppUrl, setNewAppUrl] = useState('');
@@ -162,7 +169,7 @@ export default function WorkspaceAppCenter({
     },
     { 
       id: 'file-share', 
-      name: 'Exona Drop (AirDrop)', 
+      name: 'Exona Drop', 
       description: 'Exchange files, photos, music, and apps locally at lightning hardware speeds using secure offline ad-hoc wireless links.', 
       iconName: 'Radio', 
       category: 'Utility', 
@@ -207,36 +214,66 @@ export default function WorkspaceAppCenter({
     }
   ];
 
-  // Combine defaults and student custom apps
+  // Combine defaults and custom apps
   const allAvailableApps = [...defaultCatalogApps, ...customApps];
 
-  // Filter apps based on search & category select
-  const filteredApps = allAvailableApps.filter(app => {
-    const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          app.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'All' || app.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  // Filter apps based on active tabs, search and subTabs criteria
+  const getCategorizedApps = () => {
+    let list = [...allAvailableApps];
+
+    // Filter by high-level navigation tabs
+    if (activeTab === 'games') {
+      // In Google Play Games Tab, show brain quiz and gamified portal apps (Assessment & Creative)
+      list = list.filter(app => app.category === 'Assessment' || app.category === 'Media & Creative' || app.id === 'e-test');
+    } else if (activeTab === 'apps') {
+      // General applications tab
+      list = list.filter(app => app.id !== 'e-test');
+    } else if (activeTab === 'search') {
+      // Simple search query match
+      if (searchQuery.trim()) {
+        list = list.filter(app => 
+          app.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+          app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          app.category.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+    }
+
+    // Filter by categories dropdown/filters if active
+    if (selectedCategory !== 'All') {
+      list = list.filter(app => app.category === selectedCategory);
+    }
+
+    // Filter by Sub navigation bar selections
+    if (subTab === 'topcharts') {
+      // Sort descending by rating score
+      list.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+    } else if (subTab === 'education') {
+      // Only educational productivity
+      list = list.filter(app => app.category === 'Assessment' || app.category === 'Productivity');
+    }
+
+    return list;
+  };
+
+  const currentAppsList = getCategorizedApps();
 
   // Toggle install / activation inside workspace
   const handleToggleAppActivation = (appId: string) => {
-    // If it is workspace-app-center, we never allow disabling it
     if (appId === 'docs-placeholder-app-center') return; 
 
     if (enabledAppIds.includes(appId)) {
-      // Uninstall/Disable
       const updated = enabledAppIds.filter(id => id !== appId);
       setEnabledAppIds(updated);
       showNotification(`Deactivated and removed from main Workspace panel.`, 'info');
     } else {
-      // Install/Enable
       const updated = [...enabledAppIds, appId];
       setEnabledAppIds(updated);
       showNotification(`Activated successfully! App added to Workspace panel.`, 'success');
     }
   };
 
-  // Create custom specifications
+  // Register modern Custom app to play store (registers on Firestore so all users see it!)
   const handleCreateCustomApp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAppName.trim()) {
@@ -244,7 +281,6 @@ export default function WorkspaceAppCenter({
       return;
     }
 
-    // Standardize URL protocol if needed
     let sanitizedUrl = newAppUrl.trim();
     if (sanitizedUrl && !/^https?:\/\//i.test(sanitizedUrl)) {
       sanitizedUrl = 'https://' + sanitizedUrl;
@@ -254,20 +290,20 @@ export default function WorkspaceAppCenter({
     const newApp: AppCenterItem = {
       id: newId,
       name: newAppName,
-      description: newAppDesc || 'Custom application shortcut/platform.',
+      description: newAppDesc || 'Custom published application live portal.',
       category: newAppCat,
       iconName: newAppIcon,
       color: newAppColor,
-      rating: '5.0',
-      reviews: 1,
-      creator: 'Your Institution Labs',
+      rating: (4.5 + Math.random() * 0.5).toFixed(1), // Realistic high rating
+      reviews: Math.floor(Math.random() * 40) + 15,
+      creator: 'Workspace Publisher',
       isDefault: false,
       isCustom: true,
-      version: sanitizedUrl ? 'v1.0.0 (Active Live URL Link)' : 'v1.0.0 (Concept Sketch)',
-      size: sanitizedUrl ? 'Direct Link' : '200 KB',
+      version: sanitizedUrl ? 'v1.0.0 (Live Live URL Link)' : 'v1.0.0 (Blueprint Specification)',
+      size: sanitizedUrl ? 'Direct' : '120 KB',
       featuresList: sanitizedUrl 
-        ? ['Instantly launches live URL shortcut', 'Stand-alone mobile home screen shortcut ready', 'Zero-latency direct routing']
-        : ['Specs Registered', 'Custom Action Handlers', 'Placeholder Dashboard Layout'],
+        ? ['Instantly launches immersive live portal', 'Fully embedded sandbox iframe browser support', 'Real-time synchronization across devices']
+        : ['Designed component mockup specification', 'Aesthetic theme customization ready', 'Dynamic interactive form ready'],
       appUrl: sanitizedUrl || undefined,
       iconUrl: newAppIconUrl.trim() || undefined
     };
@@ -276,17 +312,17 @@ export default function WorkspaceAppCenter({
     setCustomApps(updatedCatalog);
     localStorage.setItem('exonasoft_custom_workspace_apps', JSON.stringify(updatedCatalog));
     
-    // Save to Firestore for other users
+    // Upload to shared Firestore instantly for all active users
     try {
       setDoc(doc(db, 'workspaceCustomApps', newId), {
         ...newApp,
         createdAt: new Date().toISOString()
-      }).catch(err => console.error('Firestore save fail:', err));
+      }).catch(err => console.error('Firestore save failed:', err));
     } catch (e) {
       console.error(e);
     }
     
-    // Auto-enable newly created app
+    // Auto active
     setEnabledAppIds([...enabledAppIds, newId]);
 
     // Reset Form
@@ -296,8 +332,8 @@ export default function WorkspaceAppCenter({
     setNewAppIconUrl('');
     setNewAppIcon('Code');
     setNewAppColor('blue-600');
-    setActiveTab('browse');
-    showNotification(`Custom shortcut app "${newAppName}" added & activated in Workspace!`, 'success');
+    setActiveTab('apps');
+    showNotification(`Successfully published "${newAppName}" shortcut to Workspace Play Store!`, 'success');
   };
 
   // Delete custom apps
@@ -310,7 +346,7 @@ export default function WorkspaceAppCenter({
     setCustomApps(updatedCustoms);
     localStorage.setItem('exonasoft_custom_workspace_apps', JSON.stringify(updatedCustoms));
 
-    // Delete from Firestore
+    // Delete Firestore instance
     try {
       await deleteDoc(doc(db, 'workspaceCustomApps', appId));
     } catch (fsErr) {
@@ -322,7 +358,7 @@ export default function WorkspaceAppCenter({
     showNotification('Removed custom app.', 'info');
   };
 
-  // Suggested app quick deployment options
+  // Preset Template deployment shortcuts
   const quickTemplateApps = [
     { name: 'Student Information System', desc: 'Manage official enrollment databases, student rosters, and records.', cat: 'Productivity', icon: 'Laptop', color: 'indigo-600' },
     { name: 'Tuition Fee Registry', desc: 'Invoices, transaction logging, and payment receipt verifications.', cat: 'Utility', icon: 'Shield', color: 'emerald-600' },
@@ -331,223 +367,339 @@ export default function WorkspaceAppCenter({
   ];
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden relative">
+    <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
       
-      {/* Exona App Store Style Header Banner */}
-      <div className="bg-gradient-to-r from-zinc-900 via-zinc-850 to-blue-950 text-white p-6 md:p-10 shrink-0 relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
-        <div className="absolute left-1/3 bottom-0 w-60 h-60 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="relative flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="text-left max-w-2xl">
-            <span className="text-[10px] bg-blue-500 text-white font-black px-3 py-1 rounded-full uppercase tracking-widest leading-none block w-max mb-3 shadow-sm shadow-blue-500/15">
-              Exona Workspace
-            </span>
-            <h1 className="text-3xl font-black tracking-tight leading-tight">
-              Workspace App Store
-            </h1>
-            <p className="text-zinc-300 text-sm mt-1.5 leading-relaxed font-bold">
-              Instantly add, remove, configure, and customize applications right in your active Workspace panel. Create brand-new concept templates to build later!
-            </p>
-          </div>
-
+      {/* Google Play Styled Brand Header (Search / Notification / Profile) */}
+      <div className="bg-white border-b border-gray-100 px-5 py-4 shrink-0 shadow-xs z-20">
+        <div className="flex items-center justify-between gap-4 max-w-5xl mx-auto">
+          
+          {/* Brand Logo (Google Play Style) */}
           <div className="flex items-center gap-3">
-            <button
+            <button 
               onClick={onClose}
-              className="px-6 py-3.5 bg-white text-zinc-900 border border-zinc-200 hover:bg-gray-50 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              className="h-9 w-9 bg-gray-50 hover:bg-gray-100 rounded-full flex items-center justify-center border border-gray-200 transition-colors shadow-2xs mr-1"
+              title="Return to active Workspace"
             >
-              <ArrowLeft size={14} /> Back to Workspace
+              <ArrowLeft size={16} strokeWidth={2.5} className="text-zinc-600" />
             </button>
+            <div className="flex items-center gap-2 group cursor-pointer">
+              <div className="h-9 w-9 bg-gradient-to-tr from-[#ea4335] via-[#fbbc05] to-[#34a853] rounded-xl flex items-center justify-center text-white shadow-xs rotate-6 group-hover:rotate-0 transition-transform duration-300">
+                <Play fill="currentColor" size={17} className="ml-0.5 text-white/95" />
+              </div>
+              <span className="text-lg font-black font-sans tracking-tight text-zinc-900">
+                Workspace <span className="text-blue-600 font-bold font-sans">Play</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Right Action Items (Search quick access, Bell, Avatar picture) */}
+          <div className="flex items-center gap-3.5">
+            <button 
+              onClick={() => setActiveTab('search')}
+              className={`p-2 rounded-full transition-all cursor-pointer ${activeTab === 'search' ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-100 text-zinc-500'}`}
+              title="Search store apps"
+            >
+              <Search size={18} strokeWidth={2.2} />
+            </button>
+
+            <button className="p-2 hover:bg-gray-100 text-zinc-500 rounded-full relative cursor-pointer" title="Notifications">
+              <Bell size={18} strokeWidth={2.2} />
+              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+            </button>
+
+            <div 
+              onClick={() => setActiveTab('you')}
+              className="h-9 w-9 rounded-full border border-gray-150 overflow-hidden shadow-2xs ring-2 ring-blue-500/10 cursor-pointer hover:ring-blue-500/45 transition-all"
+              title="Open Publisher Console"
+            >
+              <img 
+                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" 
+                className="h-full w-full object-cover" 
+                alt="Developer Avatar"
+                referrerPolicy="no-referrer"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Exona Segment Tabs */}
-        <div className="flex gap-6 mt-8 border-b border-white/10 text-sm font-black uppercase tracking-wider">
-          <button
-            onClick={() => setActiveTab('browse')}
-            className={`pb-3 transition-colors flex items-center gap-2 relative ${
-              activeTab === 'browse' ? 'text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <ShoppingBag size={16} /> Games & Apps Store
-            {activeTab === 'browse' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t-full" />}
-          </button>
-          <button
-            onClick={() => setActiveTab('installed')}
-            className={`pb-3 transition-colors flex items-center gap-2 relative ${
-              activeTab === 'installed' ? 'text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Grid size={16} /> Enabled in Workspace ({enabledAppIds.length})
-            {activeTab === 'installed' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t-full" />}
-          </button>
-          <button
-            onClick={() => setActiveTab('sandbox')}
-            className={`pb-3 transition-colors flex items-center gap-2 relative ${
-              activeTab === 'sandbox' ? 'text-white' : 'text-zinc-400 hover:text-white'
-            }`}
-          >
-            <Code size={16} /> Create Concept App
-            {activeTab === 'sandbox' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-500 rounded-t-full" />}
-          </button>
-        </div>
+        {/* Dynamic Material Underline Tab Sub-Navigation (For You, Charts, Children, Categories) */}
+        {(activeTab === 'apps' || activeTab === 'games') && (
+          <div className="flex gap-7 mt-4 border-b border-gray-100 text-xs font-extrabold uppercase tracking-widest leading-none max-w-5xl mx-auto overflow-x-auto scrollbar-none">
+            <button
+              onClick={() => { setSubTab('foryou'); setSelectedCategory('All'); }}
+              className={`pb-3 transition-colors relative whitespace-nowrap cursor-pointer ${
+                subTab === 'foryou' && selectedCategory === 'All' ? 'text-blue-600 font-black' : 'text-zinc-500 hover:text-zinc-900'
+              }`}
+            >
+              For you
+              {subTab === 'foryou' && selectedCategory === 'All' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />}
+            </button>
+
+            <button
+              onClick={() => setSubTab('topcharts')}
+              className={`pb-3 transition-colors relative whitespace-nowrap cursor-pointer ${
+                subTab === 'topcharts' ? 'text-blue-600 font-black' : 'text-zinc-500 hover:text-zinc-900'
+              }`}
+            >
+              Top charts
+              {subTab === 'topcharts' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />}
+            </button>
+
+            <button
+              onClick={() => setSubTab('education')}
+              className={`pb-3 transition-colors relative whitespace-nowrap cursor-pointer ${
+                subTab === 'education' ? 'text-blue-600 font-black' : 'text-zinc-500 hover:text-zinc-900'
+              }`}
+            >
+              Children
+              {subTab === 'education' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />}
+            </button>
+
+            {/* Quick dropdown filters representing Categories tab */}
+            <div className="relative pb-3 text-zinc-500 whitespace-nowrap">
+              <select
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setSubTab('foryou');
+                }}
+                className={`bg-transparent text-xs font-extrabold cursor-pointer border-none outline-none pr-2 focus:ring-0 uppercase tracking-widest ${
+                  selectedCategory !== 'All' ? 'text-blue-600 font-black' : 'text-zinc-500 hover:text-zinc-900'
+                }`}
+              >
+                <option value="All">Categories</option>
+                <option value="Productivity">Productivity</option>
+                <option value="Media & Creative">Media & Creative</option>
+                <option value="Assessment">Assessment</option>
+                <option value="Utility">Utility</option>
+                <option value="Custom">Custom Concepts</option>
+              </select>
+              {selectedCategory !== 'All' && <span className="absolute bottom-0 left-0 right-0 h-1 bg-blue-600 rounded-t-full" />}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* Main Feed Column */}
-        <div className="flex-1 p-6 md:p-8 overflow-y-auto">
-          
-          {activeTab === 'browse' && (
+      {/* Main Material Scroll Content columns */}
+      <div className="flex-1 overflow-y-auto pb-24 bg-white text-left">
+        <div className="max-w-5xl mx-auto px-5 py-6">
+
+          {/* ----------------- TAB: APPS ----------------- */}
+          {activeTab === 'apps' && (
             <div className="space-y-8 animate-fade-in-up">
               
-              {/* Search & Categories Bar */}
-              <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                {/* Search */}
-                <div className="relative w-full md:w-80">
-                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    type="text"
-                    placeholder="Search Workspace apps..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-150 rounded-2xl text-xs font-bold text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-blue-500 shadow-2xs"
-                  />
-                </div>
-
-                {/* Categories */}
-                <div className="flex flex-wrap gap-1.5 bg-white p-1 rounded-2xl border border-gray-150 shadow-2xs">
-                  {['All', 'Productivity', 'Media & Creative', 'Assessment', 'Utility', 'Custom'].map(cat => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                        selectedCategory === cat 
-                          ? 'bg-blue-600 text-white shadow-xs' 
-                          : 'text-zinc-500 hover:text-zinc-850 hover:bg-gray-50'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
+              {/* editorial highlight Carousel Banner */}
+              <div 
+                className="relative h-60 md:h-72 rounded-[2rem] overflow-hidden shadow-xs cursor-pointer group"
+                onClick={() => {
+                  // Pre-select creative editor as a demonstration
+                  const featureApp = allAvailableApps.find(a => a.id === 'editor') || allAvailableApps[0];
+                  if (featureApp) setSelectedApp(featureApp);
+                }}
+              >
+                {/* Beautiful Unsplash Sunset Background */}
+                <img 
+                  src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80" 
+                  className="absolute inset-0 h-full w-full object-cover group-hover:scale-102 transition-transform duration-700" 
+                  alt="Featured banner sunset"
+                  referrerPolicy="no-referrer"
+                />
+                {/* Dark rich gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                
+                {/* Information text content overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white text-left">
+                  <span className="text-[10px] bg-purple-600/90 text-white font-black px-3 py-1 rounded-full uppercase tracking-wider leading-none block w-max mb-2.5">
+                    Essentials
+                  </span>
+                  <h2 className="text-xl md:text-3xl font-black tracking-tight leading-tight max-w-2xl">
+                    Transform your school workspace with robust AI tools
+                  </h2>
+                  <p className="text-zinc-300 text-xs mt-1.5 leading-relaxed font-bold max-w-lg">
+                    Compile templates, manage institution databases, copywrite with smart prompts, or add secure custom link apps.
+                  </p>
                 </div>
               </div>
 
-              {/* Grid of Apps */}
-              {filteredApps.length === 0 ? (
-                <div className="text-center py-20 bg-white border border-gray-200/50 rounded-[2rem] p-10">
-                  <div className="h-16 w-16 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border text-zinc-400">
-                    <AlertCircle size={28} />
-                  </div>
-                  <h3 className="text-lg font-black text-zinc-800 mb-1">No applications found</h3>
-                  <p className="text-xs text-zinc-500 font-bold max-w-sm mx-auto">Try refining your search keyword or explore other menu categories.</p>
+              {/* SECTION: Recommended for you (Horizontal Squircle Scrolling) */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-black text-zinc-900 font-sans tracking-tight">Recommended for you</h3>
+                  <button className="h-8 w-8 rounded-full bg-zinc-50 hover:bg-zinc-100 transition-colors flex items-center justify-center text-zinc-700">
+                    <ArrowRight size={15} strokeWidth={2.5} />
+                  </button>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredApps.map(app => {
+
+                <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-zinc-100 scrollbar-track-transparent">
+                  {currentAppsList.map(app => {
                     const AppIcon = getAppIcon(app.iconName);
                     const isAdded = enabledAppIds.includes(app.id);
 
                     return (
-                      <div
+                      <div 
                         key={app.id}
                         onClick={() => setSelectedApp(app)}
-                        className="group bg-white border border-gray-150 rounded-[2rem] p-6 text-left hover:shadow-lg hover:border-blue-300 transition-all duration-300 cursor-pointer flex flex-col justify-between h-full relative overflow-hidden"
+                        className="w-28 md:w-32 shrink-0 group cursor-pointer text-left"
                       >
-                        <div>
-                          {/* Banner background hover effect */}
-                          <div className={`absolute top-0 left-0 w-2 h-full bg-${app.color}`} />
-
-                          <div className="flex justify-between items-start gap-3 mb-6">
-                            <div className={`h-14 w-14 bg-gradient-to-tr from-${app.color.split('-')[0]}-100 to-${app.color.split('-')[0]}-50 text-${app.color} rounded-2xl flex items-center justify-center shadow-md shadow-${app.color.split('-')[0]}-300/10 shrink-0 group-hover:scale-105 transition-transform duration-300 overflow-hidden`}>
-                              {app.iconUrl ? (
-                                <img src={app.iconUrl} className="h-full w-full object-cover rounded-2xl" alt={app.name} referrerPolicy="no-referrer" />
-                              ) : (
-                                <AppIcon size={26} strokeWidth={2.5} />
-                              )}
+                        {/* Squircle container housing app icon */}
+                        <div className="h-28 w-28 md:h-32 md:w-32 bg-gray-50 border border-gray-150 rounded-[2.2rem] flex items-center justify-center shadow-2xs group-hover:shadow-md transition-all duration-300 relative overflow-hidden mb-2.5">
+                          {app.iconUrl ? (
+                            <img src={app.iconUrl} className="h-full w-full object-cover rounded-[2.2rem]" alt={app.name} referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className={`h-14 w-14 bg-gradient-to-tr from-${app.color.split('-')[0] || 'blue'}-100 to-white text-${app.color} rounded-2xl flex items-center justify-center border shadow-xs`}>
+                              <AppIcon size={26} strokeWidth={2.2} />
                             </div>
-
-                            {/* Stars rating and badge info */}
-                            <div className="text-right">
-                              <span className="text-[9px] font-black uppercase tracking-wider bg-gray-100 text-zinc-500 px-2 py-0.5 rounded-md block w-max ml-auto mb-1">
-                                {app.category}
-                              </span>
-                              <div className="flex items-center gap-1 text-[10px] font-black text-amber-500">
-                                <Star size={12} fill="currentColor" />
-                                {app.rating}
-                              </div>
+                          )}
+                          
+                          {/* Active state overlay badge */}
+                          {isAdded && (
+                            <div className="absolute top-2.5 right-2.5 bg-emerald-500 text-white rounded-full p-1 border-2 border-white shadow-xs">
+                              <Check size={8} strokeWidth={4} />
                             </div>
-                          </div>
-
-                          <h3 className="text-lg font-black text-zinc-900 group-hover:text-blue-600 transition-colors leading-tight mb-1">
-                            {app.name}
-                          </h3>
-                          <p className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest leading-none mb-3">
-                            {app.creator}
-                          </p>
-                          <p className="text-xs text-zinc-500 font-bold leading-relaxed line-clamp-3 mb-6">
-                            {app.description}
-                          </p>
+                          )}
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-auto">
-                          <span className="text-[10px] text-zinc-400 font-mono font-bold uppercase">
-                            {app.size} • {app.isCustom ? 'Concepts' : app.version}
-                          </span>
-
-                          <div className="flex items-center gap-2">
-                            {/* Launch directly trigger */}
-                            {isAdded && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onLaunchApp(app.id);
-                                }}
-                                className="h-8 px-3.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                                title="Run Application"
-                              >
-                                Launch
-                              </button>
-                            )}
-
-                            {/* Primary Install/Deinstall button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleToggleAppActivation(app.id);
-                              }}
-                              className={`h-8 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                isAdded 
-                                  ? 'bg-emerald-500 hover:bg-destructive hover:text-white hover:border-transparent text-white border border-transparent' 
-                                  : 'bg-zinc-900 hover:bg-zinc-800 text-white'
-                              }`}
-                            >
-                              {isAdded ? 'Added' : 'Get / Add'}
-                            </button>
-                            
-                            {/* Trash binary icon for draft customs only */}
-                            {app.isCustom && (
-                              <button
-                                onClick={(e) => handleDeleteCustomApp(app.id, e)}
-                                className="h-8 w-8 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl flex items-center justify-center transition-all border border-rose-100"
-                                title="Delete Custom AppDraft"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>
+                        <h4 className="text-[12px] font-extrabold text-zinc-900 group-hover:text-blue-600 transition-colors line-clamp-1 leading-tight">
+                          {app.name}
+                        </h4>
+                        <p className="text-[11px] font-bold text-zinc-400 mt-0.5 line-clamp-1">
+                          {app.creator}
+                        </p>
+                        <div className="flex items-center gap-0.5 text-[11px] font-extrabold text-amber-500 mt-0.5">
+                          <span>{app.rating}</span>
+                          <Star size={10} fill="currentColor" />
                         </div>
                       </div>
                     );
                   })}
                 </div>
+              </div>
+
+              {/* SECTION: Workspace Custom Link Shortcuts (Real Shared Apps) */}
+              {customApps.length > 0 && (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-black text-zinc-900 font-sans tracking-tight">Shared Portal Shortcuts</h3>
+                    <button className="h-8 w-8 rounded-full bg-zinc-50 hover:bg-zinc-100 transition-colors flex items-center justify-center text-zinc-700">
+                      <ArrowRight size={15} strokeWidth={2.5} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {customApps.map(app => {
+                      const isAdded = enabledAppIds.includes(app.id);
+                      return (
+                        <div 
+                          key={app.id}
+                          onClick={() => setSelectedApp(app)}
+                          className="bg-white border border-gray-150 p-4 rounded-3xl flex justify-between items-center hover:border-blue-400 hover:shadow-2xs transition-all text-left cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-4 truncate">
+                            <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 border bg-zinc-50">
+                              {app.iconUrl ? (
+                                <img src={app.iconUrl} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center text-blue-600 bg-blue-50">
+                                  {React.createElement(getAppIcon(app.iconName), { size: 24 })}
+                                </div>
+                              )}
+                            </div>
+                            <div className="truncate pr-2">
+                              <h4 className="font-extrabold text-zinc-900 text-xs flex items-center gap-1.5 leading-tight mb-1 truncate">
+                                {app.name}
+                              </h4>
+                              <p className="text-[11px] text-zinc-500 font-medium leading-normal line-clamp-1 truncate">{app.description}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-[10px] text-emerald-600 font-extrabold bg-emerald-50 px-2 py-0.5 rounded-md">Live App</span>
+                                <span className="text-[11px] font-extrabold text-[#fbbc05] flex items-center gap-0.5">
+                                  {app.rating} <Star size={10} fill="currentColor" />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleAppActivation(app.id);
+                            }}
+                            className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-wider transition-all shrink-0 cursor-pointer ${
+                              isAdded 
+                                ? 'bg-emerald-500 text-white hover:bg-rose-500' 
+                                : 'bg-gray-100 text-zinc-800 hover:bg-gray-200'
+                            }`}
+                          >
+                            {isAdded ? 'Active' : 'Add'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
-              {/* Quick Template deployment section */}
-              <div className="bg-gradient-to-tr from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-indigo-100/50 p-8 rounded-[3rem] text-left">
+              {/* SECTION: Productivity Suite List */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-black text-zinc-900 font-sans tracking-tight">Communication & Productivity</h3>
+                  <button className="h-8 w-8 rounded-full bg-zinc-50 hover:bg-zinc-100 transition-colors flex items-center justify-center text-zinc-700">
+                    <ArrowRight size={15} strokeWidth={2.5} />
+                  </button>
+                </div>
+
+                <div className="bg-gray-50/50 border border-gray-150 rounded-[2.5rem] divide-y divide-gray-100 overflow-hidden shadow-2xs">
+                  {defaultCatalogApps.map(app => {
+                    const AppIcon = getAppIcon(app.iconName);
+                    const isAdded = enabledAppIds.includes(app.id);
+
+                    return (
+                      <div 
+                        key={app.id}
+                        onClick={() => setSelectedApp(app)}
+                        className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-100/50 transition-colors text-left cursor-pointer"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`h-12 w-12 bg-white text-${app.color} rounded-2xl flex items-center justify-center border shadow-3xs shrink-0`}>
+                            <AppIcon size={22} strokeWidth={2.2} />
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-zinc-1000 text-sm flex items-center gap-1.5">
+                              {app.name}
+                              {app.isDefault && (
+                                <span className="text-[8px] bg-blue-50 text-blue-600 font-extrabold px-1.5 py-0.5 rounded uppercase font-sans">Google Workspace</span>
+                              )}
+                            </h4>
+                            <p className="text-xs text-zinc-500 font-bold leading-relaxed max-w-lg mt-0.5">{app.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                          <div className="text-right hidden sm:block pr-1">
+                            <span className="text-[10px] text-zinc-400 font-bold block">{app.size}</span>
+                            <span className="text-[11px] font-black text-amber-500 flex items-center gap-0.5">
+                              {app.rating} <Star size={10} fill="currentColor" />
+                            </span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer select-none" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              checked={isAdded}
+                              onChange={() => handleToggleAppActivation(app.id)}
+                              className="sr-only peer" 
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Deployment Blueprints Section */}
+              <div className="bg-linear-to-tr from-blue-500/5 via-indigo-500/5 to-purple-500/5 border border-indigo-100/50 p-8 rounded-[3rem] text-left">
                 <div className="flex items-start gap-4 mb-6">
-                  <div className="p-3.5 bg-indigo-600 text-white rounded-2xl shadow-md">
+                  <div className="p-3.5 bg-indigo-600 text-white rounded-2xl shadow-md shrink-0">
                     <CloudLightning size={20} className="animate-pulse" />
                   </div>
                   <div>
@@ -563,7 +715,7 @@ export default function WorkspaceAppCenter({
                     return (
                       <div 
                         key={tpl.name}
-                        className="bg-white border border-gray-150 p-5 rounded-2xl flex justify-between items-center hover:border-indigo-400 hover:shadow-xs transition-colors text-left"
+                        className="bg-white border border-gray-150 p-5 rounded-3xl flex justify-between items-center hover:border-indigo-400 hover:shadow-2xs transition-all text-left"
                       >
                         <div className="pr-4">
                           <h4 className="font-extrabold text-zinc-900 text-xs flex items-center gap-1.5 leading-tight mb-1">
@@ -578,7 +730,6 @@ export default function WorkspaceAppCenter({
                               showNotification(`App is already deployed in workspace!`, 'info');
                               return;
                             }
-                            // Process deployment template
                             const tplId = `tpl-${Date.now()}`;
                             const newApp: AppCenterItem = {
                               id: tplId,
@@ -617,359 +768,583 @@ export default function WorkspaceAppCenter({
                   })}
                 </div>
               </div>
+
             </div>
           )}
 
-          {activeTab === 'installed' && (
-            <div className="space-y-6 animate-fade-in-up">
-              <div className="flex justify-between items-center text-left">
-                <div>
-                  <h3 className="text-xl font-black text-zinc-950">Active Layout Grid</h3>
-                  <p className="text-xs text-zinc-500 font-bold leading-normal mt-0.5">Toggle active modules to customize the main workspace. Only enabled features will be visible on your team navigation tiles.</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setEnabledAppIds(defaultCatalogApps.map(a => a.id));
-                    showNotification('Restored to default workspace layout features', 'info');
-                  }}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-zinc-800 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
-                >
-                  Restore Defaults
-                </button>
-              </div>
-
-              <div className="bg-white border border-gray-150 rounded-[2.5rem] divide-y divide-gray-100 overflow-hidden shadow-2xs">
-                {allAvailableApps.map(app => {
-                  const AppIcon = getAppIcon(app.iconName);
-                  const isChecked = enabledAppIds.includes(app.id);
-
-                  return (
-                    <div 
-                      key={app.id}
-                      className="p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-50/50 transition-colors text-left"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`h-12 w-12 bg-gray-50 text-${app.color} rounded-xl flex items-center justify-center border shrink-0`}>
-                          <AppIcon size={24} />
-                        </div>
-                        <div>
-                          <h4 className="font-extrabold text-zinc-900 text-sm flex items-center gap-1.5">
-                            {app.name}
-                            {app.isDefault && (
-                              <span className="text-[8px] bg-blue-50 text-blue-600 font-extrabold px-1.5 py-0.5 rounded uppercase">Default Suite</span>
-                            )}
-                          </h4>
-                          <p className="text-xs text-zinc-500 font-medium leading-relaxed max-w-lg mt-0.5">{app.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                        <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg ${
-                          isChecked ? 'bg-green-50 text-green-700' : 'bg-rose-50 text-rose-700'
-                        }`}>
-                          {isChecked ? 'Enabled' : 'Disabled'}
-                        </span>
-
-                        <label className="relative inline-flex items-center cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={isChecked}
-                            onChange={() => handleToggleAppActivation(app.id)}
-                            className="sr-only peer" 
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'sandbox' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in-up">
+          {/* ----------------- TAB: GAMES ----------------- */}
+          {activeTab === 'games' && (
+            <div className="space-y-8 animate-fade-in-up">
               
-              {/* Creator Form */}
-              <div className="lg:col-span-7 bg-white p-8 border border-gray-150 rounded-[2.5rem] shadow-sm text-left">
-                <div className="flex items-center gap-3.5 mb-6">
-                  <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-                    <Code size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-zinc-900 leading-none">Draft App Creator</h3>
-                    <p className="text-[11px] text-zinc-500 font-bold mt-1 leading-relaxed">Instantly model custom concept specifications so that developers can build them specifically in secondary phases!</p>
-                  </div>
+              {/* Games Tab Hero Banner banner info */}
+              <div 
+                className="relative h-60 md:h-72 rounded-[2rem] overflow-hidden shadow-xs cursor-pointer group animate-fade-in"
+                onClick={() => {
+                  const gameApp = allAvailableApps.find(a => a.id === 'e-test') || allAvailableApps[0];
+                  if (gameApp) setSelectedApp(gameApp);
+                }}
+              >
+                <img 
+                  src="https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=1200&q=80" 
+                  className="absolute inset-0 h-full w-full object-cover group-hover:scale-102 transition-transform duration-700" 
+                  alt="Games highlight"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/35 to-transparent" />
+                
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 text-white text-left">
+                  <span className="text-[10px] bg-emerald-600 font-black px-3 py-1 rounded-full uppercase tracking-wider leading-none block w-max mb-2.5">
+                    Brain Arena Online
+                  </span>
+                  <h2 className="text-xl md:text-3xl font-black tracking-tight leading-tight max-w-2xl">
+                    Challenge peers in live speed assessments & brain battles
+                  </h2>
+                  <p className="text-zinc-300 text-xs mt-1.5 leading-relaxed font-bold max-w-lg">
+                    Answer real-time evaluation matrices and track dynamic subject leaderboard listings!
+                  </p>
+                </div>
+              </div>
+
+              {/* ROW RECENT GAMES  */}
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-black text-zinc-900 font-sans tracking-tight">Trending Educational Games</h3>
+                  <button className="h-8 w-8 rounded-full bg-zinc-50 hover:bg-zinc-100 transition-colors flex items-center justify-center text-zinc-700">
+                    <ArrowRight size={15} strokeWidth={2.5} />
+                  </button>
                 </div>
 
-                <form onSubmit={handleCreateCustomApp} className="space-y-5 font-bold text-zinc-700 text-xs">
-                  {/* Name */}
-                  <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
-                    <label className="text-[10px] font-black uppercase text-zinc-400">Application Title</label>
-                    <input
-                      type="text"
-                      required
-                      value={newAppName}
-                      onChange={(e) => setNewAppName(e.target.value)}
-                      placeholder="e.g. Student Attendance Pro"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
+                <div className="flex gap-5 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-zinc-100 scrollbar-track-transparent">
+                  {currentAppsList.map(app => {
+                    const AppIcon = getAppIcon(app.iconName);
+                    const isAdded = enabledAppIds.includes(app.id);
 
-                  {/* App or Website URL */}
-                  <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
-                    <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center justify-between">
-                      <span>Direct Portal App or Website URL (Optional)</span>
-                      <span className="text-blue-500 font-extrabold normal-case">e.g. Google, Telegram, external page</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={newAppUrl}
-                      onChange={(e) => setNewAppUrl(e.target.value)}
-                      placeholder="e.g. https://t.me/username, https://my-app.netlify.app or domain.com"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
+                    return (
+                      <div 
+                        key={app.id}
+                        onClick={() => setSelectedApp(app)}
+                        className="w-28 md:w-32 shrink-0 group cursor-pointer text-left font-sans"
+                      >
+                        <div className="h-28 w-28 md:h-32 md:w-32 bg-zinc-50 border border-gray-150 rounded-[2.2rem] flex items-center justify-center shadow-2xs group-hover:shadow-md transition-all duration-300 relative overflow-hidden mb-2.5">
+                          {app.iconUrl ? (
+                            <img src={app.iconUrl} className="h-full w-full object-cover rounded-[2.2rem]" alt={app.name} referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className="h-14 w-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border shadow-xs">
+                              <AppIcon size={26} strokeWidth={2.2} />
+                            </div>
+                          )}
+                          {isAdded && (
+                            <div className="absolute top-2.5 right-2.5 bg-emerald-500 text-white rounded-full p-1 border-2 border-white shadow-xs">
+                              <Check size={8} strokeWidth={4} />
+                            </div>
+                          )}
+                        </div>
 
-                  {/* Icon Profile Picture / Image URL */}
-                  <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
-                    <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center justify-between">
-                      <span>App Profile Picture / Custom Icon Image URL (Optional)</span>
-                      <span className="text-indigo-500 font-extrabold normal-case">Displays as Phone Home Screen App Icon!</span>
-                    </label>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
-                      <div className="sm:col-span-3">
-                        <input
-                          type="text"
-                          value={newAppIconUrl}
-                          onChange={(e) => setNewAppIconUrl(e.target.value)}
-                          placeholder="Paste image URL or upload ->"
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
-                        />
+                        <h4 className="text-[12px] font-extrabold text-zinc-900 group-hover:text-amber-500 transition-colors line-clamp-1 leading-tight">
+                          {app.name}
+                        </h4>
+                        <p className="text-[11px] font-bold text-zinc-400 mt-0.5 line-clamp-1">
+                          {app.creator}
+                        </p>
+                        <div className="flex items-center gap-0.5 text-[11px] font-extrabold text-amber-500 mt-0.5">
+                          <span>{app.rating}</span>
+                          <Star size={10} fill="currentColor" />
+                        </div>
                       </div>
-                      <div className="sm:col-span-2">
-                        <label className="h-full min-h-[42px] px-4 py-2 bg-zinc-50 border-2 border-dashed border-gray-200 hover:border-blue-500 hover:bg-blue-50/20 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all">
-                          <Upload size={14} className={isUploadingIcon ? "animate-spin text-blue-500" : "text-zinc-500"} />
-                          <span className="text-[10px] font-black text-zinc-650 uppercase tracking-wider">
-                            {isUploadingIcon ? 'Uploading...' : 'Upload Image'}
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* LEADERBOARDS COLUMN RANK */}
+              <div>
+                <h3 className="text-lg font-black text-zinc-900 font-sans tracking-tight mb-4 text-left">Top Leaderboard Assessments</h3>
+                <div className="space-y-4">
+                  {currentAppsList.slice(0, 3).map((app, idx) => {
+                    const AppIcon = getAppIcon(app.iconName);
+                    return (
+                      <div 
+                        key={app.id}
+                        onClick={() => setSelectedApp(app)}
+                        className="bg-white border rounded-3xl p-4 flex items-center justify-between hover:border-blue-400 cursor-pointer text-left"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-lg font-black text-zinc-400 w-6 text-center">{idx + 1}</span>
+                          <div className="h-12 w-12 rounded-xl border overflow-hidden shrink-0">
+                            {app.iconUrl ? (
+                              <img src={app.iconUrl} className="h-full w-full object-cover" alt="icon" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="h-full w-full flex items-center justify-center bg-gray-50 text-zinc-600">
+                                <AppIcon size={20} />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-extrabold text-zinc-900 text-xs leading-none">{app.name}</h4>
+                            <p className="text-[10px] text-zinc-400 font-bold mt-1 uppercase">{app.creator}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xs font-black text-amber-500 flex items-center gap-0.5 justify-end">
+                            {app.rating} <Star size={10} fill="currentColor" />
                           </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleIconFileUpload}
-                            disabled={isUploadingIcon}
-                            className="hidden"
-                          />
-                        </label>
+                          <span className="text-[10px] text-zinc-400 font-medium">{app.reviews} reviews</span>
+                        </div>
                       </div>
-                    </div>
+                    );
+                  })}
+                </div>
+              </div>
 
-                    <p className="text-[9px] text-zinc-400 mt-1 leading-normal font-medium normal-case">
-                      Paste a direct image link or upload a file. When adding this app shortcut to your mobile home screen (or running inside ExonaApp), browsers and systems will display this custom profile picture as the app icon!
+            </div>
+          )}
+
+          {/* ----------------- TAB: SEARCH ----------------- */}
+          {activeTab === 'search' && (
+            <div className="space-y-6 animate-fade-in-up">
+              
+              {/* Play Store Styled Clean Centered Floating Search Bar */}
+              <div className="bg-gray-50/50 p-6 rounded-[2.5rem] border border-gray-150 shadow-3xs max-w-3xl mx-auto">
+                <div className="relative">
+                  <Search size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="text"
+                    placeholder="Search apps, utilities, and live portal shortcuts..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-13 pr-5 py-4 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-zinc-800 placeholder-zinc-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all shadow-2xs"
+                  />
+                </div>
+
+                {/* Popular Keywords suggestions */}
+                <div className="mt-4 flex flex-wrap gap-2 items-center text-xs">
+                  <span className="text-zinc-400 font-bold uppercase tracking-wider mr-1 text-[10px]">Trending:</span>
+                  {[
+                    { id: 'all', label: 'All' },
+                    { id: 'docs', label: 'Document' },
+                    { id: 'ai', label: 'AI Copywriter' },
+                    { id: 'pdf', label: 'PDF Converter' },
+                    { id: 'portal', label: 'SaaS Client' },
+                    { id: 'mesh', label: 'Local Drop' },
+                  ].map(keyword => (
+                    <button
+                      key={keyword.id}
+                      onClick={() => {
+                        setSearchQuery(keyword.id === 'all' ? '' : keyword.label);
+                      }}
+                      className="px-3.5 py-1.5 bg-white border border-gray-200 hover:border-blue-400 hover:bg-blue-50/10 rounded-full font-bold text-xs text-zinc-650 tracking-wide transition-colors cursor-pointer"
+                    >
+                      {keyword.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* SEARCH RESULTS LIST */}
+              <div>
+                <h3 className="text-base font-black text-zinc-900 mb-4 max-w-3xl mx-auto text-left">
+                  {searchQuery ? `Search Results for "${searchQuery}"` : 'Explore All Store Applications'}
+                </h3>
+
+                {currentAppsList.length === 0 ? (
+                  <div className="text-center py-20 bg-white border border-gray-150 rounded-[2.5rem] p-10 max-w-3xl mx-auto">
+                    <div className="h-16 w-16 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border text-zinc-400">
+                      <AlertCircle size={28} />
+                    </div>
+                    <h3 className="text-lg font-black text-zinc-800 mb-1">No matching applications found</h3>
+                    <p className="text-xs text-zinc-500 font-bold max-w-md mx-auto leading-relaxed">
+                      We couldn't locate any apps matching your query. Verify you spelled the app name correctly or draft a custom bookmark shortcut on the "You" tab!
                     </p>
                   </div>
+                ) : (
+                  <div className="bg-white border rounded-[2.5rem] divide-y max-w-3xl mx-auto overflow-hidden">
+                    {currentAppsList.map(app => {
+                      const isAdded = enabledAppIds.includes(app.id);
+                      return (
+                        <div 
+                          key={app.id} 
+                          onClick={() => setSelectedApp(app)}
+                          className="p-5 flex items-center justify-between hover:bg-gray-50/50 cursor-pointer text-left"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-xl border bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
+                              {app.iconUrl ? (
+                                <img src={app.iconUrl} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
+                              ) : (
+                                <div className={`text-${app.color.split('-')[0] || 'blue'}-600`}>
+                                  {React.createElement(getAppIcon(app.iconName), { size: 24 })}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-zinc-900 text-sm">{app.name}</h4>
+                              <p className="text-xs text-zinc-400 font-medium mt-0.5">{app.creator} • {app.category}</p>
+                              <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-amber-500 mt-0.5">
+                                <span>{app.rating}</span>
+                                <Star size={10} fill="currentColor" />
+                                <span className="text-zinc-300">•</span>
+                                <span className="text-zinc-400 font-medium">{app.size}</span>
+                              </div>
+                            </div>
+                          </div>
 
-                  {/* Description */}
-                  <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
-                    <label className="text-[10px] font-black uppercase text-zinc-400">App Specs & Purpose Description</label>
-                    <textarea
-                      required
-                      value={newAppDesc}
-                      onChange={(e) => setNewAppDesc(e.target.value)}
-                      rows={3}
-                      placeholder="e.g. Conduct student checkout verifications, record physical signature logs and print daily rosters..."
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors resize-none leading-relaxed"
-                    />
-                  </div>
-
-                  {/* Category and Color grid combo line */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
-                      <label className="text-[10px] font-black uppercase text-zinc-400">Portal Category</label>
-                      <select
-                        value={newAppCat}
-                        onChange={(e) => setNewAppCat(e.target.value as any)}
-                        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-800 focus:outline-none focus:border-blue-500"
-                      >
-                        <option value="Productivity">Productivity</option>
-                        <option value="Media & Creative">Media & Creative</option>
-                        <option value="Assessment">Assessment</option>
-                        <option value="Utility">Utility</option>
-                        <option value="Custom">Custom Concept</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5 focus-within:text-blue-600 transition-colors">
-                      <label className="text-[10px] font-black uppercase text-zinc-400">Aesthetic Brand Tone</label>
-                      <select
-                        value={newAppColor}
-                        onChange={(e) => setNewAppColor(e.target.value)}
-                        className="w-full px-3 py-2.5 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-800 focus:outline-none focus:border-blue-500"
-                      >
-                        <option value="blue-600">Ocean Blue</option>
-                        <option value="purple-600">Royal Purple</option>
-                        <option value="indigo-600">Modern Indigo</option>
-                        <option value="emerald-600">Emerald Green</option>
-                        <option value="rose-600">Ruby Rose</option>
-                        <option value="amber-600">Amber Yellow</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Icon Selector grid */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase text-zinc-400">App Icon Preset</label>
-                    <div className="grid grid-cols-6 gap-2">
-                      {[
-                        { id: 'Code', label: 'Code' },
-                        { id: 'ShoppingBag', label: 'Store' },
-                        { id: 'Sparkles', label: 'AI' },
-                        { id: 'Laptop', label: 'Device' },
-                        { id: 'Smartphone', label: 'Mobile' },
-                        { id: 'Shield', label: 'Secure' },
-                      ].map(ico => {
-                        const IconNode = getAppIcon(ico.id);
-                        const isSel = newAppIcon === ico.id;
-                        return (
                           <button
-                            key={ico.id}
-                            type="button"
-                            onClick={() => setNewAppIcon(ico.id)}
-                            className={`p-3 border rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
-                              isSel ? 'border-blue-600 bg-blue-50/50 text-blue-600 shadow-2xs' : 'bg-white text-zinc-400 border-gray-150 hover:bg-gray-50'
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleAppActivation(app.id);
+                            }}
+                            className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                              isAdded 
+                                ? 'bg-emerald-500 text-white hover:bg-rose-500' 
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
                             }`}
                           >
-                            <IconNode size={20} />
-                            <span className="text-[9px] font-extrabold">{ico.label}</span>
+                            {isAdded ? 'Added' : 'Get'}
                           </button>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  <button
-                    type="submit"
-                    className="w-full py-4 bg-blue-600 hover:bg-blue-650 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-md uppercase"
-                  >
-                    <Plus size={14} /> Register Custom App Concept
-                  </button>
-                </form>
+                )}
               </div>
 
-              {/* Sandbox info and previews */}
-              <div className="lg:col-span-5 space-y-6 text-left">
-                
-                {/* Visual Preview Sandbox Card */}
-                <div className="bg-white p-6 border border-gray-150 rounded-[2.5rem] shadow-sm">
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-4">Live Concept Preview</p>
-                  
-                  <div className="bg-zinc-50 border border-gray-150 p-6 rounded-3xl relative overflow-hidden">
-                    <div className={`absolute top-0 left-0 w-2 h-full bg-${newAppColor}`} />
-                    
-                    <div className="flex justify-between items-start gap-4 mb-6">
-                      <div className={`h-11 w-11 bg-white border border-gray-150 text-${newAppColor} rounded-xl flex items-center justify-center shadow-2xs overflow-hidden`}>
-                        {newAppIconUrl ? (
-                          <img src={newAppIconUrl} className="h-full w-full object-cover rounded-xl" alt="Preview Icon" referrerPolicy="no-referrer" />
-                        ) : (
-                          React.createElement(getAppIcon(newAppIcon), { size: 20 })
-                        )}
-                      </div>
-                      <span className="text-[8px] font-black uppercase tracking-wider bg-white border px-2 py-0.5 rounded-md text-zinc-500">
-                        {newAppCat}
-                      </span>
-                    </div>
+            </div>
+          )}
 
-                    <h4 className="font-extrabold text-zinc-950 text-base leading-tight">
-                      {newAppName || 'Example App Title'}
-                    </h4>
-                    {newAppUrl && (
-                      <div className="mt-1 text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md inline-block w-max font-mono truncate max-w-full">
-                        link: {newAppUrl}
-                      </div>
-                    )}
-                    <p className="text-[9px] font-extrabold text-[#2481CC] uppercase tracking-widest leading-none mt-1">EXONASOFT SHIFT WORKSPACE</p>
-                    <p className="text-xs text-zinc-500 leading-relaxed font-bold mt-2.5">
-                      {newAppDesc || 'Define details, features, and specs in the left input fields to instantly mock draft. This concept app will immediately integrate into your workspace layout matrix.'}
+          {/* ----------------- TAB: YOU (DEVELOPER PUBLISHER CONSOLE) ----------------- */}
+          {activeTab === 'you' && (
+            <div className="space-y-8 animate-fade-in-up">
+              
+              {/* User Developer Portfolio Card */}
+              <div className="bg-gradient-to-r from-zinc-900 to-blue-950 text-white rounded-[2.5rem] p-6 text-left relative overflow-hidden shadow-md flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="absolute right-0 top-0 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl -mr-24 pointer-events-none" />
+                
+                <div className="flex items-center gap-5">
+                  <div className="h-16 w-16 rounded-3xl overflow-hidden shadow-lg border-2 border-white/10 shrink-0">
+                    <img 
+                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" 
+                      className="h-full w-full object-cover" 
+                      alt="Developer profile"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black tracking-tight flex items-center gap-1.5">
+                      Personal Developer Console
+                      <Shield size={16} className="text-blue-400 fill-blue-400/20" />
+                    </h2>
+                    <p className="text-xs text-zinc-300 font-bold mt-1 max-w-sm">
+                      Admin ID: dev-user-1714 • Syncing web credentials real-time with Google Cloud/Firestore database.
                     </p>
                   </div>
                 </div>
 
-                {/* Developer Guidelines checklist */}
-                <div className="bg-slate-900 text-white rounded-[2.5rem] p-6 text-xs relative overflow-hidden shadow-md">
-                  <div className="absolute right-0 bottom-0 pointer-events-none text-white/5 pr-4 pb-2">
-                    <Code size={180} />
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] bg-blue-600/90 text-white font-black px-3.5 py-1.5 rounded-xl uppercase tracking-wider">
+                    Verified Publisher
+                  </span>
+                  <button 
+                    onClick={() => {
+                      setEnabledAppIds(defaultCatalogApps.map(a => a.id));
+                      showNotification('Restored to default workspace layout features', 'info');
+                    }}
+                    className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+                  >
+                    Reset Layout
+                  </button>
+                </div>
+              </div>
+
+              {/* TWO GRID: PUBLISH NEW APP & ENABLED MANAGER */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Form to Publish New App (Direct URL and image upload) */}
+                <div className="lg:col-span-12 xl:col-span-7 bg-white p-6 md:p-8 border border-gray-150 rounded-[2.5rem] shadow-sm text-left">
+                  <div className="flex items-center gap-3.5 mb-6 border-b pb-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                      <Plus size={20} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-zinc-900 leading-none">Publish Shortcut to App Store</h3>
+                      <p className="text-[11px] text-zinc-500 font-semibold mt-1 leading-relaxed">
+                        Input external SaaS dashboards, links, Google sheets, or custom apps. Upload an image to displays as a home-screen style app icon!
+                      </p>
+                    </div>
                   </div>
-                  <h4 className="font-black text-sm uppercase tracking-wider mb-2 text-blue-400">How Sandbox Mode Works</h4>
-                  <ul className="space-y-3 font-bold text-zinc-300 leading-relaxed">
-                    <li className="flex gap-2 items-start">
-                      <span className="h-5 w-5 rounded-lg bg-white/10 text-white flex items-center justify-center font-mono shrink-0">1</span>
-                      <span>Model specifications instantly to share your functional mockup layout.</span>
-                    </li>
-                    <li className="flex gap-2 items-start">
-                      <span className="h-5 w-5 rounded-lg bg-white/10 text-white flex items-center justify-center font-mono shrink-0">2</span>
-                      <span>Launch app triggers active development sandbox simulators instantly.</span>
-                    </li>
-                    <li className="flex gap-2 items-start">
-                      <span className="h-5 w-5 rounded-lg bg-white/10 text-white flex items-center justify-center font-mono shrink-0">3</span>
-                      <span>Your changes persistent automatically via client context engines.</span>
-                    </li>
-                  </ul>
+
+                  <form onSubmit={handleCreateCustomApp} className="space-y-4 font-bold text-zinc-700 text-xs">
+                    
+                    {/* Title */}
+                    <div className="space-y-1.5 focus-within:text-blue-605">
+                      <label className="text-[10px] font-black uppercase text-zinc-400">Application Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={newAppName}
+                        onChange={(e) => setNewAppName(e.target.value)}
+                        placeholder="e.g. Student Attendance Registry"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-10 ring-inset transition-all"
+                      />
+                    </div>
+
+                    {/* App URL target */}
+                    <div className="space-y-1.5 focus-within:text-blue-605">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center justify-between">
+                        <span>Live Target Application Link / Web URL</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newAppUrl}
+                        onChange={(e) => setNewAppUrl(e.target.value)}
+                        placeholder="e.g. https://www.google.com, https://canvas.lms"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-10 ring-inset transition-all"
+                      />
+                    </div>
+
+                    {/* Image Drag and Drop / File Uploader */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 flex items-center justify-between">
+                        <span>Launcher Silhouette App Icon / Custom Image URL</span>
+                      </label>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+                        <div className="sm:col-span-3">
+                          <input
+                            type="text"
+                            value={newAppIconUrl}
+                            onChange={(e) => setNewAppIconUrl(e.target.value)}
+                            placeholder="Paste direct .png/.jpg link or upload ->"
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 focus:bg-white transition-all"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="h-full min-h-[42px] px-4 py-2 bg-zinc-50 border border-dashed border-gray-200 hover:border-blue-500 hover:bg-blue-50/15 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all">
+                            <Upload size={14} className={isUploadingIcon ? "animate-spin text-blue-500" : "text-zinc-500"} />
+                            <span className="text-[10px] font-black text-zinc-650 uppercase tracking-wider">
+                              {isUploadingIcon ? 'Sending...' : 'Upload Image'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleIconFileUpload}
+                              disabled={isUploadingIcon}
+                              className="hidden"
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-zinc-400 font-medium normal-case">
+                        Browser screens, sandboxes, and workspace links will use this target image as the launcher icon.
+                      </p>
+                    </div>
+
+                    {/* Description Area */}
+                    <div className="space-y-1.5 focus-within:text-blue-605">
+                      <label className="text-[10px] font-black uppercase text-zinc-400 font-sans">App Specs / Description Details</label>
+                      <textarea
+                        required
+                        value={newAppDesc}
+                        onChange={(e) => setNewAppDesc(e.target.value)}
+                        rows={2}
+                        placeholder="Explain features, usage specifications, and institution scopes..."
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-150 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 focus:bg-white resize-none leading-relaxed transition-all"
+                      />
+                    </div>
+
+                    {/* Dropdowns */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400">Store Category</label>
+                        <select
+                          value={newAppCat}
+                          onChange={(e) => setNewAppCat(e.target.value as any)}
+                          className="w-full px-3 py-2.5 bg-white border border-gray-150 rounded-xl font-bold text-xs text-zinc-800 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="Productivity">Productivity</option>
+                          <option value="Media & Creative">Media & Creative</option>
+                          <option value="Assessment">Assessment</option>
+                          <option value="Utility">Utility</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-zinc-400">Color Aesthetic</label>
+                        <select
+                          value={newAppColor}
+                          onChange={(e) => setNewAppColor(e.target.value)}
+                          className="w-full px-3 py-2.5 bg-white border border-gray-150 rounded-xl font-bold text-xs text-zinc-800 focus:outline-none focus:border-blue-500"
+                        >
+                          <option value="blue-600">Sky Blue</option>
+                          <option value="purple-600">Aubergine Purple</option>
+                          <option value="emerald-600">Emerald Green</option>
+                          <option value="rose-600">Fierce Red</option>
+                          <option value="indigo-600">Neon Indigo</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Big submit */}
+                    <button
+                      type="submit"
+                      className="w-full py-4 bg-blue-600 hover:bg-blue-650 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      <Plus size={14} strokeWidth={2.5} /> Integrate & Share to All Users
+                    </button>
+                  </form>
+                </div>
+
+                {/* Previews and custom deletion lists column */}
+                <div className="lg:col-span-12 xl:col-span-5 space-y-6 text-left">
+                  
+                  {/* Dynamic Interactive Icon Preview Card */}
+                  <div className="bg-white p-6 border border-gray-150 rounded-[2.5rem] shadow-sm">
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest leading-none mb-4">Silhouette Icon Preview</p>
+                    
+                    <div className="bg-zinc-50 border p-5 rounded-3xl text-left relative overflow-hidden">
+                      <div className={`absolute top-0 left-0 w-2 h-full bg-${newAppColor.split('-')[0]}-600`} />
+                      
+                      <div className="flex justify-between items-start gap-4 mb-4">
+                        <div className={`h-14 w-14 border rounded-[1.6rem] bg-white flex items-center justify-center shrink-0 shadow-3xs overflow-hidden`}>
+                          {newAppIconUrl ? (
+                            <img src={newAppIconUrl} className="h-full w-full object-cover" alt="Preview App Icon" referrerPolicy="no-referrer" />
+                          ) : (
+                            <div className={`text-${newAppColor.split('-')[0] || 'blue'}-600`}>
+                              {React.createElement(getAppIcon(newAppIcon), { size: 28 })}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-white border px-2.5 py-0.5 rounded-lg text-zinc-500">
+                          {newAppCat}
+                        </span>
+                      </div>
+
+                      <h4 className="font-extrabold text-zinc-950 text-sm leading-tight truncate">
+                        {newAppName || 'Specify Name'}
+                      </h4>
+                      {newAppUrl && (
+                        <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md inline-block max-w-full font-mono truncate mt-1">
+                          target_link: {newAppUrl}
+                        </span>
+                      )}
+                      
+                      <p className="text-xs text-zinc-500 leading-normal font-bold mt-2.5 leading-relaxed line-clamp-3">
+                        {newAppDesc || 'Describe your brand web tool. You will instantly see the preview update in real-time. Hit publish at the bottom to sync across all institutional users!'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Registered custom shortcuts list with deletion */}
+                  {customApps.length > 0 && (
+                    <div className="bg-white p-6 border border-gray-150 rounded-[2.5rem] shadow-sm">
+                      <h4 className="text-xs font-black text-zinc-900 uppercase tracking-wider mb-4 flex items-center gap-1">
+                        <Code size={14} className="text-blue-600" /> Draft Deletion Console
+                      </h4>
+                      
+                      <div className="divide-y max-h-60 overflow-y-auto space-y-2.5 pb-2">
+                        {customApps.map(app => (
+                          <div key={app.id} className="flex items-center justify-between gap-3 pt-2">
+                            <div className="flex items-center gap-3 truncate">
+                              <div className="h-8 w-8 rounded-lg overflow-hidden border shrink-0">
+                                {app.iconUrl ? (
+                                  <img src={app.iconUrl} className="h-full w-full object-cover" alt="" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="h-full w-full flex items-center justify-center text-xs bg-gray-50 font-bold">CP</div>
+                                )}
+                              </div>
+                              <span className="text-xs font-black text-zinc-800 truncate">{app.name}</span>
+                            </div>
+
+                            <button
+                              onClick={(e) => handleDeleteCustomApp(app.id, e)}
+                              className="h-8 w-8 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                              title="Delete app"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
 
               </div>
+
             </div>
           )}
 
         </div>
+      </div>
 
-        {/* Sidebar Mini Catalog / Fast Switcher */}
-        <div className="hidden xl:flex w-[280px] shrink-0 border-l border-gray-150 bg-white flex-col text-left">
-          <div className="p-5 border-b border-gray-150">
-            <h3 className="font-black text-xs text-zinc-800 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles size={14} className="text-blue-600 animate-pulse" /> Popular Apps Today
-            </h3>
+      {/* ----------------- MATERIAL GOOGLE PLAY BOTTOM NAVIGATION BAR ----------------- */}
+      <div className="absolute bottom-0 left-0 right-0 h-20 border-t border-gray-150 bg-white/95 backdrop-blur-md flex items-center justify-around px-4 pb-1.5 z-40">
+        
+        {/* TAB 1: GAMES */}
+        <button 
+          onClick={() => setActiveTab('games')}
+          className="flex flex-col items-center justify-center cursor-pointer select-none group focus:outline-none"
+        >
+          <div className={`relative px-6 py-1.5 rounded-full transition-all duration-300 ${activeTab === 'games' ? 'bg-[#c2e7ff] text-[#001d35]' : 'hover:bg-gray-100 text-zinc-500'}`}>
+            <Gamepad2 size={18} strokeWidth={activeTab === 'games' ? 2.5 : 2.0} />
           </div>
-          <div className="p-4 space-y-4 overflow-y-auto flex-1">
-            {defaultCatalogApps.slice(0, 4).map(app => (
-              <div 
-                key={app.id}
-                onClick={() => setSelectedApp(app)}
-                className="group p-4 border border-gray-100 hover:border-blue-400 hover:bg-blue-50/5 rounded-2xl cursor-pointer transition-all"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 bg-${app.color.split('-')[0]}-50 text-${app.color} rounded-xl flex items-center justify-center border shrink-0 font-bold`}>
-                    {React.createElement(getAppIcon(app.iconName), { size: 16 })}
-                  </div>
-                  <div className="truncate text-left">
-                    <h4 className="font-extrabold text-zinc-900 text-xs truncate group-hover:text-blue-600 transition-colors">{app.name}</h4>
-                    <p className="text-[10px] text-zinc-400 font-extrabold uppercase leading-none mt-1">{app.category}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 mt-3 text-[10px] font-black text-amber-500">
-                  <Star size={10} fill="currentColor" /> {app.rating} <span className="text-zinc-400 font-medium">({app.reviews} reviews)</span>
-                </div>
-              </div>
-            ))}
+          <span className={`text-[11px] font-extrabold mt-1 tracking-tight ${activeTab === 'games' ? 'text-blue-600 font-bold' : 'text-zinc-500 font-bold'}`}>Games</span>
+        </button>
+
+        {/* TAB 2: APPS (DEFAULT) */}
+        <button 
+          onClick={() => { setActiveTab('apps'); setSubTab('foryou'); setSelectedCategory('All'); }}
+          className="flex flex-col items-center justify-center cursor-pointer select-none group focus:outline-none"
+        >
+          <div className={`relative px-6 py-1.5 rounded-full transition-all duration-300 ${activeTab === 'apps' ? 'bg-[#c2e7ff] text-[#001d35]' : 'hover:bg-gray-100 text-zinc-500'}`}>
+            <GridIcon size={18} strokeWidth={activeTab === 'apps' ? 2.5 : 2.0} />
           </div>
-        </div>
+          <span className={`text-[11px] font-extrabold mt-1 tracking-tight ${activeTab === 'apps' ? 'text-blue-600 font-bold' : 'text-zinc-500 font-bold'}`}>Apps</span>
+        </button>
+
+        {/* TAB 3: SEARCH */}
+        <button 
+          onClick={() => setActiveTab('search')}
+          className="flex flex-col items-center justify-center cursor-pointer select-none group focus:outline-none"
+        >
+          <div className={`relative px-6 py-1.5 rounded-full transition-all duration-300 ${activeTab === 'search' ? 'bg-[#c2e7ff] text-[#001d35]' : 'hover:bg-gray-100 text-zinc-500'}`}>
+            <Search size={18} strokeWidth={activeTab === 'search' ? 2.5 : 2.0} />
+          </div>
+          <span className={`text-[11px] font-extrabold mt-1 tracking-tight ${activeTab === 'search' ? 'text-blue-600 font-bold' : 'text-zinc-500 font-bold'}`}>Search</span>
+        </button>
+
+        {/* TAB 4: YOU */}
+        <button 
+          onClick={() => setActiveTab('you')}
+          className="flex flex-col items-center justify-center cursor-pointer select-none group focus:outline-none"
+        >
+          <div className={`relative px-6 py-1.5 rounded-full transition-all duration-300 ${activeTab === 'you' ? 'bg-[#c2e7ff] text-[#001d35]' : 'hover:bg-gray-100 text-zinc-500'}`}>
+            <User size={18} strokeWidth={activeTab === 'you' ? 2.5 : 2.0} />
+          </div>
+          <span className={`text-[11px] font-extrabold mt-1 tracking-tight ${activeTab === 'you' ? 'text-blue-600 font-bold' : 'text-zinc-500 font-bold'}`}>You</span>
+        </button>
 
       </div>
 
-      {/* Exona App Detail Overlapping Drawer/Modal */}
+      {/* ----------------- EXONA APP DETAIL FULL-SCREEN MODAL OVERLAY ----------------- */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl text-left border border-zinc-200 animate-fade-in-up">
             
-            {/* Header banner brand color */}
             <div className={`h-4 bg-gradient-to-r from-${selectedApp.color.split('-')[0] || 'blue'}-600 to-indigo-600`} />
             
             <div className="p-8">
               
-              {/* App Meta top row */}
+              {/* Top Row with icon image */}
               <div className="flex items-start gap-4 mb-6">
-                <div className={`h-20 w-20 bg-gradient-to-tr from-${selectedApp.color.split('-')[0] || 'blue'}-100 to-white text-${selectedApp.color} rounded-[2rem] flex items-center justify-center border shadow-md shrink-0`}>
-                  {React.createElement(getAppIcon(selectedApp.iconName), { size: 36, strokeWidth: 2.2 })}
+                <div className={`h-22 w-22 bg-gradient-to-tr from-${selectedApp.color.split('-')[0] || 'blue'}-100 to-white text-${selectedApp.color} rounded-[2rem] flex items-center justify-center border shadow-xs shrink-0 overflow-hidden`}>
+                  {selectedApp.iconUrl ? (
+                    <img src={selectedApp.iconUrl} className="h-full w-full object-cover rounded-[2rem]" alt={selectedApp.name} referrerPolicy="no-referrer" />
+                  ) : (
+                    React.createElement(getAppIcon(selectedApp.iconName), { size: 36, strokeWidth: 2.2 })
+                  )}
                 </div>
                 <div>
                   <h3 className="text-2xl font-black text-zinc-900 leading-tight">{selectedApp.name}</h3>
@@ -986,61 +1361,63 @@ export default function WorkspaceAppCenter({
                 </div>
               </div>
 
-              {/* Action Buttons row */}
+              {/* Action Buttons trigger */}
               <div className="flex gap-2.5 mb-8">
                 <button
                   onClick={() => {
                     handleToggleAppActivation(selectedApp.id);
                   }}
-                  className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${
+                  className={`flex-1 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all cursor-pointer ${
                     enabledAppIds.includes(selectedApp.id)
                       ? 'bg-emerald-500 text-white hover:bg-rose-600 hover:text-white'
-                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-blue-600 text-white hover:bg-blue-705'
                   }`}
                 >
-                  {enabledAppIds.includes(selectedApp.id) ? 'Installed (Active)' : 'Install to Workspace'}
+                  {enabledAppIds.includes(selectedApp.id) ? 'Installed (Active)' : 'Install App'}
                 </button>
+                
                 {enabledAppIds.includes(selectedApp.id) && (
                   <button
                     onClick={() => {
                       onLaunchApp(selectedApp.id);
                       setSelectedApp(null);
                     }}
-                    className="px-6 bg-zinc-950 text-white rounded-2xl hover:bg-zinc-850 font-black text-xs uppercase tracking-widest transition-all"
+                    className="px-6 bg-zinc-950 text-white rounded-2xl hover:bg-zinc-850 font-black text-xs uppercase tracking-widest transition-all cursor-pointer"
                   >
                     Launch
                   </button>
                 )}
+                
                 <button
                   onClick={() => setSelectedApp(null)}
-                  className="px-6 bg-gray-100 text-zinc-700 hover:bg-gray-200 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all"
+                  className="px-6 bg-gray-100 text-zinc-700 hover:bg-gray-200 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
                 >
                   Close
                 </button>
               </div>
 
-              {/* Informational specs grid stats */}
+              {/* Grid Information */}
               <div className="grid grid-cols-3 gap-3 bg-gray-50 p-4 rounded-2xl mb-6 text-center text-xs border border-gray-150">
                 <div>
-                  <span className="text-zinc-400 block text-[9px] font-black uppercase tracking-wider mb-1">Version</span>
-                  <span className="font-extrabold text-zinc-800">{selectedApp.version}</span>
+                  <span className="text-zinc-400 block text-[9px] font-black uppercase tracking-wider mb-1 font-sans">Version</span>
+                  <span className="font-extrabold text-zinc-800 font-sans">{selectedApp.version}</span>
                 </div>
                 <div className="border-x border-gray-200">
-                  <span className="text-zinc-400 block text-[9px] font-black uppercase tracking-wider mb-1">Download Size</span>
-                  <span className="font-extrabold text-zinc-800">{selectedApp.size}</span>
+                  <span className="text-zinc-400 block text-[9px] font-black uppercase tracking-wider mb-1 font-sans">App Size</span>
+                  <span className="font-extrabold text-zinc-800 font-sans">{selectedApp.size}</span>
                 </div>
                 <div>
-                  <span className="text-zinc-400 block text-[9px] font-black uppercase tracking-wider mb-1">Security Node</span>
-                  <span className="font-extrabold text-green-600 flex items-center justify-center gap-1">
+                  <span className="text-zinc-400 block text-[9px] font-black uppercase tracking-wider mb-1 font-sans">Security Node</span>
+                  <span className="font-extrabold text-green-650 flex items-center justify-center gap-1 font-sans">
                     <Shield size={10} /> Verified
                   </span>
                 </div>
               </div>
 
-              {/* Specifications / Features info list */}
-              <div className="space-y-3">
+              {/* Spec list items */}
+              <div className="space-y-3 text-left">
                 <h4 className="text-xs font-black text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Info size={13} className="text-blue-500" /> Core Integration Features
+                  <Info size={13} className="text-blue-500" /> Core Integration Specs
                 </h4>
                 
                 <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100 max-h-40 overflow-y-auto space-y-2">
