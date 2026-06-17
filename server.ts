@@ -1743,6 +1743,48 @@ Maintain the Exona design-centric, premium tone: balanced, professional, concise
     }
   });
 
+  // Satellite Speech & Live Translation Engine using Gemini 3.5 Flash SDK
+  app.post('/api/ai/translate-stream', async (req, res) => {
+    const { text, sourceLang, targetLang } = req.body;
+    
+    if (!text || String(text).trim() === "") {
+      return res.json({ success: true, translatedText: "" });
+    }
+
+    try {
+      const srcLanguageName = sourceLang || 'Auto-Detected Language';
+      const tgtLanguageName = targetLang || 'English';
+
+      const systemInstruction = `You are a real-time, zero-delay satellite stream audio translation translator.
+Your job is to translate the spoken text from the audio input into natural, clean, beautifully structured subtitles.
+Original audio language context: ${srcLanguageName}
+Target subtitle translation language: ${tgtLanguageName}
+
+Strict requirements:
+- ONLY output the translated text. Do NOT include any intro, outro, matching quotes, explanations, or system telemetry.
+- Keep the style matching conversational, human cinematic subtitles.
+- If the phrase is unclear or partial, make the most semantically logical translation.
+- Never repeat the original language if it's different.`;
+
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          { role: 'user', parts: [{ text: `Translate this captured broadcast text instantly: "${text}"` }] }
+        ],
+        config: {
+          systemInstruction,
+          temperature: 0.3, // Lower temperature means more stable and literal translation
+        }
+      }));
+
+      const translatedText = response.text ? response.text.replace(/^["'\s]+|["'\s]+$/g, '').trim() : text;
+      res.json({ success: true, translatedText });
+    } catch (err: any) {
+      console.error('Gemini Translator Error:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to translate stream text' });
+    }
+  });
+
   // Global error handler for API routes (Must be after all routes)
   app.use('/api', (err: any, req: any, res: any, next: any) => {
     console.error(`API Error on ${req.method} ${req.url}:`, err);

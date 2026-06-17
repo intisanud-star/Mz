@@ -311,6 +311,21 @@ const NetworkStreamPlayer: React.FC<{
   const [subtitleSize, setSubtitleSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [showDualSubtitles, setShowDualSubtitles] = useState(true);
 
+  // Real Speech Hearing Translator State Hooks & Refs
+  const [micListening, setMicListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [realtimeTranscripts, setRealtimeTranscripts] = useState<string>('');
+  const [latestTranslatedText, setLatestTranslatedText] = useState<string>('');
+  const recognitionRef = useRef<any>(null);
+
+  // Check Speech SDK support on client side mount
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      setSpeechSupported(true);
+    }
+  }, []);
+
   // Reset proxy back to Global Secure Ingress Proxy whenever station URL changes
   useEffect(() => {
     setProxyIndex(0);
@@ -526,20 +541,157 @@ const NetworkStreamPlayer: React.FC<{
     };
   }, [activeUrl, isActive, bufferMode]);
 
-  // Satellite Subtitle translation interval loop
+  // Helper to map 2-letter language codes to specific browser language locale identifiers
+  const mapLangToSpeechLocales = (code: string) => {
+    const locales: Record<string, string> = {
+      ar: 'ar-SA',
+      hi: 'hi-IN',
+      en: 'en-US',
+      es: 'es-ES',
+      fr: 'fr-FR',
+      ja: 'ja-JP',
+      de: 'de-DE',
+      zh: 'zh-CN',
+      ru: 'ru-RU'
+    };
+    return locales[code] || 'en-US';
+  };
+
+  // Satellite Subtitle translation interval loop (Simulation trigger when micListening is disabled)
   useEffect(() => {
-    if (!translatorOn || !isActive || !isPlaying) return;
+    if (!translatorOn || !isActive || !isPlaying || micListening) return;
 
     const interval = setInterval(() => {
-      setTranscribingState('translating');
-      setTimeout(() => {
-        setSubtitleIdx(prev => (prev + 1) % TRANSLATOR_PHRASES.length);
-        setTranscribingState('done');
-      }, 700);
-    }, 6000);
+      setSubtitleIdx(prev => (prev + 1) % TRANSLATOR_PHRASES.length);
+    }, 7000);
 
     return () => clearInterval(interval);
-  }, [translatorOn, isActive, isPlaying]);
+  }, [translatorOn, isActive, isPlaying, micListening]);
+
+  // Automated/Simulated Satellite Live Translator (Uses real server-side Gemini 3.5 Flash Endpoint!)
+  useEffect(() => {
+    if (micListening || !translatorOn || !isActive) return;
+
+    const originalPhrase = TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource] || TRANSLATOR_PHRASES[subtitleIdx]?.ar;
+
+    const triggerLiveSimulateTranslation = async () => {
+      setTranscribingState('translating');
+      try {
+        const response = await fetch('/api/ai/translate-stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: originalPhrase,
+            sourceLang: LANGUAGE_MAP[translationSource]?.name,
+            targetLang: LANGUAGE_MAP[translationTarget]?.name
+          })
+        });
+        const data = await response.json();
+        if (data.success && data.translatedText) {
+          setLatestTranslatedText(data.translatedText);
+        } else {
+          setLatestTranslatedText(originalPhrase);
+        }
+      } catch (err) {
+        console.error('Simulated Subtitle translation failure:', err);
+        setLatestTranslatedText(originalPhrase);
+      } finally {
+        setTranscribingState('done');
+      }
+    };
+
+    triggerLiveSimulateTranslation();
+  }, [subtitleIdx, translationSource, translationTarget, translatorOn, micListening, isActive]);
+
+  // Real Speech Hearing Translator Loop (Mic input translates LIVE via Gemini 3.5 Flash)
+  useEffect(() => {
+    if (!micListening || !isActive || !isPlaying) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = mapLangToSpeechLocales(translationSource);
+
+    rec.onstart = () => {
+      addLog(`🎙️ Acoustic translation is online. Listening to browser stream speaker audio closely in ${LANGUAGE_MAP[translationSource]?.name}...`);
+      setTranscribingState('done');
+    };
+
+    rec.onresult = async (event: any) => {
+      const resultIndex = event.resultIndex;
+      const transcript = event.results[resultIndex]?.[0]?.transcript;
+      if (transcript && transcript.trim() !== "") {
+        addLog(`🎙️ Hearing Transcribed: "${transcript}"`);
+        setRealtimeTranscripts(transcript);
+        setTranscribingState('translating');
+        
+        try {
+          const res = await fetch('/api/ai/translate-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text: transcript,
+              sourceLang: LANGUAGE_MAP[translationSource]?.name,
+              targetLang: LANGUAGE_MAP[translationTarget]?.name
+            })
+          });
+          const data = await res.json();
+          if (data.success && data.translatedText) {
+            setLatestTranslatedText(data.translatedText);
+            addLog(`✨ Acoustic translate [${LANGUAGE_MAP[translationTarget]?.name}]: "${data.translatedText}"`);
+          }
+        } catch (err) {
+          console.error("Mic translate failed:", err);
+        } finally {
+          setTranscribingState('done');
+        }
+      }
+    };
+
+    rec.onerror = (event: any) => {
+      console.warn('Speech Recognition feedback error:', event.error);
+      if (event.error === 'not-allowed') {
+        addLog('⚠️ Mic permission blocked. Please ensure microphone access is standard for Acoustic hearing mode.');
+        setMicListening(false);
+      }
+    };
+
+    rec.onend = () => {
+      // Auto restarts loop if micListening is still enabled
+      if (micListening && isActive && isPlaying) {
+        try {
+          rec.start();
+        } catch (e) {}
+      }
+    };
+
+    recognitionRef.current = rec;
+    try {
+      rec.start();
+    } catch (err) {
+      console.error('Failed to wake up Speech recognition:', err);
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {}
+        recognitionRef.current = null;
+      }
+    };
+  }, [micListening, isActive, isPlaying, translationSource, translationTarget]);
 
   // Auto detect initial source language based on channel keyword signatures
   useEffect(() => {
@@ -631,21 +783,21 @@ const NetworkStreamPlayer: React.FC<{
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            key={`${subtitleIdx}-${translationSource}-${translationTarget}`}
+            key={micListening ? `mic-${latestTranslatedText}` : `sat-${subtitleIdx}-${translationSource}-${translationTarget}`}
             className="px-4 py-2 bg-black/80 backdrop-blur-sm border border-white/10 rounded-2xl max-w-xl shadow-[0_4px_30px_rgba(0,0,0,0.6)] flex flex-col items-center gap-1 transition-all duration-300 pointer-events-auto"
           >
             {/* Header / Decoder Badge */}
             <div className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider text-amber-400">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>📡 AUTOMATIC SATELLITE TRANSLATOR</span>
+              <span className={`flex h-1.5 w-1.5 rounded-full ${micListening ? 'bg-red-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`} />
+              <span>{micListening ? `🎙️ ACOUSTIC TRANSLATOR (HEARING)` : `📡 SATELLITE TRANSLATOR (AUTO FEED)`}</span>
               <span className="text-slate-500">•</span>
-              <span className="text-slate-300">
+              <span className="text-slate-300 font-bold">
                 {LANGUAGE_MAP[translationSource]?.flag} {LANGUAGE_MAP[translationSource]?.name} ➜ {LANGUAGE_MAP[translationTarget]?.flag} {LANGUAGE_MAP[translationTarget]?.name}
               </span>
             </div>
 
             {/* Subtitles Main Core */}
-            {transcribingState === 'translating' ? (
+            {transcribingState === 'translating' && !latestTranslatedText ? (
               <div className="flex flex-col items-center justify-center py-2 px-10 gap-1.5">
                 <div className="w-16 h-1 bg-white/10 rounded-full overflow-hidden relative">
                   <motion.div 
@@ -655,21 +807,26 @@ const NetworkStreamPlayer: React.FC<{
                     className="absolute inset-y-0 w-1/2 bg-amber-400"
                   />
                 </div>
-                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest animate-pulse">Auto-Translating Satellite Stream...</span>
+                <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest animate-pulse">
+                  {micListening ? "Translating voice feed..." : "Auto-Translating Satellite Stream..."}
+                </span>
               </div>
             ) : (
               <div className="flex flex-col items-center text-center px-1">
                 {/* Dual source subtitles */}
-                {showDualSubtitles && translationSource !== translationTarget && (
+                {showDualSubtitles && (
                   <p className="text-slate-400 text-[10px] md:text-[11px] font-semibold font-sans border-b border-white/5 pb-0.5 mb-1 leading-relaxed">
-                    {TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource]}
+                    {micListening 
+                      ? (realtimeTranscripts || "Listening to channel audio...") 
+                      : (TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource] || "Receiving satellite signal...")
+                    }
                   </p>
                 )}
                 {/* Translated/Primary target subtitles */}
                 <p className={`font-black font-sans leading-relaxed tracking-wide text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] ${
                   subtitleSize === 'sm' ? 'text-xs md:text-sm' : subtitleSize === 'md' ? 'text-sm md:text-base' : 'text-base md:text-lg'
                 }`}>
-                  {TRANSLATOR_PHRASES[subtitleIdx]?.[translationTarget]}
+                  {latestTranslatedText || (micListening ? "Waiting for speech..." : "Sensing channel signals...")}
                 </p>
               </div>
             )}
@@ -715,6 +872,44 @@ const NetworkStreamPlayer: React.FC<{
               >
                 {translatorOn ? '🟢 ACTIVE' : '🔴 DISABLED'}
               </button>
+            </div>
+
+            {/* Real Acoustic Hearing Mode Toggle */}
+            <div className="flex flex-col gap-1.5 bg-white/5 border border-white/5 p-2.5 rounded-xl">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold uppercase tracking-wider text-[9px] text-amber-500 flex items-center gap-1">
+                  <span className={`h-1.5 w-1.5 rounded-full ${micListening ? 'bg-red-500 animate-ping' : 'bg-slate-600'}`} />
+                  🎙️ Acoustic Listening Mode
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!speechSupported) {
+                      addLog(`⚠️ Acoustic Mode not supported in this browser. Running fallback auto-satellite mode.`);
+                      return;
+                    }
+                    const nextMode = !micListening;
+                    setMicListening(nextMode);
+                    if (nextMode) {
+                      setRealtimeTranscripts('');
+                      setLatestTranslatedText('');
+                    }
+                    addLog(`🎙️ Acoustic translation set to: ${nextMode ? 'HEARING_MIC' : 'AUTO_SATELLITE'}`);
+                  }}
+                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    micListening 
+                      ? 'bg-red-600/30 border border-red-500/50 text-red-200 animate-pulse' 
+                      : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {micListening ? '🎙️ HEARING' : '⚪️ OFF'}
+                </button>
+              </div>
+              <p className="text-[9px] text-slate-400 leading-normal">
+                {speechSupported 
+                  ? "Uses Web Speech Recognition to capture live stream sound from your system speaker and translates it in real time via Gemini."
+                  : "Web Speech Recognition is not supported by your browser — running automatic high-fidelity simulation translate instead."}
+              </p>
             </div>
 
             {/* Source Language Selector */}
