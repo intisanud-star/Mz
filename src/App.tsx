@@ -30054,7 +30054,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'videos'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
@@ -30230,25 +30230,27 @@ function ExonaApp() {
                 )}
               </AnimatePresence>
 
-              {/* Icon 1: Home (Pristine High-Clarity SVGs) */}
-              <button 
-                onClick={() => {
-                  setActiveChat(null);
-                  setView('feed');
-                }}
-                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 animate-in fade-in zoom-in-95 duration-200"
-              >
-                {view === 'feed' || view === 'schools' ? (
-                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 20C20 21.1046 19.1046 22 18 22H14V14H10V22H6C4.89543 22 4 21.1046 4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20Z" />
-                  </svg>
-                ) : (
-                  <svg className="w-[24px] h-[24px] text-zinc-700 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20Z" />
-                    <path d="M10 14H14V22H10V14Z" fill="currentColor" fillOpacity="0.1" />
-                  </svg>
-                )}
-              </button>
+              {/* Icon 1: Home (Pristine High-Clarity SVGs - Hidden in Workspace view) */}
+              {view !== 'workspace' && (
+                <button 
+                  onClick={() => {
+                    setActiveChat(null);
+                    setView('feed');
+                  }}
+                  className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 animate-in fade-in zoom-in-95 duration-200"
+                >
+                  {view === 'feed' || view === 'schools' ? (
+                    <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M20 20C20 21.1046 19.1046 22 18 22H14V14H10V22H6C4.89543 22 4 21.1046 4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20Z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-[24px] h-[24px] text-zinc-700 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20Z" />
+                      <path d="M10 14H14V22H10V14Z" fill="currentColor" fillOpacity="0.1" />
+                    </svg>
+                  )}
+                </button>
+              )}
 
               {/* Icon 2: Reels/Videos */}
               <button 
