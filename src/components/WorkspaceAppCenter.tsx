@@ -3,8 +3,11 @@ import {
   Search, Plus, ArrowLeft, Star, Grid, Check, HelpCircle, Laptop, Smartphone,
   Shield, Play, Heart, CloudLightning, RefreshCw, Layers, Sparkles, AlertCircle, ShoppingBag, 
   Trash2, Sliders, Smartphone as PhoneIcon, Code, Eye, ExternalLink, Settings, Download, Info,
-  FileText, PenTool, FileJson, Radio, HardDrive, BadgeCheck, Video, HelpCircle as QuestionIcon
+  FileText, PenTool, FileJson, Radio, HardDrive, BadgeCheck, Video, HelpCircle as QuestionIcon,
+  Upload, Image as ImageIcon
 } from 'lucide-react';
+import { db, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 // Help map icon string to actual Lucide component dynamically
 export const getAppIcon = (iconName: string) => {
@@ -79,6 +82,36 @@ export default function WorkspaceAppCenter({
   const [newAppCat, setNewAppCat] = useState<'Productivity' | 'Media & Creative' | 'Assessment' | 'Utility' | 'Custom'>('Productivity');
   const [newAppIcon, setNewAppIcon] = useState('Code');
   const [newAppColor, setNewAppColor] = useState('blue-600');
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+
+  const handleIconFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please select a valid image file', 'error');
+      return;
+    }
+
+    try {
+      setIsUploadingIcon(true);
+      showNotification('Uploading custom app icon...', 'info');
+      
+      const fileId = `app_icon_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      const fileRef = ref(storage, `workspace_custom_apps_icons/${fileId}.jpg`);
+      
+      const snapshot = await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setNewAppIconUrl(downloadURL);
+      showNotification('Custom app icon uploaded successfully!', 'success');
+    } catch (error: any) {
+      console.error('Icon upload failure:', error);
+      showNotification(error.message || 'Failed to upload custom icon.', 'error');
+    } finally {
+      setIsUploadingIcon(false);
+    }
+  };
 
   // Static Library of Default Catalog Apps
   const defaultCatalogApps: AppCenterItem[] = [
@@ -243,6 +276,16 @@ export default function WorkspaceAppCenter({
     setCustomApps(updatedCatalog);
     localStorage.setItem('exonasoft_custom_workspace_apps', JSON.stringify(updatedCatalog));
     
+    // Save to Firestore for other users
+    try {
+      setDoc(doc(db, 'workspaceCustomApps', newId), {
+        ...newApp,
+        createdAt: new Date().toISOString()
+      }).catch(err => console.error('Firestore save fail:', err));
+    } catch (e) {
+      console.error(e);
+    }
+    
     // Auto-enable newly created app
     setEnabledAppIds([...enabledAppIds, newId]);
 
@@ -258,18 +301,25 @@ export default function WorkspaceAppCenter({
   };
 
   // Delete custom apps
-  const handleDeleteCustomApp = (appId: string, e: React.MouseEvent) => {
+  const handleDeleteCustomApp = async (appId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const confirmed = window.confirm('Are you sure you want to delete this custom app draft?');
+    const confirmed = window.confirm('Are you sure you want to delete this custom app? This will remove it for all users.');
     if (!confirmed) return;
 
     const updatedCustoms = customApps.filter(app => app.id !== appId);
     setCustomApps(updatedCustoms);
     localStorage.setItem('exonasoft_custom_workspace_apps', JSON.stringify(updatedCustoms));
 
+    // Delete from Firestore
+    try {
+      await deleteDoc(doc(db, 'workspaceCustomApps', appId));
+    } catch (fsErr) {
+      console.error('Failed to delete from Firestore:', fsErr);
+    }
+
     const updatedEnabled = enabledAppIds.filter(id => id !== appId);
     setEnabledAppIds(updatedEnabled);
-    showNotification('Removed custom app draft.', 'info');
+    showNotification('Removed custom app.', 'info');
   };
 
   // Suggested app quick deployment options
@@ -687,15 +737,36 @@ export default function WorkspaceAppCenter({
                       <span>App Profile Picture / Custom Icon Image URL (Optional)</span>
                       <span className="text-indigo-500 font-extrabold normal-case">Displays as Phone Home Screen App Icon!</span>
                     </label>
-                    <input
-                      type="text"
-                      value={newAppIconUrl}
-                      onChange={(e) => setNewAppIconUrl(e.target.value)}
-                      placeholder="Paste image URL (e.g. https://images.unsplash.com/...)"
-                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
-                    />
+
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2.5">
+                      <div className="sm:col-span-3">
+                        <input
+                          type="text"
+                          value={newAppIconUrl}
+                          onChange={(e) => setNewAppIconUrl(e.target.value)}
+                          placeholder="Paste image URL or upload ->"
+                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-xs text-zinc-900 focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="h-full min-h-[42px] px-4 py-2 bg-zinc-50 border-2 border-dashed border-gray-200 hover:border-blue-500 hover:bg-blue-50/20 rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-all">
+                          <Upload size={14} className={isUploadingIcon ? "animate-spin text-blue-500" : "text-zinc-500"} />
+                          <span className="text-[10px] font-black text-zinc-650 uppercase tracking-wider">
+                            {isUploadingIcon ? 'Uploading...' : 'Upload Image'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleIconFileUpload}
+                            disabled={isUploadingIcon}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+
                     <p className="text-[9px] text-zinc-400 mt-1 leading-normal font-medium normal-case">
-                      Paste any public image link (from Unsplash, Imgur, or direct uploads). When adding this shortcut link to your mobile home screen, browsers will use this profile picture as the app launcher icon!
+                      Paste a direct image link or upload a file. When adding this app shortcut to your mobile home screen (or running inside ExonaApp), browsers and systems will display this custom profile picture as the app icon!
                     </p>
                   </div>
 

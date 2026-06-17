@@ -28,6 +28,7 @@ export default function CustomAppSandbox({ app, onClose, showNotification, setCu
   const [editUrlMode, setEditUrlMode] = useState(false);
   const [editedUrl, setEditedUrl] = useState(app.appUrl || '');
   const [copiedShortcut, setCopiedShortcut] = useState(false);
+  const [viewMode, setViewMode] = useState<'immersive' | 'console'>(app.appUrl ? 'immersive' : 'console');
 
   const [logs, setLogs] = useState<string[]>([
     `[INFO] Initializing ${app.name} system sandbox v1.0.0...`,
@@ -169,6 +170,74 @@ export default function CustomAppSandbox({ app, onClose, showNotification, setCu
 
   const IconComponent = getAppIcon(app.iconName);
 
+  if (app.appUrl && viewMode === 'immersive') {
+    return (
+      <div className="flex-1 flex flex-col bg-white overflow-hidden relative text-left">
+        {/* Full-Screen Sleek Ultra-Thin Header */}
+        <div className="bg-zinc-900 border-b border-zinc-805 text-white h-12 px-4 flex items-center justify-between shrink-0 select-none z-30">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="h-8 px-3 bg-zinc-850 hover:bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-lg flex items-center justify-center gap-1.5 transition-all text-xs font-black uppercase tracking-wider cursor-pointer"
+              title="Return to Workspace App Center"
+            >
+              <ArrowLeft size={13} strokeWidth={2.5} />
+              <span>Back</span>
+            </button>
+            <div className="flex items-center gap-2">
+              {app.iconUrl ? (
+                <img src={app.iconUrl} className="h-5 w-5 object-cover rounded-md" alt={app.name} referrerPolicy="no-referrer" />
+              ) : (
+                <div className={`h-5 w-5 rounded-md flex items-center justify-center bg-zinc-800 text-${app.color.split('-')[0] || 'blue'}-400`}>
+                  <IconComponent size={12} strokeWidth={2.5} />
+                </div>
+              )}
+              <span className="text-xs font-extrabold font-sans tracking-tight text-zinc-100">{app.name}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setIframeKey(k => k + 1)}
+              className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              title="Reload Frame"
+            >
+              <RefreshCw size={13} />
+            </button>
+            
+            <button
+              onClick={handleLaunchExternal}
+              className="px-3 py-1 bg-zinc-800 hover:bg-zinc-750 border border-zinc-750 rounded-lg text-[9px] font-black uppercase tracking-widest text-zinc-300 hover:text-white transition-all flex items-center gap-1 cursor-pointer"
+              title="Open Target Link in Standalone New Tab"
+            >
+              <ExternalLink size={10} /> Standalone
+            </button>
+
+            <button
+              onClick={() => setViewMode('console')}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-550 border border-blue-500 rounded-lg text-[9px] font-black uppercase tracking-widest text-white transition-all cursor-pointer"
+              title="Configure Link Settings & Shortcuts"
+            >
+              Settings
+            </button>
+          </div>
+        </div>
+
+        {/* 100% Immersive Full-Width Full-Height IFrame */}
+        <div className="flex-1 bg-white relative overflow-hidden">
+          <iframe
+            key={iframeKey}
+            src={app.appUrl}
+            className="w-full h-full border-0 absolute inset-0"
+            title={`${app.name}`}
+            referrerPolicy="no-referrer"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden relative text-left">
       
@@ -185,7 +254,11 @@ export default function CustomAppSandbox({ app, onClose, showNotification, setCu
           
           <div className="flex items-center gap-3">
             <div className={`h-11 w-11 bg-${app.color.split('-')[0]}-50 text-${app.color} rounded-xl flex items-center justify-center border border-gray-150 shadow-xs shrink-0`}>
-              <IconComponent size={22} strokeWidth={2.5} />
+              {app.iconUrl ? (
+                <img src={app.iconUrl} className="h-full w-full object-cover rounded-xl" alt={app.name} referrerPolicy="no-referrer" />
+              ) : (
+                <IconComponent size={22} strokeWidth={2.5} />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -206,12 +279,20 @@ export default function CustomAppSandbox({ app, onClose, showNotification, setCu
         {/* Action headers */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
           {app.appUrl && (
-            <button
-              onClick={handleLaunchExternal}
-              className="px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <ExternalLink size={13} /> Open Standalone
-            </button>
+            <>
+              <button
+                onClick={() => setViewMode('immersive')}
+                className="px-5 py-3 bg-blue-600 hover:bg-blue-650 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                🌐 Immersive App View
+              </button>
+              <button
+                onClick={handleLaunchExternal}
+                className="px-5 py-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <ExternalLink size={13} /> Open Standalone
+              </button>
+            </>
           )}
           
           {!app.appUrl && (

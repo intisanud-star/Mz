@@ -12234,6 +12234,35 @@ function ExonaApp() {
     return () => unsubAllMessages();
   }, [user?.uid, isQuotaExceeded]);
 
+  // 3.5 Workspace Custom Apps Listener (global, syncs custom apps in real-time with Firestore)
+  useEffect(() => {
+    if (isQuotaExceeded || !user) return;
+
+    const qApps = query(collection(db, 'workspaceCustomApps'));
+    const unsubApps = onSnapshot(qApps, (snap) => {
+      const apps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      apps.sort((a: any, b: any) => {
+        const timeA = a.createdAt || '';
+        const timeB = b.createdAt || '';
+        return timeA < timeB ? 1 : -1;
+      });
+      setCustomApps(apps);
+      localStorage.setItem('exonasoft_custom_workspace_apps', JSON.stringify(apps));
+      
+      try {
+        const savedEnabled = localStorage.getItem('exonasoft_enabled_workspace_apps');
+        const enabledIds = savedEnabled ? JSON.parse(savedEnabled) : [];
+        const newAppIds = apps.map(a => a.id);
+        const combined = Array.from(new Set([...enabledIds, ...newAppIds]));
+        setEnabledAppIds(combined);
+      } catch (e) {}
+    }, (error) => {
+      console.error('Workspace custom apps listener error:', error);
+    });
+
+    return () => unsubApps();
+  }, [user?.uid, isQuotaExceeded]);
+
   // 4. Stories Listener
   useEffect(() => {
     if (isQuotaExceeded || !['feed', 'school-feed', 'schools'].includes(view)) return;
