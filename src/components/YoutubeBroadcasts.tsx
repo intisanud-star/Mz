@@ -276,8 +276,6 @@ const NetworkStreamPlayer: React.FC<{
   fit?: 'cover' | 'contain' | 'fill';
   isTabActive?: boolean;
   onLoaded?: () => void;
-  showTranslatorMenu: boolean;
-  setShowTranslatorMenu: (v: boolean) => void;
 }> = ({
   url,
   isActive,
@@ -290,9 +288,7 @@ const NetworkStreamPlayer: React.FC<{
   zoom = 100,
   fit = 'contain',
   isTabActive = true,
-  onLoaded,
-  showTranslatorMenu,
-  setShowTranslatorMenu
+  onLoaded
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -304,12 +300,13 @@ const NetworkStreamPlayer: React.FC<{
   const [streamQuality, setStreamQuality] = useState('1080p (Source)');
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [proxyIndex, setProxyIndex ] = useState<number>(0); // 0 = Global Secure Ingress Proxy (Default)
- 
+
   // Satellite Subtitle Translator Settings Hooks
   const [translatorOn, setTranslatorOn] = useState(true);
   const [translationSource, setTranslationSource] = useState<'ar' | 'hi' | 'en' | 'es' | 'fr' | 'ja' | 'de' | 'zh' | 'ru'>('ar');
   const [translationTarget, setTranslationTarget] = useState<'ar' | 'hi' | 'en' | 'es' | 'fr' | 'ja' | 'de' | 'zh' | 'ru'>('en');
   const [subtitleIdx, setSubtitleIdx] = useState(0);
+  const [showTranslatorMenu, setShowTranslatorMenu] = useState(false);
   const [transcribingState, setTranscribingState] = useState<'idle' | 'translating' | 'done'>('done');
   const [subtitleSize, setSubtitleSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [showDualSubtitles, setShowDualSubtitles] = useState(true);
@@ -333,11 +330,6 @@ const NetworkStreamPlayer: React.FC<{
   useEffect(() => {
     setProxyIndex(0);
   }, [url]);
-
-  // Clear translated text on subtitle index / language change to trigger immediate update visual feedback
-  useEffect(() => {
-    setLatestTranslatedText('');
-  }, [subtitleIdx, translationSource, translationTarget]);
 
   // Derive final streaming URL (routed via CORS proxy)
   const activeUrl = useMemo(() => {
@@ -1315,7 +1307,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
   // Immersive Reels Mode State
   const [isImmersiveMode, setIsImmersiveMode] = useState(true);
-  const [showTranslatorMenu, setShowTranslatorMenu] = useState(false);
   const [isStrictVideoOnly, setIsStrictVideoOnly] = useState(false);
   const [isImmersiveCommentsOpen, setIsImmersiveCommentsOpen] = useState(false);
   const [isImmersiveChannelsDrawerOpen, setIsImmersiveChannelsDrawerOpen] = useState(false);
@@ -2496,8 +2487,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           zoom={videoZoom}
                           fit={videoFit}
                           isTabActive={isTabActive}
-                          showTranslatorMenu={showTranslatorMenu}
-                          setShowTranslatorMenu={setShowTranslatorMenu}
                           onSkip={() => {
                             const nextIdx = (idx + 1) % filteredBroadcasts.length;
                             scrollImmersiveToIdx(nextIdx);
@@ -2683,26 +2672,17 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       )}
                     </div>
 
-                    {/* Satellite Translator Settings */}
-                    <div className="flex flex-col items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowTranslatorMenu(!showTranslatorMenu);
-                        }}
-                        className={`h-11 w-11 rounded-full border flex items-center justify-center transition-all shadow-lg cursor-pointer ${
-                          showTranslatorMenu 
-                            ? 'bg-amber-600 border-amber-500 text-white shadow-[0_0_15px_rgba(245,158,11,0.55)]' 
-                            : 'bg-black/60 border-white/20 text-slate-200 hover:text-white hover:bg-black/80 hover:border-amber-400'
-                        }`}
-                        title="Configure Live Translation & Subtitles"
-                      >
-                        <Settings size={18} className={showTranslatorMenu ? "rotate-45 duration-300" : "duration-300"} />
-                      </button>
-                      <span className="text-[10px] font-extrabold text-white drop-shadow-md">
-                        Settings
-                      </span>
-                    </div>
+                    {/* Admin diagnostic parameters */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
+                      }}
+                      className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
+                      title="View system parameters"
+                    >
+                      <Settings size={18} />
+                    </button>
 
                     {/* Admin Trash / Delete */}
                     {isCreatorOrAdmin && (
@@ -2768,7 +2748,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
         )}
 
         {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
-        {!isStrictVideoOnly && (!isLandscape || window.innerHeight > 500) && (
+        {!isStrictVideoOnly && !isLandscape && (
           <div className="h-21 bg-black border-t border-white/10 flex items-center justify-around text-slate-500 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
             <button 
               type="button"
@@ -3490,8 +3470,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                             zoom={videoZoom}
                             fit={videoFit}
                             isTabActive={isTabActive}
-                            showTranslatorMenu={showTranslatorMenu}
-                            setShowTranslatorMenu={setShowTranslatorMenu}
                             onSkip={() => {
                               const nextIdx = (idx + 1) % filteredBroadcasts.length;
                               scrollToIdx(nextIdx);
@@ -4214,8 +4192,6 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               zoom={videoZoom}
                               fit={videoFit}
                               isTabActive={isTabActive}
-                              showTranslatorMenu={showTranslatorMenu}
-                              setShowTranslatorMenu={setShowTranslatorMenu}
                               onSkip={() => {
                                 const nextIdx = (idx + 1) % filteredBroadcasts.length;
                                 scrollImmersiveToIdx(nextIdx);
@@ -4442,26 +4418,17 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           )}
                         </div>
 
-                        {/* Satellite Translator Settings */}
-                        <div className="flex flex-col items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setShowTranslatorMenu(!showTranslatorMenu);
-                            }}
-                            className={`h-11 w-11 rounded-full border flex items-center justify-center transition-all shadow-md cursor-pointer ${
-                              showTranslatorMenu
-                                ? 'bg-amber-100 border-amber-300 text-amber-700 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                                : 'bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200 hover:border-amber-400'
-                            }`}
-                            title="Configure Live Translation & Subtitles"
-                          >
-                            <Settings size={18} className={showTranslatorMenu ? "rotate-45 duration-300" : "duration-300"} />
-                          </button>
-                          <span className="text-[10px] font-extrabold text-slate-705 drop-shadow-sm">
-                            Settings
-                          </span>
-                        </div>
+                        {/* Admin diagnostic configuration console */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
+                          }}
+                          className="h-11 w-11 rounded-full bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200 flex items-center justify-center transition-all shadow-md cursor-pointer"
+                          title="View system parameters"
+                        >
+                          <Settings size={18} />
+                        </button>
 
                         {/* Admin Trash / Delete */}
                         {isCreatorOrAdmin && (
@@ -4512,7 +4479,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
             )}
 
             {/* INSTAGRAM REELS STATIC NAVIGATION BAR SIMULATION (BOTTOM FOOTER) */}
-            {!isStrictVideoOnly && (!isLandscape || window.innerHeight > 500) && (
+            {!isStrictVideoOnly && !isLandscape && (
               <div className="h-21 bg-white border-t border-gray-150 flex items-center justify-around text-slate-600 z-40 px-6 sm:px-12 pointer-events-auto shrink-0 pb-6 sm:pb-3">
                 <button 
                   type="button"

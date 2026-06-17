@@ -4584,8 +4584,7 @@ function ExonaApp() {
   // Force cloud firebase engines on direct deep link launches to make apps completely live
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const rawParam = urlParams.get('app') || urlParams.get('workspaceApp');
-    const appParam = (rawParam && !(rawParam.includes('-') && rawParam.length > 20)) ? rawParam : null;
+    const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
     if (appParam) {
       setRecordStorageEngine('firebase');
       setClassroomEngine('firebase');
@@ -4606,8 +4605,7 @@ function ExonaApp() {
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    const rawParam = urlParams.get('app') || urlParams.get('workspaceApp');
-    const appParam = (rawParam && !(rawParam.includes('-') && rawParam.length > 20)) ? rawParam : null;
+    const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
 
     if (targetApp) {
       // Synchronize address bar parameter without reloading for complete live representation
@@ -5214,15 +5212,13 @@ function ExonaApp() {
   }, [user?.uid]);
   const [isStandalone, setIsStandalone] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const appVal = params.get('app') || params.get('workspaceApp');
-    const hasApp = appVal ? !(appVal.includes('-') && appVal.length > 20) : false;
+    const hasApp = params.has('app') || params.has('workspaceApp');
     return hasApp || window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
   });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const appVal = params.get('app') || params.get('workspaceApp');
-    const hasApp = appVal ? !(appVal.includes('-') && appVal.length > 20) : false;
+    const hasApp = params.has('app') || params.has('workspaceApp');
     setIsStandalone(hasApp || window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone);
   }, []);
 
@@ -7716,8 +7712,7 @@ function ExonaApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const classId = urlParams.get('classId');
     const groupId = urlParams.get('groupId');
-    const rawApp = urlParams.get('app') || urlParams.get('workspaceApp');
-    const app = (rawApp && !(rawApp.includes('-') && rawApp.length > 20)) ? rawApp : null;
+    const app = urlParams.get('app') || urlParams.get('workspaceApp');
     
     if (classId) {
       const newParams = new URLSearchParams(window.location.search);
@@ -8004,7 +7999,6 @@ function ExonaApp() {
   const [categories, setCategories] = useState<{ id: string; label: string }[]>(() => {
     const defaultCats = [
       { id: 'all', label: 'All' },
-      { id: 'workspace', label: 'Workspace' },
       { id: 'chats', label: 'Chat' },
       { id: 'groups', label: 'Group' },
       { id: 'school', label: 'Schools' },
@@ -8026,7 +8020,7 @@ function ExonaApp() {
   });
 
   useEffect(() => {
-    const customOnly = categories.filter(c => !['all', 'workspace', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id));
+    const customOnly = categories.filter(c => !['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id));
     localStorage.setItem('exon_custom_categories', JSON.stringify(customOnly));
   }, [categories]);
 
@@ -11798,8 +11792,7 @@ function ExonaApp() {
     if (view === 'splash' && !splashDone) {
       // Direct deep link bypass for immediate micro-app loading (Telegram state style!)
       const urlParams = new URLSearchParams(window.location.search);
-      const rawApp = urlParams.get('app') || urlParams.get('workspaceApp');
-      const directApp = (rawApp && !(rawApp.includes('-') && rawApp.length > 20)) ? rawApp : null;
+      const directApp = urlParams.get('app') || urlParams.get('workspaceApp');
       if (directApp) {
         setSplashDone(true);
         return;
@@ -11815,8 +11808,7 @@ function ExonaApp() {
   useEffect(() => {
     if (splashDone && !loading && view === 'splash') {
       const urlParams = new URLSearchParams(window.location.search);
-      const rawApp = urlParams.get('app') || urlParams.get('workspaceApp');
-      const appParam = (rawApp && !(rawApp.includes('-') && rawApp.length > 20)) ? rawApp : null;
+      const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
       if (appParam) {
         if (appParam === 'finance') {
           handleWalletClick();
@@ -13837,17 +13829,11 @@ function ExonaApp() {
               >
                 {categories.map((c) => {
                   const count = getFilterCount(c.id);
-                  const isSelected = c.id === 'workspace' ? view === 'workspace' : schoolFilter === c.id;
+                  const isSelected = schoolFilter === c.id;
                   return (
                     <div key={c.id} className="relative group shrink-0 flex items-center">
                       <button
-                        onClick={() => {
-                          if (c.id === 'workspace') {
-                            setView('workspace');
-                          } else {
-                            setSchoolFilter(c.id);
-                          }
-                        }}
+                        onClick={() => setSchoolFilter(c.id)}
                         className={`h-8 px-3.5 rounded-full text-[11.5px] uppercase tracking-wider font-bold transition-all outline-none flex items-center justify-center font-sans ${
                           isSelected 
                             ? 'bg-[#2481CC]/10 text-[#2481CC]' 
@@ -13865,7 +13851,7 @@ function ExonaApp() {
                           )}
                         </span>
                       </button>
-                      {!['all', 'workspace', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
+                      {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -23480,8 +23466,7 @@ function ExonaApp() {
       case 'workspace': {
         if (isStandalone && !activeWorkspaceTool) {
           const urlParams = new URLSearchParams(window.location.search);
-          const rawParam = urlParams.get('app') || urlParams.get('workspaceApp');
-          const appParam = (rawParam && !(rawParam.includes('-') && rawParam.length > 20)) ? rawParam : null;
+          const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
           if (appParam && appParam !== 'finance' && appParam !== 'videos') {
             setActiveWorkspaceTool(appParam);
           }
