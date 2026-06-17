@@ -3548,7 +3548,7 @@ function ExonaApp() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', ...(isStandalone ? ['videos'] : [])].includes(view);
+    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos'].includes(view);
     if (isFixedLayoutView) {
       startY.current = 0;
       return;
@@ -3561,7 +3561,7 @@ function ExonaApp() {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', ...(isStandalone ? ['videos'] : [])].includes(view);
+    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos'].includes(view);
     if (isFixedLayoutView) return;
     if (startY.current === 0 || refreshing) return;
     const currentY = e.touches[0].pageY;
@@ -25077,11 +25077,21 @@ function ExonaApp() {
         }
 
         return (
-          <div className="w-full min-h-screen bg-slate-50/50 pb-32 overflow-x-hidden">
+          <div className="w-full h-full overflow-y-auto bg-slate-50/50 pb-16">
             <div className="w-full pt-6 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-              <div className="mb-8">
-                <h2 className="text-3xl font-black text-ink mb-2 uppercase tracking-tight">Workspace</h2>
-                <p className="text-xs font-bold text-muted uppercase tracking-[0.2em]">Institutional portals, utilities and shortcut tools</p>
+              <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-gray-150 pb-5">
+                <div>
+                  <h2 className="text-3xl font-black text-ink mb-1 uppercase tracking-tight">Workspace</h2>
+                  <p className="text-xs font-bold text-muted uppercase tracking-[0.2em]">Institutional portals, utilities and shortcut tools</p>
+                </div>
+                <button
+                  onClick={() => setView('feed')}
+                  className="h-10 px-4 bg-white hover:bg-gray-50 border border-gray-200 text-ink rounded-xl font-extrabold text-[11px] uppercase tracking-wider flex items-center gap-2 transition-all shadow-2xs cursor-pointer self-start sm:self-auto"
+                  title="Return to Main Feed"
+                >
+                  <ArrowLeft size={14} strokeWidth={2.5} />
+                  <span>Exit Workspace</span>
+                </button>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -29820,7 +29830,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', ...(isStandalone ? ['videos'] : [])].includes(view);
+        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos'].includes(view);
         return (
           <main 
             ref={scrollContainerRef}
@@ -30054,7 +30064,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'videos'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'finance'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
@@ -30230,7 +30240,7 @@ function ExonaApp() {
                 )}
               </AnimatePresence>
 
-              {/* Icon 1: Home (Pristine High-Clarity SVGs - Always visible) */}
+              {/* Icon 1: Home (Pristine High-Clarity SVGs) */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -30250,102 +30260,97 @@ function ExonaApp() {
                 )}
               </button>
 
-              {/* Icon 2, 3, 4, 5: Hidden in Workspace view to have only a pristine back-to-home button just like in stream */}
-              {view !== 'workspace' && (
-                <>
-                  {/* Icon 2: Reels/Videos */}
-                  <button 
-                    onClick={() => {
-                      setActiveChat(null);
-                      setView('videos');
-                    }}
-                    className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
-                  >
-                    {view === 'videos' ? (
-                      <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="5" />
-                        <path d="M3 8h18" />
-                        <path d="M8 3v5" />
-                        <path d="M16 3v5" />
-                        <polygon points="10 11 15 13.5 10 16 10 11" fill="currentColor" />
-                      </svg>
-                    ) : (
-                      <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="5" />
-                        <path d="M3 8h18" />
-                        <path d="M8 3v5" />
-                        <path d="M16 3v5" />
-                        <polygon points="10 11 15 13.5 10 16 10 11" />
-                      </svg>
-                    )}
-                  </button>
+              {/* Icon 2: Reels/Videos */}
+              <button 
+                onClick={() => {
+                  setActiveChat(null);
+                  setView('videos');
+                }}
+                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+              >
+                {view === 'videos' ? (
+                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="5" />
+                    <path d="M3 8h18" />
+                    <path d="M8 3v5" />
+                    <path d="M16 3v5" />
+                    <polygon points="10 11 15 13.5 10 16 10 11" fill="currentColor" />
+                  </svg>
+                ) : (
+                  <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="5" />
+                    <path d="M3 8h18" />
+                    <path d="M8 3v5" />
+                    <path d="M16 3v5" />
+                    <polygon points="10 11 15 13.5 10 16 10 11" />
+                  </svg>
+                )}
+              </button>
 
-                  {/* Icon 3: Middle Hub Button */}
-                  <button 
-                    onClick={() => {
-                      setIsMiddleMenuOpen(!isMiddleMenuOpen);
-                    }}
-                    className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 relative"
-                  >
-                    <div className="relative">
-                      {isMiddleMenuOpen ? (
-                        <X size={24} className="text-zinc-950" strokeWidth={2.4} />
-                      ) : (
-                        <LayoutGrid size={24} className="text-zinc-800 hover:text-zinc-950" strokeWidth={2.4} />
-                      )}
-                    </div>
-                  </button>
+              {/* Icon 3: Middle Hub Button */}
+              <button 
+                onClick={() => {
+                  setIsMiddleMenuOpen(!isMiddleMenuOpen);
+                }}
+                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 relative"
+              >
+                <div className="relative">
+                  {isMiddleMenuOpen ? (
+                    <X size={24} className="text-zinc-950" strokeWidth={2.4} />
+                  ) : (
+                    <LayoutGrid size={24} className="text-zinc-800 hover:text-zinc-950" strokeWidth={2.4} />
+                  )}
+                </div>
+              </button>
 
-                  {/* Icon 4: Wallet */}
-                  <button 
-                    onClick={() => {
-                      setActiveChat(null);
-                      handleWalletClick();
-                    }}
-                    className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
-                  >
-                    {view === 'finance' ? (
-                      <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="5" width="20" height="14" rx="3" fill="currentColor" />
-                        <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" stroke="white" strokeWidth="1.8" fill="none" />
-                        <circle cx="16" cy="12" r="1.2" fill="white" />
-                      </svg>
-                    ) : (
-                      <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="5" width="20" height="14" rx="3" />
-                        <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" />
-                      </svg>
-                    )}
-                  </button>
+              {/* Icon 4: Wallet */}
+              <button 
+                onClick={() => {
+                  setActiveChat(null);
+                  handleWalletClick();
+                }}
+                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+              >
+                {view === 'finance' ? (
+                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="3" fill="currentColor" />
+                    <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" stroke="white" strokeWidth="1.8" fill="none" />
+                    <circle cx="16" cy="12" r="1.2" fill="white" />
+                  </svg>
+                ) : (
+                  <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="3" />
+                    <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" />
+                  </svg>
+                )}
+              </button>
 
-                  {/* Icon 5: Profile circle avatar */}
-                  <button 
-                    onClick={() => {
-                      setActiveChat(null);
-                      if (user) {
-                        setView('profile');
-                      } else {
-                        setView('login');
-                      }
-                    }}
-                    className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
-                  >
-                    <div className={`relative h-[25px] w-[25px] rounded-full overflow-hidden transition-all duration-200 ${
-                      view === 'profile' || view === 'login'
-                        ? 'ring-[1.5px] ring-zinc-950 ring-offset-2 scale-105' 
-                        : 'hover:scale-105'
-                    }`}>
-                      <img 
-                        src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
-                        className="h-full w-full object-cover rounded-full" 
-                        referrerPolicy="no-referrer"
-                      />
-                      {/* Small red target bounce dot on bottom right */}
-                      <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
-                    </div>
-                  </button>
-                </>
-              )}
+              {/* Icon 5: Profile circle avatar */}
+              <button 
+                onClick={() => {
+                  setActiveChat(null);
+                  if (user) {
+                    setView('profile');
+                  } else {
+                    setView('login');
+                  }
+                }}
+                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+              >
+                <div className={`relative h-[25px] w-[25px] rounded-full overflow-hidden transition-all duration-200 ${
+                  view === 'profile' || view === 'login'
+                    ? 'ring-[1.5px] ring-zinc-950 ring-offset-2 scale-105' 
+                    : 'hover:scale-105'
+                }`}>
+                  <img 
+                    src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
+                    className="h-full w-full object-cover rounded-full" 
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Small red target bounce dot on bottom right */}
+                  <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
+                </div>
+              </button>
             </div>
           </motion.div>
         )}
