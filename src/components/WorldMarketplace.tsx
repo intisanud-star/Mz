@@ -659,7 +659,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col antialiased bg-slate-50 min-h-screen font-sans">
+    <div className="w-full h-full flex flex-col antialiased bg-slate-50 font-sans overflow-hidden min-h-0">
       
       {/* TEMU-STYLE PREMIUM SEARCH & NAVIGATION HEADER */}
       <div className="bg-white border-b border-gray-150 sticky top-0 z-40 shadow-xs">
@@ -787,6 +787,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           })}
         </div>
       </div>
+
+      {/* SCROLLABLE MAIN CONTENT AREA */}
+      <div className="flex-1 w-full overflow-y-auto bg-slate-50 pb-28 min-h-0">
 
       {/* GREEN MICRO-PROMOTION BANNERS */}
       <div className="bg-emerald-50 text-emerald-800 border-b border-emerald-100/60 py-2.5 px-4 text-[10.5px] font-bold select-none shadow-xs">
@@ -1170,6 +1173,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
         </div>
       )}
+
+      </div>
 
       {/* ==================== 1. AI FLOATING ASSISTANT OVERLAY ==================== */}
       <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end">

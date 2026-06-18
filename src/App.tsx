@@ -14841,8 +14841,8 @@ function ExonaApp() {
       }
       case 'schools': {
         return (
-          <div className="w-full min-h-screen bg-slate-50 pb-32 overflow-x-hidden">
-            <div className="w-full pt-0 max-w-none">
+          <div className="w-full h-full flex flex-col bg-slate-50 overflow-hidden min-h-0">
+            <div className="w-full h-full flex flex-col max-w-none min-h-0">
               <WorldMarketplace
                 user={user}
                 userDoc={userDoc}
@@ -29759,7 +29759,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos'].includes(view);
+        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools'].includes(view);
         return (
           <main 
             ref={scrollContainerRef}
