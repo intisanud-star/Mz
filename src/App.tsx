@@ -14842,10 +14842,10 @@ function ExonaApp() {
       case 'schools': {
         return (
           <div className="w-full min-h-screen bg-slate-50 pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-8 max-w-none">
+            <div className="w-full pt-3 max-w-none">
               
               {/* Premium Sub-Header Navigation */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-150/50">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-150/50 px-4 sm:px-8">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>

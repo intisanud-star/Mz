@@ -663,45 +663,40 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       
       {/* TEMU-STYLE PREMIUM SEARCH & NAVIGATION HEADER */}
       <div className="bg-white border-b border-gray-150 sticky top-0 z-40 shadow-xs">
-        {/* Top Segment: Brand Name, Search & Navigation/Currency/Cart Actions */}
-        <div className="w-full px-4 sm:px-8 max-w-none pt-3.5 pb-2.5 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100">
-          <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setActiveMarketView('browse')}>
-            <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans hover:opacity-90">Exona</span>
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#2481CC] bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded select-none font-sans">MALL</span>
+        {/* Top Segment: Search segment touching edge to edge and sub-actions beneath it */}
+        <div className="w-full max-w-none flex flex-col items-stretch border-b border-gray-100">
+          
+          {/* Search Box: Cover EDGE-TO-EDGE of screen */}
+          <div className="w-full relative flex items-center bg-white border-b-2 border-[#2481CC] focus-within:border-[#2481CC]/80 transition-all select-none">
+            <input 
+              type="text" 
+              placeholder="Search global items, flash deals, imported crafts..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-5 pr-22 py-3.5 outline-none text-xs font-bold text-slate-800 placeholder:text-slate-400 font-sans"
+            />
+            
+            {/* Camera Visual Search Icon (Interactive Demo simulation) */}
+            <button 
+              onClick={() => {
+                showNotification("Visual image-search simulation active! Enter keywords to filter regional products.", "info");
+              }}
+              className="absolute right-13 text-slate-400 hover:text-[#2481CC] transition-colors p-1 flex items-center justify-center cursor-pointer"
+              title="Visual Search"
+            >
+              <Camera size={16.5} />
+            </button>
+
+            {/* Mag Glass Search Button */}
+            <button 
+              className="absolute right-0 top-0 bottom-0 px-6.5 bg-[#2481CC] hover:bg-[#2481CC]/95 text-white flex items-center justify-center transition-all cursor-pointer"
+            >
+              <Search size={16.5} />
+            </button>
           </div>
 
-          {/* Search Box: Prominently placed in between Exona Mall and navigation controls */}
-          <div className="w-full md:flex-1 md:max-w-xl mx-0 md:mx-6 shrink-0 md:shrink">
-            <div className="relative flex items-center bg-white border-2 border-[#2481CC] rounded-full overflow-hidden shadow-xs hover:border-[#2481CC]/80 focus-within:border-[#2481CC] group transition-all">
-              <input 
-                type="text" 
-                placeholder="Search global items, flash deals, imported crafts..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-5 pr-22 py-2 outline-none text-xs font-bold text-slate-800 placeholder:text-slate-400 font-sans"
-              />
-              
-              {/* Camera Visual Search Icon (Interactive Demo simulation) */}
-              <button 
-                onClick={() => {
-                  showNotification("Visual image-search simulation active! Enter keywords to filter regional products.", "info");
-                }}
-                className="absolute right-13 text-slate-400 hover:text-[#2481CC] transition-colors p-1 flex items-center justify-center cursor-pointer"
-                title="Visual Search"
-              >
-                <Camera size={16.5} />
-              </button>
-
-              {/* Mag Glass Search Button */}
-              <button 
-                className="absolute right-0 top-0 bottom-0 px-5.5 bg-[#2481CC] hover:bg-[#2481CC]/95 text-white flex items-center justify-center transition-all cursor-pointer"
-              >
-                <Search size={15.5} />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end shrink-0">
+          {/* Under-search Row: Cart, Shop Toggle, Currency selection */}
+          <div className="w-full px-4 sm:px-8 py-2.5 flex items-center justify-between gap-4 flex-wrap select-none md:justify-end bg-slate-50/50">
             {/* Store & Orders Navigation Toggle */}
             <div className="flex items-center bg-slate-100 border border-slate-200/60 p-0.5 rounded-lg font-sans">
               <button 
@@ -716,7 +711,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               <button 
                 onClick={() => setActiveMarketView('orders')}
                 className={`px-3 py-1 rounded-md text-[10.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 relative ${
-                  activeMarketView === 'orders' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  activeMarketView === 'orders' ? 'bg-white text-[#2481CC] shadow-xs' : 'text-slate-500 hover:text-[#2481CC]'
                 }`}
               >
                 <Package size={11.5} />
@@ -727,44 +722,46 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               </button>
             </div>
 
-            {/* Currency Selector */}
-            <div className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 transition-all text-[11px] font-semibold cursor-pointer font-sans">
-              <Globe size={11} className="text-[#2481CC]" />
-              <select 
-                value={currencyCode} 
-                onChange={(e) => setCurrencyCode(e.target.value)}
-                className="bg-transparent outline-none border-none py-0.5 text-ink cursor-pointer font-bold tracking-tight uppercase text-[10px]"
-              >
-                {currencyModes.map(c => (
-                  <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
-                ))}
-              </select>
-            </div>
+            <div className="flex items-center gap-2">
+              {/* Currency Selector */}
+              <div className="flex items-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 transition-all text-[11px] font-semibold cursor-pointer font-sans shadow-xs">
+                <Globe size={11} className="text-[#2481CC]" />
+                <select 
+                  value={currencyCode} 
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  className="bg-transparent outline-none border-none py-0.5 text-ink cursor-pointer font-bold tracking-tight uppercase text-[10px]"
+                >
+                  {currencyModes.map(c => (
+                    <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Sell Button */}
-            {isAdmin && (
-              <button
-                onClick={() => setIsListModalOpen(true)}
-                className="px-3 py-1.5 bg-[#2481CC] hover:bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer font-sans"
-                title="Sell on Exona"
-              >
-                <Plus size={12} />
-                <span>Sell</span>
-              </button>
-            )}
-
-            {/* Cart Trigger */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="px-3.5 py-1.5 bg-slate-900 text-white hover:bg-slate-950 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm relative shrink-0 cursor-pointer font-sans"
-            >
-              <ShoppingCart size={13} />
-              {cart.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#2481CC] text-white text-[8px] font-bold h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-bounce">
-                  {cart.reduce((total, item) => total + item.quantity, 0)}
-                </span>
+              {/* Sell Button */}
+              {isAdmin && (
+                <button
+                  onClick={() => setIsListModalOpen(true)}
+                  className="px-3 py-1.5 bg-[#2481CC] hover:bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer font-sans"
+                  title="Sell on Exona"
+                >
+                  <Plus size={12} />
+                  <span>Sell</span>
+                </button>
               )}
-            </button>
+
+              {/* Cart Trigger */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="px-3.5 py-1.5 bg-slate-900 text-white hover:bg-slate-950 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm relative shrink-0 cursor-pointer font-sans"
+              >
+                <ShoppingCart size={13} />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#2481CC] text-white text-[8px] font-bold h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                    {cart.reduce((total, item) => total + item.quantity, 0)}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1018,15 +1015,15 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         </div>
       ) : (
         /* ==================== BROWSE/EXPLORE CATALOG ==================== */
-        <div className="w-full px-4 sm:px-8 max-w-none pb-24 pt-4">
+        <div className="w-full px-0 pb-24 pt-4">
           
           {isLoadingProducts ? (
-            <div className="py-24 text-center">
+            <div className="py-24 text-center px-4">
               <div className="h-10 w-10 border-4 border-slate-200 border-t-red-600 rounded-full animate-spin mx-auto mb-4" />
               <p className="text-xs font-bold uppercase tracking-widest text-red-600 animate-pulse">Syncing International Inventories...</p>
             </div>
           ) : filteredProducts.length === 0 ? (
-            <div className="py-20 text-center bg-white border border-gray-150 rounded-3xl px-6 max-w-lg mx-auto shadow-sm">
+            <div className="py-20 text-center bg-white border border-gray-150 rounded-3xl px-6 max-w-lg mx-auto shadow-sm mx-4">
               <div className="h-14 w-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4">
                 <AlertCircle size={22} />
               </div>
