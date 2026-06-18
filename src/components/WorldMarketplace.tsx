@@ -1057,7 +1057,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   <div 
                     key={p.id}
                     onClick={() => setSelectedDetailedProduct(p)}
-                    className="bg-white border border-gray-150/60 rounded-2xl overflow-hidden cursor-pointer hover:shadow-md transition-all flex flex-col group relative"
+                    className="border border-gray-150/60 cursor-pointer hover:shadow-md transition-all flex flex-col group relative"
+                    style={{ backgroundColor: '#fff', borderRadius: 6, overflow: 'hidden', marginBottom: 8 }}
                   >
                     {/* Image Area with glassmorphic origin country tag */}
                     <div className="relative aspect-square w-full bg-slate-100 overflow-hidden shrink-0">
@@ -1135,13 +1136,17 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         </div>
 
                         {/* Price strip and Checkout shopping cart icon */}
-                        <div className="flex items-end justify-between gap-2 pt-1">
-                          <div className="flex flex-col">
-                            <span className="text-[9px] text-red-600 font-black uppercase tracking-wider leading-none">Last day</span>
-                            <div className="flex items-baseline gap-1 mt-0.5">
-                              <span className="text-[14px] font-extrabold text-[#f35c24] leading-none">{formatPrice(p.price)}</span>
-                              <span className="text-[10.5px] text-slate-400 font-medium line-through leading-none">{formatPrice(originalPrice)}</span>
-                            </div>
+                        <div 
+                          className="flex pt-1" 
+                          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}
+                        >
+                          <div className="flex items-baseline flex-wrap">
+                            <span style={{ color: '#fa6400', fontWeight: 'bold', fontSize: 15 }}>
+                              {formatPrice(p.price)}
+                            </span>
+                            <span style={{ color: '#999', textDecorationLine: 'line-through', fontSize: 11, marginLeft: 4 }}>
+                              {formatPrice(originalPrice)}
+                            </span>
                           </div>
 
                           {/* Round outline dark shopping cart button */}
@@ -1151,10 +1156,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               e.stopPropagation();
                               addToCart(p);
                             }}
-                            className="h-8.5 w-8.5 rounded-full border border-slate-350 hover:border-red-600 hover:bg-red-50 hover:text-red-600 active:scale-95 disabled:bg-slate-50 disabled:border-slate-150 disabled:text-slate-400 flex items-center justify-center transition-all bg-white shadow-xs shrink-0"
+                            className="hover:border-red-600 hover:bg-rose-50 hover:text-red-600 active:scale-95 disabled:bg-slate-50 disabled:border-slate-150 disabled:text-slate-400 flex items-center justify-center transition-all bg-white shadow-xs shrink-0 cursor-pointer"
+                            style={{ borderWidth: 1, borderColor: '#333', borderRadius: 50, padding: 6 }}
                             title="Add item to checkout"
                           >
-                            <ShoppingCart size={13.5} className="shrink-0 text-slate-800 hover:text-red-600" />
+                            <ShoppingCart size={13.5} className="shrink-0 text-[#333] hover:text-red-600" />
                           </button>
                         </div>
                       </div>
