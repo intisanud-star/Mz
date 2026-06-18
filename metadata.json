@@ -1,6 +1,6 @@
 {
   "name": "Exona",
-  "description": "A comprehensive institutional management and community platform with AI-powered attendance scanning from paper, secure records, and real-time organization management.",
+  "description": "A comprehensive institutional management and community platform featuring a premium World Marketplace, AI-powered attendance scanning from paper, secure records, and global trading features.",
   "requestFramePermissions": ["microphone", "camera", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
