@@ -14842,35 +14842,7 @@ function ExonaApp() {
       case 'schools': {
         return (
           <div className="w-full min-h-screen bg-slate-50 pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 max-w-none">
-              
-              {/* Premium Sub-Header Navigation */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-150/50 px-4 sm:px-8">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
-                </div>
-                
-                {/* Segmented control for HOME (directory) vs MARKETPLACE */}
-                <div className="flex items-center bg-gray-200 p-1 rounded-2xl w-full sm:w-auto">
-                  <button 
-                    onClick={() => setView('feed')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-ink shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                  >
-                    Home
-                  </button>
-                  <button 
-                    onClick={() => setView('schools')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'schools' ? 'bg-white text-[#2481CC] shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                  >
-                    Marketplace
-                  </button>
-                </div>
-
-                <div className="hidden sm:flex items-center gap-2 shrink-0">
-                  {/* Notification and sidebar removed to make marketplace full screen */}
-                </div>
-              </div>
-
+            <div className="w-full pt-0 max-w-none">
               <WorldMarketplace
                 user={user}
                 userDoc={userDoc}
@@ -15945,7 +15917,10 @@ function ExonaApp() {
             <div className="flex items-center justify-between px-6 py-5 bg-white border-b border-zinc-200/80 sticky top-0 z-40 shadow-xs">
               <div className="flex items-center gap-3">
                 <button 
-                  onClick={() => setView('workspace')}
+                  onClick={() => {
+                    setView('workspace');
+                    setActiveWorkspaceTool('app-center');
+                  }}
                   className="h-10 w-10 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-center text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 transition-colors cursor-pointer shrink-0"
                   title="Back to Workspace"
                 >
@@ -23467,10 +23442,10 @@ function ExonaApp() {
         });
 
         // App Center Route
-        if (activeWorkspaceTool === 'app-center') {
+        if (activeWorkspaceTool === 'app-center' || !activeWorkspaceTool) {
           return (
             <WorkspaceAppCenter
-              onClose={() => setActiveWorkspaceTool(null)}
+              onClose={() => setView('feed')}
               showNotification={showNotification}
               enabledAppIds={enabledAppIds}
               setEnabledAppIds={setEnabledAppIds}
