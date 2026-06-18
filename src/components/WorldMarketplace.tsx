@@ -664,7 +664,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       {/* TEMU-STYLE PREMIUM SEARCH & NAVIGATION HEADER */}
       <div className="bg-white border-b border-gray-150 sticky top-0 z-40 shadow-xs">
         {/* Top Segment: Brand Name, Search & Navigation/Currency/Cart Actions */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-3.5 pb-2.5 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100">
+        <div className="w-full px-4 sm:px-8 max-w-none pt-3.5 pb-2.5 flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-100">
           <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setActiveMarketView('browse')}>
             <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans hover:opacity-90">Exona</span>
             <span className="text-[10px] font-black uppercase tracking-wider text-[#2481CC] bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded select-none font-sans">MALL</span>
@@ -769,7 +769,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         </div>
 
         {/* Lower Segment: Navigation Category Tabs (All, Women, Men, Home, Sports...) */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-6 overflow-x-auto scrollbar-none pb-2 bg-white select-none">
+        <div className="w-full px-4 sm:px-8 max-w-none flex items-center gap-6 overflow-x-auto scrollbar-none pb-2 bg-white select-none">
           {categoriesList.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
@@ -793,7 +793,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
       {/* GREEN MICRO-PROMOTION BANNERS */}
       <div className="bg-emerald-50 text-emerald-800 border-b border-emerald-100/60 py-2.5 px-4 text-[10.5px] font-bold select-none shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center justify-center sm:justify-start gap-5 flex-wrap">
+        <div className="w-full px-4 sm:px-8 max-w-none flex items-center justify-center sm:justify-start gap-5 flex-wrap">
           <div className="flex items-center gap-1.5 hover:text-emerald-950 transition-colors">
             <Check size={12.5} className="text-emerald-600 stroke-[3]" />
             <span>Free shipping on all items</span>
@@ -811,7 +811,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
       {/* QUICK DEALS, SORTING AND SHIPPING FILTERS */}
       {activeMarketView === 'browse' && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4.5 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 overflow-x-auto scrollbar-none select-none">
+        <div className="w-full px-4 sm:px-8 max-w-none pt-4.5 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 overflow-x-auto scrollbar-none select-none">
           <div className="flex items-center gap-2 self-start">
             <button
               onClick={() => {
@@ -872,7 +872,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
       {activeMarketView === 'orders' ? (
         /* ==================== MY ORDERS HUB ==================== */
-        <div className="max-w-4xl mx-auto w-full px-4 pb-24 pt-6">
+        <div className="w-full px-4 sm:px-8 max-w-none pb-24 pt-6">
           <div className="mb-6">
             <h3 className="text-xl font-black text-ink font-display uppercase tracking-tight">Active Delivery Tracking</h3>
             <p className="text-xs text-muted font-semibold uppercase tracking-wider mt-1">Monitor real-time status and customs checkpoints</p>
@@ -1018,7 +1018,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         </div>
       ) : (
         /* ==================== BROWSE/EXPLORE CATALOG ==================== */
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pb-24 pt-4">
+        <div className="w-full px-4 sm:px-8 max-w-none pb-24 pt-4">
           
           {isLoadingProducts ? (
             <div className="py-24 text-center">

@@ -29591,7 +29591,11 @@ function ExonaApp() {
                   icon={LayoutGrid} 
                   label="Workspace" 
                   active={view === 'workspace'} 
-                  onClick={() => { setView('workspace'); setSidebarOpen(false); }} 
+                  onClick={() => { 
+                    setView('workspace'); 
+                    setActiveWorkspaceTool('app-center');
+                    setSidebarOpen(false); 
+                  }} 
                 />
                 <SidebarItem 
                   icon={Cpu} 
@@ -30154,6 +30158,7 @@ function ExonaApp() {
                         onClick={() => {
                           setActiveChat(null);
                           setView('workspace');
+                          setActiveWorkspaceTool('app-center');
                           setIsMiddleMenuOpen(false);
                         }}
                         className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
