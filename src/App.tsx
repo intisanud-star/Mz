@@ -14842,7 +14842,7 @@ function ExonaApp() {
       case 'schools': {
         return (
           <div className="w-full min-h-screen bg-slate-50 pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-2 sm:px-6 max-w-7xl mx-auto">
+            <div className="w-full pt-3 px-4 sm:px-8 max-w-none">
               
               {/* Premium Sub-Header Navigation */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-150/50">
@@ -14866,24 +14866,8 @@ function ExonaApp() {
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-                  <button 
-                    onClick={() => setView('notifications')}
-                    className="relative p-2.5 hover:bg-white rounded-xl transition-colors text-slate-500 hover:text-ink"
-                  >
-                    <Bell size={20} />
-                    {unreadNotificationsCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                        {unreadNotificationsCount}
-                      </span>
-                    )}
-                  </button>
-                  <button 
-                    onClick={() => setSidebarOpen(true)}
-                    className="p-2.5 hover:bg-white rounded-xl transition-colors text-slate-500 hover:text-ink"
-                  >
-                    <Menu size={20} />
-                  </button>
+                <div className="hidden sm:flex items-center gap-2 shrink-0">
+                  {/* Notification and sidebar removed to make marketplace full screen */}
                 </div>
               </div>
 
@@ -14898,6 +14882,8 @@ function ExonaApp() {
                 }}
                 onNewStoryClick={() => setIsStoryModalOpen(true)}
                 showNotification={showNotification}
+                excoinBalance={excoinBalance}
+                handleDebitExcoin={handleDebitExcoin}
               />
             </div>
           </div>

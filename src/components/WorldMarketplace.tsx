@@ -30,7 +30,7 @@ import {
   Clock,
   Camera
 } from 'lucide-react';
-import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export interface Product {
@@ -83,6 +83,8 @@ interface WorldMarketplaceProps {
   onViewStoryGroup: (group: any[]) => void;
   onNewStoryClick: () => void;
   showNotification: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
+  excoinBalance?: number;
+  handleDebitExcoin?: (amount: number, description: string) => Promise<boolean>;
 }
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -214,8 +216,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   storyGroups,
   onViewStoryGroup,
   onNewStoryClick,
-  showNotification
+  showNotification,
+  excoinBalance = 0,
+  handleDebitExcoin
 }) => {
+  const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -238,6 +243,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [shippingSpeed, setShippingSpeed] = useState<'standard' | 'express' | 'supersonic'>('standard');
   const [paymentNote, setPaymentNote] = useState('');
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'standard' | 'excoin'>('standard');
 
   // Listing State (Sell on Exona)
   const [isListModalOpen, setIsListModalOpen] = useState(false);
@@ -271,7 +277,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     { code: 'EUR', name: 'Euro', symbol: '€', rate: 0.92 },
     { code: 'GBP', name: 'UK Pound', symbol: '£', rate: 0.78 },
     { code: 'NGN', name: 'Naira', symbol: '₦', rate: 1450 },
-    { code: 'JPY', name: 'Yen', symbol: '¥', rate: 156 }
+    { code: 'JPY', name: 'Yen', symbol: '¥', rate: 156 },
+    { code: 'EXC', name: 'Exona Coin', symbol: '🪙', rate: 2.5 }
   ];
   const [currencyCode, setCurrencyCode] = useState('USD');
   const activeCurrency = useMemo(() => {
@@ -434,6 +441,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   // List dynamic new custom product
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) {
+      showNotification("Security Error: Only network administrators can list new products.", "error");
+      return;
+    }
     if (!newProductName.trim()) {
       showNotification("Please enter a valid product name.", "error");
       return;
@@ -498,6 +509,27 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     }
   };
 
+  // Remove international product listing - ADMIN ONLY
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    if (!isAdmin) {
+      showNotification("Security Error: Only network administrators can remove products.", "error");
+      return;
+    }
+    try {
+      if (confirm(`Are you absolutely sure you want to remove this product "${productName}" from the marketplace?`)) {
+        if (!productId.startsWith('prod_')) {
+          await deleteDoc(doc(db, 'marketplace_products', productId));
+        }
+        setProducts(prev => prev.filter(p => p.id !== productId));
+        showNotification(`Product "${productName}" has been successfully removed from Exona Marketplace.`, 'success');
+        setSelectedDetailedProduct(null);
+      }
+    } catch (err) {
+      console.error("Error removing product: ", err);
+      showNotification("Could not delete product.", "error");
+    }
+  };
+
   // Submit Order via Mock checkout wizard
   const handlePlaceOrder = async () => {
     if (!shippingAddress.trim()) {
@@ -506,6 +538,29 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     }
     setIsProcessingOrder(true);
     try {
+      if (checkoutPaymentMethod === 'excoin') {
+        const totalInExcoins = Math.ceil(cartTotal * 2.5);
+        if (excoinBalance < totalInExcoins) {
+          showNotification(`Insufficient Excoin balance! You need ${totalInExcoins} EXC. Your balance is ${excoinBalance} EXC.`, "error");
+          setIsProcessingOrder(false);
+          return;
+        }
+
+        if (handleDebitExcoin) {
+          const description = `World Marketplace purchase: ${cart.length} item(s)`;
+          const debitSuccess = await handleDebitExcoin(totalInExcoins, description);
+          if (!debitSuccess) {
+            showNotification("Failed to process Excoin debit. Please check funds.", "error");
+            setIsProcessingOrder(false);
+            return;
+          }
+        } else {
+          showNotification("Excoin transaction client not initialized.", "error");
+          setIsProcessingOrder(false);
+          return;
+        }
+      }
+
       const orderData = {
         buyerId: user?.uid || 'anonymous',
         buyerName: userDoc?.displayName || user?.displayName || 'Customer',
@@ -521,6 +576,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         shippingSpeed,
         shippingCost,
         total: cartTotal,
+        paymentMethod: checkoutPaymentMethod,
+        totalExcoins: checkoutPaymentMethod === 'excoin' ? Math.ceil(cartTotal * 2.5) : null,
         address: shippingAddress,
         country: shippingCountry,
         paymentNote: paymentNote,
@@ -685,14 +742,16 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             </div>
 
             {/* Sell Button */}
-            <button
-              onClick={() => setIsListModalOpen(true)}
-              className="px-3 py-1.5 bg-[#2481CC] hover:bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer font-sans"
-              title="Sell on Exona"
-            >
-              <Plus size={12} />
-              <span>Sell</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setIsListModalOpen(true)}
+                className="px-3 py-1.5 bg-[#2481CC] hover:bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer font-sans"
+                title="Sell on Exona"
+              >
+                <Plus size={12} />
+                <span>Sell</span>
+              </button>
+            )}
 
             {/* Cart Trigger */}
             <button
@@ -1407,21 +1466,36 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 </div>
 
                 {/* Confirm buy strip */}
-                <div className="border-t border-slate-100 pt-5 mt-6 flex items-center justify-between gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-muted font-bold uppercase tracking-wider leading-none">Net Total</span>
-                    <span className="text-lg font-black text-ink mt-1 leading-none">{formatPrice(selectedDetailedProduct.price)}</span>
+                <div className="border-t border-slate-100 pt-5 mt-6 flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-muted font-bold uppercase tracking-wider leading-none">Net Total</span>
+                      <span className="text-lg font-black text-ink mt-1 leading-none">{formatPrice(selectedDetailedProduct.price)}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteProduct(selectedDetailedProduct.id, selectedDetailedProduct.name)}
+                          className="h-11 px-4 border-2 border-red-500 text-red-500 hover:bg-red-50 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1 cursor-pointer font-sans"
+                          title="Delete Product"
+                        >
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      )}
+                      
+                      <button
+                        disabled={selectedDetailedProduct.stock === 0}
+                        onClick={() => {
+                          addToCart(selectedDetailedProduct);
+                          setSelectedDetailedProduct(null);
+                        }}
+                        className="h-11 px-6 bg-ink hover:bg-[#2481CC] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5 cursor-pointer font-sans"
+                      >
+                        <ShoppingCart size={14} /> Add inside Cart
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    disabled={selectedDetailedProduct.stock === 0}
-                    onClick={() => {
-                      addToCart(selectedDetailedProduct);
-                      setSelectedDetailedProduct(null);
-                    }}
-                    className="h-11 px-6 bg-ink hover:bg-[#2481CC] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5"
-                  >
-                    <ShoppingCart size={14} /> Add inside Cart
-                  </button>
                 </div>
 
               </div>
@@ -1687,6 +1761,56 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         <span className="font-black uppercase tracking-wider">Estimated Total</span>
                         <span className="font-black text-sm">{formatPrice(cartTotal)}</span>
                       </div>
+                    </div>
+
+                    {/* Payment Mechanism Selection */}
+                    <div className="space-y-2 text-left">
+                      <label className="text-muted font-black uppercase tracking-wider text-[9px]">Select Payment Method</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div 
+                          onClick={() => setCheckoutPaymentMethod('standard')}
+                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none ${
+                            checkoutPaymentMethod === 'standard' 
+                              ? 'border-[#2481CC] bg-[#2481CC]/5 font-bold shadow-xs scale-102' 
+                              : 'border-slate-150 bg-slate-50/50 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div>
+                            <p className="text-[10px] uppercase font-black text-ink">Global Escrow</p>
+                            <p className="text-[8px] text-muted mt-0.5 leading-normal">Card / Multi-currency</p>
+                          </div>
+                        </div>
+
+                        <div 
+                          onClick={() => setCheckoutPaymentMethod('excoin')}
+                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none ${
+                            checkoutPaymentMethod === 'excoin' 
+                              ? 'border-[#2481CC] bg-[#2481CC]/5 font-bold shadow-xs scale-102' 
+                              : 'border-slate-150 bg-slate-50/50 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div>
+                            <p className="text-[10px] uppercase font-black text-ink flex items-center gap-1">
+                              <span className="text-[#2481CC]">🪙</span> Exona Coin (EXC)
+                            </p>
+                            <p className="text-[8px] text-muted mt-0.5 leading-normal">Rate: 2.5 EXC = $1 USD</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {checkoutPaymentMethod === 'excoin' && (
+                        <div className="bg-indigo-50/45 border border-indigo-150/40 p-3 rounded-xl flex items-center justify-between font-sans text-[10px] mt-1.5 text-slate-650">
+                          <div>
+                            <p className="font-bold">Total in Excoins: <span className="text-[#2481CC] font-black">{Math.ceil(cartTotal * 2.5)} EXC</span></p>
+                            <p className="text-[8.5px] text-muted mt-0.5 font-semibold">Your Wallet Balance: <span className="font-bold text-ink">{excoinBalance} EXC</span></p>
+                          </div>
+                          {excoinBalance >= Math.ceil(cartTotal * 2.5) ? (
+                            <span className="bg-emerald-100 text-emerald-800 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md">Funds Available</span>
+                          ) : (
+                            <span className="bg-red-100 text-red-850 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md font-sans">Insufficient EXC</span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 text-left">
