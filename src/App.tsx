@@ -13757,7 +13757,7 @@ function ExonaApp() {
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="w-full bg-white border-b border-gray-100 flex-none z-50">
+            <div className="w-full bg-white/95 backdrop-blur-md border-b border-gray-100 flex-none sticky top-0 z-50">
               <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
@@ -17668,7 +17668,7 @@ function ExonaApp() {
             <div className="bg-white border-b border-gray-100 px-6 py-5 sticky top-0 z-10 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button 
-                  onClick={() => selectedClassroom ? setSelectedClassroom(null) : setView('tools')}
+                  onClick={() => selectedClassroom ? setSelectedClassroom(null) : setView('school-feed')}
                   className="h-10 w-10 border border-gray-100 bg-white rounded-xl flex items-center justify-center text-muted hover:text-ink transition-transform hover:scale-105"
                 >
                   <ChevronLeft size={20} />
@@ -20843,6 +20843,15 @@ function ExonaApp() {
               hideSaveImage={true}
               hideIcon={true}
               hideBranding={true}
+              toolbar={
+                <button 
+                  onClick={() => setView('school-feed')}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 transition-all text-ink rounded-full text-[10px] font-bold uppercase tracking-widest cursor-pointer group"
+                >
+                  <ChevronLeft size={14} strokeWidth={2.5} className="group-hover:-translate-x-0.5 transition-transform" />
+                  Back
+                </button>
+              }
             >
               {renderAttendanceHub()}
             </WordLayout>
@@ -23168,7 +23177,7 @@ function ExonaApp() {
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="w-full bg-white border-b border-gray-100 flex-none z-50">
+            <div className="w-full bg-white/95 backdrop-blur-md border-b border-gray-100 flex-none sticky top-0 z-50">
               <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
@@ -29739,7 +29748,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -29950,7 +29959,7 @@ function ExonaApp() {
       );
      })()}
 
-      {user && !isPremiumGameOpen && !isBrainBattleActive && !['splash', 'login', 'onboarding'].includes(view) && showWealthFloatingChip && (
+      {user && !isPremiumGameOpen && !isBrainBattleActive && !['splash', 'login', 'onboarding', 'records', 'attendance', 'classroom', 'daily-routine'].includes(view) && showWealthFloatingChip && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[40] flex items-center gap-3 no-print p-2">
           <motion.button 
             initial={{ opacity: 0, y: 20 }}
@@ -30061,7 +30070,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'finance'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'finance', 'records', 'attendance', 'classroom', 'daily-routine'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
