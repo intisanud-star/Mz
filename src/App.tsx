@@ -13764,19 +13764,19 @@ function ExonaApp() {
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
                 
-                {/* Segmented control for HOME (institution list) vs FEED (all posts) */}
+                {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
                 <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
                   <button 
                     onClick={() => setView('feed')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                   >
                     Home
                   </button>
                   <button 
-                    onClick={() => setView('schools')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'schools' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+                    onClick={() => setView('videos')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                   >
-                    Marketplace
+                    Satellite
                   </button>
                 </div>
 
@@ -23162,15 +23162,75 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full min-h-screen bg-gray-50/50 pb-32">
-            <div className="max-w-xl mx-auto pt-8">
-              <div className="px-4 mb-6">
-                <span className="text-[10px] text-accent font-black uppercase tracking-widest bg-accent/10 px-2.5 py-1 rounded-full">Explore Streams</span>
-                <h2 className="text-3xl font-black text-ink tracking-tight font-display mt-2">Broadcast Channels</h2>
-                <p className="text-xs text-muted font-bold tracking-tight uppercase mt-1">Immersive Stream Channels & Broadcasts</p>
+          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+              
+              {/* Modern Inline Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-100/80">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
+                </div>
+                
+                {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                  >
+                    Home
+                  </button>
+                  <button 
+                    onClick={() => setView('videos')}
+                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                  >
+                    Satellite
+                  </button>
+                </div>
+
+                {/* Long, beautiful search bar filling the gap for a premium look */}
+                <div className="flex items-center gap-3 w-full sm:w-auto flex-1 sm:flex-initial sm:max-w-md justify-between sm:justify-end">
+                  <div className="relative flex-1 group min-w-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Search institutions, people, groups..." 
+                      value={globalSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGlobalSearch(val);
+                        handleSearchUsers(val);
+                        if (val.trim()) setView('search');
+                      }}
+                      onFocus={() => {
+                        if (globalSearch) setView('search');
+                      }}
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => setView('notifications')}
+                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                    >
+                      <Bell size={20} />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                          {unreadNotificationsCount}
+                        </span>
+                      )}
+                    </button>
+                    <button 
+                      onClick={() => setSidebarOpen(true)}
+                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                    >
+                      <Menu size={20} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="bg-white rounded-[2rem] border border-gray-100 p-4 md:p-6 shadow-sm">
+              <div className="mt-6">
                 <YoutubeBroadcasts
                   user={user}
                   userDoc={userDoc}
