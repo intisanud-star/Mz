@@ -302,7 +302,7 @@ const NetworkStreamPlayer: React.FC<{
   const [proxyIndex, setProxyIndex ] = useState<number>(0); // 0 = Global Secure Ingress Proxy (Default)
 
   // Satellite Subtitle Translator Settings Hooks
-  const [translatorOn, setTranslatorOn] = useState(true);
+  const [translatorOn, setTranslatorOn] = useState(false);
   const [translationSource, setTranslationSource] = useState<'ar' | 'hi' | 'en' | 'es' | 'fr' | 'ja' | 'de' | 'zh' | 'ru'>('ar');
   const [translationTarget, setTranslationTarget] = useState<'ar' | 'hi' | 'en' | 'es' | 'fr' | 'ja' | 'de' | 'zh' | 'ru'>('en');
   const [subtitleIdx, setSubtitleIdx] = useState(0);
