@@ -40,7 +40,9 @@ import {
   Share2,
   Download,
   Monitor,
-  EyeOff
+  EyeOff,
+  Send,
+  Link2
 } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -1150,79 +1152,7 @@ const NetworkStreamPlayer: React.FC<{
         </div>
       )}
 
-      <div className="absolute inset-0 pointer-events-none group z-5">
-        <div className="absolute bottom-0 inset-x-0 h-28 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent flex flex-col justify-end p-4 gap-2 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
-          <div className="flex items-center justify-between text-slate-300 px-1 py-1">
-            <div className="flex items-center gap-3">
-              <button onClick={handlePlayPause} className="hover:text-white transition-colors" title={isPlaying ? 'Pause' : 'Play'}>
-                {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
-              </button>
-
-              <button onClick={handleMuteToggle} className="hover:text-white transition-colors" title={isMuted ? 'Unmute' : 'Mute'}>
-                {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-              </button>
-
-              <input 
-                type="range" 
-                min="0" 
-                max="1" 
-                step="0.1" 
-                value={isMuted ? 0 : volume}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value);
-                  setVolume(val);
-                  if (videoRef.current) {
-                    videoRef.current.volume = val;
-                    videoRef.current.muted = val === 0;
-                  }
-                  setIsMuted(val === 0);
-                }}
-                className="w-12 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 outline-none hover:bg-slate-700 transition-colors"
-              />
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <button 
-                onClick={() => setShowTranslatorMenu(!showTranslatorMenu)}
-                className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
-                  showTranslatorMenu 
-                    ? 'bg-amber-600/20 border-amber-500 text-amber-400 hover:bg-amber-600/35' 
-                    : translatorOn
-                      ? 'bg-emerald-600/25 border-emerald-500/50 text-emerald-400 hover:bg-white'
-                      : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-                }`}
-                title="Configure Live Translation & Subtitles"
-              >
-                <Languages size={9} className={translatorOn ? "animate-pulse text-amber-400" : ""} />
-                TRANSLATOR: {translationTarget.toUpperCase()}
-              </button>
-
-              {isAdmin && (
-                <button 
-                  onClick={() => setShowConsoleStats(!showConsoleStats)}
-                  className={`py-1 px-2 rounded-md border text-[8px] font-extrabold flex items-center gap-1 transition-all ${
-                    showConsoleStats 
-                      ? 'bg-emerald-600/20 border-emerald-500 text-emerald-400 hover:bg-emerald-600/35' 
-                      : 'bg-black/40 border-slate-800 text-slate-400 hover:text-white hover:border-slate-700'
-                  }`}
-                  title="View Signal Diagnostics"
-                >
-                  <Settings size={9} />
-                  CONSOLESTATS
-                </button>
-              )}
-
-              <button onClick={forceReinit} className="hover:text-white transition-colors p-1" title="Reset/Re-ingest Live Feed">
-                <RotateCw size={12} />
-              </button>
-
-              <button onClick={handleFullscreen} className="hover:text-white transition-colors p-1" title="Fullscreen Screen">
-                <Maximize size={12} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Volume slider and bottom control line fully hidden as per user request */}
     </div>
   );
 };
@@ -2578,15 +2508,26 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     <div className="relative">
                       <button
                         type="button"
-                        onClick={() => setSharingStreamId(sharingStreamId === stream.id ? null : stream.id)}
+                        onClick={() => {
+                          const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
+                          if (navigator.share) {
+                            navigator.share({
+                              title: stream.title || 'Exona Stream',
+                              text: `Watch ${stream.title} live on ExonaApp!`,
+                              url: localShareUrl,
+                            }).catch(() => {});
+                          } else {
+                            setSharingStreamId(sharingStreamId === stream.id ? null : stream.id);
+                          }
+                        }}
                         className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg cursor-pointer ${
                           sharingStreamId === stream.id
-                            ? 'bg-emerald-600 border border-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                            : 'bg-black/60 border border-emerald-500/30 hover:border-emerald-500 text-emerald-400 hover:text-white hover:bg-black/80'
+                            ? 'bg-[#2481CC] border border-[#2481CC]/80 text-white shadow-[0_0_15px_rgba(36,129,204,0.5)]'
+                            : 'bg-black/60 border border-white/10 hover:border-[#2481CC] text-slate-200 hover:text-white hover:bg-black/80'
                         }`}
-                        title="Display Size & Sharing Actions Drawer"
+                        title="Share Live Stream"
                       >
-                        <Share2 size={18} className={sharingStreamId === stream.id ? "rotate-12 transition-transform" : "transition-transform"} />
+                        <Share2 size={18} className={sharingStreamId === stream.id ? "scale-110 transition-transform" : "transition-transform"} />
                       </button>
 
                       {/* EXON CYBER DIRECT SHARE DRAWER */}
@@ -2602,50 +2543,37 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           <motion.div
                             initial={{ opacity: 0, scale: 0.9, x: -10 }}
                             animate={{ opacity: 1, scale: 1, x: 0 }}
-                            className="absolute right-13 bottom-0 z-50 w-60 backdrop-blur-md bg-slate-950/95 border border-emerald-500/30 rounded-2xl p-3 shadow-[0_0_30px_rgba(0,0,0,0.8),0_0_15px_rgba(16,185,129,0.15)] flex flex-col gap-2.5"
+                            className="absolute right-13 bottom-0 z-50 w-64 backdrop-blur-md bg-slate-950/95 border border-white/10 rounded-2xl p-3.5 shadow-[0_4px_30px_rgba(0,0,0,0.6)] flex flex-col gap-3"
                           >
                             <div className="flex flex-col gap-0.5 border-b border-white/5 pb-2 select-none">
-                              <span className="text-[7.5px] font-mono tracking-widest text-emerald-400 uppercase font-black">EXON STREAM HUB</span>
-                              <h5 className="text-[10px] font-black uppercase text-slate-100 truncate max-w-[190px]">
+                              <span className="text-[8px] font-bold tracking-widest text-[#2481CC] uppercase">Live Broadcast Share</span>
+                              <h5 className="text-[10px] font-black uppercase text-slate-100 truncate">
                                 {stream.title}
                               </h5>
                             </div>
 
                             <div className="flex flex-col gap-1">
-                              {/* Option 1: Fullscreen */}
+                              {/* Option 1: Copy App Stream Link */}
                               <button
                                 type="button"
                                 onClick={() => {
+                                  const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
+                                  navigator.clipboard.writeText(localShareUrl);
+                                  showNotification("App Stream link copied to clipboard!", "success");
                                   setSharingStreamId(null);
-                                  toggleAppFullscreen();
                                 }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                               >
-                                <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                                  <Monitor size={11} />
+                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
+                                  <Link2 size={11} />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">True Full Screen</span>
-                                  <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Expand player workspace</span>
+                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy App Link</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Open directly in ExonaApp</span>
                                 </div>
                               </button>
 
-                              {/* Option 2: 1:30 Segment Downloader */}
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadClip(stream)}
-                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
-                              >
-                                <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                                  <Download size={11} />
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">Download 1:30 Clip</span>
-                                  <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Extract continuous buffer</span>
-                                </div>
-                              </button>
-
-                              {/* Option 3: Standard Copy link */}
+                              {/* Option 2: Copy Stream Original Source Link */}
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2653,19 +2581,53 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                     ? stream.streamUrl
                                     : `https://www.youtube.com/watch?v=${stream.videoId}`;
                                   navigator.clipboard.writeText(linkVal || '');
-                                  showNotification("Live Stream link copy-pasted to clipboard!", "success");
+                                  showNotification("Original stream link copied to clipboard!", "success");
                                   setSharingStreamId(null);
                                 }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                               >
-                                <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                                  <Share2 size={11} />
+                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
+                                  <ExternalLink size={11} />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">Copy Share Link</span>
-                                  <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Direct source payload</span>
+                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy Source Link</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Direct original source URL</span>
                                 </div>
                               </button>
+
+                              {/* Option 3: Share on WhatsApp */}
+                              <a
+                                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Watch ${stream.title || 'live stream'} on ExonaApp: ${window.location.origin}/?view=videos&streamId=${stream.id}`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setSharingStreamId(null)}
+                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                              >
+                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-emerald-450 group-hover:bg-emerald-500 group-hover:text-white transition-all">
+                                  <MessageSquare size={11} />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share WhatsApp</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Send to WhatsApp contacts</span>
+                                </div>
+                              </a>
+
+                              {/* Option 4: Share on Telegram */}
+                              <a
+                                href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/?view=videos&streamId=${stream.id}`)}&text=${encodeURIComponent(`Watch ${stream.title || 'live stream'} on ExonaApp`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setSharingStreamId(null)}
+                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                              >
+                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-white transition-all">
+                                  <Send size={11} />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share Telegram</span>
+                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Post to Telegram channels</span>
+                                </div>
+                              </a>
                             </div>
                           </motion.div>
                         </>
@@ -4324,15 +4286,26 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                           <div className="relative">
                           <button
                             type="button"
-                            onClick={() => setSharingStreamId(sharingStreamId === stream.id ? null : stream.id)}
+                            onClick={() => {
+                              const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
+                              if (navigator.share) {
+                                navigator.share({
+                                  title: stream.title || 'Exona Stream',
+                                  text: `Watch ${stream.title} live on ExonaApp!`,
+                                  url: localShareUrl,
+                                }).catch(() => {});
+                              } else {
+                                setSharingStreamId(sharingStreamId === stream.id ? null : stream.id);
+                              }
+                            }}
                             className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-md cursor-pointer ${
                               sharingStreamId === stream.id
-                                ? 'bg-emerald-600 border border-emerald-500 text-white shadow-md'
+                                ? 'bg-[#2481CC] border border-[#2481CC]/85 text-white shadow-md'
                                 : 'bg-gray-100 border border-gray-200 text-slate-700 hover:text-slate-950 hover:bg-gray-200'
                             }`}
-                            title="Display Size & Sharing Actions Drawer"
+                            title="Share Live Stream"
                           >
-                            <Share2 size={18} className={sharingStreamId === stream.id ? "rotate-12 transition-transform" : "transition-transform"} />
+                            <Share2 size={18} className={sharingStreamId === stream.id ? "scale-110 transition-transform" : "transition-transform"} />
                           </button>
 
                           {/* EXON CYBER DIRECT SHARE DRAWER */}
@@ -4348,50 +4321,37 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                               <motion.div
                                 initial={{ opacity: 0, scale: 0.9, x: -10 }}
                                 animate={{ opacity: 1, scale: 1, x: 0 }}
-                                className="absolute right-13 bottom-0 z-50 w-60 backdrop-blur-md bg-slate-950/95 border border-emerald-500/30 rounded-2xl p-3 shadow-[0_0_30px_rgba(0,0,0,0.8),0_0_15px_rgba(16,185,129,0.15)] flex flex-col gap-2.5"
+                                className="absolute right-13 bottom-0 z-50 w-64 backdrop-blur-md bg-slate-950/95 border border-white/10 rounded-2xl p-3.5 shadow-[0_4px_30px_rgba(0,0,0,0.6)] flex flex-col gap-3"
                               >
                                 <div className="flex flex-col gap-0.5 border-b border-white/5 pb-2 select-none">
-                                  <span className="text-[7.5px] font-mono tracking-widest text-emerald-400 uppercase font-black">EXON STREAM HUB</span>
-                                  <h5 className="text-[10px] font-black uppercase text-slate-100 truncate max-w-[190px]">
+                                  <span className="text-[8px] font-bold tracking-widest text-[#2481CC] uppercase">Live Broadcast Share</span>
+                                  <h5 className="text-[10px] font-black uppercase text-slate-100 truncate">
                                     {stream.title}
                                   </h5>
                                 </div>
 
                                 <div className="flex flex-col gap-1">
-                                  {/* Option 1: Fullscreen */}
+                                  {/* Option 1: Copy App Stream Link */}
                                   <button
                                     type="button"
                                     onClick={() => {
+                                      const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
+                                      navigator.clipboard.writeText(localShareUrl);
+                                      showNotification("App Stream link copied to clipboard!", "success");
                                       setSharingStreamId(null);
-                                      toggleAppFullscreen();
                                     }}
-                                    className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                    className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                                   >
-                                    <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                                      <Monitor size={11} />
+                                    <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
+                                      <Link2 size={11} />
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">True Full Screen</span>
-                                      <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Expand player workspace</span>
+                                      <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy App Link</span>
+                                      <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Open directly in ExonaApp</span>
                                     </div>
                                   </button>
 
-                                  {/* Option 2: 1:30 Segment Downloader */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDownloadClip(stream)}
-                                    className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
-                                  >
-                                    <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                                      <Download size={11} />
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">Download 1:30 Clip</span>
-                                      <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Extract continuous buffer</span>
-                                    </div>
-                                  </button>
-
-                                  {/* Option 3: Standard Copy link */}
+                                  {/* Option 2: Copy Stream Original Source Link */}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -4399,19 +4359,53 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                                         ? stream.streamUrl
                                         : `https://www.youtube.com/watch?v=${stream.videoId}`;
                                       navigator.clipboard.writeText(linkVal || '');
-                                      showNotification("Live Stream link copy-pasted to clipboard!", "success");
+                                      showNotification("Original stream link copied to clipboard!", "success");
                                       setSharingStreamId(null);
                                     }}
-                                    className="w-full text-left px-2 py-1.5 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                    className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
                                   >
-                                    <div className="h-6 w-6 rounded-lg bg-emerald-950/50 border border-emerald-500/20 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black transition-all">
-                                      <Share2 size={11} />
+                                    <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
+                                      <ExternalLink size={11} />
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className="text-[9.5px] font-black text-rose-50 uppercase tracking-wide">Copy Share Link</span>
-                                      <span className="text-[7px] text-slate-500 uppercase font-bold tracking-tight">Direct source payload</span>
+                                      <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy Source Link</span>
+                                      <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Direct original source URL</span>
                                     </div>
                                   </button>
+
+                                  {/* Option 3: Share on WhatsApp */}
+                                  <a
+                                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Watch ${stream.title || 'live stream'} on ExonaApp: ${window.location.origin}/?view=videos&streamId=${stream.id}`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setSharingStreamId(null)}
+                                    className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                  >
+                                    <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-emerald-405 group-hover:bg-emerald-550 group-hover:text-white transition-all">
+                                      <MessageSquare size={11} />
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                      <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share WhatsApp</span>
+                                      <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Send to WhatsApp contacts</span>
+                                    </div>
+                                  </a>
+
+                                  {/* Option 4: Share on Telegram */}
+                                  <a
+                                    href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/?view=videos&streamId=${stream.id}`)}&text=${encodeURIComponent(`Watch ${stream.title || 'live stream'} on ExonaApp`)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={() => setSharingStreamId(null)}
+                                    className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                  >
+                                    <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-white transition-all">
+                                      <Send size={11} />
+                                    </div>
+                                    <div className="flex flex-col text-left">
+                                      <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share Telegram</span>
+                                      <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Post to Telegram channels</span>
+                                    </div>
+                                  </a>
                                 </div>
                               </motion.div>
                             </>
