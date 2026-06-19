@@ -31012,12 +31012,9 @@ function ExonaApp() {
               {/* Sleek Minimalist Top Header */}
               <div className="p-4 sm:p-6 border-b border-zinc-100 flex items-center justify-between bg-white shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-[#2481CC] flex items-center justify-center shrink-0 shadow-sm text-white">
-                    <MessageCircle size={18} className="text-white" />
-                  </div>
                   <div>
                     <h2 className="text-md font-extrabold tracking-tight text-zinc-900 font-sans flex items-center gap-2">
-                      Exona
+                      Exona AI
                     </h2>
                   </div>
                 </div>
@@ -31062,20 +31059,9 @@ function ExonaApp() {
                   {exonaAiChat.length <= 1 ? (
                     /* Elegant Welcome Hero in Center Stage */
                     <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto py-12 space-y-5">
-                      <motion.div
-                        initial={{ scale: 0.92, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.4 }}
-                        className="h-16 w-16 rounded-[1.25rem] bg-[#2481CC] flex items-center justify-center shadow-lg mb-2 text-white"
-                      >
-                        <MessageCircle size={32} className="text-white" />
-                      </motion.div>
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight leading-tight">
                         What's on your mind?
                       </h1>
-                      <p className="text-zinc-500 text-sm leading-relaxed max-w-sm">
-                        Zero distractions. Real-time reasoning assistant optimized for institutional workflows and smart strategy development.
-                      </p>
                     </div>
                   ) : (
                     /* Compact Simple Timeline UI */
