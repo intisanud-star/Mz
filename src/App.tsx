@@ -30191,7 +30191,7 @@ function ExonaApp() {
                 </span>
               </button>
 
-              {/* Icon 2: STREAM */}
+              {/* Icon 2: MARKETPLACE */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -30203,12 +30203,12 @@ function ExonaApp() {
                   <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
                 <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Radio size={19.5} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
+                  <ShoppingBag size={19.5} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
                 </div>
                 <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
                   view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
-                  Stream
+                  Shop
                 </span>
               </button>
 

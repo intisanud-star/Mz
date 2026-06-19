@@ -28,8 +28,7 @@ import {
   Calendar,
   AlertCircle,
   Clock,
-  Camera,
-  Radio
+  Camera
 } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -706,8 +705,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   activeMarketView === 'browse' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
                 }`}
               >
-                <Radio size={11.5} />
-                <span>Stream</span>
+                <ShoppingBag size={11.5} />
+                <span>Shop</span>
               </button>
               <button 
                 onClick={() => setActiveMarketView('orders')}
