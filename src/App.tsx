@@ -13755,11 +13755,10 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-              
-              {/* Modern Inline Header */}
-              <div className="sticky top-0 z-50 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 -mt-3 pt-4 pb-3 mb-2.5 border-b border-gray-100/80 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+          <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+            {/* Perfectly Constant, Stationary Header */}
+            <div className="w-full bg-white border-b border-gray-100 flex-none z-50">
+              <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
@@ -13822,8 +13821,12 @@ function ExonaApp() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="block">
+            {/* Scrollable Timeline Box */}
+            <div className="flex-1 overflow-y-auto no-scrollbar w-full pb-32">
+              <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                <div className="block">
               <div 
                 className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -14197,6 +14200,7 @@ function ExonaApp() {
                   })()}
                 </AnimatePresence>
               </div>
+            </div>
             </div>
             </div>
           </div>
@@ -23162,11 +23166,10 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-              
-              {/* Modern Inline Header */}
-              <div className="sticky top-0 z-50 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4 -mt-3 pt-4 pb-3 mb-2.5 border-b border-gray-100/80 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+          <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+            {/* Perfectly Constant, Stationary Header */}
+            <div className="w-full bg-white border-b border-gray-100 flex-none z-50">
+              <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
@@ -23229,8 +23232,12 @@ function ExonaApp() {
                   </div>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6">
+            {/* Scrollable Broadcasts Content Box */}
+            <div className="flex-1 overflow-y-auto no-scrollbar w-full pb-32">
+              <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                <div className="mt-4">
                 <YoutubeBroadcasts
                   user={user}
                   userDoc={userDoc}
@@ -23256,6 +23263,7 @@ function ExonaApp() {
                   isTabActive={view === 'videos'}
                 />
               </div>
+            </div>
             </div>
           </div>
         );
@@ -29819,7 +29827,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools'].includes(view);
         return (
           <main 
             ref={scrollContainerRef}
@@ -29867,7 +29875,7 @@ function ExonaApp() {
 
             <motion.div
               className={`w-full relative ${isFixedLayoutView ? 'h-full flex flex-col overflow-hidden min-h-0' : ''}`}
-              style={{ y: refreshing ? 0 : Math.min(pullDistance * 0.5, 50) }}
+              style={{ y: ['feed', 'videos'].includes(view) ? 0 : (refreshing ? 0 : Math.min(pullDistance * 0.5, 50)) }}
             >
 
           {isViewLoading ? (
