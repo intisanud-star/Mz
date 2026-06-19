@@ -38,11 +38,15 @@ import {
   AlertTriangle,
   Database,
   Share2,
+  Twitter,
   Download,
   Monitor,
   EyeOff,
   Send,
-  Link2
+  Link2,
+  Bookmark,
+  MoreVertical,
+  Sliders
 } from 'lucide-react';
 
 import { db } from '../firebase';
@@ -312,6 +316,7 @@ const NetworkStreamPlayer: React.FC<{
   const [transcribingState, setTranscribingState] = useState<'idle' | 'translating' | 'done'>('done');
   const [subtitleSize, setSubtitleSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [showDualSubtitles, setShowDualSubtitles] = useState(true);
+  const [dynamicPhrases, setDynamicPhrases] = useState<string[]>([]);
 
   // Real Speech Hearing Translator State Hooks & Refs
   const [micListening, setMicListening] = useState(false);
@@ -559,20 +564,87 @@ const NetworkStreamPlayer: React.FC<{
     return locales[code] || 'en-US';
   };
 
+  // Fetch dynamic, context-aware subtitles for the currently active stream
+  useEffect(() => {
+    if (!translatorOn || !isActive || !isPlaying || !title) return;
+
+    const fetchDynamicSubtitles = async () => {
+      try {
+        const sourceLanguageName = LANGUAGE_MAP[translationSource]?.name || 'English';
+        const response = await fetch('/api/ai/generate-subtitles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title,
+            description: 'Live Satellite Stream Feed',
+            language: sourceLanguageName
+          })
+        });
+        const data = await response.json();
+        if (data.success && Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+          setDynamicPhrases(data.subtitles);
+          setSubtitleIdx(0);
+        } else {
+          setDynamicPhrases([]);
+        }
+      } catch (err) {
+        console.error('Failed to pre-fetch stream dynamic subtitles:', err);
+        setDynamicPhrases([]);
+      }
+    };
+
+    fetchDynamicSubtitles();
+  }, [url, title, translatorOn, translationSource, isActive, isPlaying]);
+
   // Satellite Subtitle translation interval loop (Simulation trigger when micListening is disabled)
   useEffect(() => {
     if (!translatorOn || !isActive || !isPlaying || micListening) return;
 
     const interval = setInterval(() => {
-      setSubtitleIdx(prev => (prev + 1) % TRANSLATOR_PHRASES.length);
+      const phrasesLength = dynamicPhrases.length > 0 ? dynamicPhrases.length : TRANSLATOR_PHRASES.length;
+      setSubtitleIdx(prev => (prev + 1) % phrasesLength);
     }, 7000);
 
     return () => clearInterval(interval);
-  }, [translatorOn, isActive, isPlaying, micListening]);
+  }, [translatorOn, isActive, isPlaying, micListening, dynamicPhrases.length]);
 
   // Automated/Simulated Satellite Live Translator (Uses real server-side Gemini 3.5 Flash Endpoint!)
   useEffect(() => {
     if (micListening || !translatorOn || !isActive) return;
+
+    // If dynamic subtitles are loaded, translate the active phrase dynamically
+    if (dynamicPhrases.length > 0) {
+      const phrase = dynamicPhrases[subtitleIdx % dynamicPhrases.length];
+      if (phrase) {
+        const triggerLiveSimulateTranslation = async () => {
+          setTranscribingState('translating');
+          try {
+            const response = await fetch('/api/ai/translate-stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: phrase,
+                sourceLang: LANGUAGE_MAP[translationSource]?.name,
+                targetLang: LANGUAGE_MAP[translationTarget]?.name
+              })
+            });
+            const data = await response.json();
+            if (data.success && data.translatedText) {
+              setLatestTranslatedText(data.translatedText);
+            } else {
+              setLatestTranslatedText(phrase);
+            }
+          } catch (err) {
+            console.error('Dynamic translation error:', err);
+            setLatestTranslatedText(phrase);
+          } finally {
+            setTranscribingState('done');
+          }
+        };
+        triggerLiveSimulateTranslation();
+      }
+      return;
+    }
 
     const originalPhrase = TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource] || TRANSLATOR_PHRASES[subtitleIdx]?.ar;
 
@@ -603,7 +675,7 @@ const NetworkStreamPlayer: React.FC<{
     };
 
     triggerLiveSimulateTranslation();
-  }, [subtitleIdx, translationSource, translationTarget, translatorOn, micListening, isActive]);
+  }, [subtitleIdx, translationSource, translationTarget, translatorOn, micListening, isActive, dynamicPhrases]);
 
   // Real Speech Hearing Translator Loop (Mic input translates LIVE via Gemini 3.5 Flash)
   useEffect(() => {
@@ -820,7 +892,9 @@ const NetworkStreamPlayer: React.FC<{
                   <p className="text-slate-400 text-[10px] md:text-[11px] font-semibold font-sans border-b border-white/5 pb-0.5 mb-1 leading-relaxed">
                     {micListening 
                       ? (realtimeTranscripts || "Listening to channel audio...") 
-                      : (TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource] || "Receiving satellite signal...")
+                      : (dynamicPhrases.length > 0
+                          ? dynamicPhrases[subtitleIdx % dynamicPhrases.length]
+                          : (TRANSLATOR_PHRASES[subtitleIdx]?.[translationSource] || "Receiving satellite signal..."))
                     }
                   </p>
                 )}
@@ -1301,6 +1375,28 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
   useEffect(() => {
     localStorage.setItem('exon_followed_creators', JSON.stringify(followedCreators));
   }, [followedCreators]);
+
+  const [likedStreams, setLikedStreams] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('exon_liked_streams_map');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [bookmarkedStreams, setBookmarkedStreams] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem('exon_saved_streams_map');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('exon_liked_streams_map', JSON.stringify(likedStreams));
+  }, [likedStreams]);
+
+  useEffect(() => {
+    localStorage.setItem('exon_saved_streams_map', JSON.stringify(bookmarkedStreams));
+  }, [bookmarkedStreams]);
 
   const [followedOnly, setFollowedOnly] = useState(false);
   const immersiveContainerRef = useRef<HTMLDivElement>(null);
@@ -2333,39 +2429,80 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
 
         {/* Top Glass Header Bar Overlay */}
         {!isStrictVideoOnly && (
-          <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/90 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
-            {/* Add Broadcast Stream Button */}
-            {isAdmin ? (
+          <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/95 to-transparent z-50 flex items-center justify-between px-4 sm:px-6 pointer-events-auto">
+            {/* Plus / Upload Action Box */}
+            <div className="flex items-center">
               <button
                 type="button"
-                onClick={() => setIsImmersiveAddFormOpen(true)}
-                className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-orange-500 rounded-full flex items-center justify-center text-white hover:text-orange-400 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer animate-fade-in"
-                title="Register new stream/station"
+                onClick={() => {
+                  if (isAdmin) {
+                    setIsImmersiveAddFormOpen(true);
+                  } else {
+                    showNotification("Upload/Station registration is reserved for administrators.", "info");
+                  }
+                }}
+                className="h-10 w-10 text-white hover:text-[#2481CC] active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+                title="Create Satellite Station"
               >
-                <Plus size={20} />
+                <Plus size={24} strokeWidth={2.5} />
               </button>
-            ) : (
-              <div className="w-10 h-10" />
-            )}
+            </div>
 
-            {/* Empty center spacing to maintain flex positioning */}
-            <div className="flex-1" />
+            {/* Centered Segmented Option Tabs */}
+            <div className="flex items-center gap-5 sm:gap-6">
+              {/* Active Satellite tab */}
+              <div 
+                onClick={() => {
+                  showNotification("Satellite mode active - Discover live vertical channels.", "info");
+                }}
+                className="flex items-center gap-1 cursor-pointer hover:opacity-90 active:scale-95 transition-all"
+              >
+                <span className="text-[15px] font-black tracking-wide text-white/95 font-sans">Satellite</span>
+                <ChevronDown size={14} className="text-white/80 mt-0.5" />
+              </div>
 
-            {/* Close Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setIsImmersiveMode(false);
-                setIsImmersiveCommentsOpen(false);
-                if (onClose) {
-                  onClose();
-                }
-              }}
-              className="h-10 w-10 bg-slate-900/80 backdrop-blur-md border border-white/15 hover:border-rose-500 rounded-full flex items-center justify-center text-slate-350 hover:text-rose-500 hover:scale-105 active:scale-95 transition-all shadow-lg cursor-pointer"
-              title="Exit Fullscreen Reels"
-            >
-              <X size={18} />
-            </button>
+              {/* Mock Cinema tab (touchable only to trigger a cute mock message or locked) */}
+              <div 
+                onClick={() => {
+                  showNotification("Cinema feature represents scheduled movies. Currently locked.", "info");
+                }}
+                className="flex items-center gap-1.5 cursor-not-allowed select-none opacity-50"
+              >
+                <span className="text-[15px] font-extrabold tracking-wide text-slate-350 font-sans">Cinema</span>
+                <div className="flex -space-x-1.5 select-none pointer-events-none">
+                  <img className="inline-block h-4.5 w-4.5 rounded-full ring-1 ring-black object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=60&h=60&fit=crop" alt="" />
+                  <img className="inline-block h-4.5 w-4.5 rounded-full ring-1 ring-black object-cover" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60&h=60&fit=crop" alt="" />
+                </div>
+              </div>
+            </div>
+
+            {/* Right configuration tools bar */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImmersiveChannelsDrawerOpen(true);
+                  setDrawerActiveTab('adjustments');
+                }}
+                className="h-10 w-10 text-white hover:text-[#2481CC] active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+                title="Configure Player Adjustments (EQ, Filters)"
+              >
+                <Sliders size={20} strokeWidth={2} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImmersiveMode(false);
+                  setIsImmersiveCommentsOpen(false);
+                  if (onClose) onClose();
+                }}
+                className="h-10 w-10 text-slate-300 hover:text-rose-500 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                title="Exit Immersive Viewer"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
         )}
 
@@ -2449,7 +2586,7 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                       />
                       <div className="z-10 flex flex-col items-center gap-3">
                         {isHlsStream(stream) ? (
-                          <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-400 animate-pulse">
+                          <div className="h-14 w-14 rounded-full bg-emerald-950/85 border border-emerald-500/30 flex items-center justify-center text-emerald-450 animate-pulse">
                             <Tv size={24} />
                           </div>
                         ) : (
@@ -2462,220 +2599,362 @@ export const YoutubeBroadcasts: React.FC<YoutubeBroadcastsProps> = ({
                     </div>
                   )}
 
-                  {/* Right Floating Actions Column */}
+                  {/* Right Floating Actions Column (Instagram Reels style layout) */}
                   {!isStrictVideoOnly && (
-                    <div className="absolute right-4 bottom-24 z-30 flex flex-col items-center gap-4.5 pointer-events-auto">
-                    {/* Profile Hub Sphere */}
-                    <div className="relative group cursor-pointer" onClick={() => {
-                      setIsImmersiveMode(false);
-                      if (onClose) onClose();
-                      onOpenPlace?.(stream.creatorUid || '', stream.creatorName);
-                    }}>
-                      <div
-                        className="h-11 w-11 rounded-full bg-gradient-to-tr from-amber-500 to-rose-500 p-[2px] shadow-lg hover:scale-110 duration-200"
-                        title={`Inspect ${stream.creatorName}'s School Space`}
+                    <div className="absolute right-3.5 bottom-24 z-30 flex flex-col items-center gap-5 pointer-events-auto select-none">
+                      
+                      {/* Heart (Like) button */}
+                      <div className="flex flex-col items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isLiked = likedStreams[stream.id] || false;
+                            setLikedStreams(prev => ({ ...prev, [stream.id]: !isLiked }));
+                            if (!isLiked) {
+                              showNotification("Added broadcast stream to your favorites!", "success");
+                            }
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-lg"
+                        >
+                          <Heart 
+                            size={21} 
+                            className={`transition-colors duration-200 ${likedStreams[stream.id] ? 'fill-rose-500 text-rose-500 scale-110' : 'text-white hover:text-rose-400'}`} 
+                          />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white mt-1 drop-shadow-md tracking-wider">
+                          {(() => {
+                            const isStreamLiked = likedStreams[stream.id] || false;
+                            const baseLikes = Math.abs(stream.id.charCodeAt(0) * 123) % 45000 + 12000;
+                            const likesCount = baseLikes + (isStreamLiked ? 1 : 0);
+                            return (likesCount / 1000).toFixed(1) + 'K';
+                          })()}
+                        </span>
+                      </div>
+
+                      {/* Comment button */}
+                      <div className="flex flex-col items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsImmersiveCommentsOpen(true);
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-lg"
+                        >
+                          <MessageSquare size={21} className="text-white hover:text-[#2481CC]" />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white mt-1 drop-shadow-md tracking-wider">
+                          {Math.abs(stream.id.charCodeAt(1) * 45) % 800 + 150}
+                        </span>
+                      </div>
+
+                      {/* Recycle/Republish double arrows (using RotateCw) */}
+                      <div className="flex flex-col items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            showNotification("Broadcast stream republished to Exona feed hubs successfully!", "success");
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-lg"
+                        >
+                          <RotateCw size={19} className="text-white hover:text-amber-400" />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white mt-1 drop-shadow-md tracking-wider">
+                          {(() => {
+                            const baseRepubs = Math.abs(stream.id.charCodeAt(2) * 31) % 4000 + 1500;
+                            return (baseRepubs / 1000).toFixed(1) + 'K';
+                          })()}
+                        </span>
+                      </div>
+
+                      {/* Premium Share2 button */}
+                      <div className="flex flex-col items-center relative">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
+                            if (navigator.share) {
+                              navigator.share({
+                                title: stream.title || 'Exona Stream',
+                                text: `Watch ${stream.title} live on ExonaApp!`,
+                                url: localShareUrl,
+                              }).catch(() => {});
+                            } else {
+                              setSharingStreamId(sharingStreamId === stream.id ? null : stream.id);
+                            }
+                          }}
+                          className={`h-11 w-11 rounded-full backdrop-blur-md flex items-center justify-center transition-all shadow-lg cursor-pointer ${
+                            sharingStreamId === stream.id
+                              ? 'bg-[#2481CC] border border-[#2481CC]/80 text-white shadow-[0_0_15px_rgba(36,129,204,0.5)] scale-110'
+                              : 'bg-black/40 border border-white/10 hover:border-[#2481CC] text-white hover:scale-110 active:scale-95'
+                          }`}
+                        >
+                          <Share2 size={18} className="text-white hover:text-blue-200 transition-colors" />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white mt-1 drop-shadow-md tracking-wider">
+                          {(() => {
+                            const baseSends = Math.abs(stream.id.charCodeAt(3) * 62) % 15000 + 5000;
+                            return (baseSends / 1000).toFixed(1) + 'K';
+                          })()}
+                        </span>
+
+                        {/* Custom Direct Share Dropdown inside carousel drawer */}
+                        {sharingStreamId === stream.id && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSharingStreamId(null);
+                              }}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                              animate={{ opacity: 1, scale: 1, x: 0 }}
+                              className="absolute right-13 bottom-0 z-50 w-64 backdrop-blur-xl bg-[#090C15]/95 border border-white/10 rounded-2xl p-3.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] flex flex-col gap-2"
+                            >
+                              <div className="flex flex-col gap-0.5 border-b border-white/10 pb-2 select-none text-left">
+                                <span className="text-[8px] font-black tracking-widest text-[#2481CC] uppercase">Live Broadcast Share</span>
+                                <h5 className="text-[10px] font-black uppercase text-slate-100 truncate">
+                                  {stream.title}
+                                </h5>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
+                                    navigator.clipboard.writeText(localShareUrl);
+                                    showNotification("App Stream link copied to clipboard!", "success");
+                                    setSharingStreamId(null);
+                                  }}
+                                  className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                >
+                                  <div className="h-6 w-6 rounded-lg bg-[#2481CC]/10 border border-[#2481CC]/25 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
+                                    <Link2 size={11} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy App Link</span>
+                                  </div>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const linkVal = isHlsStream(stream)
+                                      ? stream.streamUrl
+                                      : `https://www.youtube.com/watch?v=${stream.videoId}`;
+                                    navigator.clipboard.writeText(linkVal || '');
+                                    showNotification("Original stream link copied to clipboard!", "success");
+                                    setSharingStreamId(null);
+                                  }}
+                                  className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                >
+                                  <div className="h-6 w-6 rounded-lg bg-[#2481CC]/10 border border-[#2481CC]/25 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
+                                    <ExternalLink size={11} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy Source Link</span>
+                                  </div>
+                                </button>
+
+                                {/* Live Sharing Options */}
+                                <a
+                                  href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Watch "${stream.title}" LIVE on ExonaApp! \n\n📺 Stream details: ${stream.description || ''} \n\n👉 Join live at: ${window.location.origin}/?view=videos&streamId=${stream.id}`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                >
+                                  <div className="h-6 w-6 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400 group-hover:bg-green-500 group-hover:text-white transition-all">
+                                    <MessageSquare size={11} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share WhatsApp</span>
+                                  </div>
+                                </a>
+
+                                <a
+                                  href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/?view=videos&streamId=${stream.id}`)}&text=${encodeURIComponent(`Watch "${stream.title}" live stream on ExonaApp!`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                >
+                                  <div className="h-6 w-6 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-white transition-all">
+                                    <Send size={11} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share Telegram</span>
+                                  </div>
+                                </a>
+
+                                <a
+                                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`${window.location.origin}/?view=videos&streamId=${stream.id}`)}&text=${encodeURIComponent(`Watch "${stream.title}" live stream on @ExonaApp!`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
+                                >
+                                  <div className="h-6 w-6 rounded-lg bg-slate-800/40 border border-slate-700/50 flex items-center justify-center text-slate-300 group-hover:bg-[#1DA1F2] group-hover:text-white transition-all">
+                                    <Twitter size={11} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share on X (Twitter)</span>
+                                  </div>
+                                </a>
+                              </div>
+                            </motion.div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Bookmark (Save) button */}
+                      <div className="flex flex-col items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isSaved = bookmarkedStreams[stream.id] || false;
+                            setBookmarkedStreams(prev => ({ ...prev, [stream.id]: !isSaved }));
+                            if (!isSaved) {
+                              showNotification("Broadcasting station added to your saved bookmarks!", "success");
+                            } else {
+                              showNotification("Station removed from bookmarks.", "info");
+                            }
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-lg"
+                        >
+                          <Bookmark 
+                            size={20} 
+                            className={`transition-colors duration-200 ${bookmarkedStreams[stream.id] ? 'fill-amber-400 text-amber-400 scale-110' : 'text-white hover:text-amber-300'}`} 
+                          />
+                        </button>
+                        <span className="text-[10px] font-extrabold text-white mt-1 drop-shadow-md tracking-wider">
+                          {(() => {
+                            const isSaved = bookmarkedStreams[stream.id] || false;
+                            const baseBookmarks = Math.abs(stream.id.charCodeAt(4) * 19) % 3000 + 1000;
+                            const bookmarksCount = baseBookmarks + (isSaved ? 1 : 0);
+                            return (bookmarksCount / 1000).toFixed(1) + 'K';
+                          })()}
+                        </span>
+                      </div>
+
+                      {/* Diagnostic/Settings Options (Triple-Vertical-Dots) */}
+                      <div className="flex flex-col items-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsImmersiveChannelsDrawerOpen(true);
+                            setDrawerActiveTab('adjustments');
+                          }}
+                          className="h-11 w-11 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center hover:scale-110 active:scale-90 transition-all cursor-pointer shadow-lg"
+                          title="Diagnostics & Audio Station Adjusters"
+                        >
+                          <MoreVertical size={20} className="text-white" />
+                        </button>
+                      </div>
+
+                      {/* Spinning Vinyl Album Art Disc bottom right */}
+                      <div 
+                        onClick={() => {
+                          onOpenPlace?.(stream.creatorUid || '', stream.creatorName);
+                        }}
+                        className="h-11 w-11 rounded-full bg-slate-900 border-2 border-white/20 shadow-xl overflow-hidden cursor-pointer flex items-center justify-center relative animate-[spin_6s_linear_infinite]"
                       >
-                        <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-[11px] font-black uppercase text-white">
+                        <div className="h-full w-full bg-slate-100 flex items-center justify-center text-black font-black text-[9px] uppercase tracking-tighter">
                           {stream.creatorName?.slice(0, 2).toUpperCase() || 'EX'}
                         </div>
+                        {/* Vinyl line overlays to make it look like a gramophone disc */}
+                        <div className="absolute inset-1.5 rounded-full border border-black/30 pointer-events-none" />
+                        <div className="absolute inset-3 rounded-full border border-black/35 pointer-events-none" />
                       </div>
-                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-rose-600 text-white rounded-full p-0.5 border border-slate-950 flex items-center justify-center shadow-md">
-                        <Compass size={8} className="animate-pulse" />
-                      </div>
-                    </div>
 
-                    {/* Liking removed as per user instruction */}
-
-                    {/* Strict Video-Only Fullscreen Trigger */}
-                    <div className="flex flex-col items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsStrictVideoOnly(true);
-                          showNotification("Strict Video-Only Mode. Click 'Show Controls' at top right to restore HUD panels.", "success");
-                        }}
-                        className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer hover:border-orange-500"
-                        title="Pure Full Screen (Video Only)"
-                      >
-                        <Maximize size={18} />
-                      </button>
-                      <span className="text-[10px] font-extrabold text-white drop-shadow-md">
-                        Fullscreen
-                      </span>
-                    </div>
-
-                    {/* Stream Link Sharing Action with Custom Dropdown */}
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
-                          if (navigator.share) {
-                            navigator.share({
-                              title: stream.title || 'Exona Stream',
-                              text: `Watch ${stream.title} live on ExonaApp!`,
-                              url: localShareUrl,
-                            }).catch(() => {});
-                          } else {
-                            setSharingStreamId(sharingStreamId === stream.id ? null : stream.id);
-                          }
-                        }}
-                        className={`h-11 w-11 rounded-full flex items-center justify-center transition-all shadow-lg cursor-pointer ${
-                          sharingStreamId === stream.id
-                            ? 'bg-[#2481CC] border border-[#2481CC]/80 text-white shadow-[0_0_15px_rgba(36,129,204,0.5)]'
-                            : 'bg-black/60 border border-white/10 hover:border-[#2481CC] text-slate-200 hover:text-white hover:bg-black/80'
-                        }`}
-                        title="Share Live Stream"
-                      >
-                        <Share2 size={18} className={sharingStreamId === stream.id ? "scale-110 transition-transform" : "transition-transform"} />
-                      </button>
-
-                      {/* EXON CYBER DIRECT SHARE DRAWER */}
-                      {sharingStreamId === stream.id && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-40" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSharingStreamId(null);
-                            }}
-                          />
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                            className="absolute right-13 bottom-0 z-50 w-64 backdrop-blur-md bg-slate-950/95 border border-white/10 rounded-2xl p-3.5 shadow-[0_4px_30px_rgba(0,0,0,0.6)] flex flex-col gap-3"
-                          >
-                            <div className="flex flex-col gap-0.5 border-b border-white/5 pb-2 select-none">
-                              <span className="text-[8px] font-bold tracking-widest text-[#2481CC] uppercase">Live Broadcast Share</span>
-                              <h5 className="text-[10px] font-black uppercase text-slate-100 truncate">
-                                {stream.title}
-                              </h5>
-                            </div>
-
-                            <div className="flex flex-col gap-1">
-                              {/* Option 1: Copy App Stream Link */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const localShareUrl = `${window.location.origin}/?view=videos&streamId=${stream.id}`;
-                                  navigator.clipboard.writeText(localShareUrl);
-                                  showNotification("App Stream link copied to clipboard!", "success");
-                                  setSharingStreamId(null);
-                                }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
-                              >
-                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
-                                  <Link2 size={11} />
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy App Link</span>
-                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Open directly in ExonaApp</span>
-                                </div>
-                              </button>
-
-                              {/* Option 2: Copy Stream Original Source Link */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const linkVal = isHlsStream(stream)
-                                    ? stream.streamUrl
-                                    : `https://www.youtube.com/watch?v=${stream.videoId}`;
-                                  navigator.clipboard.writeText(linkVal || '');
-                                  showNotification("Original stream link copied to clipboard!", "success");
-                                  setSharingStreamId(null);
-                                }}
-                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
-                              >
-                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#2481CC] group-hover:bg-[#2481CC] group-hover:text-white transition-all">
-                                  <ExternalLink size={11} />
-                                </div>
-                                <div className="flex flex-col">
-                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Copy Source Link</span>
-                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Direct original source URL</span>
-                                </div>
-                              </button>
-
-                              {/* Option 3: Share on WhatsApp */}
-                              <a
-                                href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Watch ${stream.title || 'live stream'} on ExonaApp: ${window.location.origin}/?view=videos&streamId=${stream.id}`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => setSharingStreamId(null)}
-                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
-                              >
-                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-emerald-450 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-                                  <MessageSquare size={11} />
-                                </div>
-                                <div className="flex flex-col text-left">
-                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share WhatsApp</span>
-                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Send to WhatsApp contacts</span>
-                                </div>
-                              </a>
-
-                              {/* Option 4: Share on Telegram */}
-                              <a
-                                href={`https://t.me/share/url?url=${encodeURIComponent(`${window.location.origin}/?view=videos&streamId=${stream.id}`)}&text=${encodeURIComponent(`Watch ${stream.title || 'live stream'} on ExonaApp`)}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={() => setSharingStreamId(null)}
-                                className="w-full text-left px-2 py-1.5 hover:bg-white/5 border border-transparent rounded-xl transition-all cursor-pointer flex items-center gap-2.5 group"
-                              >
-                                <div className="h-6 w-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:bg-sky-500 group-hover:text-white transition-all">
-                                  <Send size={11} />
-                                </div>
-                                <div className="flex flex-col text-left">
-                                  <span className="text-[9.5px] font-black text-slate-100 uppercase tracking-wide">Share Telegram</span>
-                                  <span className="text-[7px] text-slate-400 uppercase font-bold tracking-tight">Post to Telegram channels</span>
-                                </div>
-                              </a>
-                            </div>
-                          </motion.div>
-                        </>
+                      {/* Trash / Delete for Admins */}
+                      {isCreatorOrAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(stream);
+                          }}
+                          className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-905 hover:text-white transition-all flex items-center justify-center shadow-lg cursor-pointer mt-1"
+                          title="Remove Station"
+                        >
+                          <Trash2 size={18} />
+                        </button>
                       )}
                     </div>
-
-                    {/* Admin diagnostic parameters */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        showNotification(`Engine: ${isHlsStream(stream) ? 'AVO HLS Decoder' : 'YouTube SDK'} active. Signal: 100% (Accelerated)`, 'info');
-                      }}
-                      className="h-11 w-11 rounded-full bg-black/60 border border-white/20 text-slate-200 hover:text-white hover:bg-black/80 flex items-center justify-center transition-all shadow-lg cursor-pointer"
-                      title="View system parameters"
-                    >
-                      <Settings size={18} />
-                    </button>
-
-                    {/* Admin Trash / Delete */}
-                    {isCreatorOrAdmin && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(stream);
-                        }}
-                        className="h-11 w-11 rounded-full bg-red-950/80 border border-red-500 text-red-500 hover:bg-red-900 hover:text-white transition-all flex items-center justify-center shadow-lg animate-pulse cursor-pointer"
-                        title="Remove Station"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </div>
                   )}
 
-                  {/* Bottom overlay detailed caption description (like mobile reels) */}
+                  {/* Bottom overlay detailed caption description (Instagram Reels styling layout) */}
                   {!isStrictVideoOnly && (
                     <>
-                      <div className="absolute bottom-16 left-0 right-0 p-6 bg-gradient-to-t from-black/95 via-black/40 to-transparent pointer-events-none flex flex-col gap-2 z-35">
-                        <span className="px-2.5 py-0.5 bg-red-650 text-white rounded-full text-[9px] uppercase font-black tracking-widest animate-pulse flex items-center gap-1 self-start">
-                          <div className="h-1.5 w-1.5 rounded-full bg-white" />
-                          Live Broadcast
-                        </span>
-                        <h3 className="text-white text-sm font-black uppercase tracking-wider leading-tight drop-shadow-md">{stream.title}</h3>
-                        {stream.description && (
-                          <p className="text-slate-200 text-xs font-semibold leading-relaxed drop-shadow-sm max-w-sm line-clamp-2">{stream.description}</p>
-                        )}
-                        <span className="text-[10px] font-bold text-slate-400 tracking-wider">Channel Provider: {stream.creatorName || 'Autonomous Station'}</span>
+                      <div className="absolute bottom-16 left-0 right-16 p-5 sm:p-6 bg-gradient-to-t from-black/95 via-black/45 to-transparent pointer-events-none flex flex-col gap-2.5 z-35 text-left">
+                        
+                        {/* Creator avatar handle row */}
+                        <div className="flex items-center gap-3 w-full pointer-events-auto">
+                          <div 
+                            className="relative cursor-pointer shrink-0" 
+                            onClick={() => {
+                              setIsImmersiveMode(false);
+                              if (onClose) onClose();
+                              onOpenPlace?.(stream.creatorUid || '', stream.creatorName);
+                            }}
+                          >
+                            <div className="h-11 w-11 rounded-full p-[1.5px] bg-gradient-to-tr from-amber-500 via-rose-500 to-indigo-500">
+                              <div className="w-full h-full rounded-full bg-slate-900 border border-black flex items-center justify-center overflow-hidden">
+                                <span className="text-[11px] font-black tracking-tighter text-white">
+                                  {stream.creatorName?.slice(0, 2).toUpperCase() || 'EX'}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Verification badge */}
+                            <div className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full p-0.5 border border-black flex items-center justify-center shadow">
+                              <CheckCircle2 size={8} className="fill-white text-[#2481CC]" />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13px] font-black text-white tracking-wide truncate max-w-[120px] sm:max-w-none">
+                              @{stream.creatorName?.toLowerCase().replace(/\s+/g, '') || 'exona_station'}
+                            </span>
+                            <CheckCircle2 size={13} className="text-[#2481CC] fill-white shrink-0 mt-0.5" />
+                            
+                            {/* Follow Button */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const handle = stream.creatorUid || stream.creatorName || '';
+                                const isFollowing = followedCreators.includes(handle);
+                                if (isFollowing) {
+                                  setFollowedCreators(prev => prev.filter(c => c !== handle));
+                                  showNotification(`Unfollowed @${stream.creatorName}`, 'info');
+                                } else {
+                                  setFollowedCreators(prev => [...prev, handle]);
+                                  showNotification(`Following @${stream.creatorName}! Feed updates prioritize their broadcasts.`, 'success');
+                                }
+                              }}
+                              className={`px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-xl transition-all cursor-pointer border shrink-0 ${
+                                isFollowed
+                                  ? 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/20'
+                                  : 'bg-white border-white text-black hover:bg-white/95 active:scale-95'
+                              }`}
+                            >
+                              {isFollowed ? 'Following' : 'Follow'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Title & Caption Info */}
+                        <div className="flex flex-col gap-1 w-full text-left">
+                          <h3 className="text-white text-[13.5px] font-black uppercase tracking-wider leading-tight drop-shadow-md">
+                            {stream.title}
+                          </h3>
+                          {stream.description && (
+                            <p className="text-slate-100/90 text-[11.5px] font-semibold leading-relaxed drop-shadow-sm line-clamp-2 select-text max-w-sm sm:max-w-md">
+                              {stream.description}
+                            </p>
+                          )}
+                          <span className="text-[9.5px] text-[#2481CC] font-black tracking-widest uppercase mt-0.5">
+                            SATELLITE BEAM • {isHlsStream(stream) ? 'VLC DECODER' : 'DECODED INTERFACE'}
+                          </span>
+                        </div>
+
                       </div>
 
                       {/* Thin Bottom Reels progress accent */}

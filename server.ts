@@ -2065,6 +2065,41 @@ Maintain the Exona design-centric, premium tone: balanced, professional, concise
     }
   });
 
+  // Generate real-time dynamic context-aware broadcast subtitles based on stream topic
+  app.post('/api/ai/generate-subtitles', async (req, res) => {
+    const { title, description, language } = req.body;
+    try {
+      const topic = title || 'Global Satellite Feed';
+      const desc = description || '';
+      const langName = language || 'English';
+
+      const prompt = `Generate exactly 8 highly realistic, cinematic, live broadcast/show transcribed subtitle subtitles0 (short sentences, 4 to 9 words each) that a reporter, announcer, character, caster, or narrator would speak live on a stream with the topic: "${topic}" (${desc}).
+The output language MUST be: ${langName}.
+Strict rule:
+- Return ONLY the sentences, each on a new line. Do NOT include numbers, hyphens, prefixes, quotes, bullet points, or numbering tags (e.g., "1. Sentence").`;
+
+      const response = await callAiWithRetry(() => getAi().models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          temperature: 0.85,
+        }
+      }));
+
+      const rawText = response.text || '';
+      const lines = rawText
+        .split('\n')
+        .map(line => line.replace(/^[\d\-.*+\s"'【】[\]#]+|["'\s]+$/g, '').trim())
+        .filter(line => line.length > 3)
+        .slice(0, 8);
+
+      res.json({ success: true, subtitles: lines });
+    } catch (err: any) {
+      console.error('Failed to generate live dynamic subtitles:', err);
+      res.status(500).json({ success: false, error: err.message || 'Failed to generate live subtitles' });
+    }
+  });
+
   // Satellite Speech & Live Translation Engine using Gemini 3.5 Flash SDK
   app.post('/api/ai/translate-stream', async (req, res) => {
     const { text, sourceLang, targetLang } = req.body;
