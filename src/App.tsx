@@ -15915,7 +15915,7 @@ function ExonaApp() {
         ];
 
         return (
-          <div className="min-h-full bg-white text-zinc-900 flex flex-col font-sans select-none pb-8 relative overflow-y-auto no-scrollbar">
+          <div className="min-h-full bg-white text-zinc-900 flex flex-col font-sans select-none pb-24 relative overflow-y-auto no-scrollbar">
             
             {/* Top Navigation Frame - Beautiful Luxury Exona Bank White themed Head */}
             <div className="flex items-center justify-between px-6 py-5 bg-white border-b border-zinc-200/80 sticky top-0 z-40 shadow-xs">
@@ -30070,7 +30070,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'finance', 'records', 'attendance', 'classroom', 'daily-routine'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
