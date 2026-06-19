@@ -30095,7 +30095,7 @@ function ExonaApp() {
             {isUploading && (
               <div className="px-3 pb-1 flex items-center justify-between text-[9px] font-bold uppercase tracking-widest text-muted">
                 <span>Uploading media file(s)...</span>
-                <span className="font-mono text-accent">{Math.round(uploadProgress || 0)}%</span>
+                <span className="font-mono text-[#2481CC]">{Math.round(uploadProgress || 0)}%</span>
               </div>
             )}
           </motion.div>
@@ -30106,9 +30106,9 @@ function ExonaApp() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-200/70 h-[54px] flex items-center justify-center w-full no-print select-none"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[58px] flex items-center justify-center w-full no-print select-none shadow-lg"
           >
-            <div className="w-full max-w-lg h-full flex items-center justify-around relative">
+            <div className="w-full max-w-lg h-full flex items-center justify-around relative px-2">
               
               {/* Floating Workspace & Tools submenu above Middle Button */}
               <AnimatePresence>
@@ -30126,7 +30126,7 @@ function ExonaApp() {
                       animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
                       exit={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
                       transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                      className="absolute bottom-[60px] left-1/2 z-50 bg-white border border-zinc-200/90 rounded-[1.5rem] p-3 shadow-xl flex items-center gap-4 no-print min-w-[200px]"
+                      className="absolute bottom-[64px] left-1/2 z-50 bg-white border border-zinc-150 rounded-[1.5rem] p-3.5 shadow-xl flex items-center gap-4 no-print min-w-[210px] border-b-2 border-b-[#2481CC]"
                     >
                       {/* Sub-icon 1: Workspace */}
                       <button
@@ -30137,13 +30137,13 @@ function ExonaApp() {
                           setIsMiddleMenuOpen(false);
                         }}
                         className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
-                          view === 'workspace' ? 'bg-zinc-50 text-[#2481CC] font-bold' : 'text-zinc-650 hover:bg-zinc-50 hover:text-zinc-950'
+                          view === 'workspace' ? 'bg-blue-50/50 text-[#2481CC] font-bold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
                         }`}
                       >
-                        <div className="h-8 w-8 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-lg mb-1 shadow-xs">
+                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-xl mb-1 shadow-xs border border-blue-100">
                           <LayoutGrid size={16} />
                         </div>
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none">Workspace</span>
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Workspace</span>
                       </button>
 
                       {/* Divider */}
@@ -30157,105 +30157,107 @@ function ExonaApp() {
                           setIsMiddleMenuOpen(false);
                         }}
                         className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
-                          view === 'tools' ? 'bg-zinc-50 text-[#2481CC] font-bold' : 'text-zinc-650 hover:bg-zinc-50 hover:text-zinc-950'
+                          view === 'tools' ? 'bg-blue-50/50 text-[#2481CC] font-bold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
                         }`}
                       >
-                        <div className="h-8 w-8 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-lg mb-1 shadow-xs">
+                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-xl mb-1 shadow-xs border border-blue-100">
                           <Cpu size={16} />
                         </div>
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none">Tools</span>
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Tools</span>
                       </button>
                     </motion.div>
                   </>
                 )}
               </AnimatePresence>
 
-              {/* Icon 1: Home (Pristine High-Clarity SVGs) */}
+              {/* Icon 1: HOME (Feed) */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
                   setView('feed');
                 }}
-                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 animate-in fade-in zoom-in-95 duration-200"
+                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'feed' || view === 'schools' ? (
-                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20 20C20 21.1046 19.1046 22 18 22H14V14H10V22H6C4.89543 22 4 21.1046 4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20Z" />
-                  </svg>
-                ) : (
-                  <svg className="w-[24px] h-[24px] text-zinc-700 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 20V10.1559C4 9.17066 4.41321 8.23126 5.12759 7.56153L10.8251 2.22156C11.4883 1.59976 12.5117 1.59976 13.1749 2.22156L18.8724 7.56153C19.5868 8.23126 20 9.17066 20 10.1559V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20Z" />
-                    <path d="M10 14H14V22H10V14Z" fill="currentColor" fillOpacity="0.1" />
-                  </svg>
+                {view === 'feed' && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
+                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
+                  <Home size={19.5} strokeWidth={view === 'feed' ? 2.8 : 2.2} />
+                </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Feed
+                </span>
               </button>
 
-              {/* Icon 2: Reels/Videos */}
+              {/* Icon 2: MARKETPLACE */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
-                  setView('videos');
+                  setView('schools');
                 }}
-                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'videos' ? (
-                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="5" />
-                    <path d="M3 8h18" />
-                    <path d="M8 3v5" />
-                    <path d="M16 3v5" />
-                    <polygon points="10 11 15 13.5 10 16 10 11" fill="currentColor" />
-                  </svg>
-                ) : (
-                  <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="3" width="18" height="18" rx="5" />
-                    <path d="M3 8h18" />
-                    <path d="M8 3v5" />
-                    <path d="M16 3v5" />
-                    <polygon points="10 11 15 13.5 10 16 10 11" />
-                  </svg>
+                {view === 'schools' && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
+                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
+                  <ShoppingBag size={19.5} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
+                </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Shop
+                </span>
               </button>
 
-              {/* Icon 3: Middle Hub Button */}
+              {/* Icon 3: CORE HUB BUTTON */}
               <button 
                 onClick={() => {
                   setIsMiddleMenuOpen(!isMiddleMenuOpen);
                 }}
-                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90 relative"
+                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className="relative">
+                {isMiddleMenuOpen && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
                   {isMiddleMenuOpen ? (
-                    <X size={24} className="text-zinc-950" strokeWidth={2.4} />
+                    <X size={19.5} strokeWidth={2.8} />
                   ) : (
-                    <LayoutGrid size={24} className="text-zinc-800 hover:text-zinc-950" strokeWidth={2.4} />
+                    <LayoutGrid size={19.5} strokeWidth={2.2} />
                   )}
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Hub
+                </span>
               </button>
 
-              {/* Icon 4: Wallet */}
+              {/* Icon 4: WALLET */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
                   handleWalletClick();
                 }}
-                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'finance' ? (
-                  <svg className="w-[24px] h-[24px] text-zinc-950" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="5" width="20" height="14" rx="3" fill="currentColor" />
-                    <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" stroke="white" strokeWidth="1.8" fill="none" />
-                    <circle cx="16" cy="12" r="1.2" fill="white" />
-                  </svg>
-                ) : (
-                  <svg className="w-[24px] h-[24px] text-zinc-800 hover:text-zinc-950" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="5" width="20" height="14" rx="3" />
-                    <path d="M22 10h-6a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2h6" />
-                  </svg>
+                {view === 'finance' && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
+                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
+                  <Wallet size={19.5} strokeWidth={view === 'finance' ? 2.8 : 2.2} />
+                </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Wallet
+                </span>
               </button>
 
-              {/* Icon 5: Profile circle avatar */}
+              {/* Icon 5: PROFILE */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -30265,12 +30267,15 @@ function ExonaApp() {
                     setView('login');
                   }
                 }}
-                className="h-full px-4 flex items-center justify-center transition-all duration-150 active:scale-90"
+                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-95 relative font-sans cursor-pointer group"
               >
-                <div className={`relative h-[25px] w-[25px] rounded-full overflow-hidden transition-all duration-200 ${
+                {(view === 'profile' || view === 'login') && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`relative h-[22px] w-[22px] rounded-full overflow-hidden transition-all duration-200 ${
                   view === 'profile' || view === 'login'
-                    ? 'ring-[1.5px] ring-zinc-950 ring-offset-2 scale-105' 
-                    : 'hover:scale-105'
+                    ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
+                    : 'group-hover:scale-105'
                 }`}>
                   <img 
                     src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
@@ -30280,6 +30285,11 @@ function ExonaApp() {
                   {/* Small red target bounce dot on bottom right */}
                   <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Profile
+                </span>
               </button>
             </div>
           </motion.div>
