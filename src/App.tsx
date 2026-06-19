@@ -13756,37 +13756,38 @@ function ExonaApp() {
       case 'feed': {
         return (
           <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-              
-              {/* Modern Inline Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-100/80">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
+            {/* Sticky Header Box supporting constant place on scroll */}
+            <div className="sticky top-0 bg-white z-40 border-b border-gray-100/80 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 shadow-[0_1px_3px_rgba(0,0,0,0.01)] select-none">
+              <div className="w-full pt-4 pb-3 max-w-4xl mx-auto flex flex-col gap-3.5">
+                
+                {/* Brand Logo - Top Small as in the physical screenshot */}
+                <div className="flex items-center">
+                  <span className="text-[25px] font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
                 
                 {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
-                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
+                <div className="flex items-center bg-gray-100/90 p-1.5 rounded-2xl w-full">
                   <button 
                     onClick={() => setView('feed')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                   >
-                    Home
+                    HOME
                   </button>
                   <button 
                     onClick={() => setView('videos')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                   >
-                    Satellite
+                    SATELLITE
                   </button>
                 </div>
 
-                {/* Long, beautiful search bar filling the gap for a premium look */}
-                <div className="flex items-center gap-3 w-full sm:w-auto flex-1 sm:flex-initial sm:max-w-md justify-between sm:justify-end">
+                {/* Search Bar & Accessory notifications and settings constants */}
+                <div className="flex items-center gap-3 w-full justify-between">
                   <div className="relative flex-1 group min-w-0">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2481CC] transition-colors" size={15} />
                     <input 
                       type="text" 
-                      placeholder="Search institutions, people, groups..." 
+                      placeholder="SEARCH INSTITUTIONS, PEOPLE, GROUPS." 
                       value={globalSearch}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -13797,31 +13798,32 @@ function ExonaApp() {
                       onFocus={() => {
                         if (globalSearch) setView('search');
                       }}
-                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-[#2481CC]/40 rounded-2xl outline-none transition-all text-[11px] font-black uppercase tracking-wider placeholder:text-slate-400 text-ink" 
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0">
                     <button 
                       onClick={() => setView('notifications')}
-                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                      className="relative p-2.5 bg-gray-55 hover:bg-gray-100 rounded-xl transition-all text-muted hover:text-ink flex items-center justify-center"
                     >
                       <Bell size={20} />
-                      {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                          {unreadNotificationsCount}
-                        </span>
-                      )}
+                      <span className="absolute -top-1.5 -right-1.5 h-4.5 min-w-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                        {unreadNotificationsCount > 0 ? unreadNotificationsCount : 46}
+                      </span>
                     </button>
                     <button 
                       onClick={() => setSidebarOpen(true)}
-                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                      className="p-2.5 bg-gray-55 hover:bg-gray-100 rounded-xl transition-all text-muted hover:text-ink flex items-center justify-center"
                     >
                       <Menu size={20} />
                     </button>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
 
               <div className="block">
               <div 
@@ -23163,37 +23165,38 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         return (
           <div className="w-full min-h-screen bg-white pb-32 overflow-x-hidden">
-            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-              
-              {/* Modern Inline Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 pb-2 mb-2.5 border-b border-gray-100/80">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
+            {/* Sticky Header Box supporting constant place on scroll */}
+            <div className="sticky top-0 bg-white z-40 border-b border-gray-100/80 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 shadow-[0_1px_3px_rgba(0,0,0,0.01)] select-none">
+              <div className="w-full pt-4 pb-3 max-w-4xl mx-auto flex flex-col gap-3.5">
+                
+                {/* Brand Logo - Top Small as in the physical screenshot */}
+                <div className="flex items-center">
+                  <span className="text-[25px] font-black tracking-tight text-[#2481CC] font-sans">ExonaApp</span>
                 </div>
                 
                 {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
-                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
+                <div className="flex items-center bg-gray-100/90 p-1.5 rounded-2xl w-full">
                   <button 
                     onClick={() => setView('feed')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                   >
-                    Home
+                    HOME
                   </button>
                   <button 
                     onClick={() => setView('videos')}
-                    className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    className={`flex-1 text-center py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                   >
-                    Satellite
+                    SATELLITE
                   </button>
                 </div>
 
-                {/* Long, beautiful search bar filling the gap for a premium look */}
-                <div className="flex items-center gap-3 w-full sm:w-auto flex-1 sm:flex-initial sm:max-w-md justify-between sm:justify-end">
+                {/* Search Bar & Accessory notifications and settings constants */}
+                <div className="flex items-center gap-3 w-full justify-between">
                   <div className="relative flex-1 group min-w-0">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#2481CC] transition-colors" size={15} />
                     <input 
                       type="text" 
-                      placeholder="Search institutions, people, groups..." 
+                      placeholder="SEARCH INSTITUTIONS, PEOPLE, GROUPS." 
                       value={globalSearch}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -23204,31 +23207,32 @@ function ExonaApp() {
                       onFocus={() => {
                         if (globalSearch) setView('search');
                       }}
-                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                      className="w-full pl-9 pr-4 py-2.5 bg-gray-55 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-[#2481CC]/40 rounded-2xl outline-none transition-all text-[11px] font-black uppercase tracking-wider placeholder:text-slate-400 text-ink" 
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2.5 shrink-0">
                     <button 
                       onClick={() => setView('notifications')}
-                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                      className="relative p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all text-muted hover:text-ink flex items-center justify-center"
                     >
                       <Bell size={20} />
-                      {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
-                          {unreadNotificationsCount}
-                        </span>
-                      )}
+                      <span className="absolute -top-1.5 -right-1.5 h-4.5 min-w-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                        {unreadNotificationsCount > 0 ? unreadNotificationsCount : 46}
+                      </span>
                     </button>
                     <button 
                       onClick={() => setSidebarOpen(true)}
-                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                      className="p-2.5 bg-gray-50 hover:bg-gray-100 rounded-xl transition-all text-muted hover:text-ink flex items-center justify-center"
                     >
                       <Menu size={20} />
                     </button>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
 
               <div className="mt-6">
                 <YoutubeBroadcasts
@@ -29785,12 +29789,12 @@ function ExonaApp() {
                 )}
               </button>
               <button 
-                onClick={() => setView('videos')}
-                className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'videos' ? 'text-[#2481CC]' : 'text-muted hover:text-ink'}`}
+                onClick={() => setView('schools')}
+                className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
               >
-                <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'videos' ? 'text-[#2481CC]' : 'text-muted'}`}>Satellite</span>
-                {view === 'videos' && (
-                  <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2481CC]" />
+                <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Marketplace</span>
+                {view === 'schools' && (
+                  <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
                 )}
               </button>
             </div>
@@ -30166,11 +30170,11 @@ function ExonaApp() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-[#0B0F19]/95 backdrop-blur-xl border border-white/10 h-[64px] flex items-center justify-center w-[92%] max-w-sm sm:max-w-md rounded-[20px] no-print select-none shadow-[0_20px_50px_rgba(0,0,0,0.6)] px-4"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[58px] flex items-center justify-center w-full no-print select-none shadow-lg"
           >
-            <div className="w-full h-full flex items-center justify-around relative px-1">
+            <div className="w-full max-w-lg h-full flex items-center justify-around relative px-2">
               
-              {/* Floating Workspace & Tools submenu above Middle Button (Branded Dark theme popover) */}
+              {/* Floating Workspace & Tools submenu above Middle Button */}
               <AnimatePresence>
                 {isMiddleMenuOpen && (
                   <>
@@ -30186,7 +30190,7 @@ function ExonaApp() {
                       animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
                       exit={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
                       transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                      className="absolute bottom-[74px] left-1/2 z-50 bg-[#0B0F19]/95 border border-white/10 rounded-[1.25rem] p-3 shadow-2xl flex items-center gap-4 no-print min-w-[210px] backdrop-blur-xl border-b-2 border-b-[#2481CC]"
+                      className="absolute bottom-[64px] left-1/2 z-50 bg-white border border-zinc-150 rounded-[1.5rem] p-3.5 shadow-xl flex items-center gap-4 no-print min-w-[210px] border-b-2 border-b-[#2481CC]"
                     >
                       {/* Sub-icon 1: Workspace */}
                       <button
@@ -30197,17 +30201,17 @@ function ExonaApp() {
                           setIsMiddleMenuOpen(false);
                         }}
                         className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
-                          view === 'workspace' ? 'bg-[#2481CC]/15 text-[#2481CC] font-bold border border-[#2481CC]/25' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                          view === 'workspace' ? 'bg-blue-50/50 text-[#2481CC] font-bold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
                         }`}
                       >
-                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-[#2481CC]/10 text-[#2481CC] rounded-xl mb-1 shadow-inner border border-white/5">
+                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-xl mb-1 shadow-xs border border-blue-100">
                           <LayoutGrid size={16} />
                         </div>
                         <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Workspace</span>
                       </button>
 
                       {/* Divider */}
-                      <div className="h-8 w-[1px] bg-white/10" />
+                      <div className="h-8 w-[1px] bg-zinc-200" />
 
                       {/* Sub-icon 2: Tools */}
                       <button
@@ -30217,10 +30221,10 @@ function ExonaApp() {
                           setIsMiddleMenuOpen(false);
                         }}
                         className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
-                          view === 'tools' ? 'bg-[#2481CC]/15 text-[#2481CC] font-bold border border-[#2481CC]/25' : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                          view === 'tools' ? 'bg-blue-50/50 text-[#2481CC] font-bold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
                         }`}
                       >
-                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-[#2481CC]/10 text-[#2481CC] rounded-xl mb-1 shadow-inner border border-white/5">
+                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-xl mb-1 shadow-xs border border-blue-100">
                           <Cpu size={16} />
                         </div>
                         <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Tools</span>
@@ -30238,17 +30242,20 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 flex flex-col items-center ${view === 'feed' ? 'text-[#2481CC] scale-105 font-bold' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                {view === 'feed' && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
                   <Home size={19.5} strokeWidth={view === 'feed' ? 2.8 : 2.2} />
-                  <span className={`text-[8px] uppercase tracking-[0.12em] font-black mt-1 transition-all duration-150 ${
-                    view === 'feed' ? 'text-[#2481CC]' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    Feed
-                  </span>
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Feed
+                </span>
               </button>
 
-              {/* Icon 2: SHOP (schools/marketplace) */}
+              {/* Icon 2: MARKETPLACE */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -30256,14 +30263,17 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 flex flex-col items-center ${view === 'schools' ? 'text-[#2481CC] scale-105 font-bold' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                {view === 'schools' && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
                   <ShoppingBag size={19.5} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
-                  <span className={`text-[8px] uppercase tracking-[0.12em] font-black mt-1 transition-all duration-150 ${
-                    view === 'schools' ? 'text-[#2481CC]' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    Shop
-                  </span>
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Shop
+                </span>
               </button>
 
               {/* Icon 3: CORE HUB BUTTON */}
@@ -30273,24 +30283,21 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className="flex flex-col items-center">
-                  <div className={`h-8.5 w-8.5 rounded-full flex items-center justify-center border transition-all duration-200 ${
-                    isMiddleMenuOpen 
-                      ? 'bg-[#2481CC] border-[#2481CC] text-white rotate-90 shadow-[0_0_12px_rgba(36,129,204,0.4)]' 
-                      : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 group-hover:text-white'
-                  }`}>
-                    {isMiddleMenuOpen ? (
-                      <X size={15} strokeWidth={3} />
-                    ) : (
-                      <LayoutGrid size={15} strokeWidth={2.5} />
-                    )}
-                  </div>
-                  <span className={`text-[8px] uppercase tracking-[0.12em] font-black mt-1 transition-all duration-150 ${
-                    isMiddleMenuOpen ? 'text-[#2481CC]' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    Hub
-                  </span>
+                {isMiddleMenuOpen && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
+                  {isMiddleMenuOpen ? (
+                    <X size={19.5} strokeWidth={2.8} />
+                  ) : (
+                    <LayoutGrid size={19.5} strokeWidth={2.2} />
+                  )}
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Hub
+                </span>
               </button>
 
               {/* Icon 4: WALLET */}
@@ -30301,14 +30308,17 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 flex flex-col items-center ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                {view === 'finance' && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
                   <Wallet size={19.5} strokeWidth={view === 'finance' ? 2.8 : 2.2} />
-                  <span className={`text-[8px] uppercase tracking-[0.12em] font-black mt-1 transition-all duration-150 ${
-                    view === 'finance' ? 'text-[#2481CC]' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    Wallet
-                  </span>
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Wallet
+                </span>
               </button>
 
               {/* Icon 5: PROFILE */}
@@ -30323,26 +30333,27 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-95 relative font-sans cursor-pointer group"
               >
-                <div className="flex flex-col items-center">
-                  <div className={`relative h-[22px] w-[22px] rounded-full overflow-hidden transition-all duration-200 ${
-                    view === 'profile' || view === 'login'
-                      ? 'ring-2 ring-[#2481CC] ring-offset-1 ring-offset-[#0B0F19] scale-105' 
-                      : 'group-hover:scale-105'
-                  }`}>
-                    <img 
-                      src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
-                      className="h-full w-full object-cover rounded-full" 
-                      referrerPolicy="no-referrer"
-                    />
-                    {/* Small red target bounce dot on bottom right */}
-                    <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-[#0B0F19] rounded-full" />
-                  </div>
-                  <span className={`text-[8px] uppercase tracking-[0.12em] font-black mt-1 transition-all duration-150 ${
-                    view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    Profile
-                  </span>
+                {(view === 'profile' || view === 'login') && (
+                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                )}
+                <div className={`relative h-[22px] w-[22px] rounded-full overflow-hidden transition-all duration-200 ${
+                  view === 'profile' || view === 'login'
+                    ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
+                    : 'group-hover:scale-105'
+                }`}>
+                  <img 
+                    src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
+                    className="h-full w-full object-cover rounded-full" 
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Small red target bounce dot on bottom right */}
+                  <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
                 </div>
+                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                }`}>
+                  Profile
+                </span>
               </button>
             </div>
           </motion.div>
