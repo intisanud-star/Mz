@@ -3661,6 +3661,8 @@ function ExonaApp() {
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
   const [newLessonVideoUrl, setNewLessonVideoUrl] = useState('');
+  const [newLessonFile, setNewLessonFile] = useState<File | null>(null);
+  const [isUploadingLessonFile, setIsUploadingLessonFile] = useState(false);
   const [newStreamMessage, setNewStreamMessage] = useState('');
   const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant' | 'tasks'>('stream');
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
@@ -3699,10 +3701,10 @@ function ExonaApp() {
   const [studentPollVoting, setStudentPollVoting] = useState(false);
 
   // --- OFFLINE-FIRST ARCHITECTURE (SQLite + MMKV + WebRTC) CONFIGURATION ---
-  const [recordStorageEngine, setRecordStorageEngine] = useState<'sqlite_offline' | 'firebase'>('sqlite_offline');
-  const [participationEngine, setParticipationEngine] = useState<'webrtc' | 'firebase'>('webrtc');
-  const [classroomEngine, setClassroomEngine] = useState<'sqlite_webrtc' | 'firebase'>('sqlite_webrtc');
-  const [broadcastEngine, setBroadcastEngine] = useState<'sqlite_offline' | 'firebase'>('sqlite_offline');
+  const [recordStorageEngine, setRecordStorageEngine] = useState<'sqlite_offline' | 'firebase'>('firebase');
+  const [participationEngine, setParticipationEngine] = useState<'webrtc' | 'firebase'>('firebase');
+  const [classroomEngine, setClassroomEngine] = useState<'sqlite_webrtc' | 'firebase'>('firebase');
+  const [broadcastEngine, setBroadcastEngine] = useState<'sqlite_offline' | 'firebase'>('firebase');
 
   // Memory/Local persistence (representing fast MMKV cache)
   const [localSqliteBroadcasts, setLocalSqliteBroadcasts] = useState<any[]>(() => {
@@ -3807,29 +3809,7 @@ function ExonaApp() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return [
-      {
-        id: 'sqlite_class_1',
-        code: 'EXN992',
-        schoolId: 'horizon',
-        name: 'Maths and Quantum Computing',
-        subject: 'Advanced Physics',
-        teacher: 'Mustapha Musa',
-        schedule: 'Mon, Wed, Fri - 10:00 AM',
-        description: 'An offline-first p2p interactive course on Quantum mechanics, cryptography, and logic.',
-        capacity: 40,
-        entryFee: 0,
-        students: [],
-        lessons: [
-          { id: 'less_1', title: 'Intro to Quantum Bits (Qubits)', content: 'Quantum computation utilizes the principles of superposition and entanglement to solve intractable algebraic problems.', videoUrl: '', timestamp: new Date().toISOString() }
-        ],
-        stream: [
-          { id: 'st_1', authorUid: 'sys', authorName: 'System Bot', content: 'WebRTC P2P Data stream opened successfully on local peer node.', timestamp: new Date().toISOString() }
-        ],
-        liveSession: { isActive: false },
-        attendanceSessions: []
-      }
-    ];
+    return [];
   });
 
   // Local state persistence watchers
@@ -17515,6 +17495,7 @@ function ExonaApp() {
 
         const handleUploadLesson = async () => {
           if (!selectedClassroom || !newLessonTitle || !newLessonContent) return;
+          setIsUploadingLessonFile(true);
           try {
             let processedVideoUrl = '';
             if (newLessonVideoUrl.trim()) {
@@ -17531,6 +17512,15 @@ function ExonaApp() {
               }
             }
 
+            let fileUrl = '';
+            let fileName = '';
+            if (newLessonFile) {
+              const fileRef = ref(storage, `classrooms/${selectedClassroom.id}/lessons/${Date.now()}_${newLessonFile.name}`);
+              await uploadBytes(fileRef, newLessonFile);
+              fileUrl = await getDownloadURL(fileRef);
+              fileName = newLessonFile.name;
+            }
+
             const lessonObj: any = {
               id: doc(collection(db, 'temp')).id,
               title: newLessonTitle,
@@ -17541,6 +17531,11 @@ function ExonaApp() {
 
             if (processedVideoUrl) {
               lessonObj.videoUrl = processedVideoUrl;
+            }
+
+            if (fileUrl) {
+              lessonObj.fileUrl = fileUrl;
+              lessonObj.fileName = fileName;
             }
 
             await updateDoc(doc(db, 'classrooms', selectedClassroom.id), {
@@ -17560,10 +17555,13 @@ function ExonaApp() {
             setNewLessonTitle('');
             setNewLessonContent('');
             setNewLessonVideoUrl('');
-            showNotification('Lesson content published and synced successfully!', 'success');
+            setNewLessonFile(null);
+            showNotification('Lesson content published and synced successfully with cloud ledger storage!', 'success');
           } catch (e) {
             console.error(e);
-            showNotification('Failed to publish lesson', 'error');
+            showNotification('Failed to publish lesson. Verify your internet connection or try a smaller attachment.', 'error');
+          } finally {
+            setIsUploadingLessonFile(false);
           }
         };
 
@@ -19286,11 +19284,57 @@ function ExonaApp() {
                             />
                             <p className="text-[8px] text-muted font-bold mt-1 uppercase tracking-wider">Pasted streaming links will automatically convert to playable interactive players for all students.</p>
                           </div>
+                          <div>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Lesson File Attachment / References (Cloud Storage)</label>
+                            <div className="flex items-center gap-3">
+                              <input 
+                                type="file"
+                                id="classroom-lesson-file-upload"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    setNewLessonFile(file);
+                                    showNotification(`Attached "${file.name}" to lesson notes!`, 'info');
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => document.getElementById('classroom-lesson-file-upload')?.click()}
+                                className="px-4 py-2.5 bg-slate-50 border border-gray-200 hover:bg-slate-100 rounded-xl text-xs font-bold text-ink flex items-center gap-2"
+                              >
+                                <Upload size={14} className="text-accent" />
+                                {newLessonFile ? 'Change Attachment' : 'Upload File to Cloud'}
+                              </button>
+                              {newLessonFile && (
+                                <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 border border-emerald-100 px-3 py-1.5 rounded-xl text-xs font-bold">
+                                  <FileText size={14} />
+                                  <span className="truncate max-w-[180px]">{newLessonFile.name}</span>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => setNewLessonFile(null)}
+                                    className="hover:text-red-700"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           <button 
                             onClick={handleUploadLesson}
-                            className="px-6 py-3.5 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest block w-fit"
+                            disabled={isUploadingLessonFile}
+                            className="px-6 py-3.5 bg-accent hover:bg-accent/95 disabled:bg-slate-300 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 w-fit"
                           >
-                            Publish Lesson
+                            {isUploadingLessonFile ? (
+                              <>
+                                <RefreshCw className="animate-spin" size={12} />
+                                Uploading to Cloud...
+                              </>
+                            ) : (
+                              'Publish Lesson'
+                            )}
                           </button>
                         </div>
                       )}
@@ -19390,6 +19434,33 @@ function ExonaApp() {
                                 <div className="text-[13px] text-muted prose prose-sm max-w-none leading-relaxed">
                                   <Markdown>{lesson.content}</Markdown>
                                 </div>
+
+                                {lesson.fileUrl && (
+                                  <div className="flex items-center gap-3 mt-3 p-3 bg-slate-50 hover:bg-slate-100/50 rounded-2xl border border-gray-100 w-fit transition-all max-w-full">
+                                    <div className="h-8 w-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                                      <FileText size={16} />
+                                    </div>
+                                    <div className="text-left min-w-0 pr-2">
+                                      <p className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wide leading-none">Attachment Resource</p>
+                                      <a 
+                                        href={lesson.fileUrl} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-xs font-black text-blue-650 hover:underline truncate block max-w-[200px] mt-0.5"
+                                        title={lesson.fileName || 'View attachment'}
+                                      >
+                                        {lesson.fileName || 'Download Attachment'}
+                                      </a>
+                                    </div>
+                                    <a 
+                                      href={lesson.fileUrl}
+                                      download={lesson.fileName || 'attachment'}
+                                      className="p-1.5 hover:bg-blue-100 rounded-md text-blue-650 shrink-0 ml-1"
+                                    >
+                                      <Download size={14} />
+                                    </a>
+                                  </div>
+                                )}
 
                                 {/* Interactive Video Embed matching AI moderator video styles */}
                                 {(activeUiVideoUrl || searchWordMatch) && (
