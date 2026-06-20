@@ -3783,13 +3783,7 @@ function ExonaApp() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return [
-      { id: 'sqlite_rec_1', schoolId: 'horizon', studentName: 'Mustapha Musa', studentClass: 'Grade 12 - Technology', parentNumber: '+2348012345678', category: 'General', paid: 15000, balance: 2000, visibility: 'private', subFolder: '', addedBy: 'Offline Sync System', timestamp: { seconds: Math.floor(Date.now() / 1000) } },
-      { id: 'sqlite_rec_2', schoolId: 'horizon', studentName: 'Amina Bello', studentClass: 'Grade 11 - Science', parentNumber: '+2348087654321', category: 'General', paid: 20000, balance: 0, visibility: 'private', subFolder: '', addedBy: 'Offline Sync System', timestamp: { seconds: Math.floor(Date.now() / 1000) } },
-      { id: 'sqlite_rec_3', schoolId: 'horizon', studentName: 'Abubakar Ibrahim', studentClass: 'Grade 11 - Arts', parentNumber: '+2348011223344', category: 'Scholarship', paid: 40000, balance: 0, visibility: 'private', subFolder: '', addedBy: 'Offline Sync System', timestamp: { seconds: Math.floor(Date.now() / 1000) } },
-      { id: 'sqlite_rec_4', schoolId: 'horizon', studentName: 'Fatima Yusuf', studentClass: 'Grade 10 - Business', parentNumber: '+2348077665544', category: 'General', paid: 12000, balance: 8000, visibility: 'private', subFolder: '', addedBy: 'Offline Sync System', timestamp: { seconds: Math.floor(Date.now() / 1000) } },
-      { id: 'sqlite_rec_5', schoolId: 'horizon', studentName: 'John Sylvester', studentClass: 'Grade 12 - Science', parentNumber: '+2348099887766', category: 'General', paid: 35000, balance: 0, visibility: 'private', subFolder: '', addedBy: 'Offline Sync System', timestamp: { seconds: Math.floor(Date.now() / 1000) } }
-    ];
+    return [];
   });
 
   const [localSqliteAttendance, setLocalSqliteAttendance] = useState<any[]>(() => {
@@ -3797,11 +3791,7 @@ function ExonaApp() {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return [
-      { id: 'sqlite_att_1', schoolId: 'horizon', teacherName: 'Mustapha Musa', status: 'present', date: new Date().toISOString().split('T')[0], time: '08:00 AM', category: 'General', timestamp: new Date().toISOString() },
-      { id: 'sqlite_att_2', schoolId: 'horizon', teacherName: 'Amina Bello', status: 'present', date: new Date().toISOString().split('T')[0], time: '08:15 AM', category: 'General', timestamp: new Date().toISOString() },
-      { id: 'sqlite_att_3', schoolId: 'horizon', teacherName: 'Abubakar Ibrahim', status: 'absent', date: new Date().toISOString().split('T')[0], time: '--:--', category: 'General', timestamp: new Date().toISOString() }
-    ];
+    return [];
   });
 
   const [localClassrooms, setLocalClassrooms] = useState<any[]>(() => {
@@ -18462,21 +18452,7 @@ function ExonaApp() {
                     </p>
                   </div>
 
-                  {/* Access Subscription remaining card */}
-                  {selectedClassroom.createdByUid !== user?.uid && (
-                    <div className="border-t border-gray-100 pt-5 mt-4 space-y-2">
-                      <p className="text-[10px] text-muted font-black uppercase tracking-widest block font-sans">Access Subscription</p>
-                      <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
-                        <div className="flex items-center gap-1.5 mb-1 text-emerald-700">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                          <span className="text-[10px] font-black uppercase tracking-wider">Free Access Active</span>
-                        </div>
-                        <p className="text-[11px] text-emerald-800 font-bold leading-normal">
-                          Exona classrooms and hubs are 100% free! All restrictions bypassed successfully.
-                        </p>
-                      </div>
-                    </div>
-                  )}
+
 
                   <div className="border-t border-gray-100 pt-6 mt-6 space-y-3">
                     <button 
