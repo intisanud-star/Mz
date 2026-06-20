@@ -1,10 +1,10 @@
 {
-  "projectId": "studio-438355495-26bec",
-  "appId": "1:547931182646:web:0f90b49c0b0a3dfddbaa97",
-  "apiKey": "AIzaSyD_GWuuDRSVwFyU38UONNJ7wjMrsiqxGkE",
-  "authDomain": "studio-438355495-26bec.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-c3ea759e-c369-4b6c-babb-5352435dc336",
-  "storageBucket": "studio-438355495-26bec.firebasestorage.app",
-  "messagingSenderId": "547931182646",
+  "projectId": "exonaapp-production",
+  "appId": "1:937195993922:web:b98d488c1b928e2e96e6db",
+  "apiKey": "AIzaSyB2GkvxibzoLMCMPHWA5XH6tGQ9y1gN50g",
+  "authDomain": "exonaapp-production.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "exonaapp-production.firebasestorage.app",
+  "messagingSenderId": "937195993922",
   "measurementId": ""
 }

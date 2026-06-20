@@ -66,10 +66,15 @@ import {
   deleteUser,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  deleteDoc
+  onSnapshot,
+  addDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  updateSyncRefs
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, serverTimestamp, doc, getDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
 
 /**
  * @license
@@ -3416,6 +3421,8 @@ function getDynamicSvgIcon(appId: string): string {
     </svg>
   `.trim();
 }
+
+
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
@@ -7529,6 +7536,21 @@ function ExonaApp() {
     return false;
   }
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+
+  // Sync the file-level database pointers with live component state closures on every render
+  updateSyncRefs({
+    activeSchoolId: selectedSchool?.id || null,
+    setRecordsRef: setRecords,
+    setAttendanceRef: setAttendance,
+    setClassroomsRef: setClassrooms as any,
+    setDailyRoutinesRef: setDailyRoutines,
+    attendancePhotosRef: attendancePhotos,
+    setAttendancePhotosRef: setAttendancePhotos,
+    setAllMessagesRef: setAllMessages,
+    setChatGroupsRef: setChatGroups,
+    setPostsRef: setPosts,
+    setCustomAppsRef: setCustomApps
+  });
 
   useEffect(() => {
     if (selectedSchool) {
