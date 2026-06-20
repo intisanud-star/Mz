@@ -19,7 +19,8 @@ import {
   persistentLocalCache, 
   persistentMultipleTabManager,
   doc, 
-  getDoc, 
+  getDoc as originalGetDoc, 
+  getDocs as originalGetDocs, 
   setDoc as originalSetDoc, 
   serverTimestamp, 
   collection, 
@@ -121,7 +122,8 @@ const PATH_MAPS: { [key: string]: string } = {
   messages: 'messages',
   chatGroups: 'chatGroups',
   posts: 'posts',
-  workspaceCustomApps: 'workspaceCustomApps'
+  workspaceCustomApps: 'workspaceCustomApps',
+  users: 'users'
 };
 
 const getStorageTargetType = (refOrPath: any): string | null => {
@@ -142,7 +144,7 @@ const getStorageTargetType = (refOrPath: any): string | null => {
 };
 
 const getPartitionId = (targetType: string): string => {
-  if (['messages', 'chatGroups', 'posts', 'workspaceCustomApps'].includes(targetType)) {
+  if (['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType)) {
     return 'global';
   }
   return activeSchoolId || 'global';
@@ -151,6 +153,7 @@ const getPartitionId = (targetType: string): string => {
 const createMockSnapshot = (recordsArray: any[]) => {
   return {
     exists: () => recordsArray.length > 0,
+    empty: recordsArray.length === 0,
     docs: recordsArray.map(item => ({
       id: item.id || '',
       data: () => item
@@ -166,10 +169,36 @@ const createMockSnapshot = (recordsArray: any[]) => {
   };
 };
 
+export const getDoc = async (docRef: any) => {
+  const targetType = getStorageTargetType(docRef);
+  const partition = targetType ? getPartitionId(targetType) : '';
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+    const docId = docRef.id;
+    const currentList = await storageLoad(partition, targetType, []);
+    const found = currentList.find((item: any) => item.id === docId || item.uid === docId);
+    return {
+      exists: () => !!found,
+      data: () => found ? { ...found } : undefined,
+      id: docId
+    };
+  }
+  return await originalGetDoc(docRef);
+};
+
+export const getDocs = async (refOrQuery: any) => {
+  const targetType = getStorageTargetType(refOrQuery);
+  const partition = targetType ? getPartitionId(targetType) : '';
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+    const currentList = await storageLoad(partition, targetType, []);
+    return createMockSnapshot(currentList);
+  }
+  return await originalGetDocs(refOrQuery);
+};
+
 export const onSnapshot = (refOrQuery: any, onNext: any, onError?: any) => {
   const targetType = getStorageTargetType(refOrQuery);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps'].includes(targetType))) {
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
     storageLoad(partition, targetType, []).then(data => {
       onNext(createMockSnapshot(data));
     }).catch(err => {
@@ -183,10 +212,13 @@ export const onSnapshot = (refOrQuery: any, onNext: any, onError?: any) => {
 export const addDoc = async (colRef: any, data: any) => {
   const targetType = getStorageTargetType(colRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps'].includes(targetType))) {
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
     const currentList = await storageLoad(partition, targetType, []);
     const newId = `${targetType.substring(0, 3)}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const newItem = { ...data, id: newId, timestamp: new Date().toISOString() };
+    if (targetType === 'users') {
+      newItem.uid = newId;
+    }
     const updatedList = [newItem, ...currentList];
     await storageSave(partition, targetType, updatedList);
     
@@ -207,11 +239,11 @@ export const addDoc = async (colRef: any, data: any) => {
 export const setDoc = async (docRef: any, data: any, options?: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps'].includes(targetType))) {
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
     let updatedList = [];
-    const existingIdx = currentList.findIndex((item: any) => item.id === docId);
+    const existingIdx = currentList.findIndex((item: any) => item.id === docId || item.uid === docId);
     
     if (existingIdx > -1) {
       let merged = {};
@@ -219,11 +251,18 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
         merged = { ...currentList[existingIdx], ...data };
       } else {
         merged = { ...data, id: docId };
+        if (targetType === 'users') {
+          (merged as any).uid = docId;
+        }
       }
       updatedList = [...currentList];
       updatedList[existingIdx] = merged;
     } else {
-      updatedList = [{ ...data, id: docId, timestamp: new Date().toISOString() }, ...currentList];
+      const newItem = { ...data, id: docId, timestamp: new Date().toISOString() };
+      if (targetType === 'users') {
+        newItem.uid = docId;
+      }
+      updatedList = [newItem, ...currentList];
     }
     
     await storageSave(partition, targetType, updatedList);
@@ -253,10 +292,10 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
 export const updateDoc = async (docRef: any, data: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps'].includes(targetType))) {
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
-    const existingIdx = currentList.findIndex((item: any) => item.id === docId);
+    const existingIdx = currentList.findIndex((item: any) => item.id === docId || item.uid === docId);
     if (existingIdx > -1) {
       const updatedList = [...currentList];
       updatedList[existingIdx] = { ...currentList[existingIdx], ...data };
@@ -280,10 +319,10 @@ export const updateDoc = async (docRef: any, data: any) => {
 export const deleteDoc = async (docRef: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps'].includes(targetType))) {
+  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
-    const updatedList = currentList.filter((item: any) => item.id !== docId);
+    const updatedList = currentList.filter((item: any) => item.id !== docId && item.uid !== docId);
     await storageSave(partition, targetType, updatedList);
     
     if (targetType === 'studentRecords' && setRecordsRef) setRecordsRef(updatedList as any);

@@ -71,10 +71,12 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
-  updateSyncRefs
+  updateSyncRefs,
+  getDoc,
+  getDocs
 } from './firebase.ts';
 import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
-import { collection, query, orderBy, serverTimestamp, doc, getDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
+import { collection, query, orderBy, serverTimestamp, doc, where, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
 
 /**
  * @license
@@ -12638,14 +12640,15 @@ function ExonaApp() {
       // Email verification is no longer mandatory for core features
     } catch (e: any) {
       console.error('Sign Up Error:', e);
+      const errCode = e.code ? ` (${e.code})` : '';
       if (e.code === 'auth/email-already-in-use') {
-        setAuthError('This email is already registered. Try signing in instead.');
+        setAuthError('This email is already registered. Try signing in instead.' + errCode);
       } else if (e.code === 'auth/weak-password') {
-        setAuthError('Your password is too weak. Please use at least 6 characters.');
+        setAuthError('Your password is too weak. Please use at least 6 characters.' + errCode);
       } else if (e.code === 'auth/invalid-email') {
-        setAuthError('Please enter a valid email address.');
+        setAuthError('Please enter a valid email address.' + errCode);
       } else {
-        setAuthError('Something went wrong. Please try again.');
+        setAuthError('Something went wrong. Please try again.' + errCode);
       }
     } finally {
       setIsAuthenticating(false);
@@ -12672,12 +12675,13 @@ function ExonaApp() {
       }
     } catch (e: any) {
       console.error('Sign In Error:', e);
+      const errCode = e.code ? ` (${e.code})` : '';
       if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-        setAuthError('Incorrect email or password. Please try again.');
+        setAuthError('Incorrect email or password. Please try again.' + errCode);
       } else if (e.code === 'auth/too-many-requests') {
-        setAuthError('Too many failed attempts. Please try again later.');
+        setAuthError('Too many failed attempts. Please try again later.' + errCode);
       } else {
-        setAuthError('Failed to sign in. Please check your connection.');
+        setAuthError('Failed to sign in. Please check your connection.' + errCode);
       }
     } finally {
       setIsAuthenticating(false);
