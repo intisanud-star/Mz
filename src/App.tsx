@@ -73,9 +73,13 @@ import {
   deleteDoc,
   updateSyncRefs,
   getDoc,
-  getDocs
+  getDocs,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+  sendPasswordResetEmail
 } from './firebase.ts';
-import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
+import { User } from 'firebase/auth';
 import { collection, query, orderBy, serverTimestamp, doc, where, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
 
 /**
