@@ -114,16 +114,13 @@ const storageSave = async <T,>(schoolId: string, type: string, data: T[]) => {
 };
 
 const PATH_MAPS: { [key: string]: string } = {
-  studentRecords: 'studentRecords',
-  teacherAttendance: 'teacherAttendance',
-  dailyRoutines: 'dailyRoutines',
-  classrooms: 'classrooms',
-  attendancePhotos: 'attendancePhotos',
-  messages: 'messages',
-  chatGroups: 'chatGroups',
-  posts: 'posts',
-  workspaceCustomApps: 'workspaceCustomApps',
-  users: 'users'
+  p2pOffers: 'p2pOffers',
+  p2pTrades: 'p2pTrades',
+  marketplace_products: 'marketplace_products',
+  marketplace_orders: 'marketplace_orders',
+  broadcast_subscriptions: 'broadcast_subscriptions',
+  broadcast_chats: 'broadcast_chats',
+  workspaceCustomApps: 'workspaceCustomApps'
 };
 
 const getStorageTargetType = (refOrPath: any): string | null => {
@@ -144,10 +141,7 @@ const getStorageTargetType = (refOrPath: any): string | null => {
 };
 
 const getPartitionId = (targetType: string): string => {
-  if (['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType)) {
-    return 'global';
-  }
-  return activeSchoolId || 'global';
+  return 'global';
 };
 
 const createMockSnapshot = (recordsArray: any[]) => {
@@ -172,7 +166,7 @@ const createMockSnapshot = (recordsArray: any[]) => {
 export const getDoc = async (docRef: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
     const found = currentList.find((item: any) => item.id === docId || item.uid === docId);
@@ -188,7 +182,7 @@ export const getDoc = async (docRef: any) => {
 export const getDocs = async (refOrQuery: any) => {
   const targetType = getStorageTargetType(refOrQuery);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     const currentList = await storageLoad(partition, targetType, []);
     return createMockSnapshot(currentList);
   }
@@ -198,7 +192,7 @@ export const getDocs = async (refOrQuery: any) => {
 export const onSnapshot = (refOrQuery: any, onNext: any, onError?: any) => {
   const targetType = getStorageTargetType(refOrQuery);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     storageLoad(partition, targetType, []).then(data => {
       onNext(createMockSnapshot(data));
     }).catch(err => {
@@ -212,24 +206,14 @@ export const onSnapshot = (refOrQuery: any, onNext: any, onError?: any) => {
 export const addDoc = async (colRef: any, data: any) => {
   const targetType = getStorageTargetType(colRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     const currentList = await storageLoad(partition, targetType, []);
     const newId = `${targetType.substring(0, 3)}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const newItem = { ...data, id: newId, timestamp: new Date().toISOString() };
-    if (targetType === 'users') {
-      newItem.uid = newId;
-    }
     const updatedList = [newItem, ...currentList];
     await storageSave(partition, targetType, updatedList);
     
-    if (targetType === 'studentRecords' && setRecordsRef) setRecordsRef(updatedList as any);
-    else if (targetType === 'teacherAttendance' && setAttendanceRef) setAttendanceRef(updatedList as any);
-    else if (targetType === 'classrooms' && setClassroomsRef) setClassroomsRef(updatedList as any);
-    else if (targetType === 'dailyRoutines' && setDailyRoutinesRef) setDailyRoutinesRef(updatedList as any);
-    else if (targetType === 'messages' && setAllMessagesRef) setAllMessagesRef(updatedList as any);
-    else if (targetType === 'chatGroups' && setChatGroupsRef) setChatGroupsRef(updatedList as any);
-    else if (targetType === 'posts' && setPostsRef) setPostsRef(updatedList as any);
-    else if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
+    if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
     
     return { id: newId };
   }
@@ -239,7 +223,7 @@ export const addDoc = async (colRef: any, data: any) => {
 export const setDoc = async (docRef: any, data: any, options?: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
     let updatedList = [];
@@ -251,39 +235,17 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
         merged = { ...currentList[existingIdx], ...data };
       } else {
         merged = { ...data, id: docId };
-        if (targetType === 'users') {
-          (merged as any).uid = docId;
-        }
       }
       updatedList = [...currentList];
       updatedList[existingIdx] = merged;
     } else {
       const newItem = { ...data, id: docId, timestamp: new Date().toISOString() };
-      if (targetType === 'users') {
-        newItem.uid = docId;
-      }
       updatedList = [newItem, ...currentList];
     }
     
     await storageSave(partition, targetType, updatedList);
     
-    if (targetType === 'studentRecords' && setRecordsRef) setRecordsRef(updatedList as any);
-    else if (targetType === 'teacherAttendance' && setAttendanceRef) setAttendanceRef(updatedList as any);
-    else if (targetType === 'classrooms' && setClassroomsRef) setClassroomsRef(updatedList as any);
-    else if (targetType === 'dailyRoutines' && setDailyRoutinesRef) setDailyRoutinesRef(updatedList as any);
-    else if (targetType === 'messages' && setAllMessagesRef) setAllMessagesRef(updatedList as any);
-    else if (targetType === 'chatGroups' && setChatGroupsRef) setChatGroupsRef(updatedList as any);
-    else if (targetType === 'posts' && setPostsRef) setPostsRef(updatedList as any);
-    else if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
-    else if (targetType === 'attendancePhotos') {
-      if (attendancePhotosRef && setAttendancePhotosRef) {
-        const photosMap = { ...attendancePhotosRef };
-        if (data.name && data.photoURL) {
-          photosMap[data.name] = data.photoURL;
-          setAttendancePhotosRef(photosMap);
-        }
-      }
-    }
+    if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
     return;
   }
   return await originalSetDoc(docRef, data, options);
@@ -292,7 +254,7 @@ export const setDoc = async (docRef: any, data: any, options?: any) => {
 export const updateDoc = async (docRef: any, data: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
     const existingIdx = currentList.findIndex((item: any) => item.id === docId || item.uid === docId);
@@ -301,14 +263,7 @@ export const updateDoc = async (docRef: any, data: any) => {
       updatedList[existingIdx] = { ...currentList[existingIdx], ...data };
       await storageSave(partition, targetType, updatedList);
       
-      if (targetType === 'studentRecords' && setRecordsRef) setRecordsRef(updatedList as any);
-      else if (targetType === 'teacherAttendance' && setAttendanceRef) setAttendanceRef(updatedList as any);
-      else if (targetType === 'classrooms' && setClassroomsRef) setClassroomsRef(updatedList as any);
-      else if (targetType === 'dailyRoutines' && setDailyRoutinesRef) setDailyRoutinesRef(updatedList as any);
-      else if (targetType === 'messages' && setAllMessagesRef) setAllMessagesRef(updatedList as any);
-      else if (targetType === 'chatGroups' && setChatGroupsRef) setChatGroupsRef(updatedList as any);
-      else if (targetType === 'posts' && setPostsRef) setPostsRef(updatedList as any);
-      else if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
+      if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
       
       return;
     }
@@ -319,20 +274,13 @@ export const updateDoc = async (docRef: any, data: any) => {
 export const deleteDoc = async (docRef: any) => {
   const targetType = getStorageTargetType(docRef);
   const partition = targetType ? getPartitionId(targetType) : '';
-  if (targetType && (activeSchoolId || ['messages', 'chatGroups', 'posts', 'workspaceCustomApps', 'users'].includes(targetType))) {
+  if (targetType) {
     const docId = docRef.id;
     const currentList = await storageLoad(partition, targetType, []);
     const updatedList = currentList.filter((item: any) => item.id !== docId && item.uid !== docId);
     await storageSave(partition, targetType, updatedList);
     
-    if (targetType === 'studentRecords' && setRecordsRef) setRecordsRef(updatedList as any);
-    else if (targetType === 'teacherAttendance' && setAttendanceRef) setAttendanceRef(updatedList as any);
-    else if (targetType === 'classrooms' && setClassroomsRef) setClassroomsRef(updatedList as any);
-    else if (targetType === 'dailyRoutines' && setDailyRoutinesRef) setDailyRoutinesRef(updatedList as any);
-    else if (targetType === 'messages' && setAllMessagesRef) setAllMessagesRef(updatedList as any);
-    else if (targetType === 'chatGroups' && setChatGroupsRef) setChatGroupsRef(updatedList as any);
-    else if (targetType === 'posts' && setPostsRef) setPostsRef(updatedList as any);
-    else if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
+    if (targetType === 'workspaceCustomApps' && setCustomAppsRef) setCustomAppsRef(updatedList as any);
     
     return;
   }
