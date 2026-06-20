@@ -66,27 +66,10 @@ import {
   deleteUser,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  updateSyncRefs,
-  getDoc,
-  getDocs,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  collection,
-  query,
-  orderBy,
-  doc,
-  where,
-  limit,
-  onSnapshot
+  deleteDoc
 } from './firebase.ts';
-import { User } from 'firebase/auth';
-import { serverTimestamp, arrayUnion, arrayRemove, writeBatch, increment, runTransaction } from 'firebase/firestore';
+import { signInWithPopup, signOut, onAuthStateChanged, sendPasswordResetEmail, User } from 'firebase/auth';
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp, doc, getDoc, setDoc, updateDoc, where, getDocs, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
 
 /**
  * @license
@@ -3433,8 +3416,6 @@ function getDynamicSvgIcon(appId: string): string {
     </svg>
   `.trim();
 }
-
-
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
@@ -7548,21 +7529,6 @@ function ExonaApp() {
     return false;
   }
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
-
-  // Sync the file-level database pointers with live component state closures on every render
-  updateSyncRefs({
-    activeSchoolId: selectedSchool?.id || null,
-    setRecordsRef: setRecords,
-    setAttendanceRef: setAttendance,
-    setClassroomsRef: setClassrooms as any,
-    setDailyRoutinesRef: setDailyRoutines,
-    attendancePhotosRef: attendancePhotos,
-    setAttendancePhotosRef: setAttendancePhotos,
-    setAllMessagesRef: setAllMessages,
-    setChatGroupsRef: setChatGroups,
-    setPostsRef: setPosts,
-    setCustomAppsRef: setCustomApps
-  });
 
   useEffect(() => {
     if (selectedSchool) {
@@ -12650,15 +12616,14 @@ function ExonaApp() {
       // Email verification is no longer mandatory for core features
     } catch (e: any) {
       console.error('Sign Up Error:', e);
-      const errCode = e.code ? ` (${e.code})` : '';
       if (e.code === 'auth/email-already-in-use') {
-        setAuthError('This email is already registered. Try signing in instead.' + errCode);
+        setAuthError('This email is already registered. Try signing in instead.');
       } else if (e.code === 'auth/weak-password') {
-        setAuthError('Your password is too weak. Please use at least 6 characters.' + errCode);
+        setAuthError('Your password is too weak. Please use at least 6 characters.');
       } else if (e.code === 'auth/invalid-email') {
-        setAuthError('Please enter a valid email address.' + errCode);
+        setAuthError('Please enter a valid email address.');
       } else {
-        setAuthError('Something went wrong. Please try again.' + errCode);
+        setAuthError('Something went wrong. Please try again.');
       }
     } finally {
       setIsAuthenticating(false);
@@ -12685,13 +12650,12 @@ function ExonaApp() {
       }
     } catch (e: any) {
       console.error('Sign In Error:', e);
-      const errCode = e.code ? ` (${e.code})` : '';
       if (e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') {
-        setAuthError('Incorrect email or password. Please try again.' + errCode);
+        setAuthError('Incorrect email or password. Please try again.');
       } else if (e.code === 'auth/too-many-requests') {
-        setAuthError('Too many failed attempts. Please try again later.' + errCode);
+        setAuthError('Too many failed attempts. Please try again later.');
       } else {
-        setAuthError('Failed to sign in. Please check your connection.' + errCode);
+        setAuthError('Failed to sign in. Please check your connection.');
       }
     } finally {
       setIsAuthenticating(false);

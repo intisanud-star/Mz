@@ -6,8 +6,8 @@ import {
   FileText, PenTool, FileJson, Radio, HardDrive, BadgeCheck, Video, HelpCircle as QuestionIcon,
   Upload, Image as ImageIcon, User, Gamepad2
 } from 'lucide-react';
-import { db, storage, ref, uploadBytes, getDownloadURL, addDoc, deleteDoc, setDoc } from '../firebase';
-import { collection, serverTimestamp, doc } from 'firebase/firestore';
+import { db, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, setDoc } from 'firebase/firestore';
 
 // Help map icon string to actual Lucide component dynamically
 export const getAppIcon = (iconName: string) => {
