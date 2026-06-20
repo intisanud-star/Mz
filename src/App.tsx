@@ -3665,6 +3665,13 @@ function ExonaApp() {
   const [isUploadingLessonFile, setIsUploadingLessonFile] = useState(false);
   const [newStreamMessage, setNewStreamMessage] = useState('');
   const [classroomActiveTab, setClassroomActiveTab] = useState<'stream' | 'lessons' | 'live' | 'attendance' | 'members' | 'settings' | 'ai-assistant' | 'tasks'>('stream');
+  const [mobileClassroomMenuOpen, setMobileClassroomMenuOpen] = useState(true);
+
+  useEffect(() => {
+    if (selectedClassroom?.id) {
+      setMobileClassroomMenuOpen(true);
+    }
+  }, [selectedClassroom?.id]);
   const [completedLessonIds, setCompletedLessonIds] = useState<string[]>([]);
   const [classJoinCodeInput, setClassJoinCodeInput] = useState('');
   
@@ -18308,7 +18315,7 @@ function ExonaApp() {
               /* DETAILED VIEW OF SPECIFIC CLASSROOM */
               <div className="px-6 py-8 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-4 gap-8">
                 {/* Left Side Tab Menu */}
-                <div className="lg:col-span-1 bg-white border border-gray-100 rounded-[2.5rem] p-6 h-fit shrink-0 space-y-2">
+                <div className={`lg:col-span-1 bg-white border border-gray-100 rounded-[2.5rem] p-6 h-fit shrink-0 space-y-2 ${mobileClassroomMenuOpen ? 'block' : 'hidden lg:block'}`}>
                   <div className="mb-6">
                     <p className="text-[10px] text-muted font-black uppercase tracking-widest">Navigation Area</p>
                     <h4 className="font-extrabold text-sm text-ink truncate">{selectedClassroom.name}</h4>
@@ -18317,7 +18324,7 @@ function ExonaApp() {
                   {isClassStaff ? (
                     <>
                       <button 
-                        onClick={() => setClassroomActiveTab('stream')}
+                        onClick={() => { setClassroomActiveTab('stream'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <MessageSquare size={16} />
@@ -18325,7 +18332,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('lessons')}
+                        onClick={() => { setClassroomActiveTab('lessons'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <BookOpen size={16} />
@@ -18333,7 +18340,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('live')}
+                        onClick={() => { setClassroomActiveTab('live'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'live' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Trophy size={16} />
@@ -18344,7 +18351,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('attendance')}
+                        onClick={() => { setClassroomActiveTab('attendance'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'attendance' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <CalendarCheck2 size={16} />
@@ -18352,7 +18359,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('members')}
+                        onClick={() => { setClassroomActiveTab('members'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Users size={16} />
@@ -18360,7 +18367,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('ai-assistant')}
+                        onClick={() => { setClassroomActiveTab('ai-assistant'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'ai-assistant' ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Sparkles size={16} className="text-indigo-600 animate-pulse" />
@@ -18370,7 +18377,7 @@ function ExonaApp() {
                   ) : (
                     <>
                       <button 
-                        onClick={() => setClassroomActiveTab('tasks')}
+                        onClick={() => { setClassroomActiveTab('tasks'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'tasks' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <ClipboardList size={16} />
@@ -18381,7 +18388,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('stream')}
+                        onClick={() => { setClassroomActiveTab('stream'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'stream' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <MessageSquare size={16} />
@@ -18389,7 +18396,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('lessons')}
+                        onClick={() => { setClassroomActiveTab('lessons'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'lessons' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <BookOpen size={16} />
@@ -18397,7 +18404,7 @@ function ExonaApp() {
                       </button>
 
                       <button 
-                        onClick={() => setClassroomActiveTab('members')}
+                        onClick={() => { setClassroomActiveTab('members'); setMobileClassroomMenuOpen(false); }}
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'members' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                       >
                         <Users size={16} />
@@ -18408,7 +18415,7 @@ function ExonaApp() {
 
                   {(isManager || selectedClassroom.createdByUid === user?.uid) && (
                     <button 
-                      onClick={() => setClassroomActiveTab('settings')}
+                      onClick={() => { setClassroomActiveTab('settings'); setMobileClassroomMenuOpen(false); }}
                       className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'settings' ? 'bg-accent/5 text-accent border border-accent/10' : 'text-muted hover:bg-slate-50'}`}
                     >
                       <Settings size={16} />
@@ -18501,7 +18508,26 @@ function ExonaApp() {
                 </div>
 
                 {/* Right Side Working Panel */}
-                <div className="lg:col-span-3 min-h-[60vh]">
+                <div className={`lg:col-span-3 min-h-[60vh] ${!mobileClassroomMenuOpen ? 'block' : 'hidden lg:block'}`}>
+                  {/* Mobile Back-to-Menu Navigation Bar */}
+                  <div className="lg:hidden mb-6 flex items-center justify-between bg-white border border-gray-150 rounded-2xl p-4">
+                    <div className="flex items-center gap-2.5">
+                      <button 
+                        onClick={() => setMobileClassroomMenuOpen(true)}
+                        className="h-9 w-9 bg-slate-50 hover:bg-slate-100 border border-gray-200 text-slate-700 rounded-xl flex items-center justify-center transition-all"
+                        title="Back to menu"
+                      >
+                        <ChevronLeft size={18} strokeWidth={2.5} />
+                      </button>
+                      <div>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-wider leading-none">Classroom Menu</p>
+                        <h5 className="text-[11px] font-black text-ink mt-0.5 capitalize">{classroomActiveTab.replace('-', ' ')}</h5>
+                      </div>
+                    </div>
+                    <span className="text-[10px] bg-accent/10 text-accent font-black uppercase tracking-wider px-2.5 py-1 rounded-lg truncate max-w-[120px]">
+                      {selectedClassroom.name}
+                    </span>
+                  </div>
                   {(() => {
                     const isOwner = selectedClassroom.createdByUid === user?.uid;
                     const paidSessions = selectedClassroom.paidSessions || {};
