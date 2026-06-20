@@ -66,7 +66,6 @@ import {
   deleteUser,
   reauthenticateWithCredential,
   EmailAuthProvider,
-  onSnapshot,
   addDoc,
   setDoc,
   updateDoc,
@@ -77,10 +76,17 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  collection,
+  query,
+  orderBy,
+  doc,
+  where,
+  limit,
+  onSnapshot
 } from './firebase.ts';
 import { User } from 'firebase/auth';
-import { collection, query, orderBy, serverTimestamp, doc, where, arrayUnion, arrayRemove, writeBatch, limit, increment, runTransaction } from 'firebase/firestore';
+import { serverTimestamp, arrayUnion, arrayRemove, writeBatch, increment, runTransaction } from 'firebase/firestore';
 
 /**
  * @license
