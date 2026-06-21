@@ -15987,7 +15987,7 @@ function ExonaApp() {
 
                 <div className="flex items-center justify-between border-t border-zinc-100 pt-4 mt-4">
                   <div>
-                    <span className="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Book Balance</span>
+                    <span className="text-[9px] font-bold text-zinc-400 block uppercase tracking-wider">Exc Balance</span>
                     <span className="text-xs font-black text-zinc-700">
                       {activeAccount.currency} {hideMainBalance ? '•••••••' : activeAccount.bookBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
