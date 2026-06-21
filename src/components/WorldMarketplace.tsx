@@ -992,93 +992,111 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : (
           /* ==================== SCREEN 1: THE THREADS MARKET FEED ==================== */
-          <div className="space-y-8 pb-10">
+          <div className="space-y-6 pb-12">
             
             {/* PINNED THREAD AT TOP: EXONA AI SMART BROKER */}
-            <div className="flex gap-3 bg-white border border-stone-150 rounded-[1.75rem] p-5 relative shadow-sm">
-              <div className="flex flex-col items-center shrink-0">
-                <div className="h-10 w-10 rounded-full bg-[#2481CC] text-white flex items-center justify-center font-black text-sm relative border-2 border-white shadow-xs">
-                  🤖
-                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 rounded-full border border-white" />
-                </div>
-                {/* Visual Connective Thread line under avatar */}
-                <div className="w-0.5 flex-1 bg-stone-150/80 my-2" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-black text-stone-900 uppercase">Exona AI Expert</span>
-                    <BadgeCheck size={13} className="text-blue-500 fill-blue-500" />
-                    <span className="text-[10px] text-[#2481CC] font-black uppercase">@exona_ai_broker</span>
+            <div className="bg-white border border-stone-100 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.015)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] text-left relative overflow-hidden">
+              {/* Premium Glow header accent */}
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-[#2481CC] to-emerald-500" />
+              
+              <div className="flex gap-4">
+                <div className="flex flex-col items-center shrink-0">
+                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-sm relative shadow-md border-2 border-white">
+                    🤖
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
                   </div>
-                  <span className="text-[8.5px] uppercase font-black tracking-widest text-[#2481CC] bg-blue-50 px-2 py-0.5 rounded-md">PINNED</span>
+                  {/* Visual Connective Thread line under avatar */}
+                  <div className="w-[1.5px] flex-1 bg-gradient-to-b from-stone-200/80 to-stone-100/10 my-2.5" />
                 </div>
 
-                <p className="text-xs font-semibold uppercase tracking-wider text-stone-400 mt-0.5">International Logistics Assistant</p>
-                <p className="text-[11.5px] text-stone-700 mt-2 leading-relaxed font-medium">
-                  "I am connected live to international shipment custom databases. Ask me anything about regional import rules, pricing formulas in Excoins, or custom shipping times!"
-                </p>
-
-                {/* AI Chat History */}
-                <div className="mt-3.5 space-y-2.5 border-t border-stone-100 pt-3.5 text-left">
-                  {aiChatHistory.map((m, idx) => (
-                    <div key={idx} className="text-[11px] leading-relaxed">
-                      <span className={`font-black uppercase text-[9px] block mb-0.5 ${m.role === 'user' ? 'text-stone-500' : 'text-[#2481CC]'}`}>
-                        {m.role === 'user' ? 'You (Student)' : 'Exona AI Broker'}
-                      </span>
-                      <p className="text-stone-800 font-semibold">{m.text}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[13px] font-extrabold text-stone-950 tracking-tight">Exona AI Expert</span>
+                      <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
+                      <span className="text-[10px] text-stone-450 font-medium">@exona_ai_broker</span>
                     </div>
-                  ))}
+                    <span className="text-[8.5px] uppercase font-black tracking-widest text-[#2481CC] bg-[#2481CC]/8 px-2 py-0.5 rounded-full">PINNED BROKER</span>
+                  </div>
 
-                  {isGeneratingAiResponse && (
-                    <div className="text-[11px] text-stone-400 font-black tracking-wider animate-pulse uppercase">
-                      ⌛ Simulating customs shipping path variables...
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mt-1">CROSS-BORDER DISPATCH ANALYST</p>
+                  <p className="text-[12.5px] text-stone-750 mt-2.5 leading-relaxed font-medium">
+                    "I am connected live to international shipment custom databases. Ask me anything about regional import rules, pricing formulas in Excoins, or custom shipping times!"
+                  </p>
+
+                  {/* AI Chat History */}
+                  {aiChatHistory.length > 1 && (
+                    <div className="mt-4 space-y-3 border-t border-stone-100/80 pt-4 text-left max-h-56 overflow-y-auto pr-1">
+                      {aiChatHistory.map((m, idx) => {
+                        if (idx === 0) return null; // skip default introductory greeting
+                        return (
+                          <div key={idx} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                            <span className="text-[8.5px] font-bold text-stone-400 uppercase tracking-wider mb-1">
+                              {m.role === 'user' ? 'Your Inquiry' : 'Exona AI Broker'}
+                            </span>
+                            <div className={`text-xs p-3 rounded-2xl max-w-[90%] leading-relaxed ${
+                              m.role === 'user' 
+                                ? 'bg-stone-900 text-white rounded-tr-none' 
+                                : 'bg-stone-50 text-stone-800 border border-stone-100 rounded-tl-none font-medium'
+                            }`}>
+                              {m.text}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {isGeneratingAiResponse && (
+                        <div className="flex items-center gap-2 text-[10px] text-stone-400 font-bold tracking-wider animate-pulse uppercase">
+                          <span className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-ping" />
+                          <span>Calculating customs logistics & shipping pipes...</span>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
 
-                {/* AI Chat Interaction Input inside the Thread */}
-                <form 
-                  onSubmit={(e) => { e.preventDefault(); handleSendAiMessage(); }}
-                  className="mt-3.5 flex items-center gap-2"
-                >
-                  <input 
-                    type="text"
-                    value={aiChatInput}
-                    onChange={(e) => setAiChatInput(e.target.value)}
-                    disabled={isGeneratingAiResponse}
-                    placeholder="Type to ask the AI broker within this Thread..."
-                    className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-[#2481CC]/40 transition-all text-stone-800"
-                  />
-                  <button 
-                    type="submit"
-                    disabled={!aiChatInput.trim() || isGeneratingAiResponse}
-                    className="h-8 px-3.5 bg-stone-900 text-white rounded-xl text-[9px] uppercase font-black tracking-widest hover:bg-[#2481CC] transition-colors disabled:opacity-40"
+                  {/* AI Chat Interaction Input inside the Thread */}
+                  <form 
+                    onSubmit={(e) => { e.preventDefault(); handleSendAiMessage(); }}
+                    className="mt-4 flex items-center gap-2"
                   >
-                    Send
-                  </button>
-                </form>
+                    <input 
+                      type="text"
+                      value={aiChatInput}
+                      onChange={(e) => setAiChatInput(e.target.value)}
+                      disabled={isGeneratingAiResponse}
+                      placeholder="Ask the AI broker about shipping, duty, or custom orders..."
+                      className="flex-1 bg-stone-50 border border-stone-150 rounded-2xl px-4 py-2 text-xs font-medium outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/10 focus:border-[#2481CC]/40 transition-all text-stone-850"
+                    />
+                    <button 
+                      type="submit"
+                      disabled={!aiChatInput.trim() || isGeneratingAiResponse}
+                      className="h-8.5 px-4 bg-stone-955 text-white rounded-xl text-[9px] uppercase font-black tracking-widest hover:bg-[#2481CC] transition-all disabled:opacity-45 select-none shadow-sm cursor-pointer"
+                    >
+                      Send
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
 
             {/* BROWSE FEED: COLLABORATIVE THREADS LIST */}
             {isLoadingProducts ? (
-              <div className="py-20 text-center">
+              <div className="py-24 text-center">
+                <div className="h-8 w-8 border-2 border-stone-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                 <p className="text-xs font-black uppercase tracking-widest text-[#2481CC] animate-pulse">Syncing International Inventories...</p>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="py-16 text-center bg-white border border-stone-150 rounded-[2rem] px-6 max-w-sm mx-auto shadow-xs">
-                <AlertCircle size={22} className="mx-auto text-stone-400 mb-3" />
-                <h4 className="text-xs font-black text-stone-950 uppercase">No active listings</h4>
-                <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider mt-1.5 leading-relaxed">Reset your category filter tabs or publish a new ad-hoc custom listing above.</p>
+              <div className="py-20 text-center bg-white border border-stone-100 rounded-[2rem] px-6 max-w-sm mx-auto shadow-sm">
+                <AlertCircle size={24} className="mx-auto text-stone-300 mb-3" />
+                <h4 className="text-sm font-bold text-stone-900 uppercase tracking-tight">No active listings</h4>
+                <p className="text-xs text-stone-400 mt-2 leading-relaxed">No products match your search/filter parameters. Reset your category tabs or publish an ad-hoc listing.</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1095,217 +1113,245 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   return (
                     <div 
                       key={p.id}
-                      className="flex gap-4 bg-white border border-stone-150 p-6 rounded-[2rem] hover:shadow-md transition-all text-left relative"
+                      className="bg-white border border-stone-100 p-6 rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.015)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.03)] transition-all duration-300 text-left relative"
                     >
-                      {/* Left Side: Brand Avatar & Core Vertical Thread Line */}
-                      <div className="flex flex-col items-center shrink-0">
-                        <div className="h-11 w-11 rounded-full bg-stone-950 font-black text-xs text-white flex items-center justify-center border-2 border-stone-100 shadow-xs uppercase select-none">
-                          {p.sellerPhoto ? (
-                            <img src={p.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            p.sellerName.slice(0, 2)
-                          )}
-                        </div>
-                        {/* Visual threads line that connecting the post components & collapsed comments */}
-                        <div className="w-0.5 flex-1 bg-gradient-to-b from-stone-200/80 to-stone-50/10 my-3.5" />
-                        
-                        {/* Little reply circle indicator at lower base */}
-                        {comments.length > 0 && (
-                          <div className="h-5 w-5 rounded-full bg-stone-50 border border-stone-200 flex items-center justify-center text-[8.5px] font-black text-stone-400 shrink-0">
-                            {comments.length}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right Side: Product Post Thread content */}
-                      <div className="flex-1 min-w-0">
-                        {/* Creator Header Row */}
-                        <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                            <span 
-                              onClick={() => {
-                                // Dynamic interaction to view seller
-                                showNotification(`Direct Message channels with seller ${p.sellerName} are encrypted.`, "info");
-                              }}
-                              className="text-xs font-black text-stone-900 uppercase tracking-tight truncate hover:underline cursor-pointer"
-                            >
-                              {p.sellerName}
+                      <div className="flex gap-4">
+                        {/* Left Column: Creator Avatar & Connecting Line */}
+                        <div className="flex flex-col items-center shrink-0">
+                          <button 
+                            onClick={() => {
+                              showNotification(`Direct Message channel with vendor ${p.sellerName} is secured.`, "info");
+                            }}
+                            className="h-10 w-10 rounded-full bg-stone-950 font-black text-xs text-white flex items-center justify-center border-2 border-white shadow-md uppercase select-none transition-transform active:scale-95 cursor-pointer relative"
+                          >
+                            {p.sellerPhoto ? (
+                              <img src={p.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              p.sellerName.slice(0, 2)
+                            )}
+                            {/* Little badge count */}
+                            <span className="absolute -bottom-1 -right-1 bg-stone-100 text-stone-800 text-[8px] font-black h-4 w-4 rounded-full border border-white flex items-center justify-center">
+                              {p.countryFlag}
                             </span>
-                            <BadgeCheck size={12.5} className="text-[#2481CC] fill-stone-50 shrink-0" />
-                            <span className="text-[10px] text-stone-400 bg-stone-100/60 font-black uppercase tracking-wider px-2 py-0.5 rounded-lg shrink-0">
-                              {p.countryFlag} {p.originCountry}
-                            </span>
-                          </div>
-
-                          <span className="text-[9.5px] font-bold text-stone-400 uppercase tracking-tight select-none">
-                            2h ago
-                          </span>
-                        </div>
-
-                        {/* Product Title Category */}
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <span className="text-[8px] tracking-[0.15em] font-black bg-[#2481CC]/10 text-[#2481CC] uppercase px-1.5 py-0.5 rounded-md">
-                            {p.category}
-                          </span>
-                          {p.featured && (
-                            <span className="text-[8px] tracking-[0.15em] font-black bg-rose-50 text-red-600 border border-red-100 uppercase px-1.5 py-0.5 rounded-md">
-                              🔥 Verified Hot Deal
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Story Content Block */}
-                        <h4 className="text-[13.5px] font-black text-stone-900 mt-2.5 leading-snug tracking-tight">
-                          {p.name}
-                        </h4>
-                        <p className="text-xs font-medium text-stone-600 mt-2 leading-relaxed block pr-2">
-                          {p.description}
-                        </p>
-
-                        {/* Immersive Beautiful Image Attachment Card */}
-                        <div className="mt-4 relative rounded-2xl overflow-hidden aspect-[4/3] bg-stone-100/60 border border-stone-200/50 group select-none">
-                          <img 
-                            src={p.imageUrl} 
-                            alt={p.name}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103"
-                            referrerPolicy="no-referrer"
-                          />
-
-                          {/* Floating Price sticker */}
-                          <div className="absolute top-3.5 right-3.5 bg-stone-950 text-white backdrop-blur-md font-sans text-xs font-extrabold px-3.5 py-1.5 rounded-xl flex flex-col items-center shadow-md">
-                            <span className="text-emerald-400 text-xs font-black leading-none">{formatPrice(p.price)}</span>
-                            <span className="line-through text-stone-400 text-[10px] mt-0.5 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
-                          </div>
-
-                          {/* Stock Warnings indicator inside card */}
-                          {p.stock <= 3 && p.stock > 0 && (
-                            <div className="absolute bottom-3 left-3 bg-red-600 text-white text-[8px] font-black uppercase tracking-widest py-1 px-2.5 rounded-lg border border-red-500 shadow-sm animate-pulse">
-                              Supply Critical Node: Close to Sold Out!
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Star Rating details */}
-                        <div className="flex items-center gap-1 mt-3">
-                          <Star size={11} className="fill-amber-400 text-amber-500" />
-                          <span className="text-[10px] font-black text-stone-800">{p.rating.toFixed(1)}</span>
-                          <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">({p.reviewsCount} verified community transits)</span>
-                        </div>
-
-                        {/* Threads-style Actions bar */}
-                        <div className="flex items-center justify-between gap-4 mt-5 pt-3.5 border-t border-stone-100">
-                          <div className="flex items-center gap-3 md:gap-4 select-none">
-                            {/* Wishlist toggle */}
-                            <button 
-                              onClick={() => toggleHeartPost(p.id)}
-                              className="group flex items-center gap-1 text-stone-400 hover:text-rose-500 transition-colors p-1 rounded-lg hover:bg-stone-50"
-                              title="Like / Save to Thread Wishlist"
-                            >
-                              <Heart size={16.5} className={hasHeart ? 'fill-rose-500 text-rose-600 animate-bounce' : 'text-stone-400'} />
-                              <span className="text-[10px] font-black text-stone-700">{likesCount}</span>
-                            </button>
-
-                            {/* Reply comments collapsing */}
+                          </button>
+                          
+                          {/* Thread connective line */}
+                          <div className="w-[1.5px] flex-1 bg-gradient-to-b from-stone-200/80 to-stone-50/10 my-3" />
+                          
+                          {/* Comments counter bubble styled after true threads replies teaser */}
+                          {comments.length > 0 && (
                             <button 
                               onClick={() => setExpandedReviews(prev => ({ ...prev, [p.id]: !isExpanded }))}
-                              className="group flex items-center gap-1 text-stone-400 hover:text-stone-950 transition-colors p-1 rounded-lg hover:bg-stone-50"
-                              title="Discuss with student community"
+                              className="h-6 w-6 rounded-full bg-stone-50 border border-stone-200 hover:bg-stone-100 flex items-center justify-center text-[9px] font-bold text-stone-500 shrink-0 select-none transition-all active:scale-90 cursor-pointer"
+                              title="Toggle thread discussion"
                             >
-                              <MessageCircle size={16.5} />
-                              <span className="text-[10px] font-black text-stone-700">{comments.length}</span>
+                              {comments.length}
                             </button>
+                          )}
+                        </div>
 
-                            {/* Reshare Action */}
-                            <button 
-                              onClick={() => {
-                                showNotification(`Listing link to "${p.name}" has been forwarded to class channels!`, "success");
-                              }}
-                              className="group flex items-center gap-1 text-stone-400 hover:text-[#2481CC] transition-colors p-1 rounded-lg hover:bg-stone-50"
-                              title="Reshare across school channels"
-                            >
-                              <Repeat size={15.5} />
-                              <span className="text-[9px] font-black text-stone-500 tracking-wider">SHARE</span>
-                            </button>
-
-                            {/* Delete listing button for admins only */}
-                            {isAdmin && (
-                              <button 
-                                onClick={() => handleDeleteProduct(p.id, p.name)}
-                                className="text-stone-300 hover:text-red-500 transition-colors p-1"
-                                title="Remove item"
+                        {/* Right Column: Original Thread Structure */}
+                        <div className="flex-1 min-w-0">
+                          
+                          {/* Seller Row */}
+                          <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                              <span 
+                                onClick={() => {
+                                  showNotification(`Private messaging with ${p.sellerName} is encrypted.`, "info");
+                                }}
+                                className="text-xs font-black text-stone-950 hover:underline cursor-pointer tracking-tight"
                               >
-                                <Trash2 size={13.5} />
-                              </button>
+                                {p.sellerName}
+                              </span>
+                              <BadgeCheck size={14} className="text-blue-500 fill-blue-500 shrink-0" />
+                              <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider bg-blue-50 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 select-none">
+                                <span>{p.countryFlag}</span> {p.originCountry}
+                              </span>
+                            </div>
+
+                            <span className="text-[10px] text-stone-400 font-medium select-none">
+                              2h
+                            </span>
+                          </div>
+
+                          {/* Category Tag Header */}
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            <span className="text-[8px] font-extrabold uppercase tracking-widest bg-stone-100 text-stone-500 px-2 py-0.5 rounded-md text-[7.5px]">
+                              #{p.category.replace('&', '').replace(' ', '').toLowerCase()}
+                            </span>
+                            {p.featured && (
+                              <span className="text-[8px] font-extrabold uppercase tracking-widest bg-rose-50 text-red-500 px-2 py-0.5 rounded-md border border-rose-100 text-[7.5px]">
+                                Verified Deal
+                              </span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            {/* Fast Checkout Purchase CTA */}
-                            <button
-                              disabled={p.stock === 0}
-                              onClick={() => {
-                                addToCart(p);
-                                setIsCartOpen(true);
-                              }}
-                              className="px-3 py-1.5 bg-stone-900 border border-stone-150 hover:bg-[#2481CC] text-white hover:text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all shadow-xs"
-                            >
-                              🎒 Add Cart
-                            </button>
+                          {/* Thread Title & Content */}
+                          <h4 className="text-[14.5px] font-black text-stone-950 mt-3 leading-snug tracking-tight">
+                            {p.name}
+                          </h4>
+                          <p className="text-xs font-medium text-stone-600 mt-2 leading-relaxed tracking-wide pr-1">
+                            {p.description}
+                          </p>
 
-                            <button
-                              disabled={p.stock === 0}
-                              onClick={() => {
-                                // Setup direct immediate checkout
-                                setCart([{ product: p, quantity: 1 }]);
-                                setIsCheckoutOpen(true);
-                                setCheckoutStep(1);
-                              }}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all shadow-xs"
-                            >
-                              ⚡ BUY NOW
-                            </button>
-                          </div>
-                        </div>
+                          {/* Immersive Instagram & Threads-styled Hero Media Card */}
+                          <div 
+                            onClick={() => setSelectedDetailedProduct(p)}
+                            className="mt-4 relative rounded-2xl overflow-hidden aspect-[4/3] bg-stone-50 border border-stone-200/50 group select-none cursor-pointer shadow-xs"
+                          >
+                            <img 
+                              src={p.imageUrl} 
+                              alt={p.name}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
+                              referrerPolicy="no-referrer"
+                            />
 
-                        {/* NESTED TIMELINE REPLIES / COMMUNITY DISCUSSION BOARD (Threads specific) */}
-                        {isExpanded && (
-                          <div className="mt-4 pt-4 border-t border-stone-100 space-y-3">
-                            <p className="text-[9.5px] font-black uppercase tracking-wider text-[#2481CC] mb-2 font-mono">
-                              # Peer Conversation Thread Nodes:
-                            </p>
-
-                            <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1">
-                              {comments.map((c) => (
-                                <div key={c.id} className="bg-stone-50 p-3 rounded-2xl text-[11px] leading-relaxed border border-stone-150/40">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="font-mono font-black text-stone-900 text-[10px] uppercase">{c.userName}</span>
-                                    <span className="text-[8.5px] text-stone-400">Collaborator</span>
-                                  </div>
-                                  <p className="text-stone-700 font-semibold">{c.text}</p>
-                                </div>
-                              ))}
+                            {/* Minimal Glassmorphic Price Sticker */}
+                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-100 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
+                              <span className="text-stone-950 text-xs font-extrabold leading-none">{formatPrice(p.price)}</span>
+                              <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
                             </div>
 
-                            {/* Write community reply in real-time */}
-                            <div className="flex gap-2.5 pt-2">
-                              <input 
-                                type="text"
-                                placeholder="Inquire with community, post sizing specs..."
-                                value={newReplyTexts[p.id] || ''}
-                                onChange={(e) => setNewReplyTexts(prev => ({ ...prev, [p.id]: e.target.value }))}
-                                className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:bg-white focus:border-stone-900/35 font-bold text-stone-800"
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddReviewReply(p.id)}
-                              />
-                              <button
-                                onClick={() => handleAddReviewReply(p.id)}
-                                className="h-8 px-3.5 bg-stone-900 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xs"
+                            {/* Inventory Alert inside Image Bottom */}
+                            {p.stock <= 3 && p.stock > 0 && (
+                              <div className="absolute bottom-4 left-4 bg-stone-955/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-wider py-1 px-3 rounded-lg border border-white/10 shadow-sm animate-pulse">
+                                Only {p.stock} item(s) left in transit pipeline!
+                              </div>
+                            )}
+
+                            {p.stock === 0 && (
+                              <div className="absolute inset-0 bg-stone-955/65 backdrop-blur-xs flex items-center justify-center">
+                                <span className="bg-white text-stone-900 border border-stone-200 text-xs font-black uppercase tracking-widest py-2 px-5 rounded-2xl shadow-lg">
+                                  SOLD OUT / OUT OF STOCK
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Star rating alignment */}
+                          <div className="flex items-center gap-1 mt-3.5">
+                            <Star size={11} className="fill-amber-400 text-amber-400 shrink-0" />
+                            <span className="text-[10.5px] font-extrabold text-stone-800">{p.rating.toFixed(1)}</span>
+                            <span className="text-[9.5px] text-stone-400 font-semibold uppercase tracking-wider ml-1">
+                              • {p.reviewsCount} collaborative transits verified
+                            </span>
+                          </div>
+
+                          {/* Dynamic Threads Action Row & Shopping Integration */}
+                          <div className="mt-4.5 pt-3.5 border-t border-stone-100 flex items-center justify-between gap-4">
+                            
+                            {/* Standard Threads Social Action Icons */}
+                            <div className="flex items-center gap-4 select-none text-stone-400">
+                              
+                              {/* Love/Wishlist standard toggle */}
+                              <button 
+                                onClick={() => toggleHeartPost(p.id)}
+                                className="group flex items-center gap-1.5 hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                                title="Like / Save to wishlist"
                               >
-                                Post
+                                <Heart size={18} className={hasHeart ? 'fill-rose-500 text-rose-500' : 'text-stone-400'} />
+                                <span className="text-[10px] font-extrabold text-stone-600">{likesCount}</span>
+                              </button>
+
+                              {/* Discussion Toggle */}
+                              <button 
+                                onClick={() => setExpandedReviews(prev => ({ ...prev, [p.id]: !isExpanded }))}
+                                className="group flex items-center gap-1.5 hover:text-stone-900 transition-colors p-1 cursor-pointer"
+                                title="Inquire / Discuss"
+                              >
+                                <MessageCircle size={18} className={isExpanded ? 'text-stone-950' : 'text-stone-400'} />
+                                <span className="text-[10px] font-extrabold text-stone-600">{comments.length}</span>
+                              </button>
+
+                              {/* Dispatch / Forward Share */}
+                              <button 
+                                onClick={() => {
+                                  showNotification(`Product link to "${p.name}" has been forwarded to school chats!`, "success");
+                                }}
+                                className="group hover:text-blue-500 transition-colors p-1 cursor-pointer"
+                                title="Forward catalog post"
+                              >
+                                <Repeat size={17} />
+                              </button>
+
+                              {/* Delete button (Admins only) */}
+                              {isAdmin && (
+                                <button 
+                                  onClick={() => handleDeleteProduct(p.id, p.name)}
+                                  className="text-stone-350 hover:text-red-500 p-1 cursor-pointer"
+                                  title="Delete post"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Ultra-premium, clean shopping pills */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                disabled={p.stock === 0}
+                                onClick={(e) => addToCart(p, e)}
+                                className="px-4 py-2 bg-stone-50 border border-stone-200 hover:bg-stone-100 hover:border-stone-350 disabled:opacity-40 text-stone-800 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider transition-all select-none cursor-pointer"
+                              >
+                                Add to Bag
+                              </button>
+
+                              <button
+                                disabled={p.stock === 0}
+                                onClick={() => {
+                                  setCart([{ product: p, quantity: 1 }]);
+                                  setIsCheckoutOpen(true);
+                                  setCheckoutStep(1);
+                                }}
+                                className="px-5 py-2 bg-stone-950 hover:bg-stone-900 hover:scale-102 active:scale-98 disabled:opacity-40 text-white rounded-full text-[10.5px] font-extrabold uppercase tracking-widest transition-all select-none shadow-sm cursor-pointer"
+                              >
+                                Checkout
                               </button>
                             </div>
-                          </div>
-                        )}
 
+                          </div>
+
+                          {/* NESTED PEER DISCUSSION BOARD (Threads specific) */}
+                          {isExpanded && (
+                            <div className="mt-5 pt-4.5 border-t border-stone-100/80 space-y-3.5">
+                              <p className="text-[9px] font-black uppercase tracking-wider text-[#2481CC] font-mono">
+                                # Peer Conversation Nodes:
+                              </p>
+
+                              <div className="space-y-3 max-h-52 overflow-y-auto pr-1">
+                                {comments.map((c) => (
+                                  <div key={c.id} className="bg-stone-50/50 p-3.5 rounded-2xl text-xs leading-relaxed border border-stone-100 text-left">
+                                    <div className="flex justify-between items-center mb-1">
+                                      <span className="font-mono font-black text-stone-850 text-[10.5px] uppercase">{c.userName}</span>
+                                      <span className="text-[8.5px] text-stone-400 font-bold uppercase tracking-wider">COLLABORATOR</span>
+                                    </div>
+                                    <p className="text-stone-700 font-medium">{c.text}</p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Live response block */}
+                              <div className="flex gap-2.5 pt-2">
+                                <input 
+                                  type="text"
+                                  placeholder="Post inquiry or sizing query directly in stream..."
+                                  value={newReplyTexts[p.id] || ''}
+                                  onChange={(e) => setNewReplyTexts(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                  className="flex-1 bg-stone-50 border border-stone-150 rounded-2xl px-4 py-2 text-xs outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/10 focus:border-stone-900/35 font-medium text-stone-850"
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAddReviewReply(p.id)}
+                                />
+                                <button
+                                  onClick={() => handleAddReviewReply(p.id)}
+                                  className="h-8.5 px-4 bg-stone-950 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest hover:bg-[#2481CC] transition-all select-none cursor-pointer"
+                                >
+                                  Post
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
                       </div>
                     </div>
                   );
@@ -1317,6 +1363,140 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         )}
 
       </div>
+
+      {/* ==================== SCREEN DETAILED MODAL (INSTAGRAM INSPIRED) ==================== */}
+      <AnimatePresence>
+        {selectedDetailedProduct && (
+          <div className="fixed inset-0 bg-stone-950/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
+            <div className="absolute inset-0 cursor-pointer" onClick={() => setSelectedDetailedProduct(null)} />
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white rounded-[2rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row border border-stone-150 relative z-10 max-h-[85vh]"
+            >
+              <button 
+                onClick={() => setSelectedDetailedProduct(null)}
+                className="absolute top-4 right-4 h-8 w-8 bg-black/40 hover:bg-black/60 rounded-full text-white flex items-center justify-center transition-colors cursor-pointer z-20"
+              >
+                <X size={16} />
+              </button>
+
+              {/* Left Side: Stunning Media */}
+              <div className="w-full md:w-1/2 aspect-square md:aspect-auto bg-stone-50 border-r border-stone-100 flex items-center justify-center relative overflow-hidden">
+                <img 
+                  src={selectedDetailedProduct.imageUrl} 
+                  alt={selectedDetailedProduct.name}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+                
+                {/* Immersive Tag overlay */}
+                <div className="absolute bottom-4 left-4 bg-stone-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/15 text-[10px] font-bold text-stone-200 flex items-center gap-1.5 uppercase tracking-wider">
+                  <span>{selectedDetailedProduct.countryFlag}</span>
+                  <span>Origin: {selectedDetailedProduct.originCountry}</span>
+                </div>
+              </div>
+
+              {/* Right Side: Threads & Custom Metadata details */}
+              <div className="w-full md:w-1/2 p-6 flex flex-col justify-between text-left h-full overflow-y-auto">
+                <div className="space-y-4">
+                  {/* Vendor Header */}
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 rounded-full bg-stone-950 font-black text-[10px] text-white flex items-center justify-center overflow-hidden">
+                      {selectedDetailedProduct.sellerPhoto ? (
+                        <img src={selectedDetailedProduct.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        selectedDetailedProduct.sellerName.slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-stone-900 leading-none uppercase flex items-center gap-1">
+                        <span>{selectedDetailedProduct.sellerName}</span>
+                        <BadgeCheck size={12} className="text-blue-500 fill-blue-500 shrink-0" />
+                      </p>
+                      <p className="text-[10px] text-stone-450 font-bold uppercase tracking-wider mt-1">Verified Merchant</p>
+                    </div>
+                  </div>
+
+                  {/* Title & Description */}
+                  <div className="space-y-1.5 border-t border-stone-50 pt-3">
+                    <span className="text-[8px] font-black tracking-widest bg-stone-100 text-stone-500 px-2 py-0.5 rounded-md uppercase">
+                      #{selectedDetailedProduct.category.replace('&', '').replace(' ', '').toLowerCase()}
+                    </span>
+                    <h3 className="text-base font-black text-stone-900 leading-snug">
+                      {selectedDetailedProduct.name}
+                    </h3>
+                    <p className="text-xs font-medium text-stone-600 leading-relaxed pt-1">
+                      {selectedDetailedProduct.description}
+                    </p>
+                  </div>
+
+                  {/* Star rating & Stock info */}
+                  <div className="border-t border-stone-50 pt-3 text-[11.5px] font-semibold text-stone-500 space-y-2">
+                    <div className="flex justify-between">
+                      <span>Trust Rating:</span>
+                      <span className="text-stone-900 font-black flex items-center gap-1">
+                        <Star size={11} className="fill-amber-400 text-amber-400" />
+                        {selectedDetailedProduct.rating.toFixed(1)} ({selectedDetailedProduct.reviewsCount} transits)
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Logistics Pipeline:</span>
+                      {selectedDetailedProduct.stock > 0 ? (
+                        <span className="text-emerald-600 font-black uppercase text-[10px] tracking-wider">Active Inventory ({selectedDetailedProduct.stock} Stock)</span>
+                      ) : (
+                        <span className="text-red-500 font-black uppercase text-[10px] tracking-wider">Transit depleted</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Checkout pricing and checkout CTA buttons */}
+                <div className="border-t border-stone-100 pt-5 mt-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[9px] text-stone-400 uppercase font-black tracking-widest">Pre-clearance Price Check</p>
+                      <p className="text-xl font-black text-stone-950 font-sans mt-0.5">{formatPrice(selectedDetailedProduct.price)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest text-right">DUTIES & TAXES</p>
+                      <p className="text-[10px] text-stone-550 font-bold uppercase tracking-wider text-right mt-1">100% EXEMPTED / FREE</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      disabled={selectedDetailedProduct.stock === 0}
+                      onClick={() => {
+                        addToCart(selectedDetailedProduct);
+                        setSelectedDetailedProduct(null);
+                      }}
+                      className="flex-1 py-2.5 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-black uppercase tracking-wider border border-stone-200 transition-all select-none disabled:opacity-40 cursor-pointer"
+                    >
+                      Add Bag
+                    </button>
+                    <button
+                      disabled={selectedDetailedProduct.stock === 0}
+                      onClick={() => {
+                        setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
+                        setSelectedDetailedProduct(null);
+                        setIsCheckoutOpen(true);
+                        setCheckoutStep(1);
+                      }}
+                      className="flex-1 py-2.5 bg-stone-950 hover:bg-stone-900 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
+                    >
+                      Buy Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* ==================== 1. FLOATING AI HELP OVERLAY ==================== */}
       <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end">
