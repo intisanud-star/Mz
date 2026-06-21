@@ -26394,10 +26394,10 @@ function ExonaApp() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                         >
-                          <h2 className="text-2xl font-bold text-ink mb-1">{user.displayName}</h2>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-ink text-[14px]/none">{user.email?.split('@')[0]}</p>
-                            <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">institutional portal</span>
+                          <h2 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2 tracking-tight">{user.displayName}</h2>
+                          <div className="flex items-center gap-2.5 flex-wrap">
+                            <p className="text-ink text-[16px] font-semibold">{user.email?.split('@')[0]}</p>
+                            <span className="px-2.5 py-0.5 bg-gray-50 border border-gray-150 rounded-full text-zinc-500 text-[12px] font-bold">institutional portal</span>
                             {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
                               <button 
                                 onClick={async () => {
@@ -26408,7 +26408,7 @@ function ExonaApp() {
                                     showNotification(e.message || 'Failed to send verification', 'error');
                                   }
                                 }}
-                                className="px-2 py-0.5 bg-red-500 text-white rounded-full text-[10px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
+                                className="px-2.5 py-0.5 bg-red-500 text-white rounded-full text-[11px] font-bold uppercase tracking-tighter hover:bg-red-600 transition-colors"
                               >
                                 Verify Email
                               </button>
@@ -26420,16 +26420,16 @@ function ExonaApp() {
                   </div>
 
                   {/* Profile avatar with camera hover overlay */}
-                  <div className="relative group/profile-avatar h-20 w-20 shrink-0">
-                    <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center">
+                  <div className="relative group/profile-avatar h-28 w-28 sm:h-32 sm:w-32 shrink-0">
+                    <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-full overflow-hidden border-2 border-white shadow-md flex items-center justify-center bg-gray-50">
                       {isUploadingProfile ? (
                         <div className="h-full w-full bg-white flex flex-col items-center justify-center">
-                          <div className="h-5 w-5 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
+                          <div className="h-6 w-6 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
                         </div>
                       ) : userDoc?.photoURL || user.photoURL ? (
                         <img src={userDoc?.photoURL || user.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Profile" />
                       ) : (
-                        <div className="h-full w-full bg-white flex items-center justify-center text-ink font-bold text-2xl">
+                        <div className="h-full w-full bg-zinc-100 flex items-center justify-center text-ink font-black text-3xl">
                           {user.displayName?.charAt(0)}
                         </div>
                       )}
@@ -26437,7 +26437,7 @@ function ExonaApp() {
 
                     {!isUploadingProfile && (
                       <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/profile-avatar:opacity-100 transition-opacity cursor-pointer rounded-full z-20">
-                        <CameraIcon size={16} />
+                        <CameraIcon size={20} />
                         <input 
                           type="file" 
                           className="hidden" 
@@ -26464,7 +26464,7 @@ function ExonaApp() {
                         <textarea 
                           value={editingProfile.bio}
                           onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
-                          className="w-full text-ink text-[14px] bg-gray-50 border border-gray-100 outline-none rounded-xl p-4 h-32 resize-none focus:bg-white focus:border-accent/20 transition-all leading-relaxed"
+                          className="w-full text-ink text-[16px] bg-gray-50 border border-gray-100 outline-none rounded-xl p-4 h-32 resize-none focus:bg-white focus:border-accent/20 transition-all leading-relaxed"
                           placeholder="Tell the world about yourself..."
                         />
                       </motion.div>
@@ -26474,7 +26474,7 @@ function ExonaApp() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="text-ink text-[14px] whitespace-pre-wrap font-medium"
+                        className="text-ink text-[16px] whitespace-pre-wrap font-medium leading-relaxed"
                       >
                         {userDoc?.bio || "No bio yet."}
                       </motion.p>
@@ -30341,7 +30341,7 @@ function ExonaApp() {
                 {(view === 'profile' || view === 'login') && (
                   <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
-                <div className={`relative h-[26px] w-[26px] rounded-full overflow-hidden transition-all duration-200 ${
+                <div className={`relative h-[30px] w-[30px] rounded-full overflow-hidden transition-all duration-200 ${
                   view === 'profile' || view === 'login'
                     ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
                     : 'group-hover:scale-105'
