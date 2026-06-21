@@ -17658,7 +17658,7 @@ function ExonaApp() {
         };
 
         return (
-          <div className="flex flex-col bg-slate-50 min-h-screen pb-24">
+          <div className="flex-1 overflow-y-auto bg-slate-50 h-full flex flex-col pb-24 text-[13px]">
             {/* Header Area */}
             <div className="bg-white border-b border-gray-100 px-6 py-5 sticky top-0 z-10 flex items-center justify-between">
               <div className="flex items-center gap-4">
