@@ -3425,6 +3425,7 @@ function ExonaApp() {
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
+  const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
   const lastScrollTop = useRef(0);
@@ -4509,6 +4510,19 @@ function ExonaApp() {
   useEffect(() => {
     localStorage.setItem('exonasoft_enabled_workspace_apps', JSON.stringify(enabledAppIds));
   }, [enabledAppIds]);
+
+  const launchWorkspaceTool = (id: string) => {
+    if (!enabledAppIds.includes(id)) {
+      setEnabledAppIds(prev => {
+        if (!prev.includes(id)) {
+          return [...prev, id];
+        }
+        return prev;
+      });
+    }
+    setActiveWorkspaceTool(id);
+    setView('workspace');
+  };
 
   // Force cloud firebase engines on direct deep link launches to make apps completely live
   useEffect(() => {
@@ -21604,9 +21618,91 @@ function ExonaApp() {
                         }
                       }}
                     />
-                    <button className="text-gray-400 hover:text-indigo-600 transition-colors">
-                      <Paperclip size={18} />
-                    </button>
+                    <div className="relative flex items-center">
+                      <button 
+                        onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'broadcast' ? null : 'broadcast')}
+                        className={`transition-colors py-1 ${activeAttachmentMenu === 'broadcast' ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'}`}
+                        title="Attachment Features"
+                      >
+                        <Paperclip size={18} />
+                      </button>
+
+                      {activeAttachmentMenu === 'broadcast' && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveAttachmentMenu(null);
+                            }}
+                          />
+                          <div className="absolute bottom-[40px] right-0 z-50 bg-white border border-gray-150 rounded-2xl shadow-xl p-3 w-[260px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2.5 px-1 text-left">Attachment Tools</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {/* Option 1: Exona Air Drop */}
+                              <button
+                                onClick={() => {
+                                  setActiveAttachmentMenu(null);
+                                  launchWorkspaceTool('file-share');
+                                  showNotification("Launching Exona Drop...", "success");
+                                }}
+                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                              >
+                                <div className="h-10 w-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                  <Radio size={18} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-700 leading-tight">Exona Air Drop</span>
+                              </button>
+
+                              {/* Option 2: PDF Studio */}
+                              <button
+                                onClick={() => {
+                                  setActiveAttachmentMenu(null);
+                                  launchWorkspaceTool('pdf');
+                                  showNotification("Launching PDF Studio...", "success");
+                                }}
+                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                              >
+                                <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                  <FileJson size={18} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-700 leading-tight">PDF Studio</span>
+                              </button>
+
+                              {/* Option 3: Cloud Storage */}
+                              <button
+                                onClick={() => {
+                                  setActiveAttachmentMenu(null);
+                                  launchWorkspaceTool('storage');
+                                  showNotification("Launching Cloud Storage...", "success");
+                                }}
+                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                              >
+                                <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                  <HardDrive size={18} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-700 leading-tight">Cloud Storage</span>
+                              </button>
+
+                              {/* Option 4: E-Test Portal */}
+                              <button
+                                onClick={() => {
+                                  setActiveAttachmentMenu(null);
+                                  launchWorkspaceTool('e-test');
+                                  showNotification("Launching E-Test Portal...", "success");
+                                }}
+                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                              >
+                                <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                  <BadgeCheck size={18} />
+                                </div>
+                                <span className="text-[10px] font-bold text-gray-700 leading-tight">e Test Portal</span>
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {/* Mic / Audio record mimic */}
@@ -23007,9 +23103,91 @@ function ExonaApp() {
                         }}
                         className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans"
                       />
-                      <button className="text-slate-400 hover:text-indigo-600 transition-colors shrink-0">
-                        <Paperclip size={18} />
-                      </button>
+                      <div className="relative flex items-center">
+                        <button 
+                          onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'chat' ? null : 'chat')}
+                          className={`transition-colors py-1 shrink-0 ${activeAttachmentMenu === 'chat' ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'}`}
+                          title="Attachment Features"
+                        >
+                          <Paperclip size={18} />
+                        </button>
+
+                        {activeAttachmentMenu === 'chat' && (
+                          <>
+                            <div 
+                              className="fixed inset-0 z-40" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveAttachmentMenu(null);
+                              }}
+                            />
+                            <div className="absolute bottom-[40px] right-0 z-50 bg-white border border-gray-150 rounded-2xl shadow-xl p-3 w-[260px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2.5 px-1 text-left">Attachment Tools</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {/* Option 1: Exona Air Drop */}
+                                <button
+                                  onClick={() => {
+                                    setActiveAttachmentMenu(null);
+                                    launchWorkspaceTool('file-share');
+                                    showNotification("Launching Exona Drop...", "success");
+                                  }}
+                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                >
+                                  <div className="h-10 w-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                    <Radio size={18} />
+                                  </div>
+                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">Exona Air Drop</span>
+                                </button>
+
+                                {/* Option 2: PDF Studio */}
+                                <button
+                                  onClick={() => {
+                                    setActiveAttachmentMenu(null);
+                                    launchWorkspaceTool('pdf');
+                                    showNotification("Launching PDF Studio...", "success");
+                                  }}
+                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                >
+                                  <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                    <FileJson size={18} />
+                                  </div>
+                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">PDF Studio</span>
+                                </button>
+
+                                {/* Option 3: Cloud Storage */}
+                                <button
+                                  onClick={() => {
+                                    setActiveAttachmentMenu(null);
+                                    launchWorkspaceTool('storage');
+                                    showNotification("Launching Cloud Storage...", "success");
+                                  }}
+                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                >
+                                  <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                    <HardDrive size={18} />
+                                  </div>
+                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">Cloud Storage</span>
+                                </button>
+
+                                {/* Option 4: E-Test Portal */}
+                                <button
+                                  onClick={() => {
+                                    setActiveAttachmentMenu(null);
+                                    launchWorkspaceTool('e-test');
+                                    showNotification("Launching E-Test Portal...", "success");
+                                  }}
+                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                >
+                                  <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                    <BadgeCheck size={18} />
+                                  </div>
+                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">e Test Portal</span>
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
 
