@@ -13752,7 +13752,18 @@ function ExonaApp() {
             </div>
 
             {/* Scrollable Timeline Box */}
-            <div className="flex-1 overflow-y-auto no-scrollbar w-full pb-32">
+            <div 
+              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32"
+              onScroll={(e) => {
+                const currentScrollTop = e.currentTarget.scrollTop;
+                if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
+                  setShowFABs(false);
+                } else if (currentScrollTop < lastScrollTop.current - 8) {
+                  setShowFABs(true);
+                }
+                lastScrollTop.current = currentScrollTop;
+              }}
+            >
               <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
                 <div className="block">
               <div 
