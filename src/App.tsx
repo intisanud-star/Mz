@@ -3545,56 +3545,7 @@ function ExonaApp() {
       });
   }, [serverReady]);
 
-  const startY = useRef(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos'].includes(view);
-    if (isFixedLayoutView) {
-      startY.current = 0;
-      return;
-    }
-    if (scrollContainerRef.current?.scrollTop === 0) {
-      startY.current = e.touches[0].pageY;
-    } else {
-      startY.current = 0;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const isFixedLayoutView = ['institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos'].includes(view);
-    if (isFixedLayoutView) return;
-    if (startY.current === 0 || refreshing) return;
-    const currentY = e.touches[0].pageY;
-    const diff = currentY - startY.current;
-    if (diff > 0 && scrollContainerRef.current && scrollContainerRef.current.scrollTop <= 0) {
-      setPullDistance(diff);
-      // Prevent browser's native pull-to-refresh
-      if (e.cancelable) e.preventDefault();
-    }
-  };
-
-  const handleTouchEnd = () => {
-    if (pullDistance > 80 && !refreshing) {
-      setRefreshing(true);
-      // Clear posts to force a visual refresh and handle the case where postsLimit is already 10
-      setPosts([]);
-      setPostsLimit(10);
-      setHasMorePosts(true);
-      
-      // Also refresh broadcast history and other stats
-      fetchBroadcastHistory();
-      
-      setTimeout(() => {
-        setRefreshing(false);
-        setPullDistance(0);
-        showNotification('Feed Updated', 'success');
-      }, 1200);
-    } else {
-      setPullDistance(0);
-    }
-    startY.current = 0;
-  };
 
   useEffect(() => {
     if (!serverReady) return;
@@ -29914,11 +29865,7 @@ function ExonaApp() {
           <main 
             ref={scrollContainerRef}
             className={`flex-1 ${isFixedLayoutView ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'} bg-card relative`}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
             onScroll={(e) => {
-              if (refreshing) return;
               const currentScrollTop = e.currentTarget.scrollTop;
               if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
                 setShowFABs(false);
@@ -29928,36 +29875,8 @@ function ExonaApp() {
               lastScrollTop.current = currentScrollTop;
             }}
           >
-            <AnimatePresence>
-              {(refreshing || pullDistance > 0) && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ 
-                    height: refreshing ? 80 : Math.min(pullDistance, 100),
-                    opacity: 1 
-                  }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="w-full flex items-center justify-center overflow-hidden bg-gray-50/50"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <motion.div 
-                      animate={{ rotate: refreshing ? 360 : pullDistance * 2 }}
-                      transition={{ repeat: refreshing ? Infinity : 0, duration: 1, ease: "linear" }}
-                      className="text-accent"
-                    >
-                      <Repeat size={24} className={refreshing ? "animate-pulse" : ""} />
-                    </motion.div>
-                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
-                      {refreshing ? 'Updating Terminal...' : pullDistance > 70 ? 'Release to refresh' : 'Pull to update'}
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <motion.div
+            <div
               className={`w-full relative ${isFixedLayoutView ? 'h-full flex flex-col overflow-hidden min-h-0' : ''}`}
-              style={{ y: ['feed', 'videos'].includes(view) ? 0 : (refreshing ? 0 : Math.min(pullDistance * 0.5, 50)) }}
             >
 
           {isViewLoading ? (
@@ -30027,7 +29946,7 @@ function ExonaApp() {
           ) : (
             renderView()
           )}
-         </motion.div>
+         </div>
        </main>
       );
      })()}
