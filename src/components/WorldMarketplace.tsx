@@ -4,31 +4,30 @@ import {
   ShoppingBag, 
   ShoppingCart, 
   Search, 
-  Filter, 
   Globe, 
   Sparkles, 
   CheckCircle2, 
   Plus, 
   Trash2, 
   ChevronRight, 
-  ChevronDown, 
   ArrowLeft, 
   Check, 
   X, 
-  RotateCcw, 
-  HelpCircle, 
   Send, 
   Star, 
   Package, 
   Truck, 
   CreditCard, 
-  Tag, 
-  BadgeCheck,
+  AlertCircle, 
+  Clock, 
+  MessageCircle,
+  Heart,
+  Repeat,
   MapPin,
-  Calendar,
-  AlertCircle,
-  Clock,
-  Camera
+  HelpCircle,
+  ArrowRight,
+  Monitor,
+  BadgeCheck
 } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -263,11 +262,20 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeMarketView, setActiveMarketView] = useState<'browse' | 'orders'>('browse');
 
-  // AI Shopping Assistant chat
+  // Threads Social States
+  const [likedPosts, setLikedPosts] = useState<{ [productId: string]: boolean }>({});
+  const [threadLikesCount, setThreadLikesCount] = useState<{ [productId: string]: number }>({});
+  const [expandedReviews, setExpandedReviews] = useState<{ [productId: string]: boolean }>({});
+  const [newReplyTexts, setNewReplyTexts] = useState<{ [productId: string]: string }>({});
+
+  // Real-time Collaborative Reviews
+  const [collaborativeReviews, setCollaborativeReviews] = useState<{ [productId: string]: any[] }>({});
+
+  // Pinned/Sticky AI Shopping Assistant chat
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [aiChatInput, setAiChatInput] = useState('');
   const [aiChatHistory, setAiChatHistory] = useState<{ role: 'user' | 'ai'; text: string }[]>([
-    { role: 'ai', text: "Welcome to Exona Global Assistant! Ask me about global shipping, custom fees, product specs, or sizing guides for international products." }
+    { role: 'ai', text: "Greetings, Exona explorer! Ask me anything about regional shipping pipelines, customs fees, size conversions, or specific product models." }
   ]);
   const [isGeneratingAiResponse, setIsGeneratingAiResponse] = useState(false);
 
@@ -291,7 +299,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   }, [cart, user?.uid]);
 
   // Categories list
-  const categoriesList = ['All', 'Electronics', 'Fashion & Apparel', 'Beauty & Makeup', 'Books & Novels', 'Snacks & Treats', 'Crafts & Art', 'AI Models'];
+  const categoriesList = ['All', 'Electronics', 'Fashion & Apparel', 'Beauty & Makeup', 'Books & Novels', 'Snacks & Treats', 'Crafts & Art'];
 
   // Global countries list
   const countriesFlags: { [key: string]: string } = {
@@ -314,7 +322,6 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         const qProd = query(collection(db, 'marketplace_products'), orderBy('rating', 'desc'));
         const unsubscribe = onSnapshot(qProd, async (snap) => {
           if (snap.empty) {
-            // Seed Firestore database with default premium catalog products
             console.log("Seeding marketplace_products database...");
             for (const dp of DEFAULT_PRODUCTS) {
               const docRef = doc(collection(db, 'marketplace_products'), dp.id);
@@ -362,6 +369,77 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       console.error(e);
     }
   }, [user]);
+
+  // Listen to Collaborative Reviews in Real-time from Firestore
+  useEffect(() => {
+    try {
+      const qReviews = query(collection(db, 'marketplace_reviews'), orderBy('timestamp', 'asc'));
+      const unsubReviews = onSnapshot(qReviews, (snap) => {
+        const grouped: { [productId: string]: any[] } = {};
+        snap.docs.forEach(doc => {
+          const r = { id: doc.id, ...doc.data() };
+          const pId = (r as any).productId;
+          if (pId) {
+            if (!grouped[pId]) grouped[pId] = [];
+            grouped[pId].push(r);
+          }
+        });
+        setCollaborativeReviews(grouped);
+      });
+      return () => unsubReviews();
+    } catch (err) {
+      console.error("Failed to listen to collaborative reviews:", err);
+    }
+  }, []);
+
+  // Seed default comments if no reviews are loaded from Firestore
+  const getProductComments = (productId: string) => {
+    const list = collaborativeReviews[productId] || [];
+    if (list.length > 0) return list;
+
+    // Hardcoded beautiful default replies so the threads are immediately vivid
+    const defaults: { [key: string]: any[] } = {
+      prod_bonsai: [
+        { id: 'def_b1', userName: 'Alex Chen', text: '🌱 My seeds sprouted in just 6 days! Handcraft packaging was pristine.', timestamp: { toDate: () => new Date() } },
+        { id: 'def_b2', userName: 'Yuki Sato', text: 'The handcrafted copper shears are robust and extremely precise for pruning!', timestamp: { toDate: () => new Date() } }
+      ],
+      prod_quantum: [
+        { id: 'def_q1', userName: 'Elena R.', text: 'TOPOLOGICAL logic simulator works beautifully with local learning agents! Heavy speed improvements.', timestamp: { toDate: () => new Date() } }
+      ],
+      prod_ankara: [
+        { id: 'def_a1', userName: 'K. Adewale', text: 'Fabric has amazing geometric depth. Best piece in my spring wardrobe.', timestamp: { toDate: () => new Date() } }
+      ],
+      prod_messenger: [
+        { id: 'def_m1', userName: 'Mateo Ross', text: 'Smells of exquisite Florence leather. Perfect vintage feel.', timestamp: { toDate: () => new Date() } }
+      ]
+    };
+    return defaults[productId] || [];
+  };
+
+  // Submit Collaborative Review Reply on a Product Thread
+  const handleAddReviewReply = async (productId: string) => {
+    const text = newReplyTexts[productId];
+    if (!text || !text.trim()) return;
+
+    try {
+      const reviewData = {
+        productId,
+        userId: user?.uid || 'guest',
+        userName: userDoc?.displayName || user?.displayName || 'Exona Scholar',
+        text: text.trim(),
+        timestamp: new Date()
+      };
+
+      await addDoc(collection(db, 'marketplace_reviews'), reviewData);
+      
+      // Update local placeholder values
+      setNewReplyTexts(prev => ({ ...prev, [productId]: '' }));
+      showNotification("Community perspective posted directly to the Thread!", "success");
+    } catch (err) {
+      console.error("Failed to add review reply:", err);
+      showNotification("Error broadcasting perspective.", "error");
+    }
+  };
 
   // Filter & Search Products
   const filteredProducts = useMemo(() => {
@@ -430,7 +508,6 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   // Format dynamic currency prices based on user active conversion code
   const formatPrice = (usdAmount: number) => {
     const converted = usdAmount * activeCurrency.rate;
-    // Add nice commas
     const formatted = converted.toLocaleString(undefined, { 
       minimumFractionDigits: usdAmount % 1 === 0 ? 0 : 2, 
       maximumFractionDigits: 2 
@@ -457,7 +534,6 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
     setIsCreatingProduct(true);
     try {
-      // Choose smart category visual photo based on keyword match
       let fallbackImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=450&q=80';
       if (newProductCategory.toLowerCase().includes('fashion')) {
         fallbackImg = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=450&q=80';
@@ -482,7 +558,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         countryFlag: flag,
         imageUrl: newProductImg.trim() || fallbackImg,
         stock: parseInt(newProductStock) || 10,
-        rating: 5.0, // Brand new items start at pristine star count
+        rating: 5.0, 
         reviewsCount: 1,
         sellerName: userDoc?.displayName || user?.displayName || "Global Merchant",
         sellerId: user?.uid || "custom-seller",
@@ -495,7 +571,6 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       
       showNotification(`Item "${newProductName}" has been uploaded to the international marketplace!`, 'success');
       
-      // Reset State
       setNewProductName('');
       setNewProductDesc('');
       setNewProductPrice('');
@@ -590,7 +665,6 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
       await addDoc(collection(db, 'marketplace_orders'), orderData);
       
-      // Update inventory stock counts in background
       for (const item of cart) {
         if (!item.product.isCustom) {
           try {
@@ -598,14 +672,14 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             await updateDoc(docRef, {
               stock: Math.max(0, item.product.stock - item.quantity)
             });
-          } catch (e) {
-            console.warn("Could not reduce stock count.", e);
+          } catch (invErr) {
+            console.warn("Stock reduce ignored for item", item.product.id, invErr);
           }
         }
       }
 
       setCart([]);
-      setCheckoutStep(3); // Go to order success celebration
+      setCheckoutStep(3); 
       showNotification("International transaction successful! Order tracking activated.", "success");
     } catch (e) {
       console.error(e);
@@ -624,7 +698,6 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     setIsGeneratingAiResponse(true);
 
     try {
-      // Perform dynamic prompt modeling
       const prompt = `You are the Exona World Marketplace AI Expert assistant. A user is asking about our products, global logistic pathways, shipping speeds, tax rules, or customs options. Here are our active items:\n${products.map(p => `- ${p.name} from ${p.originCountry} at $${p.price}`).join('\n')}\n\nUser Question: "${userMsg}"\nProvide a warm, premium, highly customized response addressing their specific prompt. Suggest 1 or 2 matching items from our actual active list above using bold text! Keep your response under 100 words.`;
       
       const serverRes = await fetch('/api/ai/chat', {
@@ -633,140 +706,141 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         body: JSON.stringify({ prompt, stream: false })
       });
 
-      if (serverRes.ok) {
-        const resJson = await serverRes.json();
-        const responseText = resJson.response || resJson.text || "I found amazing international choices! We ship to multiple countries with zero duty barriers. Try adding the " + products[0]?.name + " to your cart.";
-        setAiChatHistory(prev => [...prev, { role: 'ai', text: responseText }]);
-      } else {
-        // High fidelity simulated merchant responses
-        setTimeout(() => {
-          let reply = "That's an excellent query! For shipping from " + (selectedCountry !== "Global" ? selectedCountry : "our global warehouses") + ", standard delivery takes 3 to 5 business days, while supersonic drone delivery clearing customs instantly takes only 12 hours. I highly recommend looking at " + (products[1]?.name || "Exona Neural Quantum Core") + " for deep productivity!";
-          if (userMsg.toLowerCase().includes('japan') || userMsg.toLowerCase().includes('bonsai')) {
-            reply = "Ah, Japanese craftsmanship! The Zen Kyoto Bonsai and mini ceramic pot is hand-packed direct from Kyoto with certified organic soils. It ships under specialized botanic transport seals with zero customs delays.";
-          } else if (userMsg.toLowerCase().includes('nigeria') || userMsg.toLowerCase().includes('kimono') || userMsg.toLowerCase().includes('fashion')) {
-            reply = "Incredible choice! Lagos Threads handweaves the wax-print Ankaran patterns using authentic Nigerian materials. Shipping is fully insured and delivers directly via local dispatch agents.";
-          }
-          setAiChatHistory(prev => [...prev, { role: 'ai', text: reply }]);
-        }, 1100);
-      }
-    } catch (err) {
-      console.error("AI assistant error: ", err);
-      // Fallback response
-      setAiChatHistory(prev => [...prev, { role: 'ai', text: "Apologies! My neural connection is a bit slow. We offer worldwide express delivery from Osaka, Munich, London, San Francisco, and Lagos. Is there a specific regional product I can check stock counts for?" }]);
+      if (!serverRes.ok) throw new Error("Server API breakdown");
+      const dat = await serverRes.json();
+      const reply = dat.response || dat.text || "I apologize, my shipping database maps are updating in the background. Please ask again in a moment!";
+      
+      setAiChatHistory(prev => [...prev, { role: 'ai', text: reply }]);
+    } catch (e) {
+      console.error(e);
+      setAiChatHistory(prev => [...prev, { role: 'ai', text: "I apologize, my local neural simulation model reported a transmission error. Let me verify our active listings for you!" }]);
     } finally {
       setIsGeneratingAiResponse(false);
     }
   };
 
-  return (
-    <div className="w-full h-full flex flex-col antialiased bg-slate-50 font-sans overflow-hidden min-h-0">
-      
-      {/* TEMU-STYLE PREMIUM SEARCH & NAVIGATION HEADER */}
-      <div className="bg-white border-b border-gray-150 sticky top-0 z-40 shadow-xs">
-        {/* Top Segment: Search segment touching edge to edge and sub-actions beneath it */}
-        <div className="w-full max-w-none flex flex-col items-stretch border-b border-gray-100">
-          
-          {/* Search Box: Cover EDGE-TO-EDGE of screen */}
-          <div className="w-full relative flex items-center bg-white border-b-2 border-[#2481CC] focus-within:border-[#2481CC]/80 transition-all select-none">
-            <input 
-              type="text" 
-              placeholder="Search global items, flash deals, imported crafts..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-5 pr-22 py-3.5 outline-none text-xs font-bold text-slate-800 placeholder:text-slate-400 font-sans"
-            />
-            
-            {/* Camera Visual Search Icon (Interactive Demo simulation) */}
-            <button 
-              onClick={() => {
-                showNotification("Visual image-search simulation active! Enter keywords to filter regional products.", "info");
-              }}
-              className="absolute right-13 text-slate-400 hover:text-[#2481CC] transition-colors p-1 flex items-center justify-center cursor-pointer"
-              title="Visual Search"
-            >
-              <Camera size={16.5} />
-            </button>
+  const toggleHeartPost = (productId: string) => {
+    const isLiked = !likedPosts[productId];
+    setLikedPosts(prev => ({ ...prev, [productId]: isLiked }));
+    setThreadLikesCount(prev => {
+      const existing = prev[productId] || Math.floor(Math.random() * 25) + 5;
+      return { ...prev, [productId]: isLiked ? existing + 1 : Math.max(0, existing - 1) };
+    });
+    if (isLiked) {
+      showNotification("Item saved to your private wishlist thread!", "success");
+    }
+  };
 
-            {/* Mag Glass Search Button */}
-            <button 
-              className="absolute right-0 top-0 bottom-0 px-6.5 bg-[#2481CC] hover:bg-[#2481CC]/95 text-white flex items-center justify-center transition-all cursor-pointer"
-            >
-              <Search size={16.5} />
-            </button>
+  const getThreadLikesCount = (productId: string) => {
+    if (threadLikesCount[productId] !== undefined) {
+      return threadLikesCount[productId];
+    }
+    // Lazy initialize random but persistent-ish counts
+    const fallbackCount = Math.floor(productId.charCodeAt(productId.length - 1 || 0) % 18) + 6;
+    return fallbackCount;
+  };
+
+  return (
+    <div id="marketplace_p2p_portal" className="w-full h-full flex flex-col bg-[#FAF9F6] text-stone-900 font-sans overflow-hidden select-none">
+      
+      {/* SWISS MODERN LUX DESIGN HEADER */}
+      <div className="bg-white border-b border-stone-150/70 sticky top-0 z-40 px-4 md:px-8 py-4.5 shadow-[0_2px_12px_rgba(0,0,0,0.015)] space-y-4 shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 bg-stone-900 rounded-xl flex items-center justify-center text-white font-black text-sm tracking-tight shadow-sm shrink-0">
+              𝕏
+            </div>
+            <div>
+              <h2 className="text-sm font-black uppercase tracking-[0.25em] text-stone-900 leading-none">Exona Market Stream</h2>
+              <p className="text-[10px] text-[#2481CC] font-bold tracking-widest uppercase mt-1">International Threads & Marketplace</p>
+            </div>
           </div>
 
-          {/* Under-search Row: Cart, Shop Toggle, Currency selection */}
-          <div className="w-full px-4 sm:px-8 py-2.5 flex items-center justify-between gap-4 flex-wrap select-none md:justify-end bg-slate-50/50">
-            {/* Store & Orders Navigation Toggle */}
-            <div className="flex items-center bg-slate-100 border border-slate-200/60 p-0.5 rounded-lg font-sans">
+          <div className="flex items-center gap-2.5">
+            {/* Currency Selector */}
+            <div className="flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl px-3 py-1.5 transition-all text-[11px] font-bold cursor-pointer shadow-xs">
+              <Globe size={11.5} className="text-[#2481CC]" />
+              <select 
+                value={currencyCode} 
+                onChange={(e) => setCurrencyCode(e.target.value)}
+                className="bg-transparent outline-none border-none py-0 text-stone-800 font-black tracking-tight uppercase text-[9.5px] cursor-pointer"
+              >
+                {currencyModes.map(c => (
+                  <option key={c.code} value={c.code} className="text-stone-900 bg-white font-bold">{c.code} ({c.symbol})</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Sell Button if Admin */}
+            {isAdmin && (
+              <button
+                onClick={() => setIsListModalOpen(true)}
+                className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-850 text-white rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer"
+              >
+                <Plus size={11.5} />
+                <span>Publish Item</span>
+              </button>
+            )}
+
+            {/* Orders Feed Toggle */}
+            <div className="flex bg-stone-100/80 p-0.5 rounded-xl border border-stone-200 shrink-0">
               <button 
                 onClick={() => setActiveMarketView('browse')}
-                className={`px-3 py-1 rounded-md text-[10.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                  activeMarketView === 'browse' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                className={`px-3 py-1.5 rounded-lg text-[9.5px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1 ${
+                  activeMarketView === 'browse' ? 'bg-white text-stone-900 shadow-xs scale-102' : 'text-stone-500 hover:text-stone-900'
                 }`}
               >
-                <ShoppingBag size={11.5} />
-                <span>Shop</span>
+                <ShoppingBag size={11} />
+                <span>Stream</span>
               </button>
               <button 
                 onClick={() => setActiveMarketView('orders')}
-                className={`px-3 py-1 rounded-md text-[10.5px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 relative ${
-                  activeMarketView === 'orders' ? 'bg-white text-[#2481CC] shadow-xs' : 'text-slate-500 hover:text-[#2481CC]'
+                className={`px-3 py-1.5 rounded-lg text-[9.5px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1 relative ${
+                  activeMarketView === 'orders' ? 'bg-white text-[#2481CC] shadow-xs scale-102' : 'text-stone-500 hover:text-stone-800'
                 }`}
               >
-                <Package size={11.5} />
+                <Package size={11} />
                 <span>Orders</span>
                 {orders.some(o => o.status !== 'delivered') && (
-                  <span className="absolute -top-1 -right-1 h-1.5 w-1.5 bg-red-500 rounded-full animate-ping" />
+                  <span className="absolute top-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full animate-pulse" />
                 )}
               </button>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Currency Selector */}
-              <div className="flex items-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 transition-all text-[11px] font-semibold cursor-pointer font-sans shadow-xs">
-                <Globe size={11} className="text-[#2481CC]" />
-                <select 
-                  value={currencyCode} 
-                  onChange={(e) => setCurrencyCode(e.target.value)}
-                  className="bg-transparent outline-none border-none py-0.5 text-ink cursor-pointer font-bold tracking-tight uppercase text-[10px]"
-                >
-                  {currencyModes.map(c => (
-                    <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Sell Button */}
-              {isAdmin && (
-                <button
-                  onClick={() => setIsListModalOpen(true)}
-                  className="px-3 py-1.5 bg-[#2481CC] hover:bg-blue-600 text-white rounded-xl flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer font-sans"
-                  title="Sell on Exona"
-                >
-                  <Plus size={12} />
-                  <span>Sell</span>
-                </button>
+            {/* Cart Button */}
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="px-4 py-2 bg-stone-50 border border-stone-200 hover:bg-stone-100 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all relative shrink-0 cursor-pointer text-stone-900"
+            >
+              <ShoppingCart size={12.5} />
+              {cart.length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-[#2481CC] text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white">
+                  {cart.reduce((total, item) => total + item.quantity, 0)}
+                </span>
               )}
-
-              {/* Cart Trigger */}
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="px-3.5 py-1.5 bg-slate-900 text-white hover:bg-slate-950 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm relative shrink-0 cursor-pointer font-sans"
-              >
-                <ShoppingCart size={13} />
-                {cart.length > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-[#2481CC] text-white text-[8px] font-bold h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-bounce">
-                    {cart.reduce((total, item) => total + item.quantity, 0)}
-                  </span>
-                )}
-              </button>
-            </div>
+            </button>
           </div>
         </div>
 
-        {/* Lower Segment: Navigation Category Tabs (All, Women, Men, Home, Sports...) */}
-        <div className="w-full px-4 sm:px-8 max-w-none flex items-center gap-6 overflow-x-auto scrollbar-none pb-2 bg-white select-none">
+        {/* Elegant Minimalist Search Input Box */}
+        <div className="relative flex items-center w-full">
+          <input 
+            type="text" 
+            placeholder="Search communities, local student crafts, trending imports..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-stone-50/50 border border-stone-200 focus:bg-white focus:border-stone-900/35 hover:bg-stone-50 rounded-2xl outline-none text-xs font-bold text-stone-800 placeholder:text-stone-400 transition-all font-sans"
+          />
+          <Search size={14} className="absolute left-4 text-stone-400" />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-4 text-stone-400 hover:text-stone-900 p-0.5">
+              <X size={12.5} />
+            </button>
+          )}
+        </div>
+
+        {/* Category Tabs Stream */}
+        <div className="flex items-center gap-5 overflow-x-auto scrollbar-none pb-0.5 pt-1">
           {categoriesList.map((cat) => {
             const isSelected = selectedCategory === cat;
             return (
@@ -776,11 +850,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   setSelectedCategory(cat);
                   setActiveMarketView('browse');
                 }}
-                className="relative py-1 border-b-2 border-transparent text-xs font-black uppercase tracking-wider transition-all cursor-pointer shrink-0 text-slate-500 hover:text-[#2481CC]"
+                className="relative py-1 cursor-pointer shrink-0 text-xs font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors"
               >
-                <span className={isSelected ? 'text-[#2481CC] font-extrabold' : 'text-slate-500 hover:text-slate-900'}>{cat}</span>
+                <span className={isSelected ? 'text-stone-900 font-black' : ''}>{cat}</span>
                 {isSelected && (
-                  <motion.div layoutId="temu-nav-indicator" className="absolute bottom-[-2px] left-0 right-0 h-[2.5px] bg-[#2481CC]" />
+                  <motion.div layoutId="threads-category-indicator" className="absolute bottom-0 left-0 right-0 h-[2px] bg-stone-900" />
                 )}
               </button>
             );
@@ -788,430 +862,496 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         </div>
       </div>
 
-      {/* SCROLLABLE MAIN CONTENT AREA */}
-      <div className="flex-1 w-full overflow-y-auto bg-slate-50 pb-28 min-h-0">
-
-      {/* GREEN MICRO-PROMOTION BANNERS */}
-      <div className="bg-emerald-50 text-emerald-800 border-b border-emerald-100/60 py-2.5 px-4 text-[10.5px] font-bold select-none shadow-xs">
-        <div className="w-full px-4 sm:px-8 max-w-none flex items-center justify-center sm:justify-start gap-5 flex-wrap">
-          <div className="flex items-center gap-1.5 hover:text-emerald-950 transition-colors">
-            <Check size={12.5} className="text-emerald-600 stroke-[3]" />
-            <span>Free shipping on all items</span>
+      {/* MAIN THREADS STREAM VIEWPORT */}
+      <div className="flex-1 overflow-y-auto w-full max-w-2xl mx-auto px-4 md:px-6 pt-5 pb-28 min-h-0">
+        
+        {/* FREE SHIPS MICRO PROMPT BANNER */}
+        <div className="mb-6 bg-stone-100/55 border border-stone-200/50 rounded-2xl py-3 px-4.5 flex items-center justify-between gap-4 text-[10.5px] font-bold text-stone-600">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={12} className="text-[#2481CC]" />
+            <span>Ad-hoc shipping fee structure: <strong>FREE WORLDWIDE CARGO</strong></span>
           </div>
-          <div className="flex items-center gap-1.5 hover:text-emerald-950 transition-colors">
-            <Check size={12.5} className="text-emerald-600 stroke-[3]" />
-            <span>Price adjustment within 30 days</span>
-          </div>
-          <div className="hidden md:flex items-center gap-1.5 hover:text-emerald-950 transition-colors">
-            <Check size={12.5} className="text-emerald-600 stroke-[3]" />
-            <span>100% Direct regional artisan guarantee</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-sans font-black">Active</span>
           </div>
         </div>
-      </div>
 
-      {/* QUICK DEALS, SORTING AND SHIPPING FILTERS */}
-      {activeMarketView === 'browse' && (
-        <div className="w-full px-4 sm:px-8 max-w-none pt-4.5 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 overflow-x-auto scrollbar-none select-none">
-          <div className="flex items-center gap-2 self-start">
-            <button
-              onClick={() => {
-                setSortBy('rating');
-                setSelectedCategory('All');
-                setSelectedCountry('Global');
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
-                sortBy === 'rating' && selectedCountry === 'Global' && selectedCategory === 'All'
-                  ? 'bg-red-50 text-red-600 border-red-200 shadow-xs'
-                  : 'bg-white text-slate-600 border-gray-200 hover:bg-slate-50'
-              }`}
-            >
-              🔥 Best-Selling
-            </button>
-            <button
-              onClick={() => {
-                setSortBy('priceAsc');
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
-                sortBy === 'priceAsc'
-                  ? 'bg-red-50 text-red-600 border-red-200 shadow-xs'
-                  : 'bg-white text-slate-600 border-gray-200 hover:bg-slate-50'
-              }`}
-            >
-              ⚡ Flash Deals
-            </button>
-            <button
-              onClick={() => {
-                setSortBy('reviews');
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
-                sortBy === 'reviews'
-                  ? 'bg-red-50 text-red-600 border-red-200 shadow-xs'
-                  : 'bg-white text-slate-600 border-gray-200 hover:bg-slate-50'
-              }`}
-            >
-              ⭐ Top-Rated 5★
-            </button>
-          </div>
-
-          {/* Regional Shipping filter pill */}
-          <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3.5 py-1.5 rounded-full text-[10px] font-bold self-end sm:self-auto shrink-0 shadow-xs">
-            <Globe size={11.5} className="text-red-500" />
-            <span className="text-slate-400 uppercase font-black text-[9px]">Ships From:</span>
-            <select 
-              value={selectedCountry} 
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer text-slate-800 font-extrabold border-none py-0 uppercase text-[10px]"
-            >
-              {countriesList.map(c => (
-                <option key={c} value={c}>{countriesFlags[c]} {c}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      )}
-
-      {activeMarketView === 'orders' ? (
-        /* ==================== MY ORDERS HUB ==================== */
-        <div className="w-full px-4 sm:px-8 max-w-none pb-24 pt-6">
-          <div className="mb-6">
-            <h3 className="text-xl font-black text-ink font-display uppercase tracking-tight">Active Delivery Tracking</h3>
-            <p className="text-xs text-muted font-semibold uppercase tracking-wider mt-1">Monitor real-time status and customs checkpoints</p>
-          </div>
-
-          {orders.length === 0 ? (
-            <div className="py-20 text-center bg-white border border-gray-150 rounded-3xl flex flex-col items-center gap-4 justify-center">
-              <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-400">
-                <Package size={28} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-ink">No global orders recorded yet</h4>
-                <p className="text-xs text-muted mt-1 max-w-xs mx-auto">Explore our international catalog and pick authentic creations direct to your door.</p>
-              </div>
-              <button 
-                onClick={() => setActiveMarketView('browse')}
-                className="px-5 py-2.5 bg-ink text-white text-[10px] uppercase font-black tracking-widest rounded-xl"
-              >
-                Go Shopping
-              </button>
+        {activeMarketView === 'orders' ? (
+          /* ==================== ACTIVE ORDERS TIMELINE ==================== */
+          <div className="space-y-6">
+            <div className="border-b border-stone-200 pb-3">
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-stone-900">Customs Transit Timeline</h3>
+              <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider mt-1">Cross-border logistics tracker nodes</p>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {orders.map((o) => {
-                const stepIdx = o.status === 'pending' ? 1 : o.status === 'dispatched' ? 2 : o.status === 'customs' ? 3 : o.status === 'out_for_delivery' ? 4 : 5;
-                const statusLabels = {
-                  pending: 'Pending Verification',
-                  dispatched: 'Dispatched from Regional Hub',
-                  customs: 'Clearing Customs Inspection',
-                  out_for_delivery: 'Out for Local Delivery',
-                  delivered: 'Arrived & Delivered Successfully'
-                };
-                return (
-                  <div key={o.id} className="bg-white border border-gray-150 rounded-3xl overflow-hidden shadow-sm">
-                    {/* Order header information */}
-                    <div className="bg-slate-50 p-4.5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-                      <div>
-                        <p className="text-muted uppercase font-black tracking-widest text-[9.5px]">Global Tracking ID</p>
-                        <p className="font-mono font-bold text-ink text-sm mt-0.5">{o.id.toUpperCase()}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-4 text-left">
-                        <div>
-                          <p className="text-muted uppercase font-black tracking-widest text-[9.5px]">Total Paid</p>
-                          <p className="font-bold text-emerald-600 mt-0.5">{formatPrice(o.total)}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted uppercase font-black tracking-widest text-[9.5px]">Destination</p>
-                          <p className="font-bold text-ink mt-0.5 truncate max-w-[150px]">{o.address}, {o.country}</p>
-                        </div>
-                        <div>
-                          <p className="text-muted uppercase font-black tracking-widest text-[9.5px]">Status</p>
-                          <span className={`inline-block px-2.5 py-0.5 text-[9.5px] font-black uppercase tracking-wider rounded-full mt-1 ${
-                            o.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {statusLabels[o.status]}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Progress slider steps */}
-                    <div className="p-6">
-                      <div className="relative flex items-center justify-between w-full mb-8">
-                        {/* Underline connect bar */}
-                        <div className="absolute left-0 right-0 h-1 bg-gray-100 -translate-y-1/2 top-1/2 z-0" />
-                        <div 
-                          className="absolute left-0 h-1 bg-[#2481CC] -translate-y-1/2 top-1/2 transition-all duration-1000 z-0"
-                          style={{ width: `${((stepIdx - 1) / 4) * 100}%` }}
-                        />
+            {orders.length === 0 ? (
+              <div className="py-16 text-center bg-white border border-stone-150 rounded-[2rem] flex flex-col items-center gap-4 justify-center px-6">
+                <div className="h-12 w-12 bg-stone-50 rounded-xl flex items-center justify-center text-stone-400 border border-stone-200">
+                  <Package size={20} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-stone-900 uppercase">No cargo transits found</h4>
+                  <p className="text-[10px] text-stone-400 mt-1 max-w-xs mx-auto leading-relaxed font-semibold uppercase tracking-wider">Acquire designs in the Market Stream. Transits clear customs in real-time!</p>
+                </div>
+                <button 
+                  onClick={() => setActiveMarketView('browse')}
+                  className="px-4 py-2 bg-stone-900 hover:bg-stone-850 text-white text-[9px] uppercase font-black tracking-widest rounded-xl transition-all"
+                >
+                  Explore Stream
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {orders.map((o) => {
+                  const stepIdx = o.status === 'pending' ? 1 : o.status === 'dispatched' ? 2 : o.status === 'customs' ? 3 : o.status === 'out_for_delivery' ? 4 : 5;
+                  const statusLabels = {
+                    pending: 'Pending Verification',
+                    dispatched: 'Dispatched from Regional Hub',
+                    customs: 'Clearing Customs Inspection',
+                    out_for_delivery: 'Out for Local Delivery',
+                    delivered: 'Arrived & Delivered Successfully'
+                  };
 
-                        {/* Step items */}
-                        {[
-                          { label: 'Verified', key: 'pending', icon: CheckCircle2 },
-                          { label: 'Dispatched', key: 'dispatched', icon: Truck },
-                          { label: 'Customs', key: 'customs', icon: Globe },
-                          { label: 'Transit', key: 'out_for_delivery', icon: MapPin },
-                          { label: 'Arrived', key: 'delivered', icon: Package }
-                        ].map((st, sI) => {
-                          const IconS = st.icon;
-                          const activeStep = sI + 1 <= stepIdx;
-                          return (
-                            <div key={st.label} className="relative z-10 flex flex-col items-center">
-                              <div className={`h-9 w-9 rounded-full flex items-center justify-center transition-all ${
-                                sI + 1 === stepIdx 
-                                  ? 'bg-[#2481CC] text-white ring-4 ring-[#2481CC]/20' 
-                                  : activeStep 
-                                    ? 'bg-ink text-white' 
-                                    : 'bg-white text-gray-300 border-2 border-slate-200'
-                              }`}>
-                                <IconS size={15} />
+                  return (
+                    <div key={o.id} className="bg-white border border-stone-150 rounded-[2rem] overflow-hidden shadow-sm">
+                      {/* Tracking Card Header */}
+                      <div className="bg-stone-50 p-4 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-[11px] text-stone-600 font-bold">
+                        <div>
+                          <p className="text-stone-400 uppercase font-black tracking-widest text-[8.5px]">Global Node Tracking ID</p>
+                          <p className="font-mono font-black text-stone-900 text-xs mt-0.5">{o.id.toUpperCase()}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-left">
+                          <div>
+                            <p className="text-stone-400 uppercase font-black tracking-widest text-[8.5px]">Items Total</p>
+                            <p className="font-black text-emerald-600 mt-0.5">{formatPrice(o.total)}</p>
+                          </div>
+                          <div>
+                            <p className="text-stone-400 uppercase font-black tracking-widest text-[8.5px]">Courier Routing</p>
+                            <p className="font-black text-stone-950 mt-0.5 truncate max-w-[150px] uppercase font-mono">{o.address}, {o.country}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-5.5 space-y-5">
+                        {/* Dynamic Step Line Indicator */}
+                        <div className="grid grid-cols-5 gap-2 relative pt-2">
+                          {[
+                            { label: 'Pending', step: 1 },
+                            { label: 'Dispatched', step: 2 },
+                            { label: 'Customs', step: 3 },
+                            { label: 'Transit', step: 4 },
+                            { label: 'Arrived', step: 5 }
+                          ].map((s) => {
+                            const isDone = s.step <= stepIdx;
+                            const isCurrent = s.step === stepIdx;
+                            return (
+                              <div key={s.label} className="text-center space-y-1.5 relative">
+                                <div className={`h-1 mx-auto rounded-full ${isDone ? 'bg-stone-900' : 'bg-stone-200'}`} />
+                                <p className={`text-[8px] font-black uppercase tracking-wider ${isCurrent ? 'text-[#2481CC]' : isDone ? 'text-stone-900' : 'text-stone-300'}`}>
+                                  {s.label}
+                                </p>
                               </div>
-                              <span className={`text-[9px] uppercase font-black tracking-wider mt-2 bg-white px-1 ${
-                                sI + 1 === stepIdx ? 'text-[#2481CC]' : activeStep ? 'text-ink' : 'text-slate-400'
-                              }`}>
-                                {st.label}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
 
-                      {/* Items details nested in order */}
-                      <div className="border-t border-slate-100 pt-5 mt-4">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-[#2481CC] mb-3">Cart Contents</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                          {o.items.map((it, idx) => (
-                            <div key={idx} className="flex gap-3 items-center border border-slate-50 p-2.5 rounded-2xl bg-slate-50/40">
-                              <img src={it.imageUrl} className="h-10 w-10 rounded-xl object-cover border border-slate-100 bg-white" />
-                              <div className="min-w-0 flex-1">
-                                <h5 className="text-[11px] font-bold text-ink truncate leading-snug">{it.name}</h5>
-                                <div className="flex items-center gap-1.5 mt-0.5">
-                                  <span className="text-[9.5px] text-emerald-600 font-bold">{formatPrice(it.price)}</span>
-                                  <span className="text-[9px] text-[#2481CC] font-bold">Qty {it.quantity}</span>
-                                  <span className="text-[9px] text-slate-400 font-medium">({it.originCountry})</span>
+                        {/* Order nested items */}
+                        <div className="border-t border-stone-100 pt-4">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-stone-400 mb-3 block">Package Contents</p>
+                          <div className="space-y-2">
+                            {o.items.map((it, idx) => (
+                              <div key={idx} className="flex gap-3 items-center bg-stone-50/60 p-2.5 rounded-xl border border-stone-150/40">
+                                <img src={it.imageUrl} className="h-9 w-9 rounded-lg object-cover bg-white" />
+                                <div className="min-w-0 flex-1">
+                                  <h5 className="text-[11px] font-bold text-stone-900 truncate leading-snug">{it.name}</h5>
+                                  <p className="text-[9.5px] mt-0.5 flex items-center gap-1.5 text-stone-500 font-semibold">
+                                    <span className="text-emerald-600 font-extrabold">{formatPrice(it.price)}</span>
+                                    <span>Quantity: {it.quantity}</span>
+                                    <span className="text-stone-400">{it.originCountry}</span>
+                                  </p>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Updates history log */}
-                      <div className="border-t border-slate-100 pt-4.5 mt-4.5 bg-indigo-50/10 p-3.5 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                          <Clock size={10} /> Dynamic Delivery Timeline Logs
-                        </p>
-                        <div className="mt-2 space-y-2">
-                          {o.trackingUpdates?.map((u, ui) => (
-                            <div key={ui} className="text-xs text-left">
-                              <span className="font-mono font-bold text-slate-400 text-[10px]">{u.time}</span>
-                              <span className="mx-2 text-[#2481CC]">•</span>
-                              <span className="text-ink font-semibold">{u.desc}</span>
-                            </div>
-                          ))}
+                        {/* Real-time Logistics Stream updates */}
+                        <div className="bg-stone-50 p-4 rounded-xl space-y-2.5 border border-stone-150/40 text-left">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-stone-400 flex items-center gap-1">
+                            <Clock size={10} /> Live Logistics Nodes Log
+                          </p>
+                          <div className="space-y-2">
+                            {o.trackingUpdates?.map((u, ui) => (
+                              <div key={ui} className="text-[11px] flex gap-2">
+                                <span className="font-mono font-black text-stone-400 text-[10px] shrink-0">{u.time}</span>
+                                <span className="text-[#2481CC] font-black shrink-0">::</span>
+                                <span className="text-stone-800 font-semibold leading-normal">{u.desc}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ) : (
-        /* ==================== BROWSE/EXPLORE CATALOG ==================== */
-        <div className="w-full px-0 pb-24 pt-4">
-          
-          {isLoadingProducts ? (
-            <div className="py-24 text-center px-4">
-              <div className="h-10 w-10 border-4 border-slate-200 border-t-red-600 rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-xs font-bold uppercase tracking-widest text-red-600 animate-pulse">Syncing International Inventories...</p>
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="py-20 text-center bg-white border border-gray-150 rounded-3xl px-6 max-w-lg mx-auto shadow-sm mx-4">
-              <div className="h-14 w-14 bg-slate-50 rounded-full flex items-center justify-center text-slate-400 mx-auto mb-4">
-                <AlertCircle size={22} />
+                  );
+                })}
               </div>
-              <h4 className="text-xs font-black text-ink uppercase tracking-wide">No local or custom matches found</h4>
-              <p className="text-[11px] text-muted max-w-sm mx-auto leading-relaxed mt-1 font-semibold uppercase tracking-wider">Try resetting filters, or listing your own product item above.</p>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('All');
-                  setSelectedCountry('Global');
-                }}
-                className="mt-4 px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all"
-              >
-                Clear All Filters
-              </button>
-            </div>
-          ) : (
-            /* ULTRA PREMIUM 2-COLUMN GRID (ADAPTIVE TO 3/4/5 COLUMNS ON DESKTOP) */
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4.5">
-              {filteredProducts.map((p) => {
-                const isBestRanking = p.rating >= 4.7;
-                // Formulate simulated dynamic high conversion values
-                const salesAmt = Math.floor(((p.reviewsCount * 7.7) + 3)) + "K+";
-                const discountPct = 30 + (Math.floor(p.price) % 40);
-                const originalPrice = p.price * (1 + (discountPct / 100));
+            )}
+          </div>
+        ) : (
+          /* ==================== SCREEN 1: THE THREADS MARKET FEED ==================== */
+          <div className="space-y-8 pb-10">
+            
+            {/* PINNED THREAD AT TOP: EXONA AI SMART BROKER */}
+            <div className="flex gap-3 bg-white border border-stone-150 rounded-[1.75rem] p-5 relative shadow-sm">
+              <div className="flex flex-col items-center shrink-0">
+                <div className="h-10 w-10 rounded-full bg-[#2481CC] text-white flex items-center justify-center font-black text-sm relative border-2 border-white shadow-xs">
+                  🤖
+                  <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 rounded-full border border-white" />
+                </div>
+                {/* Visual Connective Thread line under avatar */}
+                <div className="w-0.5 flex-1 bg-stone-150/80 my-2" />
+              </div>
 
-                return (
-                  <div 
-                    key={p.id}
-                    onClick={() => setSelectedDetailedProduct(p)}
-                    className="border border-gray-150/60 cursor-pointer hover:shadow-md transition-all flex flex-col group relative"
-                    style={{ backgroundColor: '#fff', borderRadius: 6, overflow: 'hidden', marginBottom: 8 }}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-black text-stone-900 uppercase">Exona AI Expert</span>
+                    <BadgeCheck size={13} className="text-blue-500 fill-blue-500" />
+                    <span className="text-[10px] text-[#2481CC] font-black uppercase">@exona_ai_broker</span>
+                  </div>
+                  <span className="text-[8.5px] uppercase font-black tracking-widest text-[#2481CC] bg-blue-50 px-2 py-0.5 rounded-md">PINNED</span>
+                </div>
+
+                <p className="text-xs font-semibold uppercase tracking-wider text-stone-400 mt-0.5">International Logistics Assistant</p>
+                <p className="text-[11.5px] text-stone-700 mt-2 leading-relaxed font-medium">
+                  "I am connected live to international shipment custom databases. Ask me anything about regional import rules, pricing formulas in Excoins, or custom shipping times!"
+                </p>
+
+                {/* AI Chat History */}
+                <div className="mt-3.5 space-y-2.5 border-t border-stone-100 pt-3.5 text-left">
+                  {aiChatHistory.map((m, idx) => (
+                    <div key={idx} className="text-[11px] leading-relaxed">
+                      <span className={`font-black uppercase text-[9px] block mb-0.5 ${m.role === 'user' ? 'text-stone-500' : 'text-[#2481CC]'}`}>
+                        {m.role === 'user' ? 'You (Student)' : 'Exona AI Broker'}
+                      </span>
+                      <p className="text-stone-800 font-semibold">{m.text}</p>
+                    </div>
+                  ))}
+
+                  {isGeneratingAiResponse && (
+                    <div className="text-[11px] text-stone-400 font-black tracking-wider animate-pulse uppercase">
+                      ⌛ Simulating customs shipping path variables...
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Chat Interaction Input inside the Thread */}
+                <form 
+                  onSubmit={(e) => { e.preventDefault(); handleSendAiMessage(); }}
+                  className="mt-3.5 flex items-center gap-2"
+                >
+                  <input 
+                    type="text"
+                    value={aiChatInput}
+                    onChange={(e) => setAiChatInput(e.target.value)}
+                    disabled={isGeneratingAiResponse}
+                    placeholder="Type to ask the AI broker within this Thread..."
+                    className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-[#2481CC]/40 transition-all text-stone-800"
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!aiChatInput.trim() || isGeneratingAiResponse}
+                    className="h-8 px-3.5 bg-stone-900 text-white rounded-xl text-[9px] uppercase font-black tracking-widest hover:bg-[#2481CC] transition-colors disabled:opacity-40"
                   >
-                    {/* Image Area with glassmorphic origin country tag */}
-                    <div className="relative aspect-square w-full bg-slate-100 overflow-hidden shrink-0">
-                      <img 
-                        src={p.imageUrl} 
-                        alt={p.name}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-104 select-none"
-                        referrerPolicy="no-referrer"
-                      />
-                      
-                      {/* Flag Origin Glass Badge */}
-                      <div className="absolute bottom-2.5 left-2.5 flex items-center bg-black/45 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-wider py-0.5 px-2.5 rounded-full shadow-sm gap-1">
-                        <span>{p.countryFlag}</span>
-                        <span>{p.originCountry}</span>
+                    Send
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* BROWSE FEED: COLLABORATIVE THREADS LIST */}
+            {isLoadingProducts ? (
+              <div className="py-20 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-[#2481CC] animate-pulse">Syncing International Inventories...</p>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="py-16 text-center bg-white border border-stone-150 rounded-[2rem] px-6 max-w-sm mx-auto shadow-xs">
+                <AlertCircle size={22} className="mx-auto text-stone-400 mb-3" />
+                <h4 className="text-xs font-black text-stone-950 uppercase">No active listings</h4>
+                <p className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider mt-1.5 leading-relaxed">Reset your category filter tabs or publish a new ad-hoc custom listing above.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredProducts.map((p) => {
+                  const comments = getProductComments(p.id);
+                  const isExpanded = !!expandedReviews[p.id];
+                  const hasHeart = !!likedPosts[p.id];
+                  const likesCount = getThreadLikesCount(p.id);
+
+                  // Calculate simulated dynamic discount original price
+                  const discountPct = 30 + (Math.floor(p.price) % 35);
+                  const originalPrice = p.price * (1 + (discountPct / 100));
+
+                  return (
+                    <div 
+                      key={p.id}
+                      className="flex gap-4 bg-white border border-stone-150 p-6 rounded-[2rem] hover:shadow-md transition-all text-left relative"
+                    >
+                      {/* Left Side: Brand Avatar & Core Vertical Thread Line */}
+                      <div className="flex flex-col items-center shrink-0">
+                        <div className="h-11 w-11 rounded-full bg-stone-950 font-black text-xs text-white flex items-center justify-center border-2 border-stone-100 shadow-xs uppercase select-none">
+                          {p.sellerPhoto ? (
+                            <img src={p.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            p.sellerName.slice(0, 2)
+                          )}
+                        </div>
+                        {/* Visual threads line that connecting the post components & collapsed comments */}
+                        <div className="w-0.5 flex-1 bg-gradient-to-b from-stone-200/80 to-stone-50/10 my-3.5" />
+                        
+                        {/* Little reply circle indicator at lower base */}
+                        {comments.length > 0 && (
+                          <div className="h-5 w-5 rounded-full bg-stone-50 border border-stone-200 flex items-center justify-center text-[8.5px] font-black text-stone-400 shrink-0">
+                            {comments.length}
+                          </div>
+                        )}
                       </div>
 
-                      {p.stock <= 3 && p.stock > 0 && (
-                        <div className="absolute top-2 left-2 bg-red-600 text-white text-[8px] font-black uppercase tracking-widest py-0.5 px-2 rounded-md">
-                          Only {p.stock} left!
-                        </div>
-                      )}
-                    </div>
+                      {/* Right Side: Product Post Thread content */}
+                      <div className="flex-1 min-w-0">
+                        {/* Creator Header Row */}
+                        <div className="flex items-center justify-between gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <span 
+                              onClick={() => {
+                                // Dynamic interaction to view seller
+                                showNotification(`Direct Message channels with seller ${p.sellerName} are encrypted.`, "info");
+                              }}
+                              className="text-xs font-black text-stone-900 uppercase tracking-tight truncate hover:underline cursor-pointer"
+                            >
+                              {p.sellerName}
+                            </span>
+                            <BadgeCheck size={12.5} className="text-[#2481CC] fill-stone-50 shrink-0" />
+                            <span className="text-[10px] text-stone-400 bg-stone-100/60 font-black uppercase tracking-wider px-2 py-0.5 rounded-lg shrink-0">
+                              {p.countryFlag} {p.originCountry}
+                            </span>
+                          </div>
 
-                    {/* Details content matching structure of Temu/Amazon screenshot */}
-                    <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between min-h-0 space-y-2">
-                      <div className="space-y-1.5">
-                        
-                        {/* Deals and Sales Badges */}
-                        <div className="flex flex-wrap items-center gap-1">
-                          <span className="bg-orange-50 text-orange-600 text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded border border-orange-100/50">
-                            🏷️ Sale
+                          <span className="text-[9.5px] font-bold text-stone-400 uppercase tracking-tight select-none">
+                            2h ago
                           </span>
-                          {isBestRanking && (
-                            <span className="bg-red-50 text-red-600 text-[8.5px] font-black uppercase px-1.5 py-0.5 rounded border border-red-100/50">
-                              ⚡ Deal
+                        </div>
+
+                        {/* Product Title Category */}
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <span className="text-[8px] tracking-[0.15em] font-black bg-[#2481CC]/10 text-[#2481CC] uppercase px-1.5 py-0.5 rounded-md">
+                            {p.category}
+                          </span>
+                          {p.featured && (
+                            <span className="text-[8px] tracking-[0.15em] font-black bg-rose-50 text-red-600 border border-red-100 uppercase px-1.5 py-0.5 rounded-md">
+                              🔥 Verified Hot Deal
                             </span>
                           )}
                         </div>
 
-                        {/* Best Selling dynamic placement */}
-                        {p.featured ? (
-                          <div className="text-[9.5px] font-black text-red-600 uppercase tracking-tight truncate">
-                            🔥 #1 BEST-SELLING ITEM | Last 6 months
+                        {/* Story Content Block */}
+                        <h4 className="text-[13.5px] font-black text-stone-900 mt-2.5 leading-snug tracking-tight">
+                          {p.name}
+                        </h4>
+                        <p className="text-xs font-medium text-stone-600 mt-2 leading-relaxed block pr-2">
+                          {p.description}
+                        </p>
+
+                        {/* Immersive Beautiful Image Attachment Card */}
+                        <div className="mt-4 relative rounded-2xl overflow-hidden aspect-[4/3] bg-stone-100/60 border border-stone-200/50 group select-none">
+                          <img 
+                            src={p.imageUrl} 
+                            alt={p.name}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-103"
+                            referrerPolicy="no-referrer"
+                          />
+
+                          {/* Floating Price sticker */}
+                          <div className="absolute top-3.5 right-3.5 bg-stone-950 text-white backdrop-blur-md font-sans text-xs font-extrabold px-3.5 py-1.5 rounded-xl flex flex-col items-center shadow-md">
+                            <span className="text-emerald-400 text-xs font-black leading-none">{formatPrice(p.price)}</span>
+                            <span className="line-through text-stone-400 text-[10px] mt-0.5 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
                           </div>
-                        ) : (
-                          <div className="text-[9.5px] font-black text-amber-600 uppercase tracking-tight truncate">
-                            🔥 #4 BEST-SELLING ITEM | Last 6 months
+
+                          {/* Stock Warnings indicator inside card */}
+                          {p.stock <= 3 && p.stock > 0 && (
+                            <div className="absolute bottom-3 left-3 bg-red-600 text-white text-[8px] font-black uppercase tracking-widest py-1 px-2.5 rounded-lg border border-red-500 shadow-sm animate-pulse">
+                              Supply Critical Node: Close to Sold Out!
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Star Rating details */}
+                        <div className="flex items-center gap-1 mt-3">
+                          <Star size={11} className="fill-amber-400 text-amber-500" />
+                          <span className="text-[10px] font-black text-stone-800">{p.rating.toFixed(1)}</span>
+                          <span className="text-[9px] text-stone-400 font-bold uppercase tracking-wider">({p.reviewsCount} verified community transits)</span>
+                        </div>
+
+                        {/* Threads-style Actions bar */}
+                        <div className="flex items-center justify-between gap-4 mt-5 pt-3.5 border-t border-stone-100">
+                          <div className="flex items-center gap-3 md:gap-4 select-none">
+                            {/* Wishlist toggle */}
+                            <button 
+                              onClick={() => toggleHeartPost(p.id)}
+                              className="group flex items-center gap-1 text-stone-400 hover:text-rose-500 transition-colors p-1 rounded-lg hover:bg-stone-50"
+                              title="Like / Save to Thread Wishlist"
+                            >
+                              <Heart size={16.5} className={hasHeart ? 'fill-rose-500 text-rose-600 animate-bounce' : 'text-stone-400'} />
+                              <span className="text-[10px] font-black text-stone-700">{likesCount}</span>
+                            </button>
+
+                            {/* Reply comments collapsing */}
+                            <button 
+                              onClick={() => setExpandedReviews(prev => ({ ...prev, [p.id]: !isExpanded }))}
+                              className="group flex items-center gap-1 text-stone-400 hover:text-stone-950 transition-colors p-1 rounded-lg hover:bg-stone-50"
+                              title="Discuss with student community"
+                            >
+                              <MessageCircle size={16.5} />
+                              <span className="text-[10px] font-black text-stone-700">{comments.length}</span>
+                            </button>
+
+                            {/* Reshare Action */}
+                            <button 
+                              onClick={() => {
+                                showNotification(`Listing link to "${p.name}" has been forwarded to class channels!`, "success");
+                              }}
+                              className="group flex items-center gap-1 text-stone-400 hover:text-[#2481CC] transition-colors p-1 rounded-lg hover:bg-stone-50"
+                              title="Reshare across school channels"
+                            >
+                              <Repeat size={15.5} />
+                              <span className="text-[9px] font-black text-stone-500 tracking-wider">SHARE</span>
+                            </button>
+
+                            {/* Delete listing button for admins only */}
+                            {isAdmin && (
+                              <button 
+                                onClick={() => handleDeleteProduct(p.id, p.name)}
+                                className="text-stone-300 hover:text-red-500 transition-colors p-1"
+                                title="Remove item"
+                              >
+                                <Trash2 size={13.5} />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Fast Checkout Purchase CTA */}
+                            <button
+                              disabled={p.stock === 0}
+                              onClick={() => {
+                                addToCart(p);
+                                setIsCartOpen(true);
+                              }}
+                              className="px-3 py-1.5 bg-stone-900 border border-stone-150 hover:bg-[#2481CC] text-white hover:text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all shadow-xs"
+                            >
+                              🎒 Add Cart
+                            </button>
+
+                            <button
+                              disabled={p.stock === 0}
+                              onClick={() => {
+                                // Setup direct immediate checkout
+                                setCart([{ product: p, quantity: 1 }]);
+                                setIsCheckoutOpen(true);
+                                setCheckoutStep(1);
+                              }}
+                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest transition-all shadow-xs"
+                            >
+                              ⚡ BUY NOW
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* NESTED TIMELINE REPLIES / COMMUNITY DISCUSSION BOARD (Threads specific) */}
+                        {isExpanded && (
+                          <div className="mt-4 pt-4 border-t border-stone-100 space-y-3">
+                            <p className="text-[9.5px] font-black uppercase tracking-wider text-[#2481CC] mb-2 font-mono">
+                              # Peer Conversation Thread Nodes:
+                            </p>
+
+                            <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1">
+                              {comments.map((c) => (
+                                <div key={c.id} className="bg-stone-50 p-3 rounded-2xl text-[11px] leading-relaxed border border-stone-150/40">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <span className="font-mono font-black text-stone-900 text-[10px] uppercase">{c.userName}</span>
+                                    <span className="text-[8.5px] text-stone-400">Collaborator</span>
+                                  </div>
+                                  <p className="text-stone-700 font-semibold">{c.text}</p>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Write community reply in real-time */}
+                            <div className="flex gap-2.5 pt-2">
+                              <input 
+                                type="text"
+                                placeholder="Inquire with community, post sizing specs..."
+                                value={newReplyTexts[p.id] || ''}
+                                onChange={(e) => setNewReplyTexts(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:bg-white focus:border-stone-900/35 font-bold text-stone-800"
+                                onKeyDown={(e) => e.key === 'Enter' && handleAddReviewReply(p.id)}
+                              />
+                              <button
+                                onClick={() => handleAddReviewReply(p.id)}
+                                className="h-8 px-3.5 bg-stone-900 text-white rounded-xl text-[9.5px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-xs"
+                              >
+                                Post
+                              </button>
+                            </div>
                           </div>
                         )}
 
-                        {/* Product Name */}
-                        <h4 className="text-[11.5px] font-bold text-slate-800 leading-snug line-clamp-2 pr-1 font-sans group-hover:text-red-600 transition-colors">
-                          {p.name}
-                        </h4>
-
-                        {/* Brief Specs Description preview */}
-                        <p className="text-[10px] text-slate-400 line-clamp-1 leading-normal font-medium select-none">
-                          {p.description}
-                        </p>
-                      </div>
-
-                      <div className="space-y-2 pt-2 border-t border-slate-50">
-                        {/* Rating, Star Seller Badge, and Quantity Sold count */}
-                        <div className="flex items-center flex-wrap justify-between gap-1">
-                          <div className="flex items-center gap-0.5 text-[10.5px]">
-                            <Star size={11} className="fill-amber-400 text-amber-500 shrink-0" />
-                            <span className="font-extrabold text-slate-800 text-[11px] ml-0.5">{p.rating.toFixed(1)}</span>
-                            <span className="ml-1 bg-purple-50 text-purple-700 text-[8.5px] font-black tracking-wider px-1.5 py-0.5 rounded border border-purple-100 uppercase">
-                              ★ Star seller
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-extrabold flex items-center gap-0.5">
-                            🔥 {salesAmt} sold
-                          </div>
-                        </div>
-
-                        {/* Price strip and Checkout shopping cart icon */}
-                        <div 
-                          className="flex pt-1" 
-                          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}
-                        >
-                          <div className="flex items-baseline flex-wrap">
-                            <span style={{ color: '#fa6400', fontWeight: 'bold', fontSize: 15 }}>
-                              {formatPrice(p.price)}
-                            </span>
-                            <span style={{ color: '#999', textDecorationLine: 'line-through', fontSize: 11, marginLeft: 4 }}>
-                              {formatPrice(originalPrice)}
-                            </span>
-                          </div>
-
-                          {/* Round outline dark shopping cart button */}
-                          <button
-                            disabled={p.stock === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              addToCart(p);
-                            }}
-                            className="hover:border-red-600 hover:bg-rose-50 hover:text-red-600 active:scale-95 disabled:bg-slate-50 disabled:border-slate-150 disabled:text-slate-400 flex items-center justify-center transition-all bg-white shadow-xs shrink-0 cursor-pointer"
-                            style={{ borderWidth: 1, borderColor: '#333', borderRadius: 50, padding: 6 }}
-                            title="Add item to checkout"
-                          >
-                            <ShoppingCart size={13.5} className="shrink-0 text-[#333] hover:text-red-600" />
-                          </button>
-                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
 
-        </div>
-      )}
+          </div>
+        )}
 
       </div>
 
-      {/* ==================== 1. AI FLOATING ASSISTANT OVERLAY ==================== */}
+      {/* ==================== 1. FLOATING AI HELP OVERLAY ==================== */}
       <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end">
-        
         <AnimatePresence>
           {isAiAssistantOpen && (
             <motion.div
               initial={{ opacity: 0, y: 30, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 30, scale: 0.95 }}
-              className="bg-white border border-gray-200/90 rounded-[2rem] w-80 sm:w-96 shadow-2xl overflow-hidden mb-3.5 flex flex-col h-[420px] no-print"
+              className="bg-white border border-stone-200 rounded-[2rem] w-80 sm:w-96 shadow-2xl overflow-hidden mb-3.5 flex flex-col h-[400px]"
             >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-[#2481CC] to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
+              <div className="bg-stone-950 px-5 py-4 text-white flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
-                  <Sparkles size={16} className="text-amber-300 animate-spin" />
+                  <Sparkles size={14} className="text-emerald-400" />
                   <div>
-                    <h4 className="text-xs font-black uppercase tracking-wider leading-none">Exona Mall Smart-Bot</h4>
-                    <span className="text-[8px] text-white/80 font-bold uppercase tracking-widest mt-0.5 block">Dynamic Global Customs Expert</span>
+                    <h4 className="text-xs font-black uppercase tracking-widest leading-none">AI Logistics Expert</h4>
+                    <span className="text-[8.5px] text-stone-400 font-bold uppercase tracking-widest mt-1 block">Duty Rate Simulator</span>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsAiAssistantOpen(false)}
-                  className="p-1 hover:bg-white/10 rounded-full text-white transition-colors"
+                  className="p-1 hover:bg-white/10 rounded-full text-white transition-colors cursor-pointer"
                 >
                   <X size={15} />
                 </button>
               </div>
 
-              {/* Chat timeline message stack */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/40">
                 {aiChatHistory.map((m, idx) => (
                   <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-[1.25rem] px-3.5 py-2.5 text-xs font-sans ${
+                    <div className={`max-w-[85%] rounded-[1.25rem] px-3.5 py-2.5 text-xs font-semibold leading-relaxed font-sans ${
                       m.role === 'user' 
-                        ? 'bg-[#2481CC] text-white rounded-tr-none' 
-                        : 'bg-white text-ink border border-gray-150 rounded-tl-none leading-relaxed'
+                        ? 'bg-stone-900 text-white rounded-tr-none' 
+                        : 'bg-white text-stone-850 border border-stone-150 rounded-tl-none shadow-xs'
                     }`}>
                       {m.text}
                     </div>
@@ -1219,17 +1359,17 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 ))}
                 {isGeneratingAiResponse && (
                   <div className="flex justify-start">
-                    <div className="bg-white border border-gray-150 rounded-[1.25rem] rounded-tl-none px-3.5 py-2.5 text-xs text-muted font-bold animate-pulse">
-                      Analyzing shipping maps...
+                    <div className="bg-white border border-stone-150 rounded-[1.25rem] rounded-tl-none px-3.5 py-2.5 text-xs text-stone-400 font-bold animate-pulse">
+                      Analyzing regional pipelines...
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Footer input bars */}
+              {/* Input for floating chat */}
               <form 
                 onSubmit={(e) => { e.preventDefault(); handleSendAiMessage(); }}
-                className="p-3 border-t border-gray-150 bg-white flex items-center gap-2"
+                className="p-3 border-t border-stone-150 bg-white flex items-center gap-2 shrink-0"
               >
                 <input 
                   type="text" 
@@ -1237,12 +1377,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   value={aiChatInput}
                   onChange={(e) => setAiChatInput(e.target.value)}
                   disabled={isGeneratingAiResponse}
-                  className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:bg-white focus:border-[#2481CC]"
+                  className="flex-1 bg-stone-50 border border-stone-150 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:bg-white focus:border-stone-900/35 text-stone-800"
                 />
                 <button
                   type="submit"
                   disabled={!aiChatInput.trim() || isGeneratingAiResponse}
-                  className="bg-ink hover:bg-[#2481CC] disabled:bg-slate-200 text-white h-8 w-8 rounded-xl flex items-center justify-center transition-all shrink-0 cursor-pointer"
+                  className="bg-stone-900 hover:bg-[#2481CC] disabled:bg-stone-200 text-white h-8 w-8 rounded-xl flex items-center justify-center transition-all shrink-0 cursor-pointer"
                 >
                   <Send size={13} />
                 </button>
@@ -1253,271 +1393,20 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
         <button
           onClick={() => setIsAiAssistantOpen(prev => !prev)}
-          className="h-12 w-12 rounded-full bg-ink text-white hover:bg-[#2481CC] flex items-center justify-center transition-all duration-300 shadow-xl border-2 border-white scale-100 active:scale-95 group relative"
+          className="h-12 w-12 rounded-full bg-stone-950 text-white hover:bg-[#2481CC] flex items-center justify-center transition-all duration-350 shadow-xl border-2 border-white cursor-pointer active:scale-95 group relative"
         >
           {isAiAssistantOpen ? (
             <X size={18} />
           ) : (
-            <>
-              <HelpCircle size={18} />
-              <span className="absolute -top-1 -right-1 bg-red-500 h-2 w-2 rounded-full animate-ping" />
-            </>
+            <Sparkles size={18} className="text-emerald-400" />
           )}
         </button>
       </div>
 
-      {/* ==================== 2. SELLER LISTING FORM MODAL (SELL ON EXONA) ==================== */}
-      <AnimatePresence>
-        {isListModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
-            >
-              {/* Header */}
-              <div className="bg-slate-50 p-6 border-b border-gray-150 flex items-center justify-between shrink-0">
-                <div>
-                  <h3 className="text-xl font-black text-ink font-display uppercase tracking-tight">List International Product</h3>
-                  <p className="text-[10px] text-muted font-bold mt-1 uppercase tracking-widest leading-none">Create a verified listing on the Exona world marketplace</p>
-                </div>
-                <button 
-                  onClick={() => setIsListModalOpen(false)}
-                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-ink transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Scrollable form body */}
-              <form onSubmit={handleCreateProduct} className="flex-1 overflow-y-auto p-6 space-y-4 font-sans text-xs">
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Item Name */}
-                  <div className="space-y-1.5 col-span-2">
-                    <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Product Title</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Kyoto Zen Bonsai Care Kit"
-                      value={newProductName}
-                      required
-                      onChange={(e) => setNewProductName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
-                    />
-                  </div>
-
-                  {/* Price */}
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Base Price (USD $)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      min="0.01"
-                      placeholder="35.00"
-                      required
-                      value={newProductPrice}
-                      onChange={(e) => setNewProductPrice(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
-                    />
-                  </div>
-
-                  {/* Stock */}
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Stock Inventory Units</label>
-                    <input 
-                      type="number" 
-                      min="1"
-                      placeholder="10"
-                      value={newProductStock}
-                      required
-                      onChange={(e) => setNewProductStock(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
-                    />
-                  </div>
-
-                  {/* Category select */}
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Category Category</label>
-                    <select
-                      value={newProductCategory}
-                      onChange={(e) => setNewProductCategory(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-ink cursor-pointer"
-                    >
-                      {categoriesList.filter(c => c !== 'All').map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Country Origin Select */}
-                  <div className="space-y-1.5">
-                    <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Export Country Origin</label>
-                    <select
-                      value={newProductCountry}
-                      onChange={(e) => setNewProductCountry(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-ink cursor-pointer"
-                    >
-                      {countriesList.filter(c => c !== 'Global').map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Custom Image URL link */}
-                <div className="space-y-1.5">
-                  <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Photo Visual URL (Optional)</label>
-                  <input 
-                    type="url" 
-                    placeholder="https://images.unsplash.com/... or leave blank for category visual"
-                    value={newProductImg}
-                    onChange={(e) => setNewProductImg(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
-                  />
-                </div>
-
-                {/* Short description */}
-                <div className="space-y-1.5">
-                  <label className="text-muted font-black uppercase tracking-wider text-[9.5px]">Detailed Specifications & Description</label>
-                  <textarea 
-                    rows={3}
-                    placeholder="Provide specific details, materials, and dispatch weights to attract premium customers..."
-                    value={newProductDesc}
-                    onChange={(e) => setNewProductDesc(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
-                  />
-                </div>
-
-                {/* Buttons controls */}
-                <div className="flex items-center gap-3 pt-4 border-t border-slate-100 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsListModalOpen(false)}
-                    className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-500 hover:text-ink hover:bg-slate-50 text-[11px] font-black uppercase tracking-widest transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isCreatingProduct}
-                    className="flex-1 py-3 bg-ink hover:bg-[#2481CC] hover:scale-102 active:scale-98 disabled:bg-slate-250 text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
-                  >
-                    {isCreatingProduct ? 'Registering...' : 'Publish Listing'}
-                  </button>
-                </div>
-
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ==================== 3. PRODUCT DETAIL INTERMEDIARY MODAL ==================== */}
-      <AnimatePresence>
-        {selectedDetailedProduct && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row max-h-[90vh]"
-            >
-              {/* Image Left Col (Desktop) */}
-              <div className="relative h-56 md:h-auto md:w-5/12 shrink-0 bg-slate-100">
-                <img 
-                  src={selectedDetailedProduct.imageUrl} 
-                  alt={selectedDetailedProduct.name}
-                  className="h-full w-full object-cover"
-                />
-                <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wide flex items-center gap-1">
-                  <span>{selectedDetailedProduct.countryFlag}</span>
-                  <span>{selectedDetailedProduct.originCountry}</span>
-                </div>
-              </div>
-
-              {/* Specs detailed right area */}
-              <div className="p-6 md:p-8 flex-1 flex flex-col justify-between overflow-y-auto min-h-0">
-                
-                <div className="space-y-4">
-                  {/* Category and close */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-[#2481CC]">{selectedDetailedProduct.category}</span>
-                    <button 
-                      onClick={() => setSelectedDetailedProduct(null)}
-                      className="p-1 hover:bg-slate-100 rounded-full text-slate-500 hover:text-ink transition-all"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-
-                  <h3 className="text-lg font-black text-ink leading-snug font-sans">{selectedDetailedProduct.name}</h3>
-                  
-                  {/* Merchant badge */}
-                  <div className="flex items-center gap-2 bg-indigo-50/20 p-2 rounded-xl border border-indigo-100/50">
-                    <BadgeCheck size={14} className="text-[#2481CC]" />
-                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
-                      Seller: <span className="text-ink font-bold">{selectedDetailedProduct.sellerName}</span>
-                    </span>
-                  </div>
-
-                  {/* Main specs text */}
-                  <div className="space-y-2 text-xs leading-relaxed text-slate-600">
-                    <p>{selectedDetailedProduct.description}</p>
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-[10px] font-semibold text-slate-500 uppercase tracking-wide gap-y-1 grid grid-cols-2">
-                      <div>Stock Units: <span className="text-ink font-bold">{selectedDetailedProduct.stock}</span></div>
-                      <div>Reviews Count: <span className="text-ink font-bold">{selectedDetailedProduct.reviewsCount}</span></div>
-                      <div>Rating average: <span className="text-ink font-bold">⭐ {selectedDetailedProduct.rating.toFixed(1)} / 5</span></div>
-                      <div>Port Security: <span className="text-emerald-600 font-bold">Customs Bonded</span></div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Confirm buy strip */}
-                <div className="border-t border-slate-100 pt-5 mt-6 flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-muted font-bold uppercase tracking-wider leading-none">Net Total</span>
-                      <span className="text-lg font-black text-ink mt-1 leading-none">{formatPrice(selectedDetailedProduct.price)}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {isAdmin && (
-                        <button
-                          onClick={() => handleDeleteProduct(selectedDetailedProduct.id, selectedDetailedProduct.name)}
-                          className="h-11 px-4 border-2 border-red-500 text-red-500 hover:bg-red-50 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-1 cursor-pointer font-sans"
-                          title="Delete Product"
-                        >
-                          <Trash2 size={14} /> Remove
-                        </button>
-                      )}
-                      
-                      <button
-                        disabled={selectedDetailedProduct.stock === 0}
-                        onClick={() => {
-                          addToCart(selectedDetailedProduct);
-                          setSelectedDetailedProduct(null);
-                        }}
-                        className="h-11 px-6 bg-ink hover:bg-[#2481CC] text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5 cursor-pointer font-sans"
-                      >
-                        <ShoppingCart size={14} /> Add inside Cart
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ==================== 4. INTEGRATED RIGHT CART BAR ==================== */}
+      {/* ==================== 2. INTEGRATED RIGHT CART BAR ==================== */}
       <AnimatePresence>
         {isCartOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] flex justify-end no-print">
-            
-            {/* Overlay click shield tracker */}
+          <div className="fixed inset-0 bg-stone-950/45 backdrop-blur-sm z-[250] flex justify-end">
             <div className="absolute inset-0 cursor-pointer" onClick={() => setIsCartOpen(false)} />
 
             <motion.div
@@ -1525,58 +1414,57 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'tween', duration: 0.3 }}
-              className="bg-white w-full max-w-md h-full relative z-10 flex flex-col shadow-2xl"
+              className="bg-white w-full max-w-md h-full relative z-10 flex flex-col shadow-2xl border-l border-stone-150"
             >
-              
-              {/* Header */}
-              <div className="bg-slate-50 p-5 border-b border-gray-150 flex items-center justify-between">
+              {/* Drawer Header */}
+              <div className="p-5 border-b border-stone-150 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <ShoppingCart size={18} className="text-[#2481CC]" />
-                  <h4 className="text-base font-black uppercase tracking-tight text-ink font-display">International Shopping Cart</h4>
+                  <ShoppingCart size={16.5} className="text-[#2481CC]" />
+                  <h4 className="text-sm font-black uppercase tracking-widest text-stone-900">Customs Delivery Cart</h4>
                 </div>
                 <button 
                   onClick={() => setIsCartOpen(false)}
-                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500 hover:text-ink transition-colors"
+                  className="p-1.5 hover:bg-stone-100 rounded-full text-stone-500 transition-colors cursor-pointer"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Items scroll */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+              {/* Items Panel */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-stone-50/50">
                 {cart.length === 0 ? (
-                  <div className="py-24 text-center text-muted text-xs space-y-3">
-                    <div className="h-12 w-12 rounded-full border border-slate-250 bg-white flex items-center justify-center text-slate-350 mx-auto">
-                      <ShoppingBag size={20} />
+                  <div className="py-24 text-center text-stone-400 text-xs space-y-3">
+                    <div className="h-12 w-12 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-400 mx-auto">
+                      <ShoppingBag size={18} />
                     </div>
-                    <p className="font-bold uppercase tracking-wider text-slate-400">Your shopping cart is empty</p>
-                    <p className="text-[10px] font-medium max-w-xs mx-auto">Click Buy on any product listed across our global regions to start filling your order.</p>
+                    <p className="font-extrabold uppercase tracking-widest text-[#2481CC]">Shopping cart is empty</p>
+                    <p className="text-[10px] font-semibold max-w-xs mx-auto text-stone-400 uppercase tracking-wide leading-relaxed">Select items and click Fast Checkout across our global threads.</p>
                   </div>
                 ) : (
                   cart.map((item) => (
-                    <div key={item.product.id} className="bg-white border border-gray-150 p-3 rounded-2xl flex gap-3 shadow-xs">
-                      <img src={item.product.imageUrl} className="h-12 w-12 rounded-xl object-cover shrink-0 select-none bg-slate-100" />
+                    <div key={item.product.id} className="bg-white border border-stone-150 p-3 rounded-2xl flex gap-3 shadow-xs text-left">
+                      <img src={item.product.imageUrl} className="h-11 w-11 rounded-xl object-cover shrink-0 bg-stone-50" />
                       <div className="flex-1 min-w-0 flex flex-col justify-between">
                         <div>
                           <div className="flex items-start justify-between gap-1.5">
-                            <h5 className="text-[11.5px] font-bold text-ink leading-tight truncate">{item.product.name}</h5>
+                            <h5 className="text-[11.5px] font-bold text-stone-900 leading-tight truncate">{item.product.name}</h5>
                             <button 
                               onClick={() => removeFromCart(item.product.id)}
-                              className="text-slate-350 hover:text-red-500 p-0.5 shrink-0 transition-colors"
+                              className="text-stone-300 hover:text-red-500 p-0.5 shrink-0 transition-colors"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={12.5} />
                             </button>
                           </div>
-                          <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider">{item.product.countryFlag} {item.product.originCountry}</span>
+                          <span className="text-[9.5px] text-[#2481CC] font-black uppercase tracking-wider">{item.product.countryFlag} {item.product.originCountry}</span>
                         </div>
 
-                        {/* Qty selectors */}
-                        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-50">
+                        {/* Qty and Prices select */}
+                        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-stone-50">
                           <span className="text-xs font-black text-emerald-600 font-sans">{formatPrice(item.product.price * item.quantity)}</span>
-                          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-0.5">
-                            <button onClick={() => updateCartQty(item.product.id, -1)} className="text-slate-500 font-black">-</button>
-                            <span className="text-[11px] font-black text-ink">{item.quantity}</span>
-                            <button onClick={() => updateCartQty(item.product.id, 1)} className="text-slate-500 font-black">+</button>
+                          <div className="flex items-center gap-2 bg-stone-50 border border-stone-150 rounded-lg px-2 py-0.5 select-none">
+                            <button onClick={() => updateCartQty(item.product.id, -1)} className="text-stone-500 font-black">-</button>
+                            <span className="text-[10.5px] font-black text-stone-900 px-1">{item.quantity}</span>
+                            <button onClick={() => updateCartQty(item.product.id, 1)} className="text-stone-500 font-black">+</button>
                           </div>
                         </div>
                       </div>
@@ -1585,22 +1473,22 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 )}
               </div>
 
-              {/* Subtotal strip */}
+              {/* Subtotal area */}
               {cart.length > 0 && (
-                <div className="p-5 border-t border-gray-150 shrink-0 space-y-4 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.02)]">
-                  <div className="space-y-1.5 text-xs text-slate-500">
+                <div className="p-5.5 border-t border-stone-150 shrink-0 space-y-4 bg-white shadow-[0_-4px_10px_rgba(0,0,0,0.01)] text-left">
+                  <div className="space-y-1.5 text-xs text-stone-500 font-bold">
                     <div className="flex justify-between">
-                      <span>Items Subtotal:</span>
-                      <span className="font-bold text-ink">{formatPrice(cartSubtotal)}</span>
+                      <span>Products Subtotal:</span>
+                      <span className="font-bold text-stone-900">{formatPrice(cartSubtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Supra Port Duties:</span>
-                      <span className="text-emerald-600 font-black">FREE ($0.00)</span>
+                      <span>Maritime Custom Duties:</span>
+                      <span className="text-emerald-600 font-black uppercase text-[9px] tracking-wider">FREE OF CHARGE / ESCROW</span>
                     </div>
                   </div>
 
-                  <div className="flex justify-between border-t border-slate-100 pt-3 text-sm">
-                    <span className="font-black uppercase tracking-wider text-slate-800">Est. Subtotal</span>
+                  <div className="flex justify-between border-t border-stone-100 pt-3 text-sm">
+                    <span className="font-black uppercase tracking-wider text-stone-800">Clearing Total</span>
                     <span className="text-base font-black text-emerald-600">{formatPrice(cartSubtotal)}</span>
                   </div>
 
@@ -1610,282 +1498,397 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       setIsCheckoutOpen(true);
                       setCheckoutStep(1);
                     }}
-                    className="w-full py-3 bg-ink hover:bg-[#2481CC] text-white rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-1.5"
+                    className="w-full py-3 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span>Proceed to Order Wizard</span>
-                    <ChevronRight size={14} />
+                    <span>Proceed to Cargo Clearance</span>
+                    <ChevronRight size={13} />
                   </button>
                 </div>
               )}
-
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ==================== 5. CHECKOUT STEPPER/WIZARD MODAL ==================== */}
+      {/* ==================== 3. CHECKOUT CUSTOMS ROUTING STEPPER MODAL ==================== */}
       <AnimatePresence>
         {isCheckoutOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-stone-950/50 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col"
+              className="bg-white rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col border border-stone-150"
             >
-              {/* Steps Progress top status strip */}
-              <div className="bg-slate-50 py-4.5 px-6 border-b border-slate-100 flex items-center justify-between text-xs font-black uppercase tracking-widest text-[#2481CC]">
-                <span>Secured Customs Routing</span>
-                <span className="text-[10px] text-muted font-bold">Step {checkoutStep} of 3</span>
+              {/* Stepper Status Head */}
+              <div className="bg-stone-50 py-4 px-6 border-b border-stone-100 flex items-center justify-between text-[10.5px] font-black uppercase tracking-widest text-[#2481CC]">
+                <span>Logistics Routing Portal</span>
+                <span className="text-stone-400">Step {checkoutStep} of 3</span>
               </div>
 
-              {/* Steps visualization dots/lines */}
-              <div className="px-6 py-4 border-b border-slate-50 flex items-center justify-around">
+              {/* Graphical Steps */}
+              <div className="px-6 py-4.5 border-b border-stone-50 flex items-center justify-around bg-stone-50/20">
                 {[
-                  { n: 1, label: 'Customs Node' },
-                  { n: 2, label: 'Escrow Bill' },
-                  { n: 3, label: 'Success Receipt' }
-                ].map((st) => (
-                  <div key={st.n} className="flex items-center gap-1.5">
-                    <div className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-black ${
-                      checkoutStep === st.n 
-                        ? 'bg-[#2481CC] text-white scale-110 shadow-sm' 
-                        : checkoutStep > st.n 
-                          ? 'bg-ink text-white' 
-                          : 'bg-slate-100 text-slate-400'
+                  { step: 1, label: 'Customs Node' },
+                  { step: 2, label: 'Escrow Bill' },
+                  { step: 3, label: 'Delivery Receipt' }
+                ].map((s) => (
+                  <div key={s.step} className="flex items-center gap-1.5 text-[9.5px]">
+                    <div className={`h-5 w-5 rounded-full flex items-center justify-center font-black ${
+                      checkoutStep >= s.step ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-300'
                     }`}>
-                      {checkoutStep > st.n ? '✓' : st.n}
+                      {s.step}
                     </div>
-                    <span className={`text-[9.5px] uppercase font-black tracking-wider ${
-                      checkoutStep === st.n ? 'text-ink' : 'text-slate-450'
-                    }`}>{st.label}</span>
+                    <span className={`uppercase font-black tracking-wider ${checkoutStep >= s.step ? 'text-stone-900' : 'text-stone-300'}`}>
+                      {s.label}
+                    </span>
                   </div>
                 ))}
               </div>
 
-              {/* Wizard Content Pages */}
-              <div className="p-6 font-sans text-xs">
+              {/* Stepper Content forms */}
+              <div className="p-6.5 overflow-y-auto max-h-[400px]">
                 {checkoutStep === 1 && (
-                  /* STEP 1: SHIPPING ADDRESS */
+                  /* STEP 1: DELIVERIES RETAIN COURIER */
                   <div className="space-y-4">
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-muted font-black uppercase tracking-wider text-[9px]">Select Delivery Country</label>
-                      <select
-                        value={shippingCountry}
+                    <p className="text-[10.5px] text-stone-500 font-bold uppercase tracking-wider text-center">Calibrate custom destination coordinate nodes for regional drone clearance.</p>
+                    
+                    <div className="space-y-1 text-left">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Shipping Destination Address</label>
+                      <input 
+                        type="text" 
+                        required
+                        placeholder="e.g. Science Block Suite 44, Cambridge Campus"
+                        value={shippingAddress}
+                        onChange={(e) => setShippingAddress(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-stone-50 hover:bg-stone-100/50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none transition-all text-xs font-bold text-stone-800"
+                      />
+                    </div>
+
+                    <div className="space-y-1 text-left">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Clearance Country node</label>
+                      <select 
+                        value={shippingCountry} 
                         onChange={(e) => setShippingCountry(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-ink cursor-pointer"
+                        className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 focus:border-stone-900/35 text-xs font-bold font-sans rounded-xl text-stone-800"
                       >
                         {countriesList.filter(c => c !== 'Global').map(c => (
-                          <option key={c} value={c}>{c}</option>
+                          <option key={c} value={c}>{countriesFlags[c]} {c}</option>
                         ))}
                       </select>
                     </div>
 
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-muted font-black uppercase tracking-wider text-[9px]">Full Shipping Coordinates / Street Address</label>
-                      <input 
-                        type="text" 
-                        required
-                        placeholder="e.g. 54 Science Park, Oxford, OX4 4GA"
-                        value={shippingAddress}
-                        onChange={(e) => setShippingAddress(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
-                      />
-                    </div>
-
-                    <div className="space-y-2 text-left">
-                      <label className="text-muted font-black uppercase tracking-wider text-[9px]">Postal Logistic Pathways</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="space-y-1 text-left">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Assigned Delivery Velocity</label>
+                      <div className="grid grid-cols-3 gap-2">
                         {[
-                          { key: 'standard', title: 'Standard', desc: 'Ships 3-5 days', cost: 4.99 },
-                          { key: 'express', title: 'Express Express', desc: 'Secure air inside 2 days', cost: 14.99 },
-                          { key: 'supersonic', title: 'Supersonic Jet', desc: 'Clears customs in 12h', cost: 49.99 }
-                        ].map((sh) => (
-                          <div
-                            key={sh.key}
-                            onClick={() => setShippingSpeed(sh.key as any)}
-                            className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none ${
-                              shippingSpeed === sh.key 
-                                ? 'border-[#2481CC] bg-[#2481CC]/5 shadow-sm scale-102 font-bold' 
-                                : 'border-slate-150 bg-slate-50/50 hover:bg-slate-50'
+                          { speed: 'standard', title: 'Standard Air', desc: 'Ships 3-5d', cost: 4.99 },
+                          { speed: 'express', title: 'Supra Express', desc: 'Ships 1-2d', cost: 14.99 },
+                          { speed: 'supersonic', title: 'Drone Direct', desc: 'Ships 1hr', cost: 49.99 }
+                        ].map((v) => (
+                          <div 
+                            key={v.speed}
+                            onClick={() => setShippingSpeed(v.speed as any)}
+                            className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all text-left ${
+                              shippingSpeed === v.speed 
+                                ? 'border-stone-900 bg-stone-50 scale-102 font-black shadow-xs' 
+                                : 'border-stone-150 hover:bg-stone-50'
                             }`}
                           >
-                            <div>
-                              <p className="text-[10px] uppercase font-black text-ink">{sh.title}</p>
-                              <p className="text-[8.5px] text-muted mt-0.5 font-bold leading-normal">{sh.desc}</p>
-                            </div>
-                            <p className="text-[10px] text-[#2481CC] font-black mt-2 bg-white border border-slate-100 py-0.5 px-2 rounded-md self-start text-center">{sh.cost === 0 ? 'FREE' : `$${sh.cost}`}</p>
+                            <span className="text-[10px] font-black text-stone-900">{v.title}</span>
+                            <span className="text-[9px] text-[#2481CC] font-bold mt-1 uppercase leading-none">{v.desc}</span>
+                            <span className="text-[9.5px] font-black text-emerald-600 mt-1">${v.cost}</span>
                           </div>
                         ))}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100 shrink-0">
+                    <div className="flex gap-3 pt-4 border-t border-stone-100 shrink-0">
                       <button
                         type="button"
                         onClick={() => setIsCheckoutOpen(false)}
-                        className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-500 hover:text-ink text-[10.5px] font-black uppercase tracking-widest"
+                        className="flex-1 py-3 border border-stone-200 rounded-xl text-stone-500 hover:text-stone-800 text-[10px] font-black uppercase tracking-wider transition-all"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (!shippingAddress.trim()) {
-                            showNotification("Please provide a valid delivery address.", "error");
-                            return;
-                          }
-                          setCheckoutStep(2);
-                        }}
-                        className="flex-1 py-3 bg-ink hover:bg-[#2481CC] text-white rounded-xl text-[10.5px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5"
+                        disabled={!shippingAddress.trim()}
+                        onClick={() => setCheckoutStep(2)}
+                        className="flex-1 py-3 bg-stone-900 hover:bg-[#2481CC] hover:scale-101 active:scale-99 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 select-none transition-all"
                       >
-                        <span>Payment Node</span>
-                        <ChevronRight size={13} />
+                        Proceed Bill
                       </button>
                     </div>
                   </div>
                 )}
 
                 {checkoutStep === 2 && (
-                  /* STEP 2: PAYMENT INFO */
-                  <div className="space-y-4">
-                    <p className="text-slate-500 leading-relaxed font-semibold uppercase tracking-wide text-center">Confirm transaction escrow distribution details of Exona exchange.</p>
+                  /* STEP 2: ESCROW PAYMENT DETAILS */
+                  <div className="space-y-4 text-left">
+                    <p className="text-[10px] text-stone-400 font-black uppercase tracking-wider text-center block">Review global escrow clearance & select settlement channels.</p>
                     
-                    {/* Invoice detail */}
-                    <div className="bg-slate-50 p-4 border border-slate-150 rounded-2.5rem space-y-2 text-slate-500 font-bold">
+                    <div className="bg-stone-50 border border-stone-200 p-4 rounded-2xl text-[11px] text-stone-500 font-bold space-y-2">
                       <div className="flex justify-between">
                         <span>Items Subtotal:</span>
-                        <span className="text-ink">{formatPrice(cartSubtotal)}</span>
+                        <span className="text-stone-900">{formatPrice(cartSubtotal)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Customs Escrow Charge:</span>
-                        <span className="text-emerald-600">FREE ($0.00)</span>
+                        <span>Regional Custom Duties:</span>
+                        <span className="text-emerald-600 font-black">FREE ($0.00)</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Courier Transport:</span>
-                        <span className="text-ink">${shippingCost.toFixed(2)}</span>
+                        <span>Aviation Freight Charges:</span>
+                        <span className="text-stone-900">${shippingCost.toFixed(2)}</span>
                       </div>
-                      <div className="border-t border-slate-200 pt-3 flex justify-between text-[#2481CC] text-sm">
-                        <span className="font-black uppercase tracking-wider">Estimated Total</span>
-                        <span className="font-black text-sm">{formatPrice(cartTotal)}</span>
+                      <div className="border-t border-stone-200 pt-3 flex justify-between text-stone-900 text-xs">
+                        <span className="font-black uppercase tracking-widest">Global Total:</span>
+                        <span className="font-extrabold text-[#2481CC]">{formatPrice(cartTotal)}</span>
                       </div>
                     </div>
 
-                    {/* Payment Mechanism Selection */}
-                    <div className="space-y-2 text-left">
-                      <label className="text-muted font-black uppercase tracking-wider text-[9px]">Select Payment Method</label>
+                    <div className="space-y-1.5">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Settlement Channel</label>
                       <div className="grid grid-cols-2 gap-2">
                         <div 
                           onClick={() => setCheckoutPaymentMethod('standard')}
-                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none ${
+                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
                             checkoutPaymentMethod === 'standard' 
-                              ? 'border-[#2481CC] bg-[#2481CC]/5 font-bold shadow-xs scale-102' 
-                              : 'border-slate-150 bg-slate-50/50 hover:bg-slate-50'
+                              ? 'border-stone-900 bg-stone-50/50 font-bold scale-102 shadow-xs' 
+                              : 'border-stone-150 bg-stone-50/30 hover:bg-stone-50'
                           }`}
                         >
                           <div>
-                            <p className="text-[10px] uppercase font-black text-ink">Global Escrow</p>
-                            <p className="text-[8px] text-muted mt-0.5 leading-normal">Card / Multi-currency</p>
+                            <p className="text-[10px] uppercase font-black text-stone-900">Digital Escrow</p>
+                            <p className="text-[8px] text-stone-400 mt-1 font-semibold uppercase leading-none">Credit / Fiat Card</p>
                           </div>
                         </div>
 
                         <div 
                           onClick={() => setCheckoutPaymentMethod('excoin')}
-                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none ${
+                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
                             checkoutPaymentMethod === 'excoin' 
-                              ? 'border-[#2481CC] bg-[#2481CC]/5 font-bold shadow-xs scale-102' 
-                              : 'border-slate-150 bg-slate-50/50 hover:bg-slate-50'
+                              ? 'border-stone-900 bg-[#2481CC]/5 font-bold scale-102 shadow-xs' 
+                              : 'border-stone-150 bg-stone-50/30 hover:bg-stone-50'
                           }`}
                         >
                           <div>
-                            <p className="text-[10px] uppercase font-black text-ink flex items-center gap-1">
-                              <span className="text-[#2481CC]">🪙</span> Exona Coin (EXC)
+                            <p className="text-[10px] uppercase font-black text-stone-900 flex items-center gap-1">
+                              <span>🪙</span> EXC Wallet
                             </p>
-                            <p className="text-[8px] text-muted mt-0.5 leading-normal">Rate: 2.5 EXC = $1 USD</p>
+                            <p className="text-[8px] text-[#2481CC] mt-1 font-semibold uppercase leading-none">Rate: 2.5 EXC = $1 USD</p>
                           </div>
                         </div>
                       </div>
 
                       {checkoutPaymentMethod === 'excoin' && (
-                        <div className="bg-indigo-50/45 border border-indigo-150/40 p-3 rounded-xl flex items-center justify-between font-sans text-[10px] mt-1.5 text-slate-650">
+                        <div className="bg-stone-100/50 border border-stone-200/50 p-3 rounded-xl flex items-center justify-between text-[10px] mt-2 font-bold text-stone-600">
                           <div>
-                            <p className="font-bold">Total in Excoins: <span className="text-[#2481CC] font-black">{Math.ceil(cartTotal * 2.5)} EXC</span></p>
-                            <p className="text-[8.5px] text-muted mt-0.5 font-semibold">Your Wallet Balance: <span className="font-bold text-ink">{excoinBalance} EXC</span></p>
+                            <p className="font-black">Escrow Total: <span className="text-[#2481CC]">{Math.ceil(cartTotal * 2.5)} EXC</span></p>
+                            <p className="text-[8.5px] mt-0.5 font-semibold text-stone-400 uppercase tracking-wide">Wallet Balance: {excoinBalance} EXC</p>
                           </div>
                           {excoinBalance >= Math.ceil(cartTotal * 2.5) ? (
-                            <span className="bg-emerald-100 text-emerald-800 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md">Funds Available</span>
+                            <span className="bg-emerald-50 text-emerald-800 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md">Settled</span>
                           ) : (
-                            <span className="bg-red-100 text-red-850 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md font-sans">Insufficient EXC</span>
+                            <span className="bg-rose-50 text-red-700 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md">Shortage</span>
                           )}
                         </div>
                       )}
                     </div>
 
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-muted font-black uppercase tracking-wider text-[9px]">Custom notes or invoice requirements</label>
+                    <div className="space-y-1 mt-2.5">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Delivery instructions</label>
                       <input 
                         type="text" 
-                        placeholder="e.g. Leave package by the botanical greenhouse door."
+                        placeholder="e.g. Leave package by science block foyer corridor storage."
                         value={paymentNote}
                         onChange={(e) => setPaymentNote(e.target.value)}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 hover:bg-slate-100/40 border border-slate-200 focus:bg-white focus:border-[#2481CC]/40 rounded-xl outline-none transition-all font-bold text-ink"
+                        className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 focus:bg-white transition-all"
                       />
                     </div>
 
-                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100 shrink-0">
+                    <div className="flex gap-3 pt-5 border-t border-stone-100 shrink-0">
                       <button
                         type="button"
                         onClick={() => setCheckoutStep(1)}
-                        className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-500 hover:text-ink text-[10.5px] font-black uppercase tracking-widest flex items-center justify-center gap-1"
+                        className="flex-1 py-3 border border-stone-200 rounded-xl text-stone-500 hover:text-stone-800 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        <ArrowLeft size={13} /> Back
+                        <ArrowLeft size={13} /> Return
                       </button>
                       <button
                         type="button"
                         disabled={isProcessingOrder}
                         onClick={handlePlaceOrder}
-                        className="flex-1 py-3 bg-ink hover:bg-[#2481CC] hover:scale-102 active:scale-98 text-white rounded-xl text-[10.5px] font-black uppercase tracking-widest disabled:bg-slate-200 flex items-center justify-center gap-1.5"
+                        className="flex-1 py-3 bg-stone-900 hover:bg-stone-850 hover:scale-101 active:scale-99 text-white rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                       >
                         <CreditCard size={13} />
-                        <span>{isProcessingOrder ? 'Escrowing...' : 'Escrow Payment'}</span>
+                        <span>{isProcessingOrder ? 'Escrowing...' : 'Confirm Escrow'}</span>
                       </button>
                     </div>
                   </div>
                 )}
 
                 {checkoutStep === 3 && (
-                  /* STEP 3: SUCCESS CELEBRATION */
+                  /* STEP 3: CELEBRATE CUSTOM TRANSACTION SUCCESS */
                   <div className="space-y-4 text-center py-6">
-                    <div className="h-16 w-16 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto border-2 border-emerald-100 shadow-md">
-                      <Check size={32} />
+                    <div className="h-14 w-14 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 mx-auto border-2 border-emerald-100 shadow-sm">
+                      <Check size={28} className="stroke-[3]" />
                     </div>
                     <div>
-                      <h4 className="text-base font-black uppercase tracking-tight text-ink font-sans">Clearing customs in regional node!</h4>
-                      <p className="text-xs text-muted leading-relaxed mt-2 max-w-xs mx-auto font-medium">Your international payment escrow has been established successfully. We are preparing cargo tags!</p>
+                      <h4 className="text-sm font-black uppercase tracking-wider text-stone-900">Customs Clearance established!</h4>
+                      <p className="text-[10px] text-stone-400 leading-relaxed mt-1.5 max-w-xs mx-auto uppercase font-semibold tracking-wider">Your international transaction bill escrow node has been settled completely. Cargo tags is preparing!</p>
                     </div>
 
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-left space-y-1 max-w-sm mx-auto">
-                      <p className="text-[9.5px] uppercase font-black tracking-wider text-[#2481CC]">Recipient Route:</p>
-                      <p className="text-[10px] text-ink font-bold">{shippingAddress}, {shippingCountry}</p>
-                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-1">Free Delivery Cargo System Assigned.</p>
+                    <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 text-left space-y-1 max-w-sm mx-auto text-xs font-bold text-stone-600">
+                      <p className="text-[9px] uppercase font-black tracking-widest text-[#2481CC]">Recipient route node:</p>
+                      <p className="text-stone-900 font-extrabold uppercase mt-0.5">{shippingAddress}, {shippingCountry}</p>
+                      <p className="text-[8.5px] text-stone-400 font-semibold tracking-wider mt-1 uppercase font-mono">Assigned courier: free autonomous cargo drone system.</p>
                     </div>
 
-                    <div className="pt-4 border-t border-slate-150">
+                    <div className="pt-4 border-t border-stone-150">
                       <button
                         type="button"
                         onClick={() => {
                           setIsCheckoutOpen(false);
                           setActiveMarketView('orders');
                         }}
-                        className="w-full py-3 bg-ink hover:bg-[#2481CC] text-white rounded-xl text-[10.5px] font-black uppercase tracking-widest transition-all shadow-md focus:outline-none"
+                        className="w-full py-3 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md focus:outline-none cursor-pointer"
                       >
-                        Configure Delivery Tracking
+                        Logistics Delivery Dashboard
                       </button>
                     </div>
                   </div>
                 )}
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
+      {/* ==================== 4. SYSTEM UPLOAD/SELL PRODUCT LIST MODAL ==================== */}
+      <AnimatePresence>
+        {isListModalOpen && (
+          <div className="fixed inset-0 bg-stone-950/50 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl flex flex-col border border-stone-150"
+            >
+              <div className="bg-stone-50 py-4 px-6 border-b border-stone-100 flex items-center justify-between text-xs font-black uppercase tracking-widest text-stone-900">
+                <span>Publish Item Listing</span>
+                <button onClick={() => setIsListModalOpen(false)} className="text-stone-400 hover:text-stone-900">
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Sell form */}
+              <form onSubmit={handleCreateProduct} className="p-6 space-y-4 text-left overflow-y-auto max-h-[420px]">
+                <div className="space-y-1">
+                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Headline Name</label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="e.g. Handmade Kyoto Bonsai"
+                    value={newProductName}
+                    onChange={(e) => setNewProductName(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Narrative Description</label>
+                  <textarea 
+                    rows={3}
+                    placeholder="Provide a story about the craftsmanship, country of origin, and custom properties..."
+                    value={newProductDesc}
+                    onChange={(e) => setNewProductDesc(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price USD ($)</label>
+                    <input 
+                      type="number" 
+                      required
+                      placeholder="35.00"
+                      value={newProductPrice}
+                      onChange={(e) => setNewProductPrice(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
+                    <input 
+                      type="number" 
+                      placeholder="10"
+                      value={newProductStock}
+                      onChange={(e) => setNewProductStock(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="space-y-1">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Item Category</label>
+                    <select 
+                      value={newProductCategory}
+                      onChange={(e) => setNewProductCategory(e.target.value)}
+                      className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-xs font-black font-sans rounded-xl text-stone-800"
+                    >
+                      {categoriesList.filter(c => c !== 'All').map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Origin Country</label>
+                    <select 
+                      value={newProductCountry}
+                      onChange={(e) => setNewProductCountry(e.target.value)}
+                      className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-xs font-black font-sans rounded-xl text-stone-800"
+                    >
+                      {countriesList.filter(c => c !== 'Global').map(c => (
+                        <option key={c} value={c}>{countriesFlags[c]} {c}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Image URL (Optional)</label>
+                  <input 
+                    type="url" 
+                    placeholder="https://images.unsplash.com/photo-..."
+                    value={newProductImg}
+                    onChange={(e) => setNewProductImg(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                  />
+                  <span className="text-[9px] text-stone-400 font-bold block leading-relaxed uppercase tracking-wider mt-1">If blank, an premium curated fallback image matches the category.</span>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsListModalOpen(false)}
+                    className="flex-1 py-2.5 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingProduct}
+                    className="flex-1 py-2.5 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md select-none disabled:opacity-40"
+                  >
+                    {isCreatingProduct ? 'Publishing...' : 'Publish'}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
