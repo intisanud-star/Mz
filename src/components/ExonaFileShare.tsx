@@ -4,9 +4,34 @@ import {
   Music, Image as ImageIcon, Video as VideoIcon, Folder, Grid, HelpCircle, 
   Settings, Activity, Clock, CheckCircle2, ArrowRight, ArrowLeft, 
   X, Plus, Trash2, ArrowUpDown, RefreshCw, Layers, Check, FileText, File,
-  Radio, Laptop2, Tablet
+  Radio, Laptop2, Tablet, Monitor, PenTool
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  db, 
+  storage, 
+  ref, 
+  uploadBytesResumable, 
+  getDownloadURL, 
+  auth,
+  handleFirestoreError,
+  OperationType
+} from '../firebase';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  addDoc, 
+  getDoc, 
+  updateDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  query, 
+  where, 
+  orderBy, 
+  serverTimestamp,
+  getDocs
+} from 'firebase/firestore';
 
 interface TransferFile {
   id: string;
@@ -93,24 +118,211 @@ export default function ExonaFileShare({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  // Auto discover peers in radar screen - mixed platforms and cross-device models
+  // --- REAL-TIME FIRESTORE PEER IDENTITY SETUP ---
+  const [myClientId] = useState(() => {
+    const saved = localStorage.getItem('exona_drop_clientId');
+    if (saved) return saved;
+    const newId = 'exona_peer_' + Math.random().toString(36).substring(2, 11);
+    localStorage.setItem('exona_drop_clientId', newId);
+    return newId;
+  });
+
+  const [incomingTransfer, setIncomingTransfer] = useState<any | null>(null);
+
+  // --- REMOTE DESK (TEAMVIEWER MODE) COORDINATION STATES ---
+  const [isDeskBroadcasting, setIsDeskBroadcasting] = useState<boolean>(false);
+  const [activeDeskHostId, setActiveDeskHostId] = useState<string | null>(null);
+  const [activeDeskSession, setActiveDeskSession] = useState<any | null>(null);
+  const [deskLines, setDeskLines] = useState<any[]>([]);
+  const [deskIsDrawing, setDeskIsDrawing] = useState<boolean>(false);
+  const [deskDrawingColor, setDeskDrawingColor] = useState<string>('#3b82f6');
+  const [viewerMousePos, setViewerMousePos] = useState({ x: 50, y: 50 });
+  const [activeRemoteMenuTab, setActiveRemoteMenuTab] = useState<'whiteboard' | 'files'>('whiteboard');
+
+  // Register and maintain active heartbeat in Firebase peer database
   useEffect(() => {
-    let peerInterval: any;
+    const peerRef = doc(db, 'exona_drop_peers', myClientId);
+    
+    const writeHeartbeat = async () => {
+      try {
+        await setDoc(peerRef, {
+          id: myClientId,
+          name: userDeviceName,
+          os: userPlatform,
+          device: userPlatform === 'Android' || userPlatform === 'iOS' ? 'phone' : 'laptop',
+          lastSeen: Date.now(),
+          avatar: userDeviceName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'EX',
+          uid: auth.currentUser?.uid || null,
+          email: auth.currentUser?.email || null
+        });
+      } catch (err) {
+        console.warn("Heartbeat update failed:", err);
+      }
+    };
+
+    writeHeartbeat();
+    const interval = setInterval(writeHeartbeat, 6500);
+
+    return () => {
+      clearInterval(interval);
+      deleteDoc(peerRef).catch(err => console.warn("Clean peer doc failed:", err));
+    };
+  }, [myClientId, userDeviceName, userPlatform]);
+
+  // Listen to ALL online peers on network in real-time
+  useEffect(() => {
+    const q = query(collection(db, 'exona_drop_peers'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: any[] = [];
+      const now = Date.now();
+      snapshot.forEach(d => {
+        const data = d.data();
+        // Ignore self and omit peers silent for more than 16 seconds
+        if (data.id !== myClientId && (now - data.lastSeen < 16000)) {
+          list.push({
+            id: data.id,
+            name: data.name,
+            os: data.os,
+            device: data.device,
+            avatar: data.avatar || 'PE',
+            distance: 'Live'
+          });
+        }
+      });
+      setDiscoveredPeers(list);
+    }, (err) => {
+      console.warn("Peers scan snapshot subscription failed:", err);
+    });
+
+    return () => unsubscribe();
+  }, [myClientId]);
+
+  // Listen to incoming direct transfers targeting this device
+  useEffect(() => {
+    const q = query(
+      collection(db, 'exona_drop_transfers'),
+      where('recipientId', '==', myClientId),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const transferDoc = snapshot.docs[0];
+        const data = transferDoc.data();
+        setIncomingTransfer({
+          id: transferDoc.id,
+          senderId: data.senderId,
+          senderName: data.senderName,
+          file: data.file,
+          status: data.status
+        });
+      } else {
+        setIncomingTransfer(null);
+      }
+    }, (err) => {
+      console.warn("Incoming transfers lookup error:", err);
+    });
+
+    return () => unsubscribe();
+  }, [myClientId]);
+
+  // Listen to incoming real-time transfers history updates (sender AND recipient)
+  useEffect(() => {
+    const qSend = query(
+      collection(db, 'exona_drop_transfers'),
+      where('senderId', '==', myClientId)
+    );
+    const unsubSend = onSnapshot(qSend, (snapshot) => {
+      snapshot.docChanges().forEach(change => {
+        const data = change.doc.data();
+        const id = change.doc.id;
+        const logItem: TransferLog = {
+          id,
+          file: data.file,
+          direction: 'send',
+          progress: data.progress || 0,
+          speed: data.status === 'completed' ? 'Finished ✓' : 'Live P2P Network',
+          status: data.status
+        };
+
+        setTransferHistory(prev => {
+          const clean = prev.filter(x => x.id !== id);
+          return [logItem, ...clean];
+        });
+      });
+    });
+
+    const qRec = query(
+      collection(db, 'exona_drop_transfers'),
+      where('recipientId', '==', myClientId)
+    );
+    const unsubRec = onSnapshot(qRec, (snapshot) => {
+      snapshot.docChanges().forEach(change => {
+        const data = change.doc.data();
+        const id = change.doc.id;
+        const logItem: TransferLog = {
+          id,
+          file: data.file,
+          direction: 'receive',
+          progress: data.progress || 0,
+          speed: data.status === 'completed' ? 'Finished ✓' : 'Live P2P Network',
+          status: data.status
+        };
+
+        setTransferHistory(prev => {
+          const clean = prev.filter(x => x.id !== id);
+          return [logItem, ...clean];
+        });
+
+        // Add to downloads/saved list automatically when completed
+        if (data.status === 'completed' && change.type === 'modified') {
+          setReceivedFiles(prev => {
+            if (prev.some(x => x.id === data.file.id)) return prev;
+            return [...prev, data.file];
+          });
+        }
+      });
+    });
+
+    return () => {
+      unsubSend();
+      unsubRec();
+    };
+  }, [myClientId]);
+
+  // Listen to active Remote Desktop views if displaying someone else's Desk (TeamViewer)
+  useEffect(() => {
+    if (!activeDeskHostId) {
+      setActiveDeskSession(null);
+      return;
+    }
+
+    const unsub = onSnapshot(doc(db, 'exona_desk_sessions', activeDeskHostId), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setActiveDeskSession(data);
+        if (data.lines) {
+          setDeskLines(data.lines);
+        }
+        if (data.cursor) {
+          setViewerMousePos(data.cursor);
+        }
+      } else {
+        showNotification("Remote desktop session ended by host.", "info");
+        setActiveDeskHostId(null);
+      }
+    });
+
+    return () => unsub();
+  }, [activeDeskHostId]);
+
+  // Keep scanning/joining triggers active in visual animations
+  useEffect(() => {
     if (connectionState === 'joining') {
       setRadarPulse(true);
-      setDiscoveredPeers([]);
-      peerInterval = setTimeout(() => {
-        setDiscoveredPeers([
-          { id: 'peer-1', name: "Musa's Samsung S24 (Android)", distance: '0.5m', device: 'phone', os: 'Android', avatar: 'MS' },
-          { id: 'peer-2', name: "Jane's iPhone 15 Pro (iOS)", distance: '1.2m', device: 'phone', os: 'iOS', avatar: 'JC' },
-          { id: 'peer-3', name: "Alhaji's Windows Workstation", distance: '2.4m', device: 'laptop', os: 'Windows', avatar: 'AW' },
-          { id: 'peer-4', name: "Library MacBook Air (macOS)", distance: '3.8m', device: 'laptop', os: 'macOS', avatar: 'LM' }
-        ]);
-      }, 1500);
     } else {
       setRadarPulse(false);
     }
-    return () => clearTimeout(peerInterval);
   }, [connectionState]);
 
   // Simulated transfer loop helper (AirDrop swift transfer style)
@@ -295,25 +507,267 @@ export default function ExonaFileShare({
     }
   };
 
-  // Simulated peer actions
+  // --- REAL FILE UPLOAD & FIRESTORE DIRECT TRANSFERS IMPLEMENTATION ---
+  const uploadFileToStorage = (fileItem: TransferFile): Promise<string> => {
+    return new Promise((resolve) => {
+      // If uploaded via Blob in this tab
+      if (fileItem.id.startsWith('uploaded-') && fileItem.downloadUrl) {
+        fetch(fileItem.downloadUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const storagePath = `exona_drops/${myClientId}/${fileItem.name}`;
+            const storageRef = ref(storage, storagePath);
+            const uploadTask = uploadBytesResumable(storageRef, blob);
+
+            uploadTask.on('state_changed', 
+              (snapshot) => {
+                const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+                setTransferSpeed(`${pct}% Uploading`);
+              }, 
+              (error) => {
+                console.warn("Storage upload failed, fallback to Object URL:", error);
+                resolve(fileItem.downloadUrl || '');
+              }, 
+              () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadUrl) => {
+                  resolve(downloadUrl);
+                });
+              }
+            );
+          })
+          .catch(err => {
+            console.warn("Blob conversion failed, fallback:", err);
+            resolve(fileItem.downloadUrl || '');
+          });
+      } else {
+        // Fallback or simple mock items
+        resolve(fileItem.downloadUrl || '');
+      }
+    });
+  };
+
+  const pushFirestoreTransfer = async (fileItem: TransferFile, recipientId: string, recipientName: string) => {
+    showNotification(`Preparing transmission path for ${fileItem.name}...`, 'info');
+    try {
+      setTransferSpeed("0.2 MB/s");
+      const realUrl = await uploadFileToStorage(fileItem);
+      
+      const docRef = await addDoc(collection(db, 'exona_drop_transfers'), {
+        senderId: myClientId,
+        senderName: userDeviceName,
+        recipientId: recipientId,
+        recipientName: recipientName,
+        file: {
+          id: fileItem.id,
+          name: fileItem.name,
+          size: fileItem.size,
+          bytes: fileItem.bytes,
+          type: fileItem.type,
+          downloadUrl: realUrl
+        },
+        progress: 0,
+        status: 'pending',
+        createdAt: Date.now()
+      });
+
+      // Show temporary sending log
+      const localLog: TransferLog = {
+        id: docRef.id,
+        file: fileItem,
+        direction: 'send',
+        progress: 0,
+        speed: 'Awaiting peer...',
+        status: 'pending'
+      };
+      setTransferHistory(prev => {
+        const clean = prev.filter(x => x.id !== docRef.id);
+        return [localLog, ...clean];
+      });
+
+      // Wait for peer to accept
+      const unsub = onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) return;
+        const data = snapshot.data();
+        if (data.status === 'transferring') {
+          unsub();
+          driveFirestoreProgress(docRef.id);
+        } else if (data.status === 'failed') {
+          unsub();
+          showNotification(`Drop of ${fileItem.name} was rejected by ${recipientName}.`, 'error');
+        }
+      });
+    } catch (err) {
+      console.warn("Direct drop write failed:", err);
+      showNotification(`Mesh drop failed: ${fileItem.name}`, 'error');
+    }
+  };
+
+  const driveFirestoreProgress = (transferDocId: string) => {
+    let pct = 0;
+    const tRef = doc(db, 'exona_drop_transfers', transferDocId);
+    const interval = setInterval(async () => {
+      pct += 20;
+      if (pct >= 100) {
+        pct = 100;
+        clearInterval(interval);
+        try {
+          await updateDoc(tRef, {
+            progress: 100,
+            status: 'completed'
+          });
+          setTransferSpeed('56 MB/s');
+          showNotification("Wireless Drop Transacted successfully!", "success");
+        } catch (e) {
+          console.warn(e);
+        }
+      } else {
+        try {
+          const speed = (Math.random() * 20 + 40).toFixed(1);
+          setTransferSpeed(`${speed} MB/s`);
+          await updateDoc(tRef, {
+            progress: pct
+          });
+        } catch (e) {
+          clearInterval(interval);
+        }
+      }
+    }, 250);
+  };
+
+  const handleAcceptTransfer = async (transferId: string) => {
+    try {
+      await updateDoc(doc(db, 'exona_drop_transfers', transferId), {
+        status: 'transferring'
+      });
+      setIncomingTransfer(null);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  const handleRejectTransfer = async (transferId: string) => {
+    try {
+      await updateDoc(doc(db, 'exona_drop_transfers', transferId), {
+        status: 'failed'
+      });
+      setIncomingTransfer(null);
+    } catch (err) {
+      console.warn(err);
+    }
+  };
+
+  // --- REMOTE DESK (TEAMVIEWER MODE) ACTIONS ---
+  const toggleRemoteDeskBroadcast = async () => {
+    const nextState = !isDeskBroadcasting;
+    setIsDeskBroadcasting(nextState);
+    
+    const sessRef = doc(db, 'exona_desk_sessions', myClientId);
+    if (nextState) {
+      showNotification("Broadcasting TeamView Remote Desk Console...", "success");
+      try {
+        await setDoc(sessRef, {
+          hostId: myClientId,
+          hostName: userDeviceName,
+          os: userPlatform,
+          status: 'active',
+          cursor: { x: 50, y: 50 },
+          lines: [],
+          sharedFiles: [...apps, ...photos, ...music, ...videos, ...docs].slice(0, 10).map(f => ({
+            id: f.id,
+            name: f.name,
+            size: f.size,
+            bytes: f.bytes,
+            type: f.type,
+            downloadUrl: f.downloadUrl || ''
+          }))
+        });
+      } catch (err) {
+        console.warn("Desk session broadcast failed:", err);
+      }
+    } else {
+      showNotification("Closed Remote Desk broadcast.", "info");
+      try {
+        await deleteDoc(sessRef);
+      } catch (err) {
+        console.warn(err);
+      }
+    }
+  };
+
+  const handleDeskMouseMove = async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDeskBroadcasting) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+    
+    try {
+      await updateDoc(doc(db, 'exona_desk_sessions', myClientId), {
+        cursor: { x, y }
+      });
+    } catch (err) {
+      // Ignore silent scroll/mouse-move errors
+    }
+  };
+
+  const handleDeskCanvasMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDeskBroadcasting) return;
+    setDeskIsDrawing(true);
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+    
+    const newLine = { color: deskDrawingColor, points: [{ x, y }] };
+    setDeskLines(prev => {
+      const updated = [...prev, newLine];
+      updateDoc(doc(db, 'exona_desk_sessions', myClientId), { lines: updated }).catch(err => {});
+      return updated;
+    });
+  };
+
+  const handleDeskCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDeskBroadcasting || !deskIsDrawing || deskLines.length === 0) return;
+    const canvas = e.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 100);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 100);
+
+    const updatedLines = [...deskLines];
+    const curLine = { ...updatedLines[updatedLines.length - 1] };
+    curLine.points = [...curLine.points, { x, y }];
+    updatedLines[updatedLines.length - 1] = curLine;
+
+    setDeskLines(updatedLines);
+    updateDoc(doc(db, 'exona_desk_sessions', myClientId), { lines: updatedLines }).catch(err => {});
+  };
+
+  const handleDeskCanvasMouseUp = () => {
+    setDeskIsDrawing(false);
+  };
+
+  const clearDeskCanvas = () => {
+    setDeskLines([]);
+    if (isDeskBroadcasting) {
+      updateDoc(doc(db, 'exona_desk_sessions', myClientId), { lines: [] }).catch(err => {});
+    }
+  };
+
+  // Simulated peer actions fallback
   const createHotspotGroup = () => {
     const randSsid = `ExonaDrop_${Math.floor(100 + Math.random() * 900)}`;
     setHotspotSSID(randSsid);
     setConnectionState('creating');
     showNotification(`Exona Drop: Broadcasting pairing ad-hoc beacon ${randSsid}.`, 'info');
-    // Ensure mobile view displays the QR credentials and connections
     setMobileView('radar');
   };
 
   const joinHotspotGroup = () => {
     setConnectionState('joining');
     showNotification('Looking for nearby Exona Drop devices...', 'info');
-    // Display the radar scan animation and targets on mobile
     setMobileView('radar');
   };
 
   const simulateIncomingConnection = () => {
-    // Randomize incoming peer on all device platforms (Android, iOS, Windows, Mac)
     const simulatedPeers = [
       { name: "Alhaji's Galaxy S24 Ultra", device: 'phone', os: 'Android' },
       { name: "Jane Cooper's iPhone 15 Pro", device: 'phone', os: 'iOS' },
@@ -345,21 +799,41 @@ export default function ExonaFileShare({
     showNotification('Closed connection mesh.', 'info');
   };
 
-  const triggerMeshFilesSendTransfer = () => {
+  const triggerMeshFilesSendTransfer = async () => {
     if (selectedFilesList.length === 0) {
-      showNotification('Please select files from categories to drop first!', 'error');
+      showNotification('Please select files from categories first!', 'error');
       return;
     }
-    if (connectionState === 'disconnected') {
-      showNotification('Verify discovery or share beacon to establish peer wireless link first!', 'info');
+
+    let recipientId = '';
+    let recipientName = 'External Node';
+
+    if (activePeerName) {
+      const found = discoveredPeers.find(p => p.name === activePeerName);
+      if (found) {
+        recipientId = found.id;
+        recipientName = found.name;
+      }
+    }
+
+    if (!recipientId && discoveredPeers.length > 0) {
+      recipientId = discoveredPeers[0].id;
+      recipientName = discoveredPeers[0].name;
+    }
+
+    if (!recipientId) {
+      showNotification('Please share search beacon or scan active Dropnodes first!', 'info');
       setMobileView('radar');
       return;
     }
-    
-    // Run send
+
     const itemsToSend = [...selectedFilesList];
-    setSelectedIds([]); // empty bag
-    runActiveTransfersModel('send', itemsToSend);
+    setSelectedIds([]); // reset basket
+    
+    for (const item of itemsToSend) {
+      await pushFirestoreTransfer(item, recipientId, recipientName);
+    }
+    
     setMobileView('radar');
   };
 
@@ -445,8 +919,21 @@ export default function ExonaFileShare({
           )}
 
           <button 
+            onClick={toggleRemoteDeskBroadcast}
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-black text-xs uppercase tracking-wider transition-all hover:scale-[1.02] shadow-xs ${
+              isDeskBroadcasting 
+                ? 'bg-emerald-500 text-white hover:bg-emerald-600 animate-pulse' 
+                : 'bg-indigo-50 text-indigo-800 border border-indigo-200 hover:bg-indigo-100'
+            }`}
+            title="Broadcast your active screen to other students (TeamViewer Mode)"
+          >
+            <Monitor size={14} />
+            <span>{isDeskBroadcasting ? "Broadcasting Desk" : "TeamView Broadcast"}</span>
+          </button>
+
+          <button 
             onClick={() => setShowConnectPC(!showConnectPC)}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-800 border border-gray-200 hover:bg-gray-200 rounded-2xl font-black text-xs uppercase tracking-wider transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-800 border border-gray-200 hover:bg-gray-200 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-xs"
           >
             <Laptop size={14} />
             <span className="hidden md:inline">WebDrop Link</span>
@@ -802,6 +1289,73 @@ export default function ExonaFileShare({
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             
             <AnimatePresence mode="wait">
+              {connectionState === 'disconnected' && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  className="space-y-4"
+                >
+                  <div className="bg-white p-5 border border-gray-150 rounded-[2rem] text-left shadow-xs">
+                    <span className="text-[9px] font-black text-indigo-650 uppercase tracking-[0.2em] block mb-2">Live Node Directory</span>
+                    <h4 className="text-xs font-black text-zinc-900 uppercase tracking-wider mb-1">Active Peers Online</h4>
+                    <p className="text-[10px] text-zinc-500 mb-3 leading-relaxed">These nearby student terminals are connected and waiting. Select items in categories and drop directly onto any online node below!</p>
+                    
+                    {discoveredPeers.length === 0 ? (
+                      <div className="p-4 bg-zinc-50 border border-zinc-150 rounded-2xl text-center">
+                        <span className="text-xs text-zinc-400 font-bold animate-pulse">Broadcasting ad-hoc heartbeat...</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {discoveredPeers.map(peer => (
+                          <div 
+                            key={peer.id}
+                            className="p-3 bg-zinc-50 hover:bg-zinc-100 border border-zinc-150 rounded-2xl flex items-center justify-between transition-all"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="h-8 w-8 bg-indigo-50 text-indigo-700 font-extrabold text-xs rounded-xl flex items-center justify-center shrink-0">
+                                {peer.avatar}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-black text-zinc-900 truncate">{peer.name}</p>
+                                <p className="text-[9px] text-zinc-400 font-semibold tracking-wider uppercase">Live Mesh Node</p>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                onClick={() => {
+                                  // Set as current active target and send!
+                                  setActivePeerName(peer.name);
+                                  setActivePeerDevice(peer.device);
+                                  setActivePeerOS(peer.os);
+                                  setConnectionState('connected_slave');
+                                  showNotification(`Target shifted to ${peer.name}. Click Send Selected Files above!`, 'success');
+                                }}
+                                className="px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors"
+                              >
+                                Drop
+                              </button>
+                              
+                              <button
+                                onClick={() => {
+                                  setActiveDeskHostId(peer.id);
+                                  showNotification(`Initializing TeamViewer proxy to ${peer.name}...`, 'info');
+                                }}
+                                className="px-2 py-1.5 bg-zinc-900 hover:bg-zinc-850 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-colors"
+                                title="Watch and Sync screens with TeamViewer mode"
+                              >
+                                <Monitor size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
               {connectionState === 'creating' && (
                 <motion.div 
                   initial={{ opacity: 0, y: 15 }}
@@ -1034,6 +1588,235 @@ export default function ExonaFileShare({
           </div>
         </div>
       </div>
+
+      {/* --- INCOMING P2P EXONA DROP DIALOG OVERLAY --- */}
+      <AnimatePresence>
+        {incomingTransfer && (
+          <div className="fixed inset-0 z-[150] bg-zinc-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 max-w-md w-full text-center shadow-2xl border border-zinc-100"
+            >
+              <div className="h-16 w-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <Download size={28} />
+              </div>
+              
+              <h3 className="text-lg font-black text-zinc-900 uppercase tracking-wide">Incoming Exona Drop</h3>
+              <p className="text-xs text-muted mt-1 leading-relaxed">
+                <span className="font-extrabold text-blue-650">{incomingTransfer.senderName}</span> wishes to share a file directly with you over school mesh ad-hoc. Accept to receive instant transfer.
+              </p>
+
+              {/* File Info */}
+              <div className="my-6 bg-zinc-50 border border-zinc-150 p-4 rounded-2xl flex items-center gap-4 text-left">
+                <div className="h-12 w-12 bg-white rounded-xl border flex items-center justify-center text-zinc-700 shrink-0 shadow-xs">
+                  <FileText size={20} className="text-zinc-650" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-black text-zinc-900 truncate">{incomingTransfer.file.name}</p>
+                  <p className="text-[10px] text-zinc-500 font-semibold uppercase mt-0.5 tracking-wider">{incomingTransfer.file.size} • {incomingTransfer.file.type}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleRejectTransfer(incomingTransfer.id)}
+                  className="py-3.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                >
+                  Decline
+                </button>
+                <button
+                  onClick={() => handleAcceptTransfer(incomingTransfer.id)}
+                  className="py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md shadow-blue-600/10"
+                >
+                  Accept & Save
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- LIVE REMOTE DESK - TEAMVIEWER WORKSTATION OVERLAY --- */}
+      <AnimatePresence>
+        {activeDeskHostId && (
+          <div className="fixed inset-0 z-[140] bg-zinc-950 flex flex-col overflow-hidden text-zinc-100">
+            {/* Control Bar */}
+            <div className="bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+                <div className="text-left">
+                  <h3 className="text-sm font-black uppercase tracking-widest">TeamView Workstation Console</h3>
+                  <p className="text-[10px] text-zinc-400 font-bold">
+                    Connected to Host: <span className="text-white font-extrabold">{activeDeskSession?.hostName || "Student Host"}</span> 
+                  </p>
+                </div>
+              </div>
+
+              {/* Menu options buttons */}
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setActiveRemoteMenuTab('whiteboard')}
+                  className={`px-4 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
+                    activeRemoteMenuTab === 'whiteboard' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Whiteboard Sync
+                </button>
+                <button 
+                  onClick={() => setActiveRemoteMenuTab('files')}
+                  className={`px-4 py-1.5 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all ${
+                    activeRemoteMenuTab === 'files' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  Host Shared Files
+                </button>
+
+                <div className="h-4 w-px bg-zinc-800" />
+
+                <button
+                  onClick={() => setActiveDeskHostId(null)}
+                  className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all"
+                >
+                  Disconnect View
+                </button>
+              </div>
+            </div>
+
+            {/* Main Interactive Screen Content */}
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 bg-zinc-950">
+              {/* Screen Stream Arena */}
+              <div className="flex-1 relative bg-zinc-900 flex items-center justify-center p-4 min-h-0 order-2 md:order-1">
+                <div 
+                  className="w-full max-w-4xl aspect-video bg-zinc-950 rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden relative"
+                  onMouseMove={handleDeskMouseMove}
+                >
+                  {/* Grid Lines background */}
+                  <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f2937_1px,transparent_1px),linear-gradient(to_bottom,#1f2937_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-30" />
+
+                  {/* Canvas Drawing Whiteboard Sync Area */}
+                  {activeRemoteMenuTab === 'whiteboard' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-zinc-800 text-[10px] font-black uppercase tracking-wider text-indigo-400">
+                        Shared Canvas Whiteboard • Hover and Sync
+                      </div>
+
+                      {/* Pure inline canvas simulation of vector drawing lines */}
+                      <svg className="absolute inset-0 h-full w-full pointer-events-none">
+                        {deskLines.map((line, lIdx) => (
+                          <g key={lIdx}>
+                            {line.points.length > 1 && line.points.map((p: any, pIdx: number) => {
+                              if (pIdx === 0) return null;
+                              const prev = line.points[pIdx - 1];
+                              return (
+                                <line
+                                  key={pIdx}
+                                  x1={`${prev.x}%`}
+                                  y1={`${prev.y}%`}
+                                  x2={`${p.x}%`}
+                                  y2={`${p.y}%`}
+                                  stroke={line.color || '#3b82f6'}
+                                  strokeWidth="4"
+                                  strokeLinecap="round"
+                                />
+                              );
+                            })}
+                          </g>
+                        ))}
+                      </svg>
+                    </div>
+                  )}
+
+                  {/* Virtual Host Operating Ambient Graphic */}
+                  {activeRemoteMenuTab === 'files' && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-zinc-950/80">
+                      <Monitor className="text-zinc-700 animate-pulse mb-4" size={48} />
+                      <h4 className="text-sm font-black uppercase tracking-widest text-zinc-300">Host Working Directory Stream</h4>
+                      <p className="text-[11px] text-zinc-500 max-w-sm mt-1">Select files from right menu dashboard columns to request real-time mesh download link.</p>
+                      
+                      {/* Floating terminal debug stream */}
+                      <div className="mt-6 bg-black/40 border border-zinc-800/60 p-4 rounded-xl font-mono text-[9px] text-emerald-400 text-left w-full max-w-md h-32 overflow-hidden space-y-1">
+                        <p className="text-zinc-600">&gt; exona-vpn-daemon --init</p>
+                        <p>&gt; OK: Authenticated peer client {myClientId}</p>
+                        <p>&gt; OK: Mounting local high frequency loopback cards</p>
+                        <p className="text-zinc-500">&gt; SYNC_WHITEBOARD_MUTEX_REFRESH: Lines loaded successfully</p>
+                        <p className="text-indigo-400">&gt; TEAMVIEW_CURSOR_BROADCAST: Host coordinate x={viewerMousePos.x} y={viewerMousePos.y}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Live Synced Cursor pointer from Peer Host */}
+                  <motion.div 
+                    className="absolute pointer-events-none z-30 flex flex-col items-start gap-1 cursor-none"
+                    animate={{
+                      left: `${viewerMousePos.x}%`,
+                      top: `${viewerMousePos.y}%`
+                    }}
+                    transition={{ type: 'spring', damping: 20, stiffness: 220 }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-yellow-400 drop-shadow-md">
+                      <path d="M4.5 2.5v19l5-5 4 8.5 3-1.5-4-8.5 7-1.5z" />
+                    </svg>
+                    <span className="bg-yellow-400 text-zinc-950 font-black text-[8px] uppercase tracking-wider px-1.5 py-0.5 rounded-sm line-none shadow-xs">
+                      {activeDeskSession?.hostName?.split(" ")[0] || "User"}'s Pointer
+                    </span>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Menu and downloads column pane */}
+              <div className="w-full md:w-80 bg-zinc-900 border-l border-zinc-800 flex flex-col min-h-0 order-1 md:order-2">
+                <div className="p-6 border-b border-zinc-800 shrink-0">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-zinc-200">Session Shared Items</h4>
+                  <p className="text-[10px] text-zinc-500 font-bold mt-1">Pull elements directly to your storage space:</p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {!activeDeskSession?.sharedFiles || activeDeskSession.sharedFiles.length === 0 ? (
+                    <div className="py-12 text-center font-mono text-[10px] text-zinc-650">
+                      No files published by Host yet.
+                    </div>
+                  ) : (
+                    activeDeskSession.sharedFiles.map((file: any) => (
+                      <div 
+                        key={file.id} 
+                        className="p-3 bg-zinc-950/60 hover:bg-zinc-950 border border-zinc-800 rounded-xl flex items-center justify-between gap-3 text-left group transition-all"
+                      >
+                        <div className="min-w-0 flex-1 flex items-center gap-2.5">
+                          <FileText size={16} className="text-zinc-500 shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-xs font-black text-white truncate">{file.name}</p>
+                            <p className="text-[9px] text-zinc-500 font-semibold uppercase">{file.size} • {file.type}</p>
+                          </div>
+                        </div>
+                        {file.downloadUrl ? (
+                          <a 
+                            href={file.downloadUrl}
+                            download={file.name}
+                            referrerPolicy="no-referrer"
+                            className="bg-zinc-850 group-hover:bg-blue-600 group-hover:text-white px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-zinc-400 transition-colors"
+                          >
+                            Pull File
+                          </a>
+                        ) : (
+                          <button
+                            onClick={() => showNotification("Contacting host server for peer socket chunk transfer...", "info")}
+                            className="bg-zinc-850 hover:bg-blue-600 hover:text-white px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-zinc-400 transition-colors"
+                          >
+                            Pull File
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

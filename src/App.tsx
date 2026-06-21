@@ -29706,30 +29706,50 @@ function ExonaApp() {
                 )}
               </div>
 
-              <div className="p-10 border-t border-gray-100 bg-white">
-                <div className="flex gap-5 items-center">
-                  <div className="flex-1 relative group">
-                    <input 
-                      type="text" 
-                      value={commentText}
-                      onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Share your perspective..."
-                      className="w-full pl-10 pr-20 py-6 bg-white rounded-[2rem] border border-gray-100 outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-[15px] font-bold placeholder:text-gray-300"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                    />
-                    <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                      <button className="p-2 text-muted hover:text-accent transition-colors"><Smile size={20} /></button>
+              {(() => {
+                const postSchool = [...schools, ...places].find(s => s.id === activePostForComments.schoolId);
+                const isManager = postSchool ? canManageInstitution(postSchool) : false;
+                const isFollowing = postSchool?.followers?.includes(user?.uid || '') || false;
+                const permission = postSchool?.replyPermission || 'everyone';
+                const canUserComment = !postSchool || isManager || userDoc?.role === 'admin' || permission === 'everyone' || (permission === 'followers' && isFollowing);
+                
+                if (!canUserComment) {
+                  return (
+                    <div className="p-10 border-t border-gray-100 bg-slate-50 text-center flex flex-col items-center justify-center gap-2 rounded-b-[3.5rem]">
+                      <Lock size={20} className="text-muted opacity-65 mb-1 text-slate-400" />
+                      <p className="text-xs font-black uppercase text-slate-800 tracking-wider">Replies are restricted by the administrator</p>
+                      <p className="text-[10px] text-zinc-405 font-bold max-w-lg leading-relaxed">Only authorized coordinators or managers can publish replies under this channel stream. If reply options are set to Followers or Everyone in the institution settings, other members can participate.</p>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div className="p-10 border-t border-gray-100 bg-white">
+                    <div className="flex gap-5 items-center">
+                      <div className="flex-1 relative group">
+                        <input 
+                          type="text" 
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Share your perspective live..."
+                          className="w-full pl-10 pr-20 py-6 bg-white rounded-[2rem] border border-gray-100 outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-[15px] font-bold placeholder:text-gray-300"
+                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
+                        />
+                        <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3">
+                          <button className="p-2 text-muted hover:text-accent transition-colors"><Smile size={20} /></button>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={handleAddComment}
+                        disabled={!commentText.trim()}
+                        className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90"
+                      >
+                        <Send size={24} />
+                      </button>
                     </div>
                   </div>
-                  <button 
-                    onClick={handleAddComment}
-                    disabled={!commentText.trim()}
-                    className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90"
-                  >
-                    <Send size={24} />
-                  </button>
-                </div>
-              </div>
+                );
+              })()}
             </motion.div>
           </motion.div>
         )}
