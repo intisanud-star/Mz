@@ -30175,11 +30175,11 @@ function ExonaApp() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[58px] flex items-center justify-center w-full no-print select-none shadow-lg"
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[68px] flex items-center justify-center w-full no-print select-none shadow-lg"
           >
             <div className="w-full max-w-lg h-full flex items-center justify-around relative px-2">
               
-              {/* Floating Workspace & Tools submenu above Middle Button */}
+               {/* Floating Workspace & Tools submenu above Middle Button */}
               <AnimatePresence>
                 {isMiddleMenuOpen && (
                   <>
@@ -30195,7 +30195,7 @@ function ExonaApp() {
                       animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
                       exit={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
                       transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                      className="absolute bottom-[64px] left-1/2 z-50 bg-white border border-zinc-150 rounded-[1.5rem] p-3.5 shadow-xl flex items-center gap-4 no-print min-w-[210px] border-b-2 border-b-[#2481CC]"
+                      className="absolute bottom-[74px] left-1/2 z-50 bg-white border border-zinc-150 rounded-[1.5rem] p-3.5 shadow-xl flex items-center gap-4 no-print min-w-[210px] border-b-2 border-b-[#2481CC]"
                     >
                       {/* Sub-icon 1: Workspace */}
                       <button
@@ -30214,7 +30214,7 @@ function ExonaApp() {
                         </div>
                         <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Workspace</span>
                       </button>
-
+                      
                       {/* Divider */}
                       <div className="h-8 w-[1px] bg-zinc-200" />
 
@@ -30248,12 +30248,12 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 {view === 'feed' && (
-                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
                 <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Home size={19.5} strokeWidth={view === 'feed' ? 2.8 : 2.2} />
+                  <Home size={23} strokeWidth={view === 'feed' ? 2.8 : 2.2} />
                 </div>
-                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   Feed
@@ -30269,12 +30269,12 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 {view === 'schools' && (
-                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
                 <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <ShoppingBag size={19.5} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
+                  <ShoppingBag size={23} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
                 </div>
-                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   Shop
@@ -30289,16 +30289,16 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 {isMiddleMenuOpen && (
-                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
                 <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
                   {isMiddleMenuOpen ? (
-                    <X size={19.5} strokeWidth={2.8} />
+                    <X size={23} strokeWidth={2.8} />
                   ) : (
-                    <LayoutGrid size={19.5} strokeWidth={2.2} />
+                    <LayoutGrid size={23} strokeWidth={2.2} />
                   )}
                 </div>
-                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   Hub
@@ -30314,12 +30314,12 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 {view === 'finance' && (
-                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
                 <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Wallet size={19.5} strokeWidth={view === 'finance' ? 2.8 : 2.2} />
+                  <Wallet size={23} strokeWidth={view === 'finance' ? 2.8 : 2.2} />
                 </div>
-                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   Wallet
@@ -30339,9 +30339,9 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-95 relative font-sans cursor-pointer group"
               >
                 {(view === 'profile' || view === 'login') && (
-                  <span className="absolute top-0 w-8 h-1 bg-[#2481CC] rounded-b-md" />
+                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
                 )}
-                <div className={`relative h-[22px] w-[22px] rounded-full overflow-hidden transition-all duration-200 ${
+                <div className={`relative h-[26px] w-[26px] rounded-full overflow-hidden transition-all duration-200 ${
                   view === 'profile' || view === 'login'
                     ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
                     : 'group-hover:scale-105'
@@ -30354,7 +30354,7 @@ function ExonaApp() {
                   {/* Small red target bounce dot on bottom right */}
                   <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
                 </div>
-                <span className={`text-[8.5px] uppercase tracking-widest font-extrabold mt-1 transition-all duration-150 ${
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
                 }`}>
                   Profile
