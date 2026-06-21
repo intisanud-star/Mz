@@ -3040,6 +3040,7 @@ const FeedPost = ({
   fallbackLikesState
 }: any) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   
   // Resolve likes state: is it a local fallback post or real Firebase post?
   const isFallback = post.id && post.id.startsWith('fallback-');
@@ -3168,7 +3169,7 @@ const FeedPost = ({
       )}
 
       {/* Beautiful Rounded Attachment Graphic (Main Image) */}
-      {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && (
+      {(post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && post.mediaType !== 'voice' && (
         <div className={`mb-4 rounded-2xl overflow-hidden border border-zinc-150 bg-zinc-50 group/media ${post.mediaUrls && post.mediaUrls.length > 1 ? 'grid grid-cols-2 gap-1' : ''}`}>
           {post.mediaUrls && post.mediaUrls.length > 0 ? (
             post.mediaUrls.map((url: string, idx: number) => (
@@ -3199,6 +3200,43 @@ const FeedPost = ({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {post.mediaType === 'voice' && post.mediaUrl && (
+        <div className="mb-4 bg-slate-50 p-4 border border-zinc-150 rounded-2xl flex items-center gap-3">
+          <button 
+            onClick={() => {
+              const audioEl = document.getElementById(`audio-feed-${post.id}`) as HTMLAudioElement;
+              if (isPlaying) {
+                audioEl?.pause();
+                setIsPlaying(false);
+              } else {
+                audioEl?.play()
+                  .then(() => setIsPlaying(true))
+                  .catch(e => console.warn('Audio play failed:', e));
+              }
+            }}
+            className="h-10 w-10 rounded-full flex items-center justify-center transition-all bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 shrink-0"
+          >
+            {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+          </button>
+          <div className="flex-1">
+            <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+              <motion.div 
+                animate={isPlaying ? { x: ['0%', '100%'] } : { x: '0%' }}
+                transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                className="h-full w-1/3 bg-indigo-600" 
+              />
+            </div>
+            <p className="text-[9px] mt-1.5 text-zinc-400 font-extrabold uppercase tracking-widest leading-none">Voice Memo Broadcast</p>
+          </div>
+          <audio 
+            id={`audio-feed-${post.id}`} 
+            src={post.mediaUrl} 
+            onEnded={() => setIsPlaying(false)}
+            className="hidden" 
+          />
         </div>
       )}
 
@@ -7379,6 +7417,7 @@ function ExonaApp() {
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const [recordingTime, setRecordingTime] = useState(0);
   const [activeVoiceMessage, setActiveVoiceMessage] = useState<string | null>(null);
+  const [channelInput, setChannelInput] = useState('');
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [outgoingCall, setOutgoingCall] = useState<any>(null);
   const [activeCallStream, setActiveCallStream] = useState<MediaStream | null>(null);
@@ -10122,7 +10161,9 @@ function ExonaApp() {
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
           const base64Audio = reader.result as string;
-          if (activeChat) {
+          if (view === 'institution-channel' && selectedInstitutionForProfile) {
+            await handleSendChannelMessage('Voice Broadcast', 'voice', base64Audio);
+          } else if (activeChat) {
             await handleSendMessage(activeChat.uid, 'Voice Message', activeChat.isGroup, base64Audio);
           }
         };
@@ -10992,6 +11033,41 @@ function ExonaApp() {
     } catch (error) {
       console.error('Send message failed:', error);
       handleFirestoreError(error, OperationType.WRITE, 'messages');
+    }
+  };
+
+  const handleSendChannelMessage = async (text: string, type?: 'voice', audioData?: string) => {
+    if (!user || (!text.trim() && !audioData)) return;
+    const activeInst = selectedInstitutionForProfile;
+    if (!activeInst) return;
+
+    try {
+      const isOfficial = canManageInstitution(activeInst);
+      
+      const postData: any = {
+        authorUid: user.uid,
+        authorName: isOfficial ? activeInst.name : (user.displayName || 'Anonymous'),
+        authorPhoto: isOfficial ? activeInst.logo : (user.photoURL || ''),
+        authorRole: userDoc?.role || 'user',
+        schoolName: activeInst.name,
+        content: text,
+        mediaUrls: audioData ? [audioData] : [],
+        mediaUrl: audioData || null,
+        mediaType: type || null,
+        timestamp: serverTimestamp(),
+        isOfficial,
+        schoolId: activeInst.id,
+        likes: 0,
+        likedBy: [],
+        commentsCount: 0,
+        reshares: 0
+      };
+
+      await addDoc(collection(db, 'posts'), postData);
+      showNotification(type === 'voice' ? 'Voice broadcast transmitted!' : 'Broadcast transmitted!', 'success');
+    } catch (error) {
+      console.error('Failed to send channel message:', error);
+      showNotification('Unable to send message. Please try again.', 'error');
     }
   };
 
@@ -12255,7 +12331,7 @@ function ExonaApp() {
   // 6. Posts & Personalized Social Feed Listener
   useEffect(() => {
     if (isQuotaExceeded || !user || !userDoc) return;
-    if (!['feed', 'school-feed', 'institution-profile', 'profile', 'user-profile'].includes(view)) return;
+    if (!['feed', 'school-feed', 'institution-profile', 'profile', 'user-profile', 'institution-channel'].includes(view)) return;
 
     let unsubPosts = () => {};
 
@@ -21472,8 +21548,9 @@ function ExonaApp() {
                         lastDateStr = currentDateStr;
                       }
 
-                      const hasMedia = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
-                      const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                      const isVoice = post.mediaType === 'voice';
+                      const hasMedia = (post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0)) && !isVoice;
+                      const isVideo = (post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'))) && !isVoice;
                       const isLiked = user && fallbackPostLikes[post.id]?.likedBy?.includes(user.uid);
                       const likesCount = (post.likes || 0) + (fallbackPostLikes[post.id]?.likes || 0);
 
@@ -21490,6 +21567,45 @@ function ExonaApp() {
                           <div className="relative group max-w-[85%] self-start w-full transition-all flex items-end gap-2 my-1">
                             {/* Speech Bubble */}
                             <div className="w-full bg-white rounded-2xl rounded-tl-sm shadow-sm border border-gray-100/80 p-3.5 flex flex-col relative">
+                              {/* Voice player if present */}
+                              {isVoice && post.mediaUrl && (
+                                <div className="flex items-center gap-3 min-w-[200px] bg-slate-50 p-2.5 rounded-xl border border-gray-100 mb-2.5 shrink-0">
+                                  <button 
+                                    onClick={() => {
+                                      if (activeVoiceMessage === post.id) {
+                                        setActiveVoiceMessage(null);
+                                        (document.getElementById(`audio-channel-${post.id}`) as HTMLAudioElement)?.pause();
+                                      } else {
+                                        setActiveVoiceMessage(post.id);
+                                        const audioEl = document.getElementById(`audio-channel-${post.id}`) as HTMLAudioElement;
+                                        if (audioEl) {
+                                          audioEl.play().catch(e => console.warn('Audio play failed:', e));
+                                        }
+                                      }
+                                    }}
+                                    className="h-10 w-10 rounded-full flex items-center justify-center transition-all bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 shrink-0"
+                                  >
+                                    {activeVoiceMessage === post.id ? <Pause size={18} /> : <Play size={18} />}
+                                  </button>
+                                  <div className="flex-1">
+                                    <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
+                                      <motion.div 
+                                        animate={activeVoiceMessage === post.id ? { x: ['0%', '100%'] } : { x: '0%' }}
+                                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                                        className="h-full w-1/3 bg-indigo-600" 
+                                      />
+                                    </div>
+                                    <p className="text-[9px] mt-1.5 text-zinc-400 font-extrabold uppercase tracking-widest leading-none">Voice Memo Broadcast</p>
+                                  </div>
+                                  <audio 
+                                    id={`audio-channel-${post.id}`} 
+                                    src={post.mediaUrl} 
+                                    onEnded={() => setActiveVoiceMessage(null)}
+                                    className="hidden" 
+                                  />
+                                </div>
+                              )}
+
                               {/* Rich media content if present */}
                               {hasMedia && (
                                 <div className="relative aspect-video bg-gray-50 rounded-xl overflow-hidden mb-2.5 border border-gray-100/50">
@@ -21591,127 +21707,192 @@ function ExonaApp() {
                 /* Telegram Input Bar Component */
                 <div className="flex items-center gap-2.5 w-full select-none">
                   {/* Left Action Button (Exona Portal or Menu) */}
-                  <button 
-                    onClick={() => {
-                      setSelectedSchool(latestInst);
-                      setView('school-feed');
-                      showNotification("Entered School Portal Console", "success");
-                    }} 
-                    className="px-3.5 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm hover:bg-indigo-700 transition-all shrink-0 active:scale-95"
-                  >
-                    <Grid size={13} />
-                    <span>Portal</span>
-                  </button>
-
-                  {/* Input form mimic */}
-                  <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
-                    <button className="text-gray-400 hover:text-indigo-600 transition-colors">
-                      <Smile size={18} />
+                  {!isRecording && (
+                    <button 
+                      onClick={() => {
+                        setSelectedSchool(latestInst);
+                        setView('school-feed');
+                        showNotification("Entered School Portal Console", "success");
+                      }} 
+                      className="px-3.5 py-2.5 bg-indigo-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest flex items-center gap-1.5 shadow-sm hover:bg-indigo-700 transition-all shrink-0 active:scale-95"
+                    >
+                      <Grid size={13} />
+                      <span>Portal</span>
                     </button>
-                    <input 
-                      type="text" 
-                      placeholder="Comment or broadcast..." 
-                      className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          showNotification("To publish an official broadcast, manage the channel from administrators panel.", "info");
-                        }
-                      }}
-                    />
-                    <div className="relative flex items-center">
-                      <button 
-                        onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'broadcast' ? null : 'broadcast')}
-                        className={`transition-colors py-1 ${activeAttachmentMenu === 'broadcast' ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'}`}
-                        title="Attachment Features"
-                      >
-                        <Paperclip size={18} />
-                      </button>
+                  )}
 
-                      {activeAttachmentMenu === 'broadcast' && (
-                        <>
-                          <div 
-                            className="fixed inset-0 z-40" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveAttachmentMenu(null);
+                  {/* Input form or recording status */}
+                  {isRecording ? (
+                    <div className="flex-1 bg-red-50/50 flex items-center justify-between px-4 py-2 bg-gray-50 border border-gray-150 rounded-2xl">
+                      <div className="flex items-center gap-3">
+                        <motion.div 
+                          animate={{ scale: [1, 1.2, 1] }} 
+                          transition={{ repeat: Infinity, duration: 1 }} 
+                          className="h-2 w-2 bg-red-500 rounded-full" 
+                        />
+                        <span className="text-xs font-black text-ink font-mono">
+                          {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                        </span>
+                        <span className="text-[10px] text-muted font-bold uppercase tracking-widest">Recording Broadcast...</span>
+                      </div>
+                      <button 
+                        onClick={handleStopRecording}
+                        className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:bg-red-50 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        Stop & Send
+                      </button>
+                    </div>
+                  ) : (
+                    /* Check if has permission to write as per setting */
+                    (() => {
+                      const canUserBroadcast = canManage || latestInst.replyPermission === 'everyone' || (latestInst.replyPermission === 'followers' && isFollowing);
+                      if (!canUserBroadcast) {
+                        return (
+                          <div className="flex-1 bg-slate-50 border border-slate-150 rounded-2xl py-3 px-4 flex items-center justify-center gap-2 text-muted">
+                            <Lock size={14} className="opacity-60" />
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Only administrators can write messages</span>
+                          </div>
+                        );
+                      }
+                      
+                      return (
+                        <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
+                          <button className="text-gray-400 hover:text-indigo-600 transition-colors shrink-0">
+                            <Smile size={18} />
+                          </button>
+                          <input 
+                            type="text" 
+                            placeholder="Comment or broadcast..." 
+                            className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans"
+                            value={channelInput}
+                            onChange={(e) => setChannelInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && channelInput.trim()) {
+                                handleSendChannelMessage(channelInput.trim());
+                                setChannelInput('');
+                              }
                             }}
                           />
-                          <div className="absolute bottom-[40px] right-0 z-50 bg-white border border-gray-150 rounded-2xl shadow-xl p-3 w-[260px] animate-in fade-in slide-in-from-bottom-2 duration-150">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2.5 px-1 text-left">Attachment Tools</p>
-                            <div className="grid grid-cols-2 gap-2">
-                              {/* Option 1: Exona Air Drop */}
-                              <button
-                                onClick={() => {
-                                  setActiveAttachmentMenu(null);
-                                  launchWorkspaceTool('file-share');
-                                  showNotification("Launching Exona Drop...", "success");
-                                }}
-                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                              >
-                                <div className="h-10 w-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                  <Radio size={18} />
-                                </div>
-                                <span className="text-[10px] font-bold text-gray-700 leading-tight">Exona Air Drop</span>
-                              </button>
+                          <div className="relative flex items-center">
+                            <button 
+                              onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'broadcast' ? null : 'broadcast')}
+                              className={`transition-colors py-1 shrink-0 ${activeAttachmentMenu === 'broadcast' ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'}`}
+                              title="Attachment Features"
+                            >
+                              <Paperclip size={18} />
+                            </button>
 
-                              {/* Option 2: PDF Studio */}
-                              <button
-                                onClick={() => {
-                                  setActiveAttachmentMenu(null);
-                                  launchWorkspaceTool('pdf');
-                                  showNotification("Launching PDF Studio...", "success");
-                                }}
-                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                              >
-                                <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                  <FileJson size={18} />
-                                </div>
-                                <span className="text-[10px] font-bold text-gray-700 leading-tight">PDF Studio</span>
-                              </button>
+                            {activeAttachmentMenu === 'broadcast' && (
+                              <>
+                                <div 
+                                  className="fixed inset-0 z-40" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveAttachmentMenu(null);
+                                  }}
+                                />
+                                <div className="absolute bottom-[40px] right-0 z-50 bg-white border border-gray-150 rounded-2xl shadow-xl p-3 w-[260px] animate-in fade-in slide-in-from-bottom-2 duration-150">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2.5 px-1 text-left">Attachment Tools</p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {/* Option 1: Exona Air Drop */}
+                                    <button
+                                      onClick={() => {
+                                        setActiveAttachmentMenu(null);
+                                        launchWorkspaceTool('file-share');
+                                        showNotification("Launching Exona Drop...", "success");
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                    >
+                                      <div className="h-10 w-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                        <Radio size={18} />
+                                      </div>
+                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">Exona Air Drop</span>
+                                    </button>
 
-                              {/* Option 3: Cloud Storage */}
-                              <button
-                                onClick={() => {
-                                  setActiveAttachmentMenu(null);
-                                  launchWorkspaceTool('storage');
-                                  showNotification("Launching Cloud Storage...", "success");
-                                }}
-                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                              >
-                                <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                  <HardDrive size={18} />
-                                </div>
-                                <span className="text-[10px] font-bold text-gray-700 leading-tight">Cloud Storage</span>
-                              </button>
+                                    {/* Option 2: PDF Studio */}
+                                    <button
+                                      onClick={() => {
+                                        setActiveAttachmentMenu(null);
+                                        launchWorkspaceTool('pdf');
+                                        showNotification("Launching PDF Studio...", "success");
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                    >
+                                      <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                        <FileJson size={18} />
+                                      </div>
+                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">PDF Studio</span>
+                                    </button>
 
-                              {/* Option 4: E-Test Portal */}
-                              <button
-                                onClick={() => {
-                                  setActiveAttachmentMenu(null);
-                                  launchWorkspaceTool('e-test');
-                                  showNotification("Launching E-Test Portal...", "success");
-                                }}
-                                className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                              >
-                                <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                  <BadgeCheck size={18} />
+                                    {/* Option 3: Cloud Storage */}
+                                    <button
+                                      onClick={() => {
+                                        setActiveAttachmentMenu(null);
+                                        launchWorkspaceTool('storage');
+                                        showNotification("Launching Cloud Storage...", "success");
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                    >
+                                      <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                        <HardDrive size={18} />
+                                      </div>
+                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">Cloud Storage</span>
+                                    </button>
+
+                                    {/* Option 4: E-Test Portal */}
+                                    <button
+                                      onClick={() => {
+                                        setActiveAttachmentMenu(null);
+                                        launchWorkspaceTool('e-test');
+                                        showNotification("Launching E-Test Portal...", "success");
+                                      }}
+                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
+                                    >
+                                      <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
+                                        <BadgeCheck size={18} />
+                                      </div>
+                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">e Test Portal</span>
+                                    </button>
+                                  </div>
                                 </div>
-                                <span className="text-[10px] font-bold text-gray-700 leading-tight">e Test Portal</span>
-                              </button>
-                            </div>
+                              </>
+                            )}
                           </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                        </div>
+                      );
+                    })()
+                  )}
 
-                  {/* Mic / Audio record mimic */}
-                  <button 
-                    onClick={() => showNotification("Speech capture is only available for direct peer-to-peer secure chat lines.", "info")}
-                    className="h-10 w-10 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-full flex items-center justify-center transition-colors shrink-0"
-                  >
-                    <Mic size={18} />
-                  </button>
+                  {/* Send Action or Voice Note Mic */}
+                  {(() => {
+                    const canUserBroadcast = canManage || latestInst.replyPermission === 'everyone' || (latestInst.replyPermission === 'followers' && isFollowing);
+                    if (!canUserBroadcast || isRecording) return null;
+                    
+                    if (channelInput.trim()) {
+                      return (
+                        <button 
+                          onClick={() => {
+                            handleSendChannelMessage(channelInput.trim());
+                            setChannelInput('');
+                          }}
+                          className="h-10 w-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shrink-0 shadow-md shadow-indigo-600/15"
+                          title="Send Message"
+                        >
+                          <Send size={16} />
+                        </button>
+                      );
+                    }
+                    
+                    return (
+                      <button 
+                        onClick={handleStartRecording}
+                        className="h-10 w-10 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-full flex items-center justify-center transition-colors shrink-0 active:scale-95"
+                        title="Record Voice Note"
+                      >
+                        <Mic size={18} />
+                      </button>
+                    );
+                  })()}
                 </div>
               )}
             </div>
