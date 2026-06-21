@@ -7930,9 +7930,8 @@ function ExonaApp() {
       { id: 'all', label: 'All' },
       { id: 'chats', label: 'Chat' },
       { id: 'groups', label: 'Group' },
-      { id: 'school', label: 'Schools' },
-      { id: 'place', label: 'Places' },
-      { id: 'Business', label: 'Business' }
+      { id: 'school', label: 'School' },
+      { id: 'place', label: 'Place' }
     ];
     try {
       const stored = localStorage.getItem('exon_custom_categories');
@@ -7949,7 +7948,7 @@ function ExonaApp() {
   });
 
   useEffect(() => {
-    const customOnly = categories.filter(c => !['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id));
+    const customOnly = categories.filter(c => !['all', 'place', 'school', 'chats', 'groups'].includes(c.id));
     localStorage.setItem('exon_custom_categories', JSON.stringify(customOnly));
   }, [categories]);
 
@@ -13767,8 +13766,7 @@ function ExonaApp() {
               <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
                 <div className="block">
               <div 
-                className="flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar scrollbar-hide flex-nowrap w-full py-1.5 select-none"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className="flex items-center gap-1 mb-4 flex-wrap w-full py-1 select-none"
               >
                 {categories.map((c) => {
                   const count = getFilterCount(c.id);
@@ -13777,33 +13775,33 @@ function ExonaApp() {
                     <div key={c.id} className="relative group shrink-0 flex items-center">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-8 px-3.5 rounded-full text-[11.5px] uppercase tracking-wider font-bold transition-all outline-none flex items-center justify-center font-sans ${
+                        className={`h-[26px] px-2 rounded-full text-[10.5px] font-black transition-all outline-none flex items-center justify-center font-sans ${
                           isSelected 
-                            ? 'bg-[#2481CC]/10 text-[#2481CC]' 
-                            : 'bg-slate-50 text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
+                            ? 'bg-[#2481CC]/15 text-[#2481CC]' 
+                            : 'bg-slate-50/80 text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
                         }`}
                       >
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex items-center gap-1">
                           {c.label}
                           {count > 0 && (
-                            <span className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded-full ${
-                              isSelected ? 'bg-[#2481CC] text-white' : 'bg-slate-200 text-slate-600'
+                            <span className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full ${
+                              isSelected ? 'bg-[#2481CC] text-white' : 'bg-slate-200/85 text-slate-600'
                             }`}>
                               {count}
                             </span>
                           )}
                         </span>
                       </button>
-                      {!['all', 'place', 'school', 'Business', 'chats', 'groups'].includes(c.id) && (
+                      {!['all', 'place', 'school', 'chats', 'groups'].includes(c.id) && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteCategory(c.id);
                           }}
-                          className="absolute -top-1 -right-1 bg-red-500 hover:bg-red-600 text-white h-4 w-4 rounded-full flex items-center justify-center text-[8px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          className="absolute -top-1 -right-0.5 bg-red-500 hover:bg-red-600 text-white h-3.5 w-3.5 rounded-full flex items-center justify-center text-[7px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
                           title="Delete category"
                         >
-                          <X size={8} />
+                          <X size={7} />
                         </button>
                       )}
                     </div>
