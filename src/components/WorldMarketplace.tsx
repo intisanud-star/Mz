@@ -516,6 +516,69 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     return `${activeCurrency.symbol}${formatted}`;
   };
 
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const handleImageUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showNotification("Please select a valid image file (PNG/JPG).", "error");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      showNotification("Failed to read image file.", "error");
+      setIsUploadingImage(false);
+    };
+
+    reader.onload = (event) => {
+      const imgElement = document.createElement('img');
+      imgElement.src = event.target?.result as string;
+      
+      imgElement.onerror = () => {
+        showNotification("Failed to load image element helper.", "error");
+        setIsUploadingImage(false);
+      };
+
+      imgElement.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500; // Optimal size for high performance web image listings
+        const MAX_HEIGHT = 500;
+        let width = imgElement.width;
+        let height = imgElement.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(imgElement, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75); // Compact yet high quality
+          setNewProductImg(compressedDataUrl);
+          showNotification("Product photo added successfully!", "success");
+        } else {
+          setNewProductImg(event.target?.result as string);
+        }
+        setIsUploadingImage(false);
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
   // List dynamic new custom product
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2003,16 +2066,90 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Image URL (Optional)</label>
+                <div className="space-y-2">
+                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px] block">Product / Advert Layout Image</label>
+                  
+                  {newProductImg ? (
+                    <div className="relative group rounded-2xl overflow-hidden border border-stone-200 bg-stone-50 h-44 flex items-center justify-center">
+                      <img 
+                        src={newProductImg} 
+                        alt="Product upload preview" 
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <label 
+                          htmlFor="product-image-upload"
+                          className="bg-white/95 text-stone-900 text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg cursor-pointer hover:bg-white shadow transition-all"
+                        >
+                          Change Photo
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setNewProductImg('')}
+                          className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg cursor-pointer shadow transition-all"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewProductImg('')}
+                        className="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-stone-900/60 hover:bg-stone-900 text-white flex items-center justify-center transition-colors cursor-pointer"
+                        title="Remove image"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <label 
+                      htmlFor="product-image-upload"
+                      className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[140px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
+                    >
+                      <div className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-lg mb-2 group-hover:scale-105 transition-transform">
+                        📸
+                      </div>
+                      <span className="text-xs font-bold text-stone-700">
+                        {isUploadingImage ? "Compressing & caching..." : "Tap to upload advert photo"}
+                      </span>
+                      <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1.5 leading-normal">
+                        Supports JPEG, PNG. Live compressed for speed.
+                      </span>
+                      {isUploadingImage && (
+                        <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center">
+                          <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing live file...</span>
+                        </div>
+                      )}
+                    </label>
+                  )}
+                  
                   <input 
-                    type="url" 
-                    placeholder="https://images.unsplash.com/photo-..."
-                    value={newProductImg}
-                    onChange={(e) => setNewProductImg(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                    type="file" 
+                    id="product-image-upload"
+                    accept="image/*"
+                    onChange={handleImageUploadChange}
+                    className="hidden" 
                   />
-                  <span className="text-[9px] text-stone-400 font-bold block leading-relaxed uppercase tracking-wider mt-1">If blank, an premium curated fallback image matches the category.</span>
+
+                  {/* Manual fallback input for expert users */}
+                  <div className="pt-2">
+                    <details className="cursor-pointer select-none group">
+                      <summary className="text-[9.5px] text-stone-400 font-extrabold uppercase tracking-widest hover:text-stone-600 transition-colors list-none flex items-center gap-1.5">
+                        <span className="transition-transform group-open:rotate-90">▶</span>
+                        Or paste direct web image URL
+                      </summary>
+                      <div className="mt-2 pl-3 border-l-2 border-stone-100 space-y-1">
+                        <input 
+                          type="url" 
+                          placeholder="https://images.unsplash.com/photo-..."
+                          value={newProductImg.startsWith('data:') ? '' : newProductImg}
+                          onChange={(e) => setNewProductImg(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 transition-all font-sans"
+                        />
+                        <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider">Leave empty to auto-select a curated category scene.</span>
+                      </div>
+                    </details>
+                  </div>
                 </div>
 
                 <div className="pt-4 flex gap-3">
