@@ -10,6 +10,7 @@ import {
   Plus, 
   Trash2, 
   ChevronRight, 
+  ChevronLeft,
   ArrowLeft, 
   Check, 
   X, 
@@ -43,6 +44,7 @@ export interface Product {
   originCountry: string;
   countryFlag: string;
   imageUrl: string;
+  imageUrls?: string[];
   stock: number;
   rating: number;
   reviewsCount: number;
@@ -260,6 +262,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [newProductCountry, setNewProductCountry] = useState('United States');
   const [newProductStock, setNewProductStock] = useState('10');
   const [newProductImg, setNewProductImg] = useState('');
+  const [newProductImages, setNewProductImages] = useState<string[]>([]);
+  const [activeDetailImageIdx, setActiveDetailImageIdx] = useState(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
   // Selected Product Detail Modal
@@ -695,10 +699,13 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         if (ctx) {
           ctx.drawImage(imgElement, 0, 0, width, height);
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75); // Compact yet high quality
+          setNewProductImages(prev => [...prev, compressedDataUrl]);
           setNewProductImg(compressedDataUrl);
           showNotification("Product photo added successfully!", "success");
         } else {
-          setNewProductImg(event.target?.result as string);
+          const resultImg = event.target?.result as string;
+          setNewProductImages(prev => [...prev, resultImg]);
+          setNewProductImg(resultImg);
         }
         setIsUploadingImage(false);
       };
@@ -801,6 +808,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
       const flag = countriesFlags[newProductCountry] || '🌐';
 
+      // Gather multiple images or fallback to the single/fallback image
+      const photoCollection = newProductImages.length > 0 ? newProductImages : [newProductImg.trim() || fallbackImg];
+
       const customProd = {
         name: newProductName,
         description: newProductDesc || "Premium international item curated for the Exona world marketplace.",
@@ -808,7 +818,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         category: newProductCategory,
         originCountry: newProductCountry,
         countryFlag: flag,
-        imageUrl: newProductImg.trim() || fallbackImg,
+        imageUrl: photoCollection[0],
+        imageUrls: photoCollection,
         stock: parseInt(newProductStock) || 10,
         rating: 5.0, 
         reviewsCount: 1,
@@ -827,6 +838,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       setNewProductDesc('');
       setNewProductPrice('');
       setNewProductImg('');
+      setNewProductImages([]);
       setIsListModalOpen(false);
     } catch (e) {
       console.error(e);
@@ -836,10 +848,13 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     }
   };
 
-  // Remove international product listing - ADMIN ONLY
+  // Remove international product listing - ADMIN or OWNER allowed
   const handleDeleteProduct = async (productId: string, productName: string) => {
-    if (!isAdmin) {
-      showNotification("Security Error: Only network administrators can remove products.", "error");
+    const prod = products.find(p => p.id === productId);
+    const isOwner = prod?.sellerId && prod.sellerId === (user?.uid || 'guest');
+    
+    if (!isAdmin && !isOwner) {
+      showNotification("Security Error: Only network administrators or the post creator can remove this product.", "error");
       return;
     }
     try {
@@ -1546,9 +1561,19 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                           {/* Immersive Instagram & Threads-styled Hero Media Card */}
                           <div 
-                            onClick={() => setSelectedDetailedProduct(p)}
-                            className="mt-4 relative rounded-2xl overflow-hidden aspect-[4/3] bg-stone-50 border border-stone-200/50 group select-none cursor-pointer shadow-xs"
+                            onClick={() => {
+                              setSelectedDetailedProduct(p);
+                              setActiveDetailImageIdx(0);
+                            }}
+                            className="mt-4 relative rounded-2xl overflow-hidden aspect-[4/3] bg-stone-50 border border-stone-200/50 group select-none cursor-pointer shadow-xs animate-fade-in"
                           >
+                            {/* Stacked Images indicator badge */}
+                            {p.imageUrls && p.imageUrls.length > 1 && (
+                              <div className="absolute top-4 left-4 bg-stone-900/80 backdrop-blur-md text-white text-[9.5px] font-black uppercase px-2 py-1 rounded-xl border border-white/10 z-10 select-none flex items-center gap-1.5 shadow-sm">
+                                <span>📁</span>
+                                <span>1 / {p.imageUrls.length} Photos</span>
+                              </div>
+                            )}
                             <img 
                               src={p.imageUrl} 
                               alt={p.name}
@@ -1624,12 +1649,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                 <span className="text-[10px] font-extrabold text-stone-600">{getProductResharesCount(p.id)}</span>
                               </button>
 
-                              {/* Delete button (Admins only) */}
-                              {isAdmin && (
+                              {/* Delete button (Admins or product author) */}
+                              {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
                                 <button 
                                   onClick={() => handleDeleteProduct(p.id, p.name)}
-                                  className="text-stone-350 hover:text-red-500 p-1 cursor-pointer"
-                                  title="Delete post"
+                                  className="text-stone-350 hover:text-red-500 p-1 cursor-pointer transition-colors"
+                                  title="Delete posting"
                                 >
                                   <Trash2 size={15} />
                                 </button>
@@ -1733,17 +1758,71 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 <X size={16} />
               </button>
 
-              {/* Left Side: Stunning Media */}
-              <div className="w-full md:w-1/2 aspect-square md:aspect-auto bg-stone-50 border-r border-stone-100 flex items-center justify-center relative overflow-hidden">
-                <img 
-                  src={selectedDetailedProduct.imageUrl} 
-                  alt={selectedDetailedProduct.name}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
+              {/* Left Side: Stunning Media (Interactive Gallery Slider) */}
+              <div className="w-full md:w-1/2 aspect-square md:aspect-auto bg-stone-50 border-r border-stone-100 flex flex-col justify-between relative overflow-hidden group/gallery">
+                
+                {/* Image slider frame */}
+                <div className="w-full flex-1 relative flex items-center justify-center overflow-hidden bg-stone-100">
+                  {(() => {
+                    const images = selectedDetailedProduct.imageUrls || [selectedDetailedProduct.imageUrl];
+                    // Clamp active index to avoid array index out of bounds if state is stale
+                    const idx = Math.min(activeDetailImageIdx, images.length - 1);
+                    return (
+                      <>
+                        <img 
+                          key={idx}
+                          src={images[idx]} 
+                          alt={`${selectedDetailedProduct.name} - Photo ${idx + 1}`}
+                          className="w-full h-full object-cover animate-fade-in"
+                          referrerPolicy="no-referrer"
+                        />
+                        
+                        {/* Interactive Left Chevron button */}
+                        {images.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDetailImageIdx(prev => (prev - 1 + images.length) % images.length);
+                            }}
+                            className="absolute left-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100"
+                          >
+                            <ChevronLeft size={16} className="stroke-[3]" />
+                          </button>
+                        )}
+
+                        {/* Interactive Right Chevron button */}
+                        {images.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDetailImageIdx(prev => (prev + 1) % images.length);
+                            }}
+                            className="absolute right-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100"
+                          >
+                            <ChevronRight size={16} className="stroke-[3]" />
+                          </button>
+                        )}
+
+                        {/* Dynamic Carousel dot or pill indicator */}
+                        {images.length > 1 && (
+                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest flex items-center gap-1.5 shadow">
+                            {images.map((_, dotIdx) => (
+                              <span 
+                                key={dotIdx}
+                                className={`h-1.5 w-1.5 rounded-full transition-all ${
+                                  dotIdx === idx ? 'bg-white scale-125' : 'bg-white/40'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
                 
                 {/* Immersive Tag overlay */}
-                <div className="absolute bottom-4 left-4 bg-stone-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/15 text-[10px] font-bold text-stone-200 flex items-center gap-1.5 uppercase tracking-wider">
+                <div className="absolute bottom-4 left-4 bg-stone-950/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/15 text-[10px] font-bold text-stone-200 flex items-center gap-1.5 uppercase tracking-wider z-10">
                   <span>{selectedDetailedProduct.countryFlag}</span>
                   <span>Origin: {selectedDetailedProduct.originCountry}</span>
                 </div>
@@ -1876,6 +1955,18 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       <span>🤝</span>
                       <span>Buy via P2P Direct • {formatPrice(selectedDetailedProduct.price)}</span>
                     </button>
+
+                    {/* Delete listing button for administration or listing creator */}
+                    {(isAdmin || selectedDetailedProduct.sellerId === (user?.uid || 'guest')) && (
+                      <button
+                        onClick={() => handleDeleteProduct(selectedDetailedProduct.id, selectedDetailedProduct.name)}
+                        className="w-full py-2 bg-rose-50 border border-rose-200 text-rose-650 hover:bg-rose-100 hover:text-rose-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer flex items-center justify-center gap-1.5"
+                        title="Remove product listing"
+                      >
+                        <Trash2 size={13} />
+                        <span>Delete Posting listing</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2538,61 +2629,70 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px] block">Product / Advert Layout Image</label>
+                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px] block">
+                    Product / Advert Photos (Upload two or more pictures)
+                  </label>
                   
-                  {newProductImg ? (
-                    <div className="relative group rounded-2xl overflow-hidden border border-stone-200 bg-stone-50 h-44 flex items-center justify-center">
-                      <img 
-                        src={newProductImg} 
-                        alt="Product upload preview" 
-                        className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <label 
-                          htmlFor="product-image-upload"
-                          className="bg-white/95 text-stone-900 text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg cursor-pointer hover:bg-white shadow transition-all"
-                        >
-                          Change Photo
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setNewProductImg('')}
-                          className="bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider px-3.5 py-1.5 rounded-lg cursor-pointer shadow transition-all"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setNewProductImg('')}
-                        className="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-stone-900/60 hover:bg-stone-900 text-white flex items-center justify-center transition-colors cursor-pointer"
-                        title="Remove image"
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-                  ) : (
-                    <label 
-                      htmlFor="product-image-upload"
-                      className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-5 flex flex-col items-center justify-center text-center cursor-pointer min-h-[140px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
-                    >
-                      <div className="h-10 w-10 rounded-full bg-stone-100 flex items-center justify-center text-lg mb-2 group-hover:scale-105 transition-transform">
-                        📸
-                      </div>
-                      <span className="text-xs font-bold text-stone-700">
-                        {isUploadingImage ? "Compressing & caching..." : "Tap to upload advert photo"}
-                      </span>
-                      <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1.5 leading-normal">
-                        Supports JPEG, PNG. Live compressed for speed.
-                      </span>
-                      {isUploadingImage && (
-                        <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center">
-                          <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing live file...</span>
+                  {/* Grid layout showing uploaded images */}
+                  {newProductImages.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2 pb-1.5">
+                      {newProductImages.map((img, idx) => (
+                        <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                          <img 
+                            src={img} 
+                            alt={`Preview ${idx + 1}`} 
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const remaining = newProductImages.filter((_, i) => i !== idx);
+                                setNewProductImages(remaining);
+                                if (remaining.length > 0) {
+                                  setNewProductImg(remaining[0]);
+                                } else {
+                                  setNewProductImg('');
+                                }
+                              }}
+                              className="bg-rose-600 hover:bg-rose-700 text-white rounded-lg p-1.5 shadow transition-all cursor-pointer"
+                              title="Delete photo"
+                            >
+                              <X size={12} className="stroke-[3]" />
+                            </button>
+                          </div>
+                          
+                          {/* Primary label indicator */}
+                          {idx === 0 && (
+                            <span className="absolute bottom-1 left-1 bg-stone-950/80 text-white text-[7px] font-black uppercase tracking-wider px-1 rounded">
+                              Main
+                            </span>
+                          )}
                         </div>
-                      )}
-                    </label>
+                      ))}
+                    </div>
                   )}
+
+                  <label 
+                    htmlFor="product-image-upload"
+                    className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-[110px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
+                  >
+                    <div className="h-8.5 w-8.5 rounded-full bg-stone-100 flex items-center justify-center text-base mb-1 group-hover:scale-105 transition-transform">
+                      📸
+                    </div>
+                    <span className="text-xs font-bold text-stone-700">
+                      {isUploadingImage ? "Compressing & caching..." : "Tap to add another photo"}
+                    </span>
+                    <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1 leading-normal">
+                      Upload multiple pictures representing your item
+                    </span>
+                    {isUploadingImage && (
+                      <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center">
+                        <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing file...</span>
+                      </div>
+                    )}
+                  </label>
                   
                   <input 
                     type="file" 
@@ -2602,24 +2702,35 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     className="hidden" 
                   />
 
-                  {/* Manual fallback input for expert users */}
+                  {/* Manual input for direct links */}
                   <div className="pt-2">
-                    <details className="cursor-pointer select-none group">
-                      <summary className="text-[9.5px] text-stone-400 font-extrabold uppercase tracking-widest hover:text-stone-600 transition-colors list-none flex items-center gap-1.5">
-                        <span className="transition-transform group-open:rotate-90">▶</span>
-                        Or paste direct web image URL
-                      </summary>
-                      <div className="mt-2 pl-3 border-l-2 border-stone-100 space-y-1">
-                        <input 
-                          type="url" 
-                          placeholder="https://images.unsplash.com/photo-..."
-                          value={newProductImg.startsWith('data:') ? '' : newProductImg}
-                          onChange={(e) => setNewProductImg(e.target.value)}
-                          className="w-full px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 transition-all font-sans"
-                        />
-                        <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider">Leave empty to auto-select a curated category scene.</span>
-                      </div>
-                    </details>
+                    <div className="flex gap-2">
+                      <input 
+                        type="url" 
+                        id="manual-photo-url-input"
+                        placeholder="Or paste direct web image URL..."
+                        className="flex-1 px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.getElementById('manual-photo-url-input') as HTMLInputElement;
+                          if (input && input.value.trim()) {
+                            const val = input.value.trim();
+                            setNewProductImages(prev => [...prev, val]);
+                            setNewProductImg(val);
+                            input.value = '';
+                            showNotification("Web photo URL added successfully!", "success");
+                          }
+                        }}
+                        className="bg-stone-900 hover:bg-stone-800 text-white rounded-xl px-3 text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                      >
+                        Add URL
+                      </button>
+                    </div>
+                    <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider mt-1">
+                      Leave empty to auto-select a curated category scene.
+                    </span>
                   </div>
                 </div>
 
