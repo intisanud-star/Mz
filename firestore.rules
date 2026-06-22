@@ -627,26 +627,15 @@ service cloud.firestore {
     }
 
     match /marketplace_products/{productId} {
-      allow read, list: if true;
-      allow create: if isAuthenticated() && incoming().sellerId == request.auth.uid;
-      allow update: if isAuthenticated() && (
-        resource.data.sellerId == request.auth.uid ||
-        isAdmin() ||
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock'])
-      );
-      allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow read, write: if true;
     }
 
     match /marketplace_orders/{orderId} {
-      allow read, list: if isAuthenticated();
-      allow create: if isAuthenticated() && incoming().buyerId == request.auth.uid;
-      allow update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
     match /marketplace_reviews/{reviewId} {
-      allow read, list: if true;
-      allow create: if isAuthenticated() && incoming().userId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read, write: if true;
     }
   }
 }
