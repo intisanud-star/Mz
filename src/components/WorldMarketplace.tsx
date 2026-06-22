@@ -743,122 +743,88 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   return (
     <div id="marketplace_p2p_portal" className="w-full h-full flex flex-col bg-[#FAF9F6] text-stone-900 font-sans overflow-hidden select-none">
       
-      {/* SWISS MODERN LUX DESIGN HEADER */}
-      <div className="bg-white border-b border-stone-150/70 sticky top-0 z-40 px-4 md:px-8 py-4.5 shadow-[0_2px_12px_rgba(0,0,0,0.015)] space-y-4 shrink-0">
-        <div className="flex items-center justify-between gap-4">
+      {/* INSTAGRAM-STYLE HEADER */}
+      <div className="bg-white border-b border-stone-150/70 sticky top-0 z-40 px-4 py-3 md:px-6 md:py-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.02)] shrink-0">
+        <div className="flex items-center justify-between gap-4 max-w-2xl mx-auto w-full">
+          {/* Left Side: Brand Wordmark Logo */}
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 bg-stone-900 rounded-xl flex items-center justify-center text-white font-black text-sm tracking-tight shadow-sm shrink-0">
-              𝕏
-            </div>
-            <div>
-              <h2 className="text-sm font-black uppercase tracking-[0.25em] text-stone-900 leading-none">Exona Market Stream</h2>
-              <p className="text-[10px] text-[#2481CC] font-bold tracking-widest uppercase mt-1">International Threads & Marketplace</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {/* Currency Selector */}
-            <div className="flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-xl px-3 py-1.5 transition-all text-[11px] font-bold cursor-pointer shadow-xs">
-              <Globe size={11.5} className="text-[#2481CC]" />
+            <h1 className="font-serif italic text-2xl font-black tracking-normal text-stone-900 select-none cursor-pointer">
+              Exona
+            </h1>
+            
+            {/* Super compact Currency Dropdown */}
+            <div className="flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 transition-colors border border-stone-200/60 rounded-xl px-2 py-1 text-[9px] font-black tracking-tight text-stone-600 cursor-pointer shadow-2xs">
+              <Globe size={10.5} className="text-[#2481CC]" />
               <select 
                 value={currencyCode} 
                 onChange={(e) => setCurrencyCode(e.target.value)}
-                className="bg-transparent outline-none border-none py-0 text-stone-800 font-black tracking-tight uppercase text-[9.5px] cursor-pointer"
+                className="bg-transparent outline-none border-none py-0 pr-1 text-stone-850 font-black cursor-pointer uppercase text-[8.5px]"
               >
                 {currencyModes.map(c => (
-                  <option key={c.code} value={c.code} className="text-stone-900 bg-white font-bold">{c.code} ({c.symbol})</option>
+                  <option key={c.code} value={c.code} className="text-stone-900 bg-white font-bold">{c.code}</option>
                 ))}
               </select>
             </div>
+          </div>
 
-            {/* Sell Button if Admin */}
+          {/* Right Side: Clean Instagram Action Row */}
+          <div className="flex items-center gap-4.5">
+            {/* Home Feed Button (Instagram-like) */}
+            <button 
+              onClick={() => {
+                setActiveMarketView('browse');
+                setSelectedCategory('ALL'); // Reset category filter to show all
+                setSearchQuery(''); // Reset search
+              }}
+              className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
+                activeMarketView === 'browse' ? 'text-stone-950 scale-102 font-black' : 'text-stone-400 hover:text-stone-600'
+              }`}
+              title="Home Feed"
+            >
+              <ShoppingBag size={21} className={activeMarketView === 'browse' ? 'text-stone-950 stroke-[2px]' : 'text-stone-400'} />
+            </button>
+
+            {/* Create Post Button (Instagram-like PlusSquare decoration) */}
             {isAdmin && (
               <button
                 onClick={() => setIsListModalOpen(true)}
-                className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-850 text-white rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-wider transition-all shadow-sm shrink-0 cursor-pointer"
+                className="p-1 px-1.5 text-stone-700 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
+                title="Create Post"
               >
-                <Plus size={11.5} />
-                <span>Publish Item</span>
+                <div className="p-0.5 border-[2px] border-stone-800 rounded-md hover:border-stone-950 transition-colors flex items-center justify-center h-[18px] w-[18px]">
+                  <Plus size={11} className="stroke-[3.5px]" />
+                </div>
               </button>
             )}
 
-            {/* Orders Feed Toggle */}
-            <div className="flex bg-stone-100/80 p-0.5 rounded-xl border border-stone-200 shrink-0">
-              <button 
-                onClick={() => setActiveMarketView('browse')}
-                className={`px-3 py-1.5 rounded-lg text-[9.5px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1 ${
-                  activeMarketView === 'browse' ? 'bg-white text-stone-900 shadow-xs scale-102' : 'text-stone-500 hover:text-stone-900'
-                }`}
-              >
-                <ShoppingBag size={11} />
-                <span>Stream</span>
-              </button>
-              <button 
-                onClick={() => setActiveMarketView('orders')}
-                className={`px-3 py-1.5 rounded-lg text-[9.5px] font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-1 relative ${
-                  activeMarketView === 'orders' ? 'bg-white text-[#2481CC] shadow-xs scale-102' : 'text-stone-500 hover:text-stone-800'
-                }`}
-              >
-                <Package size={11} />
-                <span>Orders</span>
-                {orders.some(o => o.status !== 'delivered') && (
-                  <span className="absolute top-1 right-1 h-1.5 w-1.5 bg-red-500 rounded-full animate-pulse" />
-                )}
-              </button>
-            </div>
+            {/* Activity Orders Button (Instagram-like Heart icon) */}
+            <button 
+              onClick={() => setActiveMarketView('orders')}
+              className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
+                activeMarketView === 'orders' ? 'text-rose-500 scale-102' : 'text-stone-400 hover:text-stone-600'
+              }`}
+              title="Orders Activity"
+            >
+              <Heart size={21} className={activeMarketView === 'orders' ? 'fill-rose-500 text-rose-500' : 'text-stone-400 stroke-[2px]'} />
+              {orders.some(o => o.status !== 'delivered') && (
+                <span className="absolute top-1 right-1 h-2 w-2 bg-rose-500 rounded-full ring-[2px] ring-white animate-pulse" />
+              )}
+            </button>
 
-            {/* Cart Button */}
+            {/* Direct Message or Custom Shopping Cart Bag */}
             <button
               onClick={() => setIsCartOpen(true)}
-              className="px-4 py-2 bg-stone-50 border border-stone-200 hover:bg-stone-100 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest transition-all relative shrink-0 cursor-pointer text-stone-900"
+              className="relative p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
+              title="Your Shopping Bag"
             >
-              <ShoppingCart size={12.5} />
+              <ShoppingCart size={21} className={cart.length > 0 ? 'text-stone-900 stroke-[2px]' : 'text-stone-400'} />
               {cart.length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-[#2481CC] text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white">
+                <span className="absolute -top-1 -right-1 bg-[#2481CC] text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
                   {cart.reduce((total, item) => total + item.quantity, 0)}
                 </span>
               )}
             </button>
           </div>
-        </div>
-
-        {/* Elegant Minimalist Search Input Box */}
-        <div className="relative flex items-center w-full">
-          <input 
-            type="text" 
-            placeholder="Search communities, local student crafts, trending imports..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-stone-50/50 border border-stone-200 focus:bg-white focus:border-stone-900/35 hover:bg-stone-50 rounded-2xl outline-none text-xs font-bold text-stone-800 placeholder:text-stone-400 transition-all font-sans"
-          />
-          <Search size={14} className="absolute left-4 text-stone-400" />
-          {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="absolute right-4 text-stone-400 hover:text-stone-900 p-0.5">
-              <X size={12.5} />
-            </button>
-          )}
-        </div>
-
-        {/* Category Tabs Stream */}
-        <div className="flex items-center gap-5 overflow-x-auto scrollbar-none pb-0.5 pt-1">
-          {categoriesList.map((cat) => {
-            const isSelected = selectedCategory === cat;
-            return (
-              <button
-                key={cat}
-                onClick={() => {
-                  setSelectedCategory(cat);
-                  setActiveMarketView('browse');
-                }}
-                className="relative py-1 cursor-pointer shrink-0 text-xs font-black uppercase tracking-widest text-stone-400 hover:text-stone-900 transition-colors"
-              >
-                <span className={isSelected ? 'text-stone-900 font-black' : ''}>{cat}</span>
-                {isSelected && (
-                  <motion.div layoutId="threads-category-indicator" className="absolute bottom-0 left-0 right-0 h-[2px] bg-stone-900" />
-                )}
-              </button>
-            );
-          })}
         </div>
       </div>
 
@@ -1208,8 +1174,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             />
 
                             {/* Minimal Glassmorphic Price Sticker */}
-                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-100 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
-                              <span className="text-stone-950 text-xs font-extrabold leading-none">{formatPrice(p.price)}</span>
+                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-150 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
+                              <span className="text-[8.5px] uppercase tracking-widest text-emerald-600 font-black mb-1.5 block">🏷️ FOR SALE</span>
+                              <span className="text-stone-950 text-xs font-black leading-none">{formatPrice(p.price)}</span>
                               <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
                             </div>
 
@@ -1292,7 +1259,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               <button
                                 disabled={p.stock === 0}
                                 onClick={(e) => addToCart(p, e)}
-                                className="px-4 py-2 bg-stone-50 border border-stone-200 hover:bg-stone-100 hover:border-stone-350 disabled:opacity-40 text-stone-800 rounded-full text-[10.5px] font-extrabold uppercase tracking-wider transition-all select-none cursor-pointer"
+                                className="px-4 py-2 bg-stone-50 border border-stone-200/80 hover:bg-stone-100 hover:border-stone-350 disabled:opacity-40 text-stone-700/90 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all select-none cursor-pointer"
                               >
                                 Add to Bag
                               </button>
@@ -1304,9 +1271,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                   setIsCheckoutOpen(true);
                                   setCheckoutStep(1);
                                 }}
-                                className="px-5 py-2 bg-stone-950 hover:bg-stone-900 hover:scale-102 active:scale-98 disabled:opacity-40 text-white rounded-full text-[10.5px] font-extrabold uppercase tracking-widest transition-all select-none shadow-sm cursor-pointer"
+                                className="px-5 py-2 bg-[#2481CC] hover:bg-[#1E71B3] hover:scale-102 active:scale-98 disabled:opacity-40 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm cursor-pointer"
                               >
-                                Checkout
+                                Buy now • {formatPrice(p.price)}
                               </button>
                             </div>
 
@@ -1485,9 +1452,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         setIsCheckoutOpen(true);
                         setCheckoutStep(1);
                       }}
-                      className="flex-1 py-2.5 bg-stone-950 hover:bg-stone-900 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
+                      className="flex-1 py-2.5 bg-[#2481CC] hover:bg-[#1E71B3] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
                     >
-                      Buy Now
+                      Buy now • {formatPrice(selectedDetailedProduct.price)}
                     </button>
                   </div>
                 </div>
