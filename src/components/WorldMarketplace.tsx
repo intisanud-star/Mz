@@ -243,7 +243,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [shippingSpeed, setShippingSpeed] = useState<'standard' | 'express' | 'supersonic'>('standard');
   const [paymentNote, setPaymentNote] = useState('');
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
-  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'standard' | 'excoin'>('standard');
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<'standard' | 'excoin' | 'p2p'>('standard');
+  const [p2pReceiptImg, setP2pReceiptImg] = useState('');
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
+  const [p2pSenderName, setP2pSenderName] = useState('');
+  const [p2pReference, setP2pReference] = useState('');
 
   // Listing State (Sell on Exona)
   const [isListModalOpen, setIsListModalOpen] = useState(false);
@@ -579,6 +583,67 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleReceiptUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showNotification("Please select a valid image file (PNG/JPG).", "error");
+      return;
+    }
+
+    setIsUploadingReceipt(true);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      showNotification("Failed to read receipt file.", "error");
+      setIsUploadingReceipt(false);
+    };
+
+    reader.onload = (event) => {
+      const imgElement = document.createElement('img');
+      imgElement.src = event.target?.result as string;
+      
+      imgElement.onerror = () => {
+        showNotification("Failed to load receipt image helper.", "error");
+        setIsUploadingReceipt(false);
+      };
+
+      imgElement.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 500;
+        const MAX_HEIGHT = 500;
+        let width = imgElement.width;
+        let height = imgElement.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(imgElement, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setP2pReceiptImg(compressedDataUrl);
+          showNotification("Payment receipt screenshot imported successfully!", "success");
+        } else {
+          setP2pReceiptImg(event.target?.result as string);
+        }
+        setIsUploadingReceipt(false);
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
   // List dynamic new custom product
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -700,6 +765,19 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         }
       }
 
+      if (checkoutPaymentMethod === 'p2p') {
+        if (!p2pReceiptImg) {
+          showNotification("Please upload your peer-to-peer payment transfer receipt.", "error");
+          setIsProcessingOrder(false);
+          return;
+        }
+        if (!p2pSenderName.trim()) {
+          showNotification("Please enter sender's name or reference account for proof.", "error");
+          setIsProcessingOrder(false);
+          return;
+        }
+      }
+
       const orderData = {
         buyerId: user?.uid || 'anonymous',
         buyerName: userDoc?.displayName || user?.displayName || 'Customer',
@@ -717,6 +795,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         total: cartTotal,
         paymentMethod: checkoutPaymentMethod,
         totalExcoins: checkoutPaymentMethod === 'excoin' ? Math.ceil(cartTotal * 2.5) : null,
+        p2pReceiptImg: checkoutPaymentMethod === 'p2p' ? p2pReceiptImg : null,
+        p2pSenderName: checkoutPaymentMethod === 'p2p' ? p2pSenderName : null,
+        p2pReference: checkoutPaymentMethod === 'p2p' ? p2pReference : null,
         address: shippingAddress,
         country: shippingCountry,
         paymentNote: paymentNote,
@@ -743,6 +824,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       }
 
       setCart([]);
+      setP2pReceiptImg('');
+      setP2pSenderName('');
+      setP2pReference('');
       setCheckoutStep(3); 
       showNotification("International transaction successful! Order tracking activated.", "success");
     } catch (e) {
@@ -1327,6 +1411,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                 disabled={p.stock === 0}
                                 onClick={() => {
                                   setCart([{ product: p, quantity: 1 }]);
+                                  setCheckoutPaymentMethod('standard');
                                   setIsCheckoutOpen(true);
                                   setCheckoutStep(1);
                                 }}
@@ -1492,28 +1577,49 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      disabled={selectedDetailedProduct.stock === 0}
-                      onClick={() => {
-                        addToCart(selectedDetailedProduct);
-                        setSelectedDetailedProduct(null);
-                      }}
-                      className="flex-1 py-2.5 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-black uppercase tracking-wider border border-stone-200 transition-all select-none disabled:opacity-40 cursor-pointer"
-                    >
-                      Add Bag
-                    </button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <button
+                        disabled={selectedDetailedProduct.stock === 0}
+                        onClick={() => {
+                          addToCart(selectedDetailedProduct);
+                          setSelectedDetailedProduct(null);
+                        }}
+                        className="flex-1 py-2.5 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-black uppercase tracking-wider border border-stone-200 transition-all select-none disabled:opacity-40 cursor-pointer"
+                      >
+                        Add Bag
+                      </button>
+                      <button
+                        disabled={selectedDetailedProduct.stock === 0}
+                        onClick={() => {
+                          setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
+                          setSelectedDetailedProduct(null);
+                          setCheckoutPaymentMethod('standard');
+                          setIsCheckoutOpen(true);
+                          setCheckoutStep(1);
+                        }}
+                        className="flex-1 py-2.5 bg-[#2481CC] hover:bg-[#1E71B3] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
+                      >
+                        Buy now • {formatPrice(selectedDetailedProduct.price)}
+                      </button>
+                    </div>
+
                     <button
                       disabled={selectedDetailedProduct.stock === 0}
                       onClick={() => {
                         setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
                         setSelectedDetailedProduct(null);
+                        setP2pReceiptImg('');
+                        setP2pSenderName('');
+                        setP2pReference('');
+                        setCheckoutPaymentMethod('p2p');
                         setIsCheckoutOpen(true);
                         setCheckoutStep(1);
                       }}
-                      className="flex-1 py-2.5 bg-[#2481CC] hover:bg-[#1E71B3] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
+                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-xs border border-amber-500/80 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      Buy now • {formatPrice(selectedDetailedProduct.price)}
+                      <span>🤝</span>
+                      <span>Buy via P2P Direct • {formatPrice(selectedDetailedProduct.price)}</span>
                     </button>
                   </div>
                 </div>
@@ -1701,6 +1807,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   <button
                     onClick={() => {
                       setIsCartOpen(false);
+                      setCheckoutPaymentMethod('standard');
                       setIsCheckoutOpen(true);
                       setCheckoutStep(1);
                     }}
@@ -1855,24 +1962,24 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                     <div className="space-y-1.5">
                       <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Settlement Channel</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-3 gap-1.5">
                         <div 
                           onClick={() => setCheckoutPaymentMethod('standard')}
-                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
+                          className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
                             checkoutPaymentMethod === 'standard' 
                               ? 'border-stone-900 bg-stone-50/50 font-bold scale-102 shadow-xs' 
                               : 'border-stone-150 bg-stone-50/30 hover:bg-stone-50'
                           }`}
                         >
                           <div>
-                            <p className="text-[10px] uppercase font-black text-stone-900">Digital Escrow</p>
-                            <p className="text-[8px] text-stone-400 mt-1 font-semibold uppercase leading-none">Credit / Fiat Card</p>
+                            <p className="text-[10px] uppercase font-black text-stone-900">Escrow</p>
+                            <p className="text-[7.5px] text-stone-400 mt-0.5 font-semibold uppercase leading-none">Credit Card</p>
                           </div>
                         </div>
 
                         <div 
                           onClick={() => setCheckoutPaymentMethod('excoin')}
-                          className={`p-3 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
+                          className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
                             checkoutPaymentMethod === 'excoin' 
                               ? 'border-stone-900 bg-[#2481CC]/5 font-bold scale-102 shadow-xs' 
                               : 'border-stone-150 bg-stone-50/30 hover:bg-stone-50'
@@ -1880,9 +1987,25 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         >
                           <div>
                             <p className="text-[10px] uppercase font-black text-stone-900 flex items-center gap-1">
-                              <span>🪙</span> EXC Wallet
+                              🪙 EXC
                             </p>
-                            <p className="text-[8px] text-[#2481CC] mt-1 font-semibold uppercase leading-none">Rate: 2.5 EXC = $1 USD</p>
+                            <p className="text-[7.5px] text-[#2481CC] mt-0.5 font-semibold uppercase leading-none">2.5 EXC = $1</p>
+                          </div>
+                        </div>
+
+                        <div 
+                          onClick={() => setCheckoutPaymentMethod('p2p')}
+                          className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
+                            checkoutPaymentMethod === 'p2p' 
+                              ? 'border-amber-600 bg-amber-500/[0.04] font-bold scale-102 shadow-xs' 
+                              : 'border-stone-150 bg-stone-50/30 hover:bg-stone-50'
+                          }`}
+                        >
+                          <div>
+                            <p className="text-[10px] uppercase font-black text-amber-800 flex items-center gap-1">
+                              🤝 P2P Direct
+                            </p>
+                            <p className="text-[7.5px] text-amber-700 mt-0.5 font-semibold uppercase leading-none">Bank Transfer</p>
                           </div>
                         </div>
                       </div>
@@ -1898,6 +2021,99 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           ) : (
                             <span className="bg-rose-50 text-red-700 text-[8.5px] font-black uppercase px-2 py-0.5 rounded-md">Shortage</span>
                           )}
+                        </div>
+                      )}
+
+                      {checkoutPaymentMethod === 'p2p' && (
+                        <div className="mt-3 bg-amber-500/[0.02] border border-amber-250/50 rounded-2xl p-4 space-y-3.5 text-xs text-stone-850">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                            <span>📋</span> Creator P2P Account Info
+                          </p>
+                          
+                          <div className="space-y-2 border-b border-amber-150 pb-3">
+                            {cart.map((item, idx) => {
+                              const seller = String(item.product.sellerName || 'Exona Partner');
+                              const charSum = seller.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+                              const accountNo = `90${(charSum * 33) % 90000000 + 10000000}`;
+                              const bankCode = (charSum % 3 === 0) ? 'Carbon Microfinance Bank' : (charSum % 3 === 1) ? 'VFD Microfinance Bank' : 'OPay Digital Ltd';
+                              
+                              return (
+                                <div key={idx} className="bg-white p-2.5 rounded-xl border border-stone-200 text-[11px] font-semibold space-y-1">
+                                  <div className="flex justify-between text-stone-400 text-[9px] uppercase tracking-wider">
+                                    <span>Vendor direct info</span>
+                                    <span className="text-amber-800 font-bold">Transfer Exactly</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-stone-900 font-extrabold">{seller}</span>
+                                    <span className="text-[#2481CC] font-extrabold">{formatPrice(item.product.price * item.quantity)}</span>
+                                  </div>
+                                  <div className="text-[10px] text-stone-650 bg-stone-50 p-2 rounded-lg border border-stone-100 font-mono flex flex-col mt-1">
+                                    <span>🏛️ Bank: <strong>{bankCode}</strong></span>
+                                    <span>💳 No: <strong className="text-stone-900 select-all font-bold">{accountNo}</strong></span>
+                                    <span>👤 Name: <strong>{seller}</strong></span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="space-y-3 pt-1">
+                            <p className="text-[9px] uppercase font-black text-amber-800 tracking-wider">Upload Transfer Confirmation Photo</p>
+                            
+                            {p2pReceiptImg ? (
+                              <div className="relative rounded-xl overflow-hidden border border-amber-200 bg-stone-50 h-28 flex items-center justify-center">
+                                <img src={p2pReceiptImg} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                <button 
+                                  type="button"
+                                  onClick={() => setP2pReceiptImg('')}
+                                  className="absolute top-2 right-2 h-5 w-5 rounded-full bg-stone-900/70 hover:bg-stone-900 text-white flex items-center justify-center cursor-pointer text-[10px]"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <label 
+                                htmlFor="p2p-receipt-file"
+                                className="border border-dashed border-amber-300 hover:border-amber-405 hover:bg-amber-500/[0.04] bg-white transition-all rounded-xl p-3 flex flex-col items-center justify-center text-center cursor-pointer min-h-[75px] relative"
+                              >
+                                <span className="text-sm">📤</span>
+                                <span className="text-[10px] font-bold text-stone-700 mt-1">
+                                  {isUploadingReceipt ? "Importing screengrab..." : "Upload Payment Receipt screenshot"}
+                                </span>
+                              </label>
+                            )}
+
+                            <input 
+                              type="file"
+                              id="p2p-receipt-file"
+                              accept="image/*"
+                              onChange={handleReceiptUploadChange}
+                              className="hidden"
+                            />
+
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <div className="space-y-1">
+                                <label className="text-stone-400 font-black uppercase tracking-wider text-[8px]">Sender's Name</label>
+                                <input 
+                                  type="text"
+                                  placeholder="e.g. John Doe"
+                                  value={p2pSenderName}
+                                  onChange={(e) => setP2pSenderName(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 bg-white border border-stone-200 rounded-lg outline-none text-[11px] font-bold text-stone-800 focus:border-amber-500"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-stone-400 font-black uppercase tracking-wider text-[8px]">Remittance Ref (Optional)</label>
+                                <input 
+                                  type="text"
+                                  placeholder="e.g. TR-240183"
+                                  value={p2pReference}
+                                  onChange={(e) => setP2pReference(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 bg-white border border-stone-200 rounded-lg outline-none text-[11px] font-bold text-stone-800 focus:border-amber-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
