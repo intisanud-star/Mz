@@ -707,7 +707,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       setIsListModalOpen(false);
     } catch (e) {
       console.error(e);
-      showNotification("Error listing product in database.", "error");
+      showNotification(`Error listing product in database: ${e instanceof Error ? e.message : String(e)}`, "error");
     } finally {
       setIsCreatingProduct(false);
     }
