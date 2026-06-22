@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShoppingBag, 
@@ -268,6 +268,15 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
   // Selected Product Detail Modal
   const [selectedDetailedProduct, setSelectedDetailedProduct] = useState<Product | null>(null);
+  const detailSliderRef = useRef<HTMLDivElement>(null);
+
+  // Reset scroll on product change
+  useEffect(() => {
+    setActiveDetailImageIdx(0);
+    if (detailSliderRef.current) {
+      detailSliderRef.current.scrollLeft = 0;
+    }
+  }, [selectedDetailedProduct]);
 
   // Seller Follow States
   const [followedSellers, setFollowedSellers] = useState<string[]>([]);
@@ -1767,24 +1776,68 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     const images = selectedDetailedProduct.imageUrls || [selectedDetailedProduct.imageUrl];
                     // Clamp active index to avoid array index out of bounds if state is stale
                     const idx = Math.min(activeDetailImageIdx, images.length - 1);
+                    
+                    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+                      const container = e.currentTarget;
+                      const calculatedIdx = Math.round(container.scrollLeft / container.clientWidth);
+                      if (calculatedIdx >= 0 && calculatedIdx < images.length && calculatedIdx !== activeDetailImageIdx) {
+                        setActiveDetailImageIdx(calculatedIdx);
+                      }
+                    };
+
+                    const handleChevronClick = (e: React.MouseEvent, direction: 'prev' | 'next') => {
+                      e.stopPropagation();
+                      if (detailSliderRef.current) {
+                        const container = detailSliderRef.current;
+                        const targetIdx = direction === 'next' 
+                          ? (idx + 1) % images.length 
+                          : (idx - 1 + images.length) % images.length;
+                        
+                        container.scrollTo({
+                          left: targetIdx * container.clientWidth,
+                          behavior: 'smooth'
+                        });
+                        setActiveDetailImageIdx(targetIdx);
+                      }
+                    };
+
+                    const handleDotClick = (e: React.MouseEvent, targetIdx: number) => {
+                      e.stopPropagation();
+                      if (detailSliderRef.current) {
+                        const container = detailSliderRef.current;
+                        container.scrollTo({
+                          left: targetIdx * container.clientWidth,
+                          behavior: 'smooth'
+                        });
+                        setActiveDetailImageIdx(targetIdx);
+                      }
+                    };
+
                     return (
                       <>
-                        <img 
-                          key={idx}
-                          src={images[idx]} 
-                          alt={`${selectedDetailedProduct.name} - Photo ${idx + 1}`}
-                          className="w-full h-full object-cover animate-fade-in"
-                          referrerPolicy="no-referrer"
-                        />
+                        <div 
+                          ref={detailSliderRef}
+                          onScroll={handleScroll}
+                          className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth touch-pan-x select-none"
+                        >
+                          {images.map((img, imageIdx) => (
+                            <div key={imageIdx} className="w-full h-full flex-shrink-0 snap-center relative">
+                              <img 
+                                src={img} 
+                                alt={`${selectedDetailedProduct.name} - Photo ${imageIdx + 1}`}
+                                className="w-full h-full object-cover pointer-events-none"
+                                referrerPolicy="no-referrer"
+                                draggable={false}
+                              />
+                            </div>
+                          ))}
+                        </div>
                         
                         {/* Interactive Left Chevron button */}
                         {images.length > 1 && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveDetailImageIdx(prev => (prev - 1 + images.length) % images.length);
-                            }}
-                            className="absolute left-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100"
+                            onClick={(e) => handleChevronClick(e, 'prev')}
+                            className="absolute left-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100 shadow"
                           >
                             <ChevronLeft size={16} className="stroke-[3]" />
                           </button>
@@ -1793,11 +1846,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         {/* Interactive Right Chevron button */}
                         {images.length > 1 && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveDetailImageIdx(prev => (prev + 1) % images.length);
-                            }}
-                            className="absolute right-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100"
+                            onClick={(e) => handleChevronClick(e, 'next')}
+                            className="absolute right-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100 shadow"
                           >
                             <ChevronRight size={16} className="stroke-[3]" />
                           </button>
@@ -1805,14 +1855,19 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                         {/* Dynamic Carousel dot or pill indicator */}
                         {images.length > 1 && (
-                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest flex items-center gap-1.5 shadow">
+                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest flex items-center gap-1.5 shadow z-10">
                             {images.map((_, dotIdx) => (
-                              <span 
+                              <button 
                                 key={dotIdx}
-                                className={`h-1.5 w-1.5 rounded-full transition-all ${
-                                  dotIdx === idx ? 'bg-white scale-125' : 'bg-white/40'
-                                }`}
-                              />
+                                onClick={(e) => handleDotClick(e, dotIdx)}
+                                className={`h-2.5 w-2.5 rounded-full transition-all flex items-center justify-center cursor-pointer`}
+                              >
+                                <span 
+                                  className={`h-1.5 w-1.5 rounded-full transition-all ${
+                                    dotIdx === idx ? 'bg-white scale-125' : 'bg-white/40'
+                                  }`}
+                                />
+                              </button>
                             ))}
                           </div>
                         )}
