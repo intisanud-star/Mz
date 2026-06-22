@@ -551,6 +551,41 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["productId", "userId", "text"]
+    },
+    "MarketplaceFollow": {
+      "title": "MarketplaceFollow",
+      "description": "Follower subscription on a merchant vendor ID",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerName": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["followerId", "sellerId"]
+    },
+    "MarketplaceLike": {
+      "title": "MarketplaceLike",
+      "description": "Like reaction on a product listing",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["productId", "userId"]
+    },
+    "MarketplaceReshare": {
+      "title": "MarketplaceReshare",
+      "description": "Reshare forward log on a product listing",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["productId", "userId"]
     }
   },
   "firestore": {
@@ -581,8 +616,12 @@
     "/p2pTrades/{tradeId}": { "schema": "P2PTrade", "description": "Active Excoin P2P trades" },
     "/institutionGames/{gameId}": { "schema": "InstitutionGame", "description": "Custom premium games" },
     "/institutionGameLeads/{leadId}": { "schema": "InstitutionGameLead", "description": "Premium game execution records" },
+    "/workspaceCustomApps/{appId}": { "schema": "object", "description": "Custom user apps" },
     "/marketplace_products/{productId}": { "schema": "MarketplaceProduct", "description": "Marketplace product listings" },
     "/marketplace_orders/{orderId}": { "schema": "MarketplaceOrder", "description": "Marketplace customer orders" },
-    "/marketplace_reviews/{reviewId}": { "schema": "MarketplaceReview", "description": "Product comment reviews" }
+    "/marketplace_reviews/{reviewId}": { "schema": "MarketplaceReview", "description": "Product comment reviews" },
+    "/marketplace_follows/{followId}": { "schema": "MarketplaceFollow", "description": "Vendor follower subscription logs" },
+    "/marketplace_likes/{likeId}": { "schema": "MarketplaceLike", "description": "Marketplace product likes reactions" },
+    "/marketplace_reshares/{reshareId}": { "schema": "MarketplaceReshare", "description": "Marketplace product reshares" }
   }
 }

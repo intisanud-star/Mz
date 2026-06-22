@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import LogisticsDeliveryMap from './LogisticsDeliveryMap';
 
 export interface Product {
   id: string;
@@ -278,8 +279,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [expandedReviews, setExpandedReviews] = useState<{ [productId: string]: boolean }>({});
   const [newReplyTexts, setNewReplyTexts] = useState<{ [productId: string]: string }>({});
 
-  // Real-time Collaborative Reviews
+  // Real-time Collaborative Reviews, Likes, and Reshares
   const [collaborativeReviews, setCollaborativeReviews] = useState<{ [productId: string]: any[] }>({});
+  const [likesDocuments, setLikesDocuments] = useState<any[]>([]);
+  const [resharesDocuments, setResharesDocuments] = useState<any[]>([]);
 
   // Pinned/Sticky AI Shopping Assistant chat
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
@@ -399,6 +402,34 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       return () => unsubReviews();
     } catch (err) {
       console.error("Failed to listen to collaborative reviews:", err);
+    }
+  }, []);
+
+  // Listen to Marketplace Likes in Real-time from Firestore
+  useEffect(() => {
+    try {
+      const qLikes = query(collection(db, 'marketplace_likes'));
+      const unsubLikes = onSnapshot(qLikes, (snap) => {
+        const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setLikesDocuments(docs);
+      });
+      return () => unsubLikes();
+    } catch (err) {
+      console.error("Failed to listen to marketplace likes:", err);
+    }
+  }, []);
+
+  // Listen to Marketplace Reshares in Real-time from Firestore
+  useEffect(() => {
+    try {
+      const qReshares = query(collection(db, 'marketplace_reshares'));
+      const unsubReshares = onSnapshot(qReshares, (snap) => {
+        const docs = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setResharesDocuments(docs);
+      });
+      return () => unsubReshares();
+    } catch (err) {
+      console.error("Failed to listen to marketplace reshares:", err);
     }
   }, []);
 
@@ -959,25 +990,66 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     }
   };
 
-  const toggleHeartPost = (productId: string) => {
-    const isLiked = !likedPosts[productId];
-    setLikedPosts(prev => ({ ...prev, [productId]: isLiked }));
-    setThreadLikesCount(prev => {
-      const existing = prev[productId] || Math.floor(Math.random() * 25) + 5;
-      return { ...prev, [productId]: isLiked ? existing + 1 : Math.max(0, existing - 1) };
-    });
-    if (isLiked) {
-      showNotification("Item saved to your private wishlist thread!", "success");
+  const toggleHeartPost = async (productId: string) => {
+    const fId = user?.uid || 'guest';
+    const existingLike = likesDocuments.find(l => l.productId === productId && l.userId === fId);
+    
+    try {
+      if (existingLike) {
+        await deleteDoc(doc(db, 'marketplace_likes', existingLike.id));
+        showNotification("Item removed from your favorites thread.", "info");
+      } else {
+        const likeData = {
+          productId,
+          userId: fId,
+          timestamp: new Date().toISOString()
+        };
+        await addDoc(collection(db, 'marketplace_likes'), likeData);
+        showNotification("Item saved to your favorites thread live!", "success");
+      }
+    } catch (err) {
+      console.error("Error toggling like:", err);
+      // Fallback local operation
+      const isLiked = !likedPosts[productId];
+      setLikedPosts(prev => ({ ...prev, [productId]: isLiked }));
+      setThreadLikesCount(prev => {
+        const existing = prev[productId] || Math.floor(Math.random() * 25) + 5;
+        return { ...prev, [productId]: isLiked ? existing + 1 : Math.max(0, existing - 1) };
+      });
+      showNotification("Saved to wishlist locally.", "info");
     }
   };
 
   const getThreadLikesCount = (productId: string) => {
-    if (threadLikesCount[productId] !== undefined) {
-      return threadLikesCount[productId];
-    }
-    // Lazy initialize random but persistent-ish counts
+    // True live count from firestore database
+    const liveCount = likesDocuments.filter(l => l.productId === productId).length;
+    // Stable organic base seed
     const fallbackCount = Math.floor(productId.charCodeAt(productId.length - 1 || 0) % 18) + 6;
-    return fallbackCount;
+    return liveCount + fallbackCount;
+  };
+
+  const handleResharePost = async (productId: string, productName: string) => {
+    const fId = user?.uid || 'guest';
+    const uName = userDoc?.displayName || user?.displayName || 'Exona Scholar';
+    try {
+      const reshareData = {
+        productId,
+        userId: fId,
+        userName: uName,
+        timestamp: new Date().toISOString()
+      };
+      await addDoc(collection(db, 'marketplace_reshares'), reshareData);
+      showNotification(`Product "${productName}" has been successfully forwarded and reshared live!`, "success");
+    } catch (err) {
+      console.error("Error creating reshare:", err);
+      showNotification("Shared product link (locally).", "info");
+    }
+  };
+
+  const getProductResharesCount = (productId: string) => {
+    const liveReshares = resharesDocuments.filter(r => r.productId === productId).length;
+    const baseSeed = Math.floor(productId.charCodeAt(0) % 7) + 2;
+    return liveReshares + baseSeed;
   };
 
   return (
@@ -1225,6 +1297,22 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             ))}
                           </div>
                         </div>
+
+                        {/* LIVE GOOGLE MAP ROUTING COMPONENT */}
+                        <LogisticsDeliveryMap 
+                          orderId={o.id}
+                          sellerName={o.items[0]?.name || 'Exona Verified Seller'}
+                          sellerCountry={o.items[0]?.originCountry || 'Japan'}
+                          buyerAddress={o.address}
+                          buyerCountry={o.country}
+                          orderStatus={o.status}
+                          onUpdateStatus={(newStatus, desc) => {
+                            // Update local status of order in real-time as well for smooth reactive state changes
+                            o.status = newStatus as any;
+                            if (!o.trackingUpdates) o.trackingUpdates = [];
+                            o.trackingUpdates.push({ status: newStatus, time: new Date().toLocaleTimeString(), desc });
+                          }}
+                        />
                       </div>
                     </div>
                     );
@@ -1350,7 +1438,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 {filteredProducts.map((p) => {
                   const comments = getProductComments(p.id);
                   const isExpanded = !!expandedReviews[p.id];
-                  const hasHeart = !!likedPosts[p.id];
+                  const hasHeart = likesDocuments.some(l => l.productId === p.id && l.userId === (user?.uid || 'guest'));
                   const likesCount = getThreadLikesCount(p.id);
 
                   // Calculate simulated dynamic discount original price
@@ -1528,13 +1616,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                               {/* Dispatch / Forward Share */}
                               <button 
-                                onClick={() => {
-                                  showNotification(`Product link to "${p.name}" has been forwarded to school chats!`, "success");
-                                }}
-                                className="group hover:text-blue-500 transition-colors p-1 cursor-pointer"
+                                onClick={() => handleResharePost(p.id, p.name)}
+                                className="group flex items-center gap-1.5 hover:text-blue-500 transition-colors p-1 cursor-pointer"
                                 title="Forward catalog post"
                               >
-                                <Repeat size={17} />
+                                <Repeat size={17} className={getProductResharesCount(p.id) > 0 ? 'text-blue-500' : 'text-stone-400'} />
+                                <span className="text-[10px] font-extrabold text-stone-600">{getProductResharesCount(p.id)}</span>
                               </button>
 
                               {/* Delete button (Admins only) */}

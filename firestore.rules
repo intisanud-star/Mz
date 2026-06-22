@@ -637,5 +637,17 @@ service cloud.firestore {
     match /marketplace_reviews/{reviewId} {
       allow read, write: if true;
     }
+
+    match /marketplace_follows/{followId} {
+      allow read, write: if true;
+    }
+
+    match /marketplace_likes/{likeId} {
+      allow read, write: if true;
+    }
+
+    match /marketplace_reshares/{reshareId} {
+      allow read, write: if true;
+    }
   }
 }
