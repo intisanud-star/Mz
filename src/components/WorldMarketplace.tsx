@@ -223,6 +223,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedCountry, setSelectedCountry] = useState('Global');
   const [sortBy, setSortBy] = useState<'rating' | 'priceAsc' | 'priceDesc' | 'reviews'>('rating');
@@ -518,8 +519,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   // List dynamic new custom product
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isAdmin) {
-      showNotification("Security Error: Only network administrators can list new products.", "error");
+    if (!user) {
+      showNotification("Please sign in to list items or post advertisements.", "error");
       return;
     }
     if (!newProductName.trim()) {
@@ -745,103 +746,132 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       
       {/* INSTAGRAM-STYLE HEADER */}
       <div className="bg-white border-b border-stone-150/70 sticky top-0 z-40 px-4 py-3 md:px-6 md:py-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.02)] shrink-0">
-        <div className="flex items-center justify-between gap-4 max-w-2xl mx-auto w-full">
-          {/* Left Side: Brand Wordmark Logo */}
-          <div className="flex items-center gap-2.5">
-            <h1 className="font-serif italic text-2xl font-black tracking-normal text-stone-900 select-none cursor-pointer">
-              Exona
-            </h1>
-            
-            {/* Super compact Currency Dropdown */}
-            <div className="flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 transition-colors border border-stone-200/60 rounded-xl px-2 py-1 text-[9px] font-black tracking-tight text-stone-600 cursor-pointer shadow-2xs">
-              <Globe size={10.5} className="text-[#2481CC]" />
-              <select 
-                value={currencyCode} 
-                onChange={(e) => setCurrencyCode(e.target.value)}
-                className="bg-transparent outline-none border-none py-0 pr-1 text-stone-850 font-black cursor-pointer uppercase text-[8.5px]"
-              >
-                {currencyModes.map(c => (
-                  <option key={c.code} value={c.code} className="text-stone-900 bg-white font-bold">{c.code}</option>
-                ))}
-              </select>
+        <div className="flex flex-col max-w-2xl mx-auto w-full">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left Side: Brand Wordmark Logo */}
+            <div className="flex items-center gap-2.5">
+              <h1 className="font-serif italic text-2xl font-black tracking-normal text-stone-900 select-none cursor-pointer">
+                Exona
+              </h1>
+              
+              {/* Super compact Currency Dropdown */}
+              <div className="flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 transition-colors border border-stone-200/60 rounded-xl px-2 py-1 text-[9px] font-black tracking-tight text-stone-600 cursor-pointer shadow-2xs">
+                <Globe size={10.5} className="text-[#2481CC]" />
+                <select 
+                  value={currencyCode} 
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  className="bg-transparent outline-none border-none py-0 pr-1 text-stone-850 font-black cursor-pointer uppercase text-[8.5px]"
+                >
+                  {currencyModes.map(c => (
+                    <option key={c.code} value={c.code} className="text-stone-900 bg-white font-bold">{c.code}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* Right Side: Clean Instagram Action Row */}
-          <div className="flex items-center gap-4.5">
-            {/* Home Feed Button (Instagram-like) */}
-            <button 
-              onClick={() => {
-                setActiveMarketView('browse');
-                setSelectedCategory('ALL'); // Reset category filter to show all
-                setSearchQuery(''); // Reset search
-              }}
-              className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
-                activeMarketView === 'browse' ? 'text-stone-950 scale-102 font-black' : 'text-stone-400 hover:text-stone-600'
-              }`}
-              title="Home Feed"
-            >
-              <ShoppingBag size={21} className={activeMarketView === 'browse' ? 'text-stone-950 stroke-[2px]' : 'text-stone-400'} />
-            </button>
+            {/* Right Side: Clean Instagram Action Row */}
+            <div className="flex items-center gap-4.5">
+              {/* Search Toggle Button */}
+              <button 
+                onClick={() => setShowSearchBar(!showSearchBar)}
+                className={`p-1 transition-all hover:scale-105 cursor-pointer ${
+                  showSearchBar ? 'text-[#2481CC]' : 'text-stone-400 hover:text-stone-950'
+                }`}
+                title="Search Products"
+              >
+                <Search size={21} className="stroke-[2.2px]" />
+              </button>
 
-            {/* Create Post Button (Instagram-like PlusSquare decoration) */}
-            {isAdmin && (
+              {/* Home Feed Button (Instagram-like) */}
+              <button 
+                onClick={() => {
+                  setActiveMarketView('browse');
+                  setSelectedCategory('ALL'); // Reset category filter to show all
+                  setSearchQuery(''); // Reset search
+                }}
+                className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
+                  activeMarketView === 'browse' ? 'text-stone-950 scale-102 font-black' : 'text-stone-400 hover:text-stone-600'
+                }`}
+                title="Home Feed"
+              >
+                <ShoppingBag size={21} className={activeMarketView === 'browse' ? 'text-stone-950 stroke-[2.2px]' : 'text-stone-400'} />
+              </button>
+
+              {/* Create Post Button (Instagram-like PlusSquare decoration) - Unlocked for everyone! */}
               <button
                 onClick={() => setIsListModalOpen(true)}
                 className="p-1 px-1.5 text-stone-700 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
-                title="Create Post"
+                title="Create Advert Post"
               >
                 <div className="p-0.5 border-[2px] border-stone-800 rounded-md hover:border-stone-950 transition-colors flex items-center justify-center h-[18px] w-[18px]">
                   <Plus size={11} className="stroke-[3.5px]" />
                 </div>
               </button>
-            )}
 
-            {/* Activity Orders Button (Instagram-like Heart icon) */}
-            <button 
-              onClick={() => setActiveMarketView('orders')}
-              className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
-                activeMarketView === 'orders' ? 'text-rose-500 scale-102' : 'text-stone-400 hover:text-stone-600'
-              }`}
-              title="Orders Activity"
-            >
-              <Heart size={21} className={activeMarketView === 'orders' ? 'fill-rose-500 text-rose-500' : 'text-stone-400 stroke-[2px]'} />
-              {orders.some(o => o.status !== 'delivered') && (
-                <span className="absolute top-1 right-1 h-2 w-2 bg-rose-500 rounded-full ring-[2px] ring-white animate-pulse" />
-              )}
-            </button>
+              {/* Activity Orders Button (Instagram-like Heart icon) */}
+              <button 
+                onClick={() => setActiveMarketView('orders')}
+                className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
+                  activeMarketView === 'orders' ? 'text-rose-500 scale-102' : 'text-stone-400 hover:text-stone-600'
+                }`}
+                title="Orders Activity"
+              >
+                <Heart size={21} className={activeMarketView === 'orders' ? 'fill-rose-500 text-rose-500' : 'text-stone-400 stroke-[2px]'} />
+                {orders.some(o => o.status !== 'delivered') && (
+                  <span className="absolute top-1 right-1 h-2 w-2 bg-rose-500 rounded-full ring-[2px] ring-white animate-pulse" />
+                )}
+              </button>
 
-            {/* Direct Message or Custom Shopping Cart Bag */}
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="relative p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
-              title="Your Shopping Bag"
-            >
-              <ShoppingCart size={21} className={cart.length > 0 ? 'text-stone-900 stroke-[2px]' : 'text-stone-400'} />
-              {cart.length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#2481CC] text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
-                  {cart.reduce((total, item) => total + item.quantity, 0)}
-                </span>
-              )}
-            </button>
+              {/* Direct Message or Custom Shopping Cart Bag */}
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="relative p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
+                title="Your Shopping Bag"
+              >
+                <ShoppingCart size={21} className={cart.length > 0 ? 'text-stone-900 stroke-[2px]' : 'text-stone-400'} />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-[#2481CC] text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
+                    {cart.reduce((total, item) => total + item.quantity, 0)}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Collapsible Slide-down Search Bar */}
+          <AnimatePresence>
+            {showSearchBar && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                animate={{ height: "auto", opacity: 1, marginTop: 12 }}
+                exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="relative flex items-center w-full">
+                  <input 
+                    type="text" 
+                    placeholder="Search premium crafts, products, creators..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-9 py-2 bg-stone-50 border border-stone-200 focus:bg-white focus:border-stone-400 rounded-xl outline-none text-xs font-bold text-stone-800 placeholder:text-stone-400 transition-all font-sans"
+                    autoFocus
+                  />
+                  <Search size={14} className="absolute left-3 text-stone-400" />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3.5 text-stone-400 hover:text-stone-950 p-0.5">
+                      <X size={12.5} />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* MAIN THREADS STREAM VIEWPORT */}
       <div className="flex-1 overflow-y-auto w-full max-w-2xl mx-auto px-4 md:px-6 pt-5 pb-28 min-h-0">
         
-        {/* FREE SHIPS MICRO PROMPT BANNER */}
-        <div className="mb-6 bg-stone-100/55 border border-stone-200/50 rounded-2xl py-3 px-4.5 flex items-center justify-between gap-4 text-[10.5px] font-bold text-stone-600">
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={12} className="text-[#2481CC]" />
-            <span>Ad-hoc shipping fee structure: <strong>FREE WORLDWIDE CARGO</strong></span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md font-sans font-black">Active</span>
-          </div>
-        </div>
-
         {activeMarketView === 'orders' ? (
           /* ==================== ACTIVE ORDERS TIMELINE ==================== */
           <div className="space-y-6">
@@ -967,88 +997,54 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           /* ==================== SCREEN 1: THE THREADS MARKET FEED ==================== */
           <div className="space-y-6 pb-12">
             
-            {/* PINNED THREAD AT TOP: EXONA AI SMART BROKER */}
-            <div className="bg-white border border-stone-100 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.015)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.03)] text-left relative overflow-hidden">
-              {/* Premium Glow header accent */}
-              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-blue-500 via-[#2481CC] to-emerald-500" />
-              
+            {/* SOCIAL MEDIA CREATE ADVERT POST BOX */}
+            <div className="bg-white border border-stone-150 rounded-[2rem] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.015)] text-left transition-all hover:border-stone-200">
               <div className="flex gap-4">
-                <div className="flex flex-col items-center shrink-0">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-sm relative shadow-md border-2 border-white">
-                    🤖
-                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse" />
-                  </div>
-                  {/* Visual Connective Thread line under avatar */}
-                  <div className="w-[1.5px] flex-1 bg-gradient-to-b from-stone-200/80 to-stone-100/10 my-2.5" />
+                {/* User Avatar */}
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#2481CC] to-indigo-600 text-white flex items-center justify-center font-bold text-sm select-none shadow-xs shrink-0 uppercase border-2 border-white ring-1 ring-stone-200/50">
+                  {userDoc?.displayName?.slice(0, 2).toUpperCase() || user?.displayName?.slice(0, 2).toUpperCase() || "ME"}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[13px] font-extrabold text-stone-950 tracking-tight">Exona AI Expert</span>
-                      <BadgeCheck size={14} className="text-blue-500 fill-blue-500" />
-                      <span className="text-[10px] text-stone-450 font-medium">@exona_ai_broker</span>
-                    </div>
-                    <span className="text-[8.5px] uppercase font-black tracking-widest text-[#2481CC] bg-[#2481CC]/8 px-2 py-0.5 rounded-full">PINNED BROKER</span>
-                  </div>
-
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-stone-400 mt-1">CROSS-BORDER DISPATCH ANALYST</p>
-                  <p className="text-[12.5px] text-stone-750 mt-2.5 leading-relaxed font-medium">
-                    "I am connected live to international shipment custom databases. Ask me anything about regional import rules, pricing formulas in Excoins, or custom shipping times!"
-                  </p>
-
-                  {/* AI Chat History */}
-                  {aiChatHistory.length > 1 && (
-                    <div className="mt-4 space-y-3 border-t border-stone-100/80 pt-4 text-left max-h-56 overflow-y-auto pr-1">
-                      {aiChatHistory.map((m, idx) => {
-                        if (idx === 0) return null; // skip default introductory greeting
-                        return (
-                          <div key={idx} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
-                            <span className="text-[8.5px] font-bold text-stone-400 uppercase tracking-wider mb-1">
-                              {m.role === 'user' ? 'Your Inquiry' : 'Exona AI Broker'}
-                            </span>
-                            <div className={`text-xs p-3 rounded-2xl max-w-[90%] leading-relaxed ${
-                              m.role === 'user' 
-                                ? 'bg-stone-900 text-white rounded-tr-none' 
-                                : 'bg-stone-50 text-stone-800 border border-stone-100 rounded-tl-none font-medium'
-                            }`}>
-                              {m.text}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {isGeneratingAiResponse && (
-                        <div className="flex items-center gap-2 text-[10px] text-stone-400 font-bold tracking-wider animate-pulse uppercase">
-                          <span className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-ping" />
-                          <span>Calculating customs logistics & shipping pipes...</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* AI Chat Interaction Input inside the Thread */}
-                  <form 
-                    onSubmit={(e) => { e.preventDefault(); handleSendAiMessage(); }}
-                    className="mt-4 flex items-center gap-2"
+                
+                {/* Input Area */}
+                <div className="flex-1">
+                  <p className="text-[12px] font-black text-stone-850 uppercase tracking-wider mb-2">Create Advert / Social Post</p>
+                  
+                  {/* Inline Form / Clicking triggers the listing modal */}
+                  <div 
+                    onClick={() => setIsListModalOpen(true)}
+                    className="bg-stone-50 hover:bg-stone-100/70 border border-stone-200/60 rounded-2xl px-4 py-3 text-xs text-stone-400 font-semibold cursor-pointer transition-all flex items-center justify-between"
                   >
-                    <input 
-                      type="text"
-                      value={aiChatInput}
-                      onChange={(e) => setAiChatInput(e.target.value)}
-                      disabled={isGeneratingAiResponse}
-                      placeholder="Ask the AI broker about shipping, duty, or custom orders..."
-                      className="flex-1 bg-stone-50 border border-stone-150 rounded-2xl px-4 py-2 text-xs font-medium outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/10 focus:border-[#2481CC]/40 transition-all text-stone-850"
-                    />
-                    <button 
-                      type="submit"
-                      disabled={!aiChatInput.trim() || isGeneratingAiResponse}
-                      className="h-8.5 px-4 bg-stone-955 text-white rounded-xl text-[9px] uppercase font-black tracking-widest hover:bg-[#2481CC] transition-all disabled:opacity-45 select-none shadow-sm cursor-pointer"
-                    >
-                      Send
-                    </button>
-                  </form>
+                    <span>What unique craft or product are you advertising today? Set price and post...</span>
+                    <Plus size={14} className="text-stone-450 stroke-[3px]" />
+                  </div>
                 </div>
+              </div>
+
+              {/* Quick interactive shortcut buttons */}
+              <div className="flex items-center justify-between border-t border-stone-100 mt-4 pt-3.5 px-1">
+                <button 
+                  onClick={() => setIsListModalOpen(true)}
+                  className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-[11px] font-bold cursor-pointer"
+                >
+                  <span className="text-base">📸</span>
+                  <span>Add Product Photo</span>
+                </button>
+                
+                <button 
+                  onClick={() => setIsListModalOpen(true)}
+                  className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-[11px] font-bold cursor-pointer"
+                >
+                  <span className="text-base">🏷️</span>
+                  <span>Set Smart Price</span>
+                </button>
+
+                <button 
+                  onClick={() => setIsListModalOpen(true)}
+                  className="flex items-center gap-2 text-[#2481CC] hover:text-[#1E71B3] transition-all text-[11px] font-black uppercase tracking-wider cursor-pointer hover:scale-103"
+                >
+                  <span>Publish Advert</span>
+                  <span>🚀</span>
+                </button>
               </div>
             </div>
 
