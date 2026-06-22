@@ -466,6 +466,91 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["gameId", "institutionId", "uid", "name", "score", "totalQuestions", "timestamp"]
+    },
+    "MarketplaceProduct": {
+      "title": "MarketplaceProduct",
+      "description": "Product listed on the international marketplace",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "originCountry": { "type": "string" },
+        "countryFlag": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "stock": { "type": "integer" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "integer" },
+        "sellerName": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "sellerPhoto": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "isCustom": { "type": "boolean" }
+      },
+      "required": ["name", "price", "category", "originCountry", "sellerId"]
+    },
+    "MarketplaceOrder": {
+      "title": "MarketplaceOrder",
+      "description": "Order submitted on the marketplace",
+      "type": "object",
+      "properties": {
+        "buyerId": { "type": "string" },
+        "buyerName": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "integer" },
+              "imageUrl": { "type": "string" },
+              "originCountry": { "type": "string" }
+            }
+          }
+        },
+        "subtotal": { "type": "number" },
+        "shippingSpeed": { "type": "string" },
+        "shippingCost": { "type": "number" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "totalExcoins": { "type": "integer" },
+        "p2pReceiptImg": { "type": "string" },
+        "p2pSenderName": { "type": "string" },
+        "p2pReference": { "type": "string" },
+        "address": { "type": "string" },
+        "country": { "type": "string" },
+        "paymentNote": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "trackingUpdates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "time": { "type": "string" },
+              "desc": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["buyerId", "items", "total", "paymentMethod"]
+    },
+    "MarketplaceReview": {
+      "title": "MarketplaceReview",
+      "description": "Review comment left on a product thread",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "userId", "text"]
     }
   },
   "firestore": {
@@ -495,6 +580,9 @@
     "/p2pOffers/{offerId}": { "schema": "P2POffer", "description": "P2P Excoin ad listings" },
     "/p2pTrades/{tradeId}": { "schema": "P2PTrade", "description": "Active Excoin P2P trades" },
     "/institutionGames/{gameId}": { "schema": "InstitutionGame", "description": "Custom premium games" },
-    "/institutionGameLeads/{leadId}": { "schema": "InstitutionGameLead", "description": "Premium game execution records" }
+    "/institutionGameLeads/{leadId}": { "schema": "InstitutionGameLead", "description": "Premium game execution records" },
+    "/marketplace_products/{productId}": { "schema": "MarketplaceProduct", "description": "Marketplace product listings" },
+    "/marketplace_orders/{orderId}": { "schema": "MarketplaceOrder", "description": "Marketplace customer orders" },
+    "/marketplace_reviews/{reviewId}": { "schema": "MarketplaceReview", "description": "Product comment reviews" }
   }
 }
