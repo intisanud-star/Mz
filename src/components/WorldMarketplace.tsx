@@ -27,9 +27,10 @@ import {
   HelpCircle,
   ArrowRight,
   Monitor,
-  BadgeCheck
+  BadgeCheck,
+  Users
 } from 'lucide-react';
-import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc, where } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export interface Product {
@@ -263,6 +264,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   // Selected Product Detail Modal
   const [selectedDetailedProduct, setSelectedDetailedProduct] = useState<Product | null>(null);
 
+  // Seller Follow States
+  const [followedSellers, setFollowedSellers] = useState<string[]>([]);
+  const [onlyShowFollowing, setOnlyShowFollowing] = useState(false);
+
   // Orders Tab
   const [orders, setOrders] = useState<Order[]>([]);
   const [activeMarketView, setActiveMarketView] = useState<'browse' | 'orders'>('browse');
@@ -421,6 +426,92 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     return defaults[productId] || [];
   };
 
+  // Sync followed sellers in real-time
+  useEffect(() => {
+    const fId = user?.uid || 'guest';
+    try {
+      const qFollows = query(
+        collection(db, 'marketplace_follows'),
+        where('followerId', '==', fId)
+      );
+      const unsubFollows = onSnapshot(qFollows, (snap) => {
+        const uids = snap.docs.map(doc => doc.data().sellerId as string);
+        setFollowedSellers(uids);
+      }, (error) => {
+        console.error("Error listening to follows, using localStorage fallback:", error);
+        const saved = localStorage.getItem(`follows_${fId}`);
+        if (saved) {
+          setFollowedSellers(JSON.parse(saved));
+        }
+      });
+      return () => unsubFollows();
+    } catch (err) {
+      console.error("Firestore follows query setup failed:", err);
+      const saved = localStorage.getItem(`follows_${fId}`);
+      if (saved) {
+        setFollowedSellers(JSON.parse(saved));
+      }
+    }
+  }, [user?.uid]);
+
+  // Handle follow/unfollow vendor toggle
+  const handleToggleFollow = async (sellerId: string, sellerName: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    const fId = user?.uid || 'guest';
+    const isFollowing = followedSellers.includes(sellerId);
+    
+    try {
+      if (isFollowing) {
+        // Unfollow: delete doc
+        const q = query(
+          collection(db, 'marketplace_follows'),
+          where('followerId', '==', fId),
+          where('sellerId', '==', sellerId)
+        );
+        const snap = await getDocs(q);
+        const batchPromises = snap.docs.map(docSnap => deleteDoc(doc(db, 'marketplace_follows', docSnap.id)));
+        await Promise.all(batchPromises);
+        
+        const nextFollows = followedSellers.filter(id => id !== sellerId);
+        setFollowedSellers(nextFollows);
+        localStorage.setItem(`follows_${fId}`, JSON.stringify(nextFollows));
+        
+        showNotification(`Unfollowed vendor: ${sellerName}.`, "info");
+      } else {
+        // Follow: create doc
+        const followData = {
+          followerId: fId,
+          sellerId,
+          sellerName,
+          timestamp: new Date().toISOString()
+        };
+        await addDoc(collection(db, 'marketplace_follows'), followData);
+        
+        const nextFollows = [...followedSellers, sellerId];
+        setFollowedSellers(nextFollows);
+        localStorage.setItem(`follows_${fId}`, JSON.stringify(nextFollows));
+        
+        showNotification(`You are now following ${sellerName}! You will see their postings.`, "success");
+      }
+    } catch (err) {
+      console.error("Error toggling follow:", err);
+      // Fallback local operation
+      if (isFollowing) {
+        const nextFollows = followedSellers.filter(id => id !== sellerId);
+        setFollowedSellers(nextFollows);
+        localStorage.setItem(`follows_${fId}`, JSON.stringify(nextFollows));
+        showNotification(`Unfollowed vendor ${sellerName} (locally).`, "info");
+      } else {
+        const nextFollows = [...followedSellers, sellerId];
+        setFollowedSellers(nextFollows);
+        localStorage.setItem(`follows_${fId}`, JSON.stringify(nextFollows));
+        showNotification(`Now following ${sellerName} (locally).`, "success");
+      }
+    }
+  };
+
   // Submit Collaborative Review Reply on a Product Thread
   const handleAddReviewReply = async (productId: string) => {
     const text = newReplyTexts[productId];
@@ -456,7 +547,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               p.originCountry.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesCategory && matchesCountry && matchesSearch;
+        const matchesFollowing = !onlyShowFollowing || followedSellers.includes(p.sellerId || '');
+        return matchesCategory && matchesCountry && matchesSearch && matchesFollowing;
       })
       .sort((a, b) => {
         if (sortBy === 'rating') return b.rating - a.rating;
@@ -465,7 +557,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         if (sortBy === 'reviews') return b.reviewsCount - a.reviewsCount;
         return 0;
       });
-  }, [products, searchQuery, selectedCategory, selectedCountry, sortBy]);
+  }, [products, searchQuery, selectedCategory, selectedCountry, sortBy, onlyShowFollowing, followedSellers]);
 
   // Cart operations
   const addToCart = (product: Product, e?: React.MouseEvent) => {
@@ -1195,6 +1287,34 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               </div>
             </div>
 
+            {/* STREAM SELECTION TABS */}
+            <div className="flex border-b border-stone-100 pb-1 justify-center gap-6 text-xs font-black uppercase tracking-widest text-[#2481CC] select-none">
+              <button 
+                onClick={() => setOnlyShowFollowing(false)}
+                className={`pb-2.5 transition-all relative cursor-pointer font-extrabold ${!onlyShowFollowing ? 'text-[#2481CC]' : 'text-stone-400 hover:text-stone-700'}`}
+              >
+                <span>🌍 Explore Market</span>
+                {!onlyShowFollowing && (
+                  <motion.div layoutId="activeStreamLine" className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2481CC] rounded-full" />
+                )}
+              </button>
+              
+              <button 
+                onClick={() => setOnlyShowFollowing(true)}
+                className={`pb-2.5 transition-all relative cursor-pointer flex items-center gap-1.5 font-extrabold ${onlyShowFollowing ? 'text-[#2481CC]' : 'text-stone-400 hover:text-stone-700'}`}
+              >
+                <span>👥 Following</span>
+                {followedSellers.length > 0 && (
+                  <span className="h-4 min-w-[16px] px-1 bg-stone-100 border border-stone-200 text-stone-600 text-[9px] flex items-center justify-center rounded-full">
+                    {followedSellers.length}
+                  </span>
+                )}
+                {onlyShowFollowing && (
+                  <motion.div layoutId="activeStreamLine" className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2481CC] rounded-full" />
+                )}
+              </button>
+            </div>
+
             {/* BROWSE FEED: COLLABORATIVE THREADS LIST */}
             {isLoadingProducts ? (
               <div className="py-24 text-center">
@@ -1202,11 +1322,29 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 <p className="text-xs font-black uppercase tracking-widest text-[#2481CC] animate-pulse">Syncing International Inventories...</p>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="py-20 text-center bg-white border border-stone-100 rounded-[2rem] px-6 max-w-sm mx-auto shadow-sm">
-                <AlertCircle size={24} className="mx-auto text-stone-300 mb-3" />
-                <h4 className="text-sm font-bold text-stone-900 uppercase tracking-tight">No active listings</h4>
-                <p className="text-xs text-stone-400 mt-2 leading-relaxed">No products match your search/filter parameters. Reset your category tabs or publish an ad-hoc listing.</p>
-              </div>
+              onlyShowFollowing ? (
+                <div className="py-20 text-center bg-white border border-stone-100 rounded-[2rem] px-8 max-w-sm mx-auto shadow-sm flex flex-col items-center">
+                  <div className="h-12 w-12 bg-blue-50 text-[#2481CC] rounded-full flex items-center justify-center mb-4 border border-blue-100 shrink-0">
+                    <Users size={22} className="stroke-[2.5px]" />
+                  </div>
+                  <h4 className="text-xs font-black text-stone-900 uppercase tracking-tight">Following Feed is empty</h4>
+                  <p className="text-[11px] text-stone-400 mt-2.5 leading-relaxed font-semibold uppercase tracking-wider">
+                    You aren't following any sellers with active items. Tap "+ Follow" next to vendor names in the Explore tab!
+                  </p>
+                  <button 
+                    onClick={() => setOnlyShowFollowing(false)}
+                    className="mt-6 px-4 py-2 bg-[#2481CC] hover:bg-[#1E71B3] text-white text-[9px] uppercase font-black tracking-widest rounded-xl transition-all shadow-xs shrink-0 cursor-pointer"
+                  >
+                    Browse Explore Feed
+                  </button>
+                </div>
+              ) : (
+                <div className="py-20 text-center bg-white border border-stone-100 rounded-[2rem] px-6 max-w-sm mx-auto shadow-sm">
+                  <AlertCircle size={24} className="mx-auto text-stone-300 mb-3" />
+                  <h4 className="text-sm font-bold text-stone-900 uppercase tracking-tight">No active listings</h4>
+                  <p className="text-xs text-stone-400 mt-2 leading-relaxed">No products match your search/filter parameters. Reset your category tabs or publish an ad-hoc listing.</p>
+                </div>
+              )
             ) : (
               <div className="space-y-6">
                 {filteredProducts.map((p) => {
@@ -1277,6 +1415,20 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider bg-blue-50 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 select-none">
                                 <span>{p.countryFlag}</span> {p.originCountry}
                               </span>
+
+                              {/* Follow Button */}
+                              {p.sellerId && p.sellerId !== (user?.uid || 'guest') && (
+                                <button
+                                  onClick={(e) => handleToggleFollow(p.sellerId!, p.sellerName || 'Vendor', e)}
+                                  className={`text-[9px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
+                                    followedSellers.includes(p.sellerId)
+                                      ? 'bg-stone-50 text-stone-450 border-stone-200 hover:bg-stone-100'
+                                      : 'bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3]'
+                                  }`}
+                                >
+                                  {followedSellers.includes(p.sellerId) ? '✓ Following' : '+ Follow'}
+                                </button>
+                              )}
                             </div>
 
                             <span className="text-[10px] text-stone-400 font-medium select-none">
@@ -1514,21 +1666,37 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               <div className="w-full md:w-1/2 p-6 flex flex-col justify-between text-left h-full overflow-y-auto">
                 <div className="space-y-4">
                   {/* Vendor Header */}
-                  <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-stone-950 font-black text-[10px] text-white flex items-center justify-center overflow-hidden">
-                      {selectedDetailedProduct.sellerPhoto ? (
-                        <img src={selectedDetailedProduct.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        selectedDetailedProduct.sellerName.slice(0, 2).toUpperCase()
-                      )}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-8 w-8 rounded-full bg-stone-950 font-black text-[10px] text-white flex items-center justify-center overflow-hidden">
+                        {selectedDetailedProduct.sellerPhoto ? (
+                          <img src={selectedDetailedProduct.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          selectedDetailedProduct.sellerName.slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black text-stone-900 leading-none uppercase flex items-center gap-1">
+                          <span>{selectedDetailedProduct.sellerName}</span>
+                          <BadgeCheck size={12} className="text-blue-500 fill-blue-500 shrink-0" />
+                        </p>
+                        <p className="text-[10px] text-stone-450 font-bold uppercase tracking-wider mt-1">Verified Merchant</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-black text-stone-900 leading-none uppercase flex items-center gap-1">
-                        <span>{selectedDetailedProduct.sellerName}</span>
-                        <BadgeCheck size={12} className="text-blue-500 fill-blue-500 shrink-0" />
-                      </p>
-                      <p className="text-[10px] text-stone-450 font-bold uppercase tracking-wider mt-1">Verified Merchant</p>
-                    </div>
+
+                    {/* Follow button in details modal */}
+                    {selectedDetailedProduct.sellerId && selectedDetailedProduct.sellerId !== (user?.uid || 'guest') && (
+                      <button
+                        onClick={(e) => handleToggleFollow(selectedDetailedProduct.sellerId!, selectedDetailedProduct.sellerName || 'Vendor', e)}
+                        className={`text-[9px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
+                          followedSellers.includes(selectedDetailedProduct.sellerId)
+                            ? 'bg-stone-50 text-stone-450 border-stone-200 hover:bg-stone-100'
+                            : 'bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3]'
+                        }`}
+                      >
+                        {followedSellers.includes(selectedDetailedProduct.sellerId) ? '✓ Following' : '+ Follow'}
+                      </button>
+                    )}
                   </div>
 
                   {/* Title & Description */}
