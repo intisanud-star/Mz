@@ -53,6 +53,8 @@ export interface Product {
   sellerId?: string;
   sellerPhoto?: string;
   isCustom?: boolean;
+  isAdvert?: boolean;
+  advertCompanyName?: string;
 }
 
 export interface CartItem {
@@ -281,6 +283,19 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   // Seller Follow States
   const [followedSellers, setFollowedSellers] = useState<string[]>([]);
   const [onlyShowFollowing, setOnlyShowFollowing] = useState(false);
+
+  // Filter and Listing Type state parameters (differentiating market and adverts)
+  const [postTypeFilter, setPostTypeFilter] = useState<'all' | 'market' | 'advert'>('all');
+  const [newProductPostingType, setNewProductPostingType] = useState<'market' | 'advert'>('market');
+  const [listModalStep, setListModalStep] = useState<1 | 2>(1);
+
+  // Reset the posting step and type each time the modal opens
+  useEffect(() => {
+    if (isListModalOpen) {
+      setListModalStep(1);
+      setNewProductPostingType('market');
+    }
+  }, [isListModalOpen]);
 
   // Orders Tab
   const [orders, setOrders] = useState<Order[]>([]);
@@ -592,7 +607,14 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               p.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               p.originCountry.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFollowing = !onlyShowFollowing || followedSellers.includes(p.sellerId || '');
-        return matchesCategory && matchesCountry && matchesSearch && matchesFollowing;
+        
+        // Differentiate marketplace products vs corporate/company adverts
+        const isAdvOfProduct = !!p.isAdvert;
+        const matchesPostType = postTypeFilter === 'all' || 
+          (postTypeFilter === 'market' && !isAdvOfProduct) || 
+          (postTypeFilter === 'advert' && isAdvOfProduct);
+
+        return matchesCategory && matchesCountry && matchesSearch && matchesFollowing && matchesPostType;
       })
       .sort((a, b) => {
         if (sortBy === 'rating') return b.rating - a.rating;
@@ -601,7 +623,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         if (sortBy === 'reviews') return b.reviewsCount - a.reviewsCount;
         return 0;
       });
-  }, [products, searchQuery, selectedCategory, selectedCountry, sortBy, onlyShowFollowing, followedSellers]);
+  }, [products, searchQuery, selectedCategory, selectedCountry, sortBy, onlyShowFollowing, followedSellers, postTypeFilter]);
 
   // Cart operations
   const addToCart = (product: Product, e?: React.MouseEvent) => {
@@ -791,13 +813,19 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       return;
     }
     if (!newProductName.trim()) {
-      showNotification("Please enter a valid product name.", "error");
+      showNotification("Please enter a valid product name or company campaign headline.", "error");
       return;
     }
-    const parsedPrice = parseFloat(newProductPrice);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      showNotification("Please provide a valid numeric positive price.", "error");
-      return;
+
+    const isAdv = newProductPostingType === 'advert';
+    let parsedPrice = 0.0;
+    
+    if (!isAdv) {
+      parsedPrice = parseFloat(newProductPrice);
+      if (isNaN(parsedPrice) || parsedPrice <= 0) {
+        showNotification("Please provide a valid numeric positive price.", "error");
+        return;
+      }
     }
 
     setIsCreatingProduct(true);
@@ -822,26 +850,32 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
       const customProd = {
         name: newProductName,
-        description: newProductDesc || "Premium international item curated for the Exona world marketplace.",
+        description: newProductDesc || (isAdv ? "Premium company announcement and brand outreach campaign." : "Premium international item curated for the Exona world marketplace."),
         price: parsedPrice,
         category: newProductCategory,
         originCountry: newProductCountry,
         countryFlag: flag,
         imageUrl: photoCollection[0],
         imageUrls: photoCollection,
-        stock: parseInt(newProductStock) || 10,
+        stock: isAdv ? 99999 : (parseInt(newProductStock) || 10),
         rating: 5.0, 
         reviewsCount: 1,
         sellerName: userDoc?.displayName || user?.displayName || "Global Merchant",
         sellerId: user?.uid || "custom-seller",
         sellerPhoto: user?.photoURL || "",
         timestamp: new Date(),
-        isCustom: true
+        isCustom: true,
+        isAdvert: isAdv,
+        advertCompanyName: isAdv ? (userDoc?.displayName || user?.displayName || "Company Advertiser") : undefined
       };
 
       await addDoc(collection(db, 'marketplace_products'), customProd);
       
-      showNotification(`Item "${newProductName}" has been uploaded to the international marketplace!`, 'success');
+      showNotification(isAdv 
+        ? `Corporate campaign "${newProductName}" has been broadcast live!`
+        : `Item "${newProductName}" has been uploaded to the international marketplace!`, 
+        'success'
+      );
       
       setNewProductName('');
       setNewProductDesc('');
@@ -1427,6 +1461,40 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               </button>
             </div>
 
+            {/* SEGMENTED FILTERS TO DIFFERENTIATE MARKET AND ADVERTS */}
+            <div className="bg-stone-50 border border-stone-150 p-1 rounded-2xl flex max-w-sm mx-auto select-none gap-0.5">
+              <button
+                onClick={() => setPostTypeFilter('all')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  postTypeFilter === 'all' 
+                    ? 'bg-stone-900 text-white shadow-xs' 
+                    : 'text-stone-400 hover:text-stone-700'
+                }`}
+              >
+                <span>🌐 All Streams</span>
+              </button>
+              <button
+                onClick={() => setPostTypeFilter('market')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  postTypeFilter === 'market' 
+                    ? 'bg-stone-900 text-white shadow-xs' 
+                    : 'text-stone-400 hover:text-stone-700'
+                }`}
+              >
+                <span>🛍️ Products</span>
+              </button>
+              <button
+                onClick={() => setPostTypeFilter('advert')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  postTypeFilter === 'advert' 
+                    ? 'bg-stone-900 text-white shadow-xs' 
+                    : 'text-stone-400 hover:text-stone-700'
+                }`}
+              >
+                <span>📢 Company Adverts</span>
+              </button>
+            </div>
+
             {/* BROWSE FEED: COLLABORATIVE THREADS LIST */}
             {isLoadingProducts ? (
               <div className="py-24 text-center">
@@ -1590,21 +1658,27 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               referrerPolicy="no-referrer"
                             />
 
-                            {/* Minimal Glassmorphic Price Sticker */}
-                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-150 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
-                              <span className="text-[8.5px] uppercase tracking-widest text-emerald-600 font-black mb-1.5 block">🏷️ FOR SALE</span>
-                              <span className="text-stone-950 text-xs font-black leading-none">{formatPrice(p.price)}</span>
-                              <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
-                            </div>
+                            {/* Minimal Glassmorphic Price Sticker or Corporate Campaign Badge */}
+                            {p.isAdvert ? (
+                              <div className="absolute top-4 right-4 bg-[#2481CC]/95 text-white border border-[#2481CC]/25 font-sans text-[10px] font-black px-3.5 py-2 rounded-xl flex flex-col items-center shadow-md select-none tracking-widest uppercase">
+                                <span className="flex items-center gap-1">📢 CORPORATE AD</span>
+                              </div>
+                            ) : (
+                              <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-150 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
+                                <span className="text-[8.5px] uppercase tracking-widest text-emerald-600 font-black mb-1.5 block">🏷️ FOR SALE</span>
+                                <span className="text-stone-950 text-xs font-black leading-none">{formatPrice(p.price)}</span>
+                                <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
+                              </div>
+                            )}
 
                             {/* Inventory Alert inside Image Bottom */}
-                            {p.stock <= 3 && p.stock > 0 && (
+                            {!p.isAdvert && p.stock <= 3 && p.stock > 0 && (
                               <div className="absolute bottom-4 left-4 bg-stone-955/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-wider py-1 px-3 rounded-lg border border-white/10 shadow-sm animate-pulse">
                                 Only {p.stock} item(s) left in transit pipeline!
                               </div>
                             )}
 
-                            {p.stock === 0 && (
+                            {!p.isAdvert && p.stock === 0 && (
                               <div className="absolute inset-0 bg-stone-955/65 backdrop-blur-xs flex items-center justify-center">
                                 <span className="bg-white text-stone-900 border border-stone-200 text-xs font-black uppercase tracking-widest py-2 px-5 rounded-2xl shadow-lg">
                                   SOLD OUT / OUT OF STOCK
@@ -1933,103 +2007,145 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     </p>
                   </div>
 
-                  {/* Star rating & Stock info */}
-                  <div className="border-t border-stone-50 pt-3 text-[11.5px] font-semibold text-stone-500 space-y-2">
-                    <div className="flex justify-between">
-                      <span>Trust Rating:</span>
-                      <span className="text-stone-900 font-black flex items-center gap-1">
-                        <Star size={11} className="fill-amber-400 text-amber-400" />
-                        {selectedDetailedProduct.rating.toFixed(1)} ({selectedDetailedProduct.reviewsCount} transits)
-                      </span>
+                  {/* Star rating & Stock info or Advertising outreach banner */}
+                  {selectedDetailedProduct.isAdvert ? (
+                    <div className="border-t border-stone-100 pt-3 text-[11.5px] text-stone-500 space-y-2">
+                      <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-3 text-stone-700 font-semibold leading-relaxed">
+                        <span className="font-extrabold text-blue-700 block mb-1 uppercase tracking-wider text-[10px]">📢 Company Campaign</span>
+                        This is an advertisement and promotional campaign. No inventory is depleted and no direct checkout prices are listed.
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Logistics Pipeline:</span>
-                      {selectedDetailedProduct.stock > 0 ? (
-                        <span className="text-emerald-600 font-black uppercase text-[10px] tracking-wider">Active Inventory ({selectedDetailedProduct.stock} Stock)</span>
-                      ) : (
-                        <span className="text-red-500 font-black uppercase text-[10px] tracking-wider">Transit depleted</span>
-                      )}
+                  ) : (
+                    <div className="border-t border-stone-50 pt-3 text-[11.5px] font-semibold text-stone-500 space-y-2">
+                      <div className="flex justify-between">
+                        <span>Trust Rating:</span>
+                        <span className="text-stone-900 font-black flex items-center gap-1">
+                          <Star size={11} className="fill-amber-400 text-amber-400" />
+                          {selectedDetailedProduct.rating.toFixed(1)} ({selectedDetailedProduct.reviewsCount} transits)
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Logistics Pipeline:</span>
+                        {selectedDetailedProduct.stock > 0 ? (
+                          <span className="text-emerald-600 font-black uppercase text-[10px] tracking-wider">Active Inventory ({selectedDetailedProduct.stock} Stock)</span>
+                        ) : (
+                          <span className="text-red-500 font-black uppercase text-[10px] tracking-wider">Transit depleted</span>
+                        ) || (
+                          <span className="text-stone-400 font-bold uppercase tracking-wider">Unlimited Campaign</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
 
-                {/* Checkout pricing and checkout CTA buttons */}
+                {/* Checkout pricing and checkout CTA buttons or Contact Vendor option */}
                 <div className="border-t border-stone-100 pt-5 mt-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[9px] text-stone-400 uppercase font-black tracking-widest">Pre-clearance Price Check</p>
-                      <p className="text-xl font-black text-stone-950 font-sans mt-0.5">{formatPrice(selectedDetailedProduct.price)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest text-right">DUTIES & TAXES</p>
-                      <p className="text-[10px] text-stone-550 font-bold uppercase tracking-wider text-right mt-1">100% EXEMPTED / FREE</p>
-                    </div>
-                  </div>
+                  {selectedDetailedProduct.isAdvert ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[9px] text-stone-400 uppercase font-black tracking-widest">Promotion Campaign</p>
+                          <p className="text-sm font-black text-blue-600 font-sans mt-0.5">EXONA ADVERTISING SPECIAL</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-[#2481CC] font-black uppercase tracking-widest text-right">STATUS</p>
+                          <p className="text-[10px] text-stone-550 font-bold uppercase tracking-wider text-right mt-1">🏷️ PROMOTIONAL</p>
+                        </div>
+                      </div>
 
-                  <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
-                      <button
-                        disabled={selectedDetailedProduct.stock === 0}
-                        onClick={() => {
-                          addToCart(selectedDetailedProduct);
-                          setSelectedDetailedProduct(null);
-                        }}
-                        className="flex-1 py-2.5 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-black uppercase tracking-wider border border-stone-200 transition-all select-none disabled:opacity-40 cursor-pointer"
-                      >
-                        Add Bag
-                      </button>
-                      <button
-                        disabled={selectedDetailedProduct.stock === 0}
-                        onClick={() => {
-                          setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
-                          setSelectedDetailedProduct(null);
-                          setCheckoutPaymentMethod('standard');
-                          setIsCheckoutOpen(true);
-                          setCheckoutStep(1);
-                        }}
-                        className="flex-1 py-2.5 bg-[#2481CC] hover:bg-[#1E71B3] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
-                      >
-                        Buy now • {formatPrice(selectedDetailedProduct.price)}
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        {/* Delete listing button for administration or listing creator */}
+                        {(isAdmin || selectedDetailedProduct.sellerId === (user?.uid || 'guest')) && (
+                          <button
+                            onClick={() => handleDeleteProduct(selectedDetailedProduct.id, selectedDetailedProduct.name)}
+                            className="w-full py-2 bg-rose-50 border border-rose-200 text-rose-650 hover:bg-rose-100 hover:text-rose-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer flex items-center justify-center gap-1.5"
+                            title="Remove advertisement posting"
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete Posting listing</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[9px] text-stone-400 uppercase font-black tracking-widest">Pre-clearance Price Check</p>
+                          <p className="text-xl font-black text-stone-950 font-sans mt-0.5">{formatPrice(selectedDetailedProduct.price)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest text-right">DUTIES & TAXES</p>
+                          <p className="text-[10px] text-stone-550 font-bold uppercase tracking-wider text-right mt-1">100% EXEMPTED / FREE</p>
+                        </div>
+                      </div>
 
-                    <button
-                      disabled={selectedDetailedProduct.stock === 0}
-                      onClick={() => {
-                        setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
-                        setSelectedDetailedProduct(null);
-                        setP2pReceiptImg('');
-                        setP2pSenderName('');
-                        setP2pReference('');
-                        setCheckoutPaymentMethod('p2p');
-                        setIsCheckoutOpen(true);
-                        setCheckoutStep(1);
-                      }}
-                      className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-xs border border-amber-500/80 flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <span>🤝</span>
-                      <span>Buy via P2P Direct • {formatPrice(selectedDetailedProduct.price)}</span>
-                    </button>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex gap-2">
+                          <button
+                            disabled={selectedDetailedProduct.stock === 0}
+                            onClick={() => {
+                              addToCart(selectedDetailedProduct);
+                              setSelectedDetailedProduct(null);
+                            }}
+                            className="flex-1 py-2.5 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-black uppercase tracking-wider border border-stone-200 transition-all select-none disabled:opacity-40 cursor-pointer"
+                          >
+                            Add Bag
+                          </button>
+                          <button
+                            disabled={selectedDetailedProduct.stock === 0}
+                            onClick={() => {
+                              setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
+                              setSelectedDetailedProduct(null);
+                              setCheckoutPaymentMethod('standard');
+                              setIsCheckoutOpen(true);
+                              setCheckoutStep(1);
+                            }}
+                            className="flex-1 py-2.5 bg-[#2481CC] hover:bg-[#1E71B3] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
+                          >
+                            Buy now • {formatPrice(selectedDetailedProduct.price)}
+                          </button>
+                        </div>
 
-                    {/* Delete listing button for administration or listing creator */}
-                    {(isAdmin || selectedDetailedProduct.sellerId === (user?.uid || 'guest')) && (
-                      <button
-                        onClick={() => handleDeleteProduct(selectedDetailedProduct.id, selectedDetailedProduct.name)}
-                        className="w-full py-2 bg-rose-50 border border-rose-200 text-rose-650 hover:bg-rose-100 hover:text-rose-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer flex items-center justify-center gap-1.5"
-                        title="Remove product listing"
-                      >
-                        <Trash2 size={13} />
-                        <span>Delete Posting listing</span>
-                      </button>
-                    )}
-                  </div>
+                        <button
+                          disabled={selectedDetailedProduct.stock === 0}
+                          onClick={() => {
+                            setCart([{ product: selectedDetailedProduct, quantity: 1 }]);
+                            setSelectedDetailedProduct(null);
+                            setP2pReceiptImg('');
+                            setP2pSenderName('');
+                            setP2pReference('');
+                            setCheckoutPaymentMethod('p2p');
+                            setIsCheckoutOpen(true);
+                            setCheckoutStep(1);
+                          }}
+                          className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-xs border border-amber-500/80 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <span>🤝</span>
+                          <span>Buy via P2P Direct • {formatPrice(selectedDetailedProduct.price)}</span>
+                        </button>
+
+                        {/* Delete listing button for administration or listing creator */}
+                        {(isAdmin || selectedDetailedProduct.sellerId === (user?.uid || 'guest')) && (
+                          <button
+                            onClick={() => handleDeleteProduct(selectedDetailedProduct.id, selectedDetailedProduct.name)}
+                            className="w-full py-2 bg-rose-50 border border-rose-200 text-rose-650 hover:bg-rose-100 hover:text-rose-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer flex items-center justify-center gap-1.5"
+                            title="Remove product listing"
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete Posting listing</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
 
       {/* ==================== 1. FLOATING AI HELP OVERLAY ==================== */}
       <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end">
@@ -2605,207 +2721,293 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 </button>
               </div>
 
-              {/* Sell form */}
-              <form onSubmit={handleCreateProduct} className="p-6 space-y-4 text-left overflow-y-auto max-h-[420px]">
-                <div className="space-y-1">
-                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Headline Name</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="e.g. Handmade Kyoto Bonsai"
-                    value={newProductName}
-                    onChange={(e) => setNewProductName(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Narrative Description</label>
-                  <textarea 
-                    rows={3}
-                    placeholder="Provide a story about the craftsmanship, country of origin, and custom properties..."
-                    value={newProductDesc}
-                    onChange={(e) => setNewProductDesc(e.target.value)}
-                    className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3.5">
+              {/* Step-by-step Wizard form */}
+              {listModalStep === 1 ? (
+                /* ==================== STEP 1: SELECT INTENT BEFORE IMAGES ==================== */
+                <div className="p-6 space-y-5 text-left">
                   <div className="space-y-1">
-                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price USD ($)</label>
+                    <h3 className="text-sm font-extrabold text-stone-900 uppercase tracking-tight">Step 1 of 2: Select Listing Purpose</h3>
+                    <p className="text-[11px] text-stone-450 font-bold uppercase tracking-wider">Specify what you wish to broadcast to the Exona network</p>
+                  </div>
+
+                  <div className="space-y-3 pt-1">
+                    {/* Marketplace Option */}
+                    <div 
+                      onClick={() => setNewProductPostingType('market')}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer select-none flex gap-4 ${
+                        newProductPostingType === 'market' 
+                          ? 'border-stone-900 bg-stone-50/40 ring-1 ring-stone-900' 
+                          : 'border-stone-150 bg-white hover:border-stone-305 hover:bg-stone-50/20'
+                      }`}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-emerald-50 text-emerald-650 flex items-center justify-center text-lg shadow-sm shrink-0">
+                        🛍️
+                      </div>
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-black text-stone-900 uppercase tracking-tight">Marketplace Sale Item</h4>
+                        <p className="text-[10px] text-stone-500 font-medium leading-relaxed">
+                          List custom crafts or objects for immediate purchase. Requires positive pricing, stock management, and full checkout/bag integrations.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Corporate Advert Option */}
+                    <div 
+                      onClick={() => setNewProductPostingType('advert')}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer select-none flex gap-4 ${
+                        newProductPostingType === 'advert' 
+                          ? 'border-stone-900 bg-stone-50/40 ring-1 ring-stone-900' 
+                          : 'border-stone-150 bg-white hover:border-stone-305 hover:bg-stone-50/20'
+                      }`}
+                    >
+                      <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center text-lg shadow-sm shrink-0">
+                        📢
+                      </div>
+                      <div className="space-y-0.5">
+                        <h4 className="text-xs font-black text-stone-900 uppercase tracking-tight">Corporate Ad / Campaign</h4>
+                        <p className="text-[10px] text-stone-500 font-medium leading-relaxed">
+                          Promote your brand, service agency, or company outreach. Needs <span className="font-bold underline text-blue-600">NO pricing additions</span> or stock counts.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsListModalOpen(false)}
+                      className="flex-1 py-2.5 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setListModalStep(2)}
+                      className="flex-1 py-2.5 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md select-none flex items-center justify-center gap-1 hover:scale-101 active:scale-99"
+                    >
+                      <span>Continue</span>
+                      <span>→</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* ==================== STEP 2: FILL DATA AND ADD PICTURES ==================== */
+                <form onSubmit={handleCreateProduct} className="p-6 space-y-4 text-left overflow-y-auto max-h-[420px]">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                        {newProductPostingType === 'advert' ? "Company Ad / Campaign Headline" : "Product Headline Name"}
+                      </label>
+                      <span className="text-[7.5px] font-extrabold uppercase tracking-widest bg-stone-105 px-1.5 py-0.5 rounded text-stone-500">Step 2 of 2</span>
+                    </div>
                     <input 
-                      type="number" 
+                      type="text" 
                       required
-                      placeholder="35.00"
-                      value={newProductPrice}
-                      onChange={(e) => setNewProductPrice(e.target.value)}
+                      placeholder={newProductPostingType === 'advert' ? "e.g. Kyoto Craftsmanship Co. - Authorized Brand Launch!" : "e.g. Handmade Kyoto Bonsai"}
+                      value={newProductName}
+                      onChange={(e) => setNewProductName(e.target.value)}
                       className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
-                    <input 
-                      type="number" 
-                      placeholder="10"
-                      value={newProductStock}
-                      onChange={(e) => setNewProductStock(e.target.value)}
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                      {newProductPostingType === 'advert' ? "Campaign Description / Company Details" : "Product Narrative Description"}
+                    </label>
+                    <textarea 
+                      rows={3}
+                      required
+                      placeholder={newProductPostingType === 'advert' ? "Provide brand announcement details, agency contacts, and promotion objectives..." : "Provide a story about the craftsmanship, country of origin, and custom properties..."}
+                      value={newProductDesc}
+                      onChange={(e) => setNewProductDesc(e.target.value)}
                       className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Item Category</label>
-                    <select 
-                      value={newProductCategory}
-                      onChange={(e) => setNewProductCategory(e.target.value)}
-                      className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-xs font-black font-sans rounded-xl text-stone-800"
-                    >
-                      {categoriesList.filter(c => c !== 'All').map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* ONLY show prices and stock fields if NOT an advertisement campaign */}
+                  {newProductPostingType !== 'advert' && (
+                    <div className="grid grid-cols-2 gap-3.5">
+                      <div className="space-y-1">
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price USD ($)</label>
+                        <input 
+                          type="number" 
+                          required
+                          placeholder="35.00"
+                          value={newProductPrice}
+                          onChange={(e) => setNewProductPrice(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                        />
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Origin Country</label>
-                    <select 
-                      value={newProductCountry}
-                      onChange={(e) => setNewProductCountry(e.target.value)}
-                      className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-xs font-black font-sans rounded-xl text-stone-800"
-                    >
-                      {countriesList.filter(c => c !== 'Global').map(c => (
-                        <option key={c} value={c}>{countriesFlags[c]} {c}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px] block">
-                    Product / Advert Photos (Upload two or more pictures)
-                  </label>
-                  
-                  {/* Grid layout showing uploaded images */}
-                  {newProductImages.length > 0 && (
-                    <div className="grid grid-cols-4 gap-2 pb-1.5">
-                      {newProductImages.map((img, idx) => (
-                        <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
-                          <img 
-                            src={img} 
-                            alt={`Preview ${idx + 1}`} 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const remaining = newProductImages.filter((_, i) => i !== idx);
-                                setNewProductImages(remaining);
-                                if (remaining.length > 0) {
-                                  setNewProductImg(remaining[0]);
-                                } else {
-                                  setNewProductImg('');
-                                }
-                              }}
-                              className="bg-rose-600 hover:bg-rose-700 text-white rounded-lg p-1.5 shadow transition-all cursor-pointer"
-                              title="Delete photo"
-                            >
-                              <X size={12} className="stroke-[3]" />
-                            </button>
-                          </div>
-                          
-                          {/* Primary label indicator */}
-                          {idx === 0 && (
-                            <span className="absolute bottom-1 left-1 bg-stone-950/80 text-white text-[7px] font-black uppercase tracking-wider px-1 rounded">
-                              Main
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                      <div className="space-y-1">
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
+                        <input 
+                          type="number" 
+                          placeholder="10"
+                          value={newProductStock}
+                          onChange={(e) => setNewProductStock(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                        />
+                      </div>
                     </div>
                   )}
 
-                  <label 
-                    htmlFor="product-image-upload"
-                    className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-[110px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
-                  >
-                    <div className="h-8.5 w-8.5 rounded-full bg-stone-100 flex items-center justify-center text-base mb-1 group-hover:scale-105 transition-transform">
-                      📸
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                        {newProductPostingType === 'advert' ? "Business Segment" : "Item Category"}
+                      </label>
+                      <select 
+                        value={newProductCategory}
+                        onChange={(e) => setNewProductCategory(e.target.value)}
+                        className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-xs font-black font-sans rounded-xl text-stone-800"
+                      >
+                        {categoriesList.filter(c => c !== 'All').map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </div>
-                    <span className="text-xs font-bold text-stone-700">
-                      {isUploadingImage ? "Compressing & caching..." : "Tap to add another photo"}
-                    </span>
-                    <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1 leading-normal">
-                      Upload multiple pictures representing your item
-                    </span>
-                    {isUploadingImage && (
-                      <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center">
-                        <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing file...</span>
+
+                    <div className="space-y-1">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                        {newProductPostingType === 'advert' ? "Brand Origin Country" : "Origin Country"}
+                      </label>
+                      <select 
+                        value={newProductCountry}
+                        onChange={(e) => setNewProductCountry(e.target.value)}
+                        className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-xs font-black font-sans rounded-xl text-stone-800"
+                      >
+                        {countriesList.filter(c => c !== 'Global').map(c => (
+                          <option key={c} value={c}>{countriesFlags[c]} {c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px] block">
+                      Product / Advert Photos (Upload two or more pictures)
+                    </label>
+                    
+                    {/* Grid layout showing uploaded images */}
+                    {newProductImages.length > 0 && (
+                      <div className="grid grid-cols-4 gap-2 pb-1.5">
+                        {newProductImages.map((img, idx) => (
+                          <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-stone-200 bg-stone-50">
+                            <img 
+                              src={img} 
+                              alt={`Preview ${idx + 1}`} 
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const remaining = newProductImages.filter((_, i) => i !== idx);
+                                  setNewProductImages(remaining);
+                                  if (remaining.length > 0) {
+                                    setNewProductImg(remaining[0]);
+                                  } else {
+                                    setNewProductImg('');
+                                  }
+                                }}
+                                className="bg-rose-600 hover:bg-rose-700 text-white rounded-lg p-1.5 shadow transition-all cursor-pointer"
+                                title="Delete photo"
+                              >
+                                <X size={12} className="stroke-[3]" />
+                              </button>
+                            </div>
+                            
+                            {/* Primary label indicator */}
+                            {idx === 0 && (
+                              <span className="absolute bottom-1 left-1 bg-stone-950/80 text-white text-[7px] font-black uppercase tracking-wider px-1 rounded">
+                                Main
+                              </span>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
-                  </label>
-                  
-                  <input 
-                    type="file" 
-                    id="product-image-upload"
-                    accept="image/*"
-                    onChange={handleImageUploadChange}
-                    className="hidden" 
-                  />
 
-                  {/* Manual input for direct links */}
-                  <div className="pt-2">
-                    <div className="flex gap-2">
-                      <input 
-                        type="url" 
-                        id="manual-photo-url-input"
-                        placeholder="Or paste direct web image URL..."
-                        className="flex-1 px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const input = document.getElementById('manual-photo-url-input') as HTMLInputElement;
-                          if (input && input.value.trim()) {
-                            const val = input.value.trim();
-                            setNewProductImages(prev => [...prev, val]);
-                            setNewProductImg(val);
-                            input.value = '';
-                            showNotification("Web photo URL added successfully!", "success");
-                          }
-                        }}
-                        className="bg-stone-900 hover:bg-stone-800 text-white rounded-xl px-3 text-[10px] font-black uppercase tracking-wider cursor-pointer"
-                      >
-                        Add URL
-                      </button>
+                    <label 
+                      htmlFor="product-image-upload"
+                      className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-[110px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
+                    >
+                      <div className="h-8.5 w-8.5 rounded-full bg-stone-100 flex items-center justify-center text-base mb-1 group-hover:scale-105 transition-transform">
+                        📸
+                      </div>
+                      <span className="text-xs font-bold text-stone-700">
+                        {isUploadingImage ? "Compressing & caching..." : "Tap to add another photo"}
+                      </span>
+                      <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1 leading-normal">
+                        Upload multiple pictures representing your item
+                      </span>
+                      {isUploadingImage && (
+                        <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center">
+                          <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing file...</span>
+                        </div>
+                      )}
+                    </label>
+                    
+                    <input 
+                      type="file" 
+                      id="product-image-upload"
+                      accept="image/*"
+                      onChange={handleImageUploadChange}
+                      className="hidden" 
+                    />
+
+                    {/* Manual input for direct links */}
+                    <div className="pt-2">
+                      <div className="flex gap-2">
+                        <input 
+                          type="url" 
+                          id="manual-photo-url-input"
+                          placeholder="Or paste direct web image URL..."
+                          className="flex-1 px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const input = document.getElementById('manual-photo-url-input') as HTMLInputElement;
+                            if (input && input.value.trim()) {
+                              const val = input.value.trim();
+                              setNewProductImages(prev => [...prev, val]);
+                              setNewProductImg(val);
+                              input.value = '';
+                              showNotification("Web photo URL added successfully!", "success");
+                            }
+                          }}
+                          className="bg-stone-900 hover:bg-stone-800 text-white rounded-xl px-3 text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                        >
+                          Add URL
+                        </button>
+                      </div>
+                      <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider mt-1">
+                        Leave empty to auto-select a curated category scene.
+                      </span>
                     </div>
-                    <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider mt-1">
-                      Leave empty to auto-select a curated category scene.
-                    </span>
                   </div>
-                </div>
 
-                <div className="pt-4 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsListModalOpen(false)}
-                    className="flex-1 py-2.5 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                  >
-                    Discard
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isCreatingProduct}
-                    className="flex-1 py-2.5 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md select-none disabled:opacity-40"
-                  >
-                    {isCreatingProduct ? 'Publishing...' : 'Publish'}
-                  </button>
-                </div>
-              </form>
+                  <div className="pt-4 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setListModalStep(1)}
+                      className="flex-1 py-2.5 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    >
+                      ← Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isCreatingProduct}
+                      className="flex-1 py-2.5 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md select-none disabled:opacity-40"
+                    >
+                      {isCreatingProduct ? 'Publishing...' : 'Publish'}
+                    </button>
+                  </div>
+                </form>
+              )}
             </motion.div>
           </div>
         )}
