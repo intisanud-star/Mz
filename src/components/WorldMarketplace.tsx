@@ -88,6 +88,7 @@ interface WorldMarketplaceProps {
   showNotification: (msg: string, type: 'success' | 'error' | 'info' | 'warning') => void;
   excoinBalance?: number;
   handleDebitExcoin?: (amount: number, description: string) => Promise<boolean>;
+  onScrollHideNav?: (hide: boolean) => void;
 }
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -221,7 +222,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   onNewStoryClick,
   showNotification,
   excoinBalance = 0,
-  handleDebitExcoin
+  handleDebitExcoin,
+  onScrollHideNav
 }) => {
   const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
   const [products, setProducts] = useState<Product[]>([]);
@@ -269,6 +271,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   // Selected Product Detail Modal
   const [selectedDetailedProduct, setSelectedDetailedProduct] = useState<Product | null>(null);
   const detailSliderRef = useRef<HTMLDivElement>(null);
+  const lastShopScrollTop = useRef<number>(0);
 
   // Reset scroll on product change
   useEffect(() => {
@@ -1205,7 +1208,23 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       </div>
 
       {/* MAIN THREADS STREAM VIEWPORT */}
-      <div className="flex-1 overflow-y-auto w-full max-w-2xl mx-auto px-4 md:px-6 pt-5 pb-28 min-h-0">
+      <div 
+        className="flex-1 overflow-y-auto w-full max-w-2xl mx-auto px-4 md:px-6 pt-5 pb-28 min-h-0"
+        onScroll={(e) => {
+          if (!onScrollHideNav) return;
+          const currentScrollTop = e.currentTarget.scrollTop;
+          const isScrollingDown = currentScrollTop > lastShopScrollTop.current + 10 && currentScrollTop > 40;
+          const isScrollingUp = currentScrollTop < lastShopScrollTop.current - 10;
+          
+          if (isScrollingDown) {
+            onScrollHideNav(true);
+          } else if (isScrollingUp || currentScrollTop <= 10) {
+            onScrollHideNav(false);
+          }
+          
+          lastShopScrollTop.current = currentScrollTop;
+        }}
+      >
         
         {activeMarketView === 'orders' ? (
           /* ==================== ACTIVE ORDERS TIMELINE ==================== */

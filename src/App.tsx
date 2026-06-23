@@ -3465,6 +3465,7 @@ function ExonaApp() {
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
+  const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
   const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
   const lastScrollTop = useRef(0);
   const [exonaAiInput, setExonaAiInput] = useState('');
@@ -3537,6 +3538,11 @@ function ExonaApp() {
 
     return () => clearTimeout(timer);
   }, [view, renderedView]);
+
+  // Reset bottom navigation hidden state on view changes
+  useEffect(() => {
+    setHideBottomNavInShop(false);
+  }, [view]);
 
   useEffect(() => {
     let checkInterval: any;
@@ -14887,6 +14893,7 @@ function ExonaApp() {
                 showNotification={showNotification}
                 excoinBalance={excoinBalance}
                 handleDebitExcoin={handleDebitExcoin}
+                onScrollHideNav={setHideBottomNavInShop}
               />
             </div>
           </div>
@@ -30560,10 +30567,13 @@ function ExonaApp() {
           <motion.div 
             key="regular-nav"
             initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            animate={{ 
+              y: (hideBottomNavInShop && view === 'schools') ? 80 : 0, 
+              opacity: (hideBottomNavInShop && view === 'schools') ? 0 : 1 
+            }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[68px] flex items-center justify-center w-full no-print select-none shadow-lg"
+            className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[68px] flex items-center justify-center w-full no-print select-none shadow-lg ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
           >
             <div className="w-full max-w-lg h-full flex items-center justify-around relative px-2">
               
