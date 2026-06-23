@@ -346,35 +346,64 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
   // Initial products setup in Firestore or fallback to default
   useEffect(() => {
+    // Attempt to load from cache immediately so there's products shown even when offline or quota exceeded
+    const cached = localStorage.getItem('cached_marketplace_products');
+    if (cached) {
+      try {
+        const cachedList = JSON.parse(cached);
+        if (Array.isArray(cachedList)) {
+          setProducts(cachedList);
+          setIsLoadingProducts(false);
+        }
+      } catch (e) {
+        console.error("Error reading cached marketplace products:", e);
+      }
+    }
+
     const fetchAndInitializeProducts = async () => {
       try {
         const qProd = query(collection(db, 'marketplace_products'), orderBy('rating', 'desc'));
         const unsubscribe = onSnapshot(qProd, async (snap) => {
           if (snap.empty) {
-            console.log("Seeding marketplace_products database...");
-            for (const dp of DEFAULT_PRODUCTS) {
-              const docRef = doc(collection(db, 'marketplace_products'), dp.id);
-              await setDoc(docRef, {
-                ...dp,
-                sellerId: 'system_vendor',
-                timestamp: new Date()
-              });
-            }
+            setProducts([]);
+            setIsLoadingProducts(false);
           } else {
-            const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+            // Filter out system system_vendor or default mock products
+            const list = snap.docs
+              .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+              .filter(p => p.isCustom || (p.sellerId && p.sellerId !== 'system_vendor' && p.sellerId !== 'custom-seller' && !p.id.startsWith('prod_')));
             setProducts(list);
+            localStorage.setItem('cached_marketplace_products', JSON.stringify(list));
             setIsLoadingProducts(false);
           }
         }, (err) => {
-          console.error("error fetching products from firestore. Using local array fallback.", err);
-          setProducts(DEFAULT_PRODUCTS);
+          console.error("error fetching products from firestore. Using cache fallback.", err);
+          const cachedFallback = localStorage.getItem('cached_marketplace_products');
+          if (cachedFallback) {
+            try {
+              setProducts(JSON.parse(cachedFallback));
+            } catch (e) {
+              setProducts([]);
+            }
+          } else {
+            setProducts([]);
+          }
           setIsLoadingProducts(false);
         });
 
         return () => unsubscribe();
       } catch (error) {
         console.error("Setup products failed:", error);
-        setProducts(DEFAULT_PRODUCTS);
+        const cachedFallback = localStorage.getItem('cached_marketplace_products');
+        if (cachedFallback) {
+          try {
+            setProducts(JSON.parse(cachedFallback));
+          } catch (e) {
+            setProducts([]);
+          }
+        } else {
+          setProducts([]);
+        }
         setIsLoadingProducts(false);
       }
     };
