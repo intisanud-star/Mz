@@ -9,6 +9,7 @@ import {
   CheckCircle2, 
   Plus, 
   Trash2, 
+  Edit2,
   ChevronRight, 
   ChevronLeft,
   ArrowLeft, 
@@ -269,6 +270,43 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [newProductImages, setNewProductImages] = useState<string[]>([]);
   const [activeDetailImageIdx, setActiveDetailImageIdx] = useState(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+
+  const openCleanListModal = () => {
+    setEditingProduct(null);
+    setNewProductName('');
+    setNewProductDesc('');
+    setNewProductPrice('');
+    setNewProductCurrency('USD');
+    setCustomCurrencySymbol('');
+    setNewProductImg('');
+    setNewProductImages([]);
+    setIsListModalOpen(true);
+  };
+
+  const startEditingProduct = (product: any) => {
+    setEditingProduct(product);
+    setNewProductName(product.name || '');
+    setNewProductDesc(product.description || '');
+    setNewProductPrice(product.price ? String(product.price) : '');
+    
+    const existingCurrency = product.currency || 'USD';
+    const knownCurrencies = ['USD', 'EUR', 'GBP', 'NGN', 'JPY', 'EXC'];
+    if (knownCurrencies.includes(existingCurrency.toUpperCase())) {
+      setNewProductCurrency(existingCurrency.toUpperCase());
+      setCustomCurrencySymbol('');
+    } else {
+      setNewProductCurrency('Custom');
+      setCustomCurrencySymbol(existingCurrency);
+    }
+    setNewProductCategory(product.category || 'Electronics');
+    setNewProductCountry(product.originCountry || 'United States');
+    setNewProductStock(product.stock ? String(product.stock) : '10');
+    setNewProductImg(product.imageUrl || '');
+    setNewProductImages(product.imageUrls || (product.imageUrl ? [product.imageUrl] : []));
+    setIsListModalOpen(true);
+  };
 
   // Selected Product Detail Modal
   const [selectedDetailedProduct, setSelectedDetailedProduct] = useState<Product | null>(null);
@@ -875,30 +913,58 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       // Gather multiple images or fallback to the single/fallback image
       const photoCollection = newProductImages.length > 0 ? newProductImages : [newProductImg.trim() || fallbackImg];
 
-      const customProd = {
-        name: newProductName,
-        description: newProductDesc || "Premium international item curated for the Exona world marketplace.",
-        price: parsedPrice,
-        currency: newProductCurrency === 'Custom' ? (customCurrencySymbol || 'USD') : newProductCurrency,
-        category: newProductCategory,
-        originCountry: newProductCountry,
-        countryFlag: flag,
-        imageUrl: photoCollection[0],
-        imageUrls: photoCollection,
-        stock: parseInt(newProductStock) || 10,
-        rating: 5.0, 
-        reviewsCount: 1,
-        sellerName: userDoc?.displayName || user?.displayName || "Global Merchant",
-        sellerId: user?.uid || "custom-seller",
-        sellerPhoto: user?.photoURL || "",
-        timestamp: new Date(),
-        isCustom: true
-      };
+      const customCurrency = newProductCurrency === 'Custom' ? (customCurrencySymbol || 'USD') : newProductCurrency;
 
-      await addDoc(collection(db, 'marketplace_products'), customProd);
+      if (editingProduct) {
+        // Edit / Modify existing listing
+        const updatedProd = {
+          name: newProductName,
+          description: newProductDesc || "Premium international item curated for the Exona world marketplace.",
+          price: parsedPrice,
+          currency: customCurrency,
+          category: newProductCategory,
+          originCountry: newProductCountry,
+          countryFlag: flag,
+          imageUrl: photoCollection[0],
+          imageUrls: photoCollection,
+          stock: parseInt(newProductStock) || 10,
+        };
+
+        if (!editingProduct.id.startsWith('prod_')) {
+          await updateDoc(doc(db, 'marketplace_products', editingProduct.id), updatedProd);
+        }
+        
+        // Optimistically update local state
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...updatedProd } : p));
+        
+        showNotification(`Listing "${newProductName}" has been successfully updated!`, 'success');
+      } else {
+        // Create new listing
+        const customProd = {
+          name: newProductName,
+          description: newProductDesc || "Premium international item curated for the Exona world marketplace.",
+          price: parsedPrice,
+          currency: customCurrency,
+          category: newProductCategory,
+          originCountry: newProductCountry,
+          countryFlag: flag,
+          imageUrl: photoCollection[0],
+          imageUrls: photoCollection,
+          stock: parseInt(newProductStock) || 10,
+          rating: 5.0, 
+          reviewsCount: 1,
+          sellerName: userDoc?.displayName || user?.displayName || "Global Merchant",
+          sellerId: user?.uid || "custom-seller",
+          sellerPhoto: user?.photoURL || "",
+          timestamp: new Date(),
+          isCustom: true
+        };
+
+        await addDoc(collection(db, 'marketplace_products'), customProd);
+        showNotification(`Item "${newProductName}" has been uploaded to the international marketplace!`, 'success');
+      }
       
-      showNotification(`Item "${newProductName}" has been uploaded to the international marketplace!`, 'success');
-      
+      setEditingProduct(null);
       setNewProductName('');
       setNewProductDesc('');
       setNewProductPrice('');
@@ -909,7 +975,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       setIsListModalOpen(false);
     } catch (e) {
       console.error(e);
-      showNotification(`Error listing product in database: ${e instanceof Error ? e.message : String(e)}`, "error");
+      showNotification(`Error saving product in database: ${e instanceof Error ? e.message : String(e)}`, "error");
     } finally {
       setIsCreatingProduct(false);
     }
@@ -1192,7 +1258,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
               {/* Create Post Button (Instagram-like PlusSquare decoration) - Unlocked for everyone! */}
               <button
-                onClick={() => setIsListModalOpen(true)}
+                onClick={openCleanListModal}
                 className="p-1 px-1.5 text-stone-700 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
                 title="Create Advert Post"
               >
@@ -1436,7 +1502,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   
                   {/* Inline Form / Clicking triggers the listing modal */}
                   <div 
-                    onClick={() => setIsListModalOpen(true)}
+                    onClick={openCleanListModal}
                     className="bg-stone-50 hover:bg-stone-100/70 border border-stone-200/60 rounded-2xl px-4 py-3 text-xs text-stone-400 font-semibold cursor-pointer transition-all flex items-center justify-between"
                   >
                     <span>What unique craft or product are you advertising today? Set price and post...</span>
@@ -1448,7 +1514,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               {/* Quick interactive shortcut buttons */}
               <div className="flex items-center justify-between border-t border-stone-100 mt-4 pt-3.5 px-1">
                 <button 
-                  onClick={() => setIsListModalOpen(true)}
+                  onClick={openCleanListModal}
                   className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-[11px] font-bold cursor-pointer"
                 >
                   <span className="text-base">📸</span>
@@ -1456,7 +1522,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 </button>
                 
                 <button 
-                  onClick={() => setIsListModalOpen(true)}
+                  onClick={openCleanListModal}
                   className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-[11px] font-bold cursor-pointer"
                 >
                   <span className="text-base">🏷️</span>
@@ -1464,7 +1530,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 </button>
 
                 <button 
-                  onClick={() => setIsListModalOpen(true)}
+                  onClick={openCleanListModal}
                   className="flex items-center gap-2 text-[#2481CC] hover:text-[#1E71B3] transition-all text-[11px] font-black uppercase tracking-wider cursor-pointer hover:scale-103"
                 >
                   <span>Publish Advert</span>
@@ -1731,6 +1797,17 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                 <Repeat size={17} className={getProductResharesCount(p.id) > 0 ? 'text-blue-500' : 'text-stone-400'} />
                                 <span className="text-[10px] font-extrabold text-stone-600">{getProductResharesCount(p.id)}</span>
                               </button>
+
+                              {/* Edit/Modify button (Admins or product author) */}
+                              {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
+                                <button 
+                                  onClick={() => startEditingProduct(p)}
+                                  className="text-stone-350 hover:text-blue-500 p-1 cursor-pointer transition-colors"
+                                  title="Edit/Modify posting"
+                                >
+                                  <Edit2 size={15} />
+                                </button>
+                              )}
 
                               {/* Delete button (Admins or product author) */}
                               {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
@@ -2084,6 +2161,21 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       <span>🤝</span>
                       <span>Buy via P2P Direct • {renderProductPrice(selectedDetailedProduct.price, selectedDetailedProduct.currency)}</span>
                     </button>
+
+                    {/* Edit/Modify listing button for administration or listing creator */}
+                    {(isAdmin || selectedDetailedProduct.sellerId === (user?.uid || 'guest')) && (
+                      <button
+                        onClick={() => {
+                          startEditingProduct(selectedDetailedProduct);
+                          setSelectedDetailedProduct(null);
+                        }}
+                        className="w-full py-2 bg-blue-50 border border-blue-200 text-blue-650 hover:bg-blue-100 hover:text-blue-700 rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer flex items-center justify-center gap-1.5"
+                        title="Edit/Modify product listing"
+                      >
+                        <Edit2 size={13} />
+                        <span>Modify Posting details</span>
+                      </button>
+                    )}
 
                     {/* Delete listing button for administration or listing creator */}
                     {(isAdmin || selectedDetailedProduct.sellerId === (user?.uid || 'guest')) && (
@@ -2673,8 +2765,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
               className="bg-white rounded-[2rem] w-full max-w-md overflow-hidden shadow-2xl flex flex-col border border-stone-150"
             >
               <div className="bg-stone-50 py-4 px-6 border-b border-stone-100 flex items-center justify-between text-xs font-black uppercase tracking-widest text-stone-900">
-                <span>Publish Item Listing</span>
-                <button onClick={() => setIsListModalOpen(false)} className="text-stone-400 hover:text-stone-900">
+                <span>{editingProduct ? 'Update Item Listing' : 'Publish Item Listing'}</span>
+                <button onClick={() => { setIsListModalOpen(false); setEditingProduct(null); }} className="text-stone-400 hover:text-stone-900">
                   <X size={15} />
                 </button>
               </div>
@@ -2914,7 +3006,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 <div className="pt-4 flex gap-3">
                   <button
                     type="button"
-                    onClick={() => setIsListModalOpen(false)}
+                    onClick={() => { setIsListModalOpen(false); setEditingProduct(null); }}
                     className="flex-1 py-2.5 border border-stone-200 text-stone-500 hover:text-stone-800 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                   >
                     Discard
@@ -2924,7 +3016,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     disabled={isCreatingProduct}
                     className="flex-1 py-2.5 bg-stone-900 hover:bg-[#2481CC] text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md select-none disabled:opacity-40"
                   >
-                    {isCreatingProduct ? 'Publishing...' : 'Publish'}
+                    {isCreatingProduct ? (editingProduct ? 'Updating...' : 'Publishing...') : (editingProduct ? 'Save Changes' : 'Publish')}
                   </button>
                 </div>
               </form>
