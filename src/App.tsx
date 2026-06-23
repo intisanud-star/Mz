@@ -30645,14 +30645,11 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'feed' && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Home size={23} strokeWidth={view === 'feed' ? 2.8 : 2.2} />
+                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <Home size={23} className={view === 'feed' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'feed' ? 2.5 : 2.2} />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Feed
                 </span>
@@ -30666,14 +30663,11 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'schools' && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <ShoppingBag size={23} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
+                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <ShoppingBag size={23} className={view === 'schools' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'schools' ? 2.5 : 2.2} />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Shop
                 </span>
@@ -30686,18 +30680,15 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {isMiddleMenuOpen && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
+                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
                   {isMiddleMenuOpen ? (
                     <X size={23} strokeWidth={2.8} />
                   ) : (
-                    <LayoutGrid size={23} strokeWidth={2.2} />
+                    <LayoutGrid size={23} className="group-active:fill-current fill-none" strokeWidth={2.2} />
                   )}
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Hub
                 </span>
@@ -30711,14 +30702,11 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'finance' && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Wallet size={23} strokeWidth={view === 'finance' ? 2.8 : 2.2} />
+                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <Wallet size={23} className={view === 'finance' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'finance' ? 2.5 : 2.2} />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Wallet
                 </span>
@@ -30736,13 +30724,10 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-95 relative font-sans cursor-pointer group"
               >
-                {(view === 'profile' || view === 'login') && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
                 <div className={`relative h-[30px] w-[30px] rounded-full overflow-hidden transition-all duration-200 ${
                   view === 'profile' || view === 'login'
                     ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
-                    : 'group-hover:scale-105'
+                    : 'group-hover:scale-105 group-active:ring-2 group-active:ring-[#2481CC] group-active:ring-offset-2 group-active:scale-105'
                 }`}>
                   <img 
                     src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
@@ -30753,7 +30738,7 @@ function ExonaApp() {
                   <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Profile
                 </span>
