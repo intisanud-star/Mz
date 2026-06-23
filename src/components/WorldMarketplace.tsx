@@ -1486,56 +1486,24 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             </div>
           ) : (
           /* ==================== SCREEN 1: THE THREADS MARKET FEED ==================== */
-          <div className="space-y-6 pb-12">
+          <div className="space-y-4 pb-12">
             
-            {/* SOCIAL MEDIA CREATE ADVERT POST BOX */}
-            <div className="bg-white border border-stone-150 rounded-[2rem] p-5 shadow-[0_2px_12px_rgba(0,0,0,0.015)] text-left transition-all hover:border-stone-200">
-              <div className="flex gap-4">
-                {/* User Avatar */}
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[#2481CC] to-indigo-600 text-white flex items-center justify-center font-bold text-sm select-none shadow-xs shrink-0 uppercase border-2 border-white ring-1 ring-stone-200/50">
-                  {userDoc?.displayName?.slice(0, 2).toUpperCase() || user?.displayName?.slice(0, 2).toUpperCase() || "ME"}
-                </div>
-                
-                {/* Input Area */}
-                <div className="flex-1">
-                  <p className="text-[12px] font-black text-stone-850 uppercase tracking-wider mb-2">Create Advert / Social Post</p>
-                  
-                  {/* Inline Form / Clicking triggers the listing modal */}
-                  <div 
-                    onClick={openCleanListModal}
-                    className="bg-stone-50 hover:bg-stone-100/70 border border-stone-200/60 rounded-2xl px-4 py-3 text-xs text-stone-400 font-semibold cursor-pointer transition-all flex items-center justify-between"
-                  >
-                    <span>What unique craft or product are you advertising today? Set price and post...</span>
-                    <Plus size={14} className="text-stone-450 stroke-[3px]" />
+            {/* COMPACT THREADS-STYLE CREATE ADVERT PROMPT */}
+            <div className="bg-white border-b border-stone-200/70 p-3 sm:p-4 text-left transition-all">
+              <div className="flex items-center justify-between gap-3 cursor-pointer" onClick={openCleanListModal}>
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-[#2481CC] text-white flex items-center justify-center font-bold text-xs select-none shadow-2xs shrink-0 uppercase border border-white">
+                    {userDoc?.displayName?.slice(0, 2).toUpperCase() || user?.displayName?.slice(0, 2).toUpperCase() || "ME"}
                   </div>
+                  <span className="text-xs text-stone-400 font-medium truncate">What unique craft or product are you advertising today?</span>
                 </div>
-              </div>
-
-              {/* Quick interactive shortcut buttons */}
-              <div className="flex items-center justify-between border-t border-stone-100 mt-4 pt-3.5 px-1">
-                <button 
-                  onClick={openCleanListModal}
-                  className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-[11px] font-bold cursor-pointer"
-                >
-                  <span className="text-base">📸</span>
-                  <span>Add Product Photo</span>
-                </button>
                 
-                <button 
-                  onClick={openCleanListModal}
-                  className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-[11px] font-bold cursor-pointer"
-                >
-                  <span className="text-base">🏷️</span>
-                  <span>Set Smart Price</span>
-                </button>
-
-                <button 
-                  onClick={openCleanListModal}
-                  className="flex items-center gap-2 text-[#2481CC] hover:text-[#1E71B3] transition-all text-[11px] font-black uppercase tracking-wider cursor-pointer hover:scale-103"
-                >
-                  <span>Publish Advert</span>
-                  <span>🚀</span>
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm">📸</span>
+                  <button className="px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-[10px] font-black uppercase rounded-full tracking-wider transition-all shadow-2xs shrink-0">
+                    Post
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1598,7 +1566,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 </div>
               )
             ) : (
-              <div className="space-y-6">
+              <div className="divide-y divide-stone-200/70 bg-white border-t border-b border-stone-200/60">
                 {filteredProducts.map((p) => {
                   const comments = getProductComments(p.id);
                   const isExpanded = !!expandedReviews[p.id];
@@ -1612,16 +1580,16 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   return (
                     <div 
                       key={p.id}
-                      className="bg-white border border-stone-100 p-6 rounded-[2rem] shadow-[0_4px_20px_rgba(0,0,0,0.015)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.03)] transition-all duration-300 text-left relative"
+                      className="py-4 px-2 sm:px-4 hover:bg-stone-50/40 transition-all duration-200 text-left relative"
                     >
-                      <div className="flex gap-4">
-                        {/* Left Column: Creator Avatar & Connecting Line */}
+                      <div className="flex gap-3">
+                        {/* Left Column: Creator Avatar flush to the left edge & Connecting Line */}
                         <div className="flex flex-col items-center shrink-0">
                           <button 
                             onClick={() => {
                               showNotification(`Direct Message channel with vendor ${p.sellerName} is secured.`, "info");
                             }}
-                            className="h-10 w-10 rounded-full bg-stone-950 font-black text-xs text-white flex items-center justify-center border-2 border-white shadow-md uppercase select-none transition-transform active:scale-95 cursor-pointer relative"
+                            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-stone-950 font-black text-xs text-white flex items-center justify-center border border-stone-200 shadow-2xs uppercase select-none transition-transform active:scale-95 cursor-pointer relative shrink-0"
                           >
                             {p.sellerPhoto ? (
                               <img src={p.sellerPhoto} className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
@@ -1635,13 +1603,13 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           </button>
                           
                           {/* Thread connective line */}
-                          <div className="w-[1.5px] flex-1 bg-gradient-to-b from-stone-200/80 to-stone-50/10 my-3" />
+                          <div className="w-[1.5px] flex-1 bg-stone-200/80 my-2" />
                           
                           {/* Comments counter bubble styled after true threads replies teaser */}
                           {comments.length > 0 && (
                             <button 
                               onClick={() => setExpandedReviews(prev => ({ ...prev, [p.id]: !isExpanded }))}
-                              className="h-6 w-6 rounded-full bg-stone-50 border border-stone-200 hover:bg-stone-100 flex items-center justify-center text-[9px] font-bold text-stone-500 shrink-0 select-none transition-all active:scale-90 cursor-pointer"
+                              className="h-5 w-5 rounded-full bg-stone-100 border border-stone-200 hover:bg-stone-200 flex items-center justify-center text-[8.5px] font-bold text-stone-600 shrink-0 select-none transition-all active:scale-90 cursor-pointer"
                               title="Toggle thread discussion"
                             >
                               {comments.length}
@@ -1650,7 +1618,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         </div>
 
                         {/* Right Column: Original Thread Structure */}
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 pr-1">
                           
                           {/* Seller Row */}
                           <div className="flex items-center justify-between gap-1.5 flex-wrap">
@@ -1664,7 +1632,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                 {p.sellerName}
                               </span>
                               <BadgeCheck size={14} className="text-blue-500 fill-blue-500 shrink-0" />
-                              <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider bg-blue-50 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 select-none">
+                              <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 select-none">
                                 <span>{p.countryFlag}</span> {p.originCountry}
                               </span>
 
@@ -1672,7 +1640,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               {p.sellerId && p.sellerId !== (user?.uid || 'guest') && (
                                 <button
                                   onClick={(e) => handleToggleFollow(p.sellerId!, p.sellerName || 'Vendor', e)}
-                                  className={`text-[9px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
+                                  className={`text-[8.5px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
                                     followedSellers.includes(p.sellerId)
                                       ? 'bg-stone-50 text-stone-450 border-stone-200 hover:bg-stone-100'
                                       : 'bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3]'
@@ -1689,36 +1657,36 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           </div>
 
                           {/* Category Tag Header */}
-                          <div className="mt-1.5 flex items-center gap-1.5">
-                            <span className="text-[8px] font-extrabold uppercase tracking-widest bg-stone-100 text-stone-500 px-2 py-0.5 rounded-md text-[7.5px]">
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="font-extrabold uppercase tracking-widest bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded text-[7.5px]">
                               #{p.category.replace('&', '').replace(' ', '').toLowerCase()}
                             </span>
                             {p.featured && (
-                              <span className="text-[8px] font-extrabold uppercase tracking-widest bg-rose-50 text-red-500 px-2 py-0.5 rounded-md border border-rose-100 text-[7.5px]">
+                              <span className="font-extrabold uppercase tracking-widest bg-rose-50 text-red-500 px-1.5 py-0.5 rounded border border-rose-100 text-[7.5px]">
                                 Verified Deal
                               </span>
                             )}
                           </div>
 
                           {/* Thread Title & Content */}
-                          <h4 className="text-[14.5px] font-black text-stone-950 mt-3 leading-snug tracking-tight">
+                          <h4 className="text-[13.5px] sm:text-[14.5px] font-black text-stone-950 mt-1.5 leading-snug tracking-tight">
                             {p.name}
                           </h4>
-                          <p className="text-xs font-medium text-stone-600 mt-2 leading-relaxed tracking-wide pr-1">
+                          <p className="text-xs font-medium text-stone-600 mt-1 leading-relaxed tracking-normal pr-1 line-clamp-3">
                             {p.description}
                           </p>
 
-                          {/* Immersive Instagram & Threads-styled Hero Media Card */}
+                          {/* Immersive Threads-styled Hero Media Card (Compact aspect & max height to fit on screen) */}
                           <div 
                             onClick={() => {
                               setSelectedDetailedProduct(p);
                               setActiveDetailImageIdx(0);
                             }}
-                            className="mt-4 relative rounded-2xl overflow-hidden aspect-[4/3] bg-stone-50 border border-stone-200/50 group select-none cursor-pointer shadow-xs animate-fade-in"
+                            className="mt-2.5 relative rounded-xl overflow-hidden max-h-[190px] sm:max-h-[230px] w-full bg-stone-100 border border-stone-200/60 group select-none cursor-pointer shadow-2xs flex items-center justify-center animate-fade-in aspect-[16/9]"
                           >
                             {/* Stacked Images indicator badge */}
                             {p.imageUrls && p.imageUrls.length > 1 && (
-                              <div className="absolute top-4 left-4 bg-stone-900/80 backdrop-blur-md text-white text-[9.5px] font-black uppercase px-2 py-1 rounded-xl border border-white/10 z-10 select-none flex items-center gap-1.5 shadow-sm">
+                              <div className="absolute top-2.5 left-2.5 bg-stone-900/80 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2 py-1 rounded-lg border border-white/10 z-10 select-none flex items-center gap-1 shadow-2xs">
                                 <span>📁</span>
                                 <span>1 / {p.imageUrls.length} Photos</span>
                               </div>
@@ -1731,47 +1699,47 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             />
 
                             {/* Minimal Glassmorphic Price Sticker */}
-                            <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-150 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
-                              <span className="text-[8.5px] uppercase tracking-widest text-emerald-600 font-black mb-1.5 block">🏷️ FOR SALE</span>
+                            <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-md border border-stone-200 font-sans px-2.5 py-1.5 rounded-xl flex flex-col items-center shadow-xs select-none">
+                              <span className="text-[7.5px] uppercase tracking-widest text-emerald-600 font-black mb-0.5 block">🏷️ FOR SALE</span>
                               <span className="text-stone-950 text-xs font-black leading-none">{renderProductPrice(p.price, p.currency)}</span>
-                              <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{renderProductPrice(originalPrice, p.currency)}</span>
+                              <span className="line-through text-stone-400 text-[8.5px] mt-0.5 scale-90 block leading-none">{renderProductPrice(originalPrice, p.currency)}</span>
                             </div>
 
                             {/* Inventory Alert inside Image Bottom */}
                             {p.stock <= 3 && p.stock > 0 && (
-                              <div className="absolute bottom-4 left-4 bg-stone-955/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-wider py-1 px-3 rounded-lg border border-white/10 shadow-sm animate-pulse">
-                                Only {p.stock} item(s) left in transit pipeline!
+                              <div className="absolute bottom-2.5 left-2.5 bg-stone-950/90 backdrop-blur-md text-white text-[8px] font-black uppercase tracking-wider py-1 px-2.5 rounded-md border border-white/10 shadow-2xs animate-pulse">
+                                Only {p.stock} left
                               </div>
                             )}
 
                             {p.stock === 0 && (
-                              <div className="absolute inset-0 bg-stone-955/65 backdrop-blur-xs flex items-center justify-center">
-                                <span className="bg-white text-stone-900 border border-stone-200 text-xs font-black uppercase tracking-widest py-2 px-5 rounded-2xl shadow-lg">
-                                  SOLD OUT / OUT OF STOCK
+                              <div className="absolute inset-0 bg-stone-950/65 backdrop-blur-2xs flex items-center justify-center">
+                                <span className="bg-white text-stone-900 border border-stone-200 text-[10px] font-black uppercase tracking-widest py-1.5 px-4 rounded-xl shadow-md">
+                                  SOLD OUT
                                 </span>
                               </div>
                             )}
                           </div>
 
                           {/* Star rating alignment */}
-                          <div className="flex items-center gap-1 mt-3.5">
+                          <div className="flex items-center gap-1 mt-2 text-[10px]">
                             <Star size={11} className="fill-amber-400 text-amber-400 shrink-0" />
-                            <span className="text-[10.5px] font-extrabold text-stone-800">{p.rating.toFixed(1)}</span>
-                            <span className="text-[9.5px] text-stone-400 font-semibold uppercase tracking-wider ml-1">
+                            <span className="font-extrabold text-stone-800">{p.rating.toFixed(1)}</span>
+                            <span className="text-[9px] text-stone-400 font-semibold uppercase tracking-wider ml-1">
                               • {p.reviewsCount} collaborative transits verified
                             </span>
                           </div>
 
-                          {/* Dynamic Threads Action Row & Shopping Integration */}
-                          <div className="mt-4.5 pt-3.5 border-t border-stone-100 flex items-center justify-between gap-4">
+                          {/* Dynamic Threads Action Row & Shopping Integration (Very close icons & compact Buy button) */}
+                          <div className="mt-2.5 pt-1.5 flex items-center justify-between gap-2 w-full flex-wrap sm:flex-nowrap">
                             
-                            {/* Standard Threads Social Action Icons */}
-                            <div className="flex items-center gap-4 select-none text-stone-400">
+                            {/* Standard Threads Social Action Icons placed very close to each other */}
+                            <div className="flex items-center gap-2 sm:gap-3 select-none text-stone-500 shrink-0">
                               
                               {/* Love/Wishlist standard toggle */}
                               <button 
                                 onClick={() => toggleHeartPost(p.id)}
-                                className="group flex items-center gap-1.5 hover:text-rose-500 transition-colors p-1 cursor-pointer"
+                                className="group flex items-center gap-1 hover:text-rose-500 transition-colors p-1 cursor-pointer"
                                 title="Like / Save to wishlist"
                               >
                                 <Heart size={18} className={hasHeart ? 'fill-rose-500 text-rose-500' : 'text-stone-400'} />
@@ -1781,7 +1749,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               {/* Discussion Toggle */}
                               <button 
                                 onClick={() => setExpandedReviews(prev => ({ ...prev, [p.id]: !isExpanded }))}
-                                className="group flex items-center gap-1.5 hover:text-stone-900 transition-colors p-1 cursor-pointer"
+                                className="group flex items-center gap-1 hover:text-stone-900 transition-colors p-1 cursor-pointer"
                                 title="Inquire / Discuss"
                               >
                                 <MessageCircle size={18} className={isExpanded ? 'text-stone-950' : 'text-stone-400'} />
@@ -1791,7 +1759,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               {/* Dispatch / Forward Share */}
                               <button 
                                 onClick={() => handleResharePost(p.id, p.name)}
-                                className="group flex items-center gap-1.5 hover:text-blue-500 transition-colors p-1 cursor-pointer"
+                                className="group flex items-center gap-1 hover:text-blue-500 transition-colors p-1 cursor-pointer"
                                 title="Forward catalog post"
                               >
                                 <Repeat size={17} className={getProductResharesCount(p.id) > 0 ? 'text-blue-500' : 'text-stone-400'} />
@@ -1821,14 +1789,15 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               )}
                             </div>
 
-                            {/* Ultra-premium, clean shopping pills */}
-                            <div className="flex items-center gap-2">
+                            {/* Compact Buy button & bag button fitting easily in same row */}
+                            <div className="flex items-center gap-1.5 ml-auto shrink-0">
                               <button
                                 disabled={p.stock === 0}
                                 onClick={(e) => addToCart(p, e)}
-                                className="px-4 py-2 bg-stone-50 border border-stone-200/80 hover:bg-stone-100 hover:border-stone-350 disabled:opacity-40 text-stone-700/90 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all select-none cursor-pointer"
+                                className="h-7 w-7 rounded-full bg-stone-100 hover:bg-stone-200 border border-stone-200/80 disabled:opacity-40 text-stone-700 flex items-center justify-center transition-all select-none cursor-pointer shrink-0"
+                                title="Add to Bag"
                               >
-                                Add to Bag
+                                <ShoppingBag size={14} />
                               </button>
 
                               <button
@@ -1839,9 +1808,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                   setIsCheckoutOpen(true);
                                   setCheckoutStep(1);
                                 }}
-                                className="px-5 py-2 bg-[#2481CC] hover:bg-[#1E71B3] hover:scale-102 active:scale-98 disabled:opacity-40 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm cursor-pointer"
+                                className="px-3.5 py-1.5 bg-[#2481CC] hover:bg-[#1E71B3] active:scale-95 disabled:opacity-40 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-2xs cursor-pointer shrink-0 inline-flex items-center gap-1"
                               >
-                                Buy now • {renderProductPrice(p.price, p.currency)}
+                                <span>Buy</span>
+                                <span>•</span>
+                                <span>{renderProductPrice(p.price, p.currency)}</span>
                               </button>
                             </div>
 
