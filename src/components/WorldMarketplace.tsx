@@ -260,6 +260,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [newProductName, setNewProductName] = useState('');
   const [newProductDesc, setNewProductDesc] = useState('');
   const [newProductPrice, setNewProductPrice] = useState('');
+  const [newProductCurrency, setNewProductCurrency] = useState('USD');
+  const [customCurrencySymbol, setCustomCurrencySymbol] = useState('');
   const [newProductCategory, setNewProductCategory] = useState('Electronics');
   const [newProductCountry, setNewProductCountry] = useState('United States');
   const [newProductStock, setNewProductStock] = useState('10');
@@ -688,6 +690,27 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     return `${activeCurrency.symbol}${formatted}`;
   };
 
+  // Helper to format/render the price of any product based on its custom currency if specified
+  const renderProductPrice = (price: number, pCurrency?: string) => {
+    if (pCurrency && pCurrency !== 'USD' && pCurrency !== '$') {
+      const symbolMap: { [key: string]: string } = {
+        'USD': '$', '$': '$',
+        'EUR': '€', '€': '€',
+        'GBP': '£', '£': '£',
+        'NGN': '₦', '₦': '₦',
+        'JPY': '¥', '¥': '¥',
+        'EXC': '🪙', '🪙': '🪙'
+      };
+      const displayCurrency = symbolMap[pCurrency.toUpperCase()] || pCurrency;
+      const formatted = price.toLocaleString(undefined, { 
+        minimumFractionDigits: price % 1 === 0 ? 0 : 2, 
+        maximumFractionDigits: 2 
+      });
+      return displayCurrency.length <= 2 ? `${displayCurrency}${formatted}` : `${formatted} ${displayCurrency}`;
+    }
+    return formatPrice(price);
+  };
+
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const handleImageUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -856,6 +879,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         name: newProductName,
         description: newProductDesc || "Premium international item curated for the Exona world marketplace.",
         price: parsedPrice,
+        currency: newProductCurrency === 'Custom' ? (customCurrencySymbol || 'USD') : newProductCurrency,
         category: newProductCategory,
         originCountry: newProductCountry,
         countryFlag: flag,
@@ -878,6 +902,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       setNewProductName('');
       setNewProductDesc('');
       setNewProductPrice('');
+      setNewProductCurrency('USD');
+      setCustomCurrencySymbol('');
       setNewProductImg('');
       setNewProductImages([]);
       setIsListModalOpen(false);
@@ -1641,8 +1667,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             {/* Minimal Glassmorphic Price Sticker */}
                             <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-md border border-stone-150 font-sans text-xs font-extrabold px-3 py-2 rounded-xl flex flex-col items-center shadow-md select-none">
                               <span className="text-[8.5px] uppercase tracking-widest text-emerald-600 font-black mb-1.5 block">🏷️ FOR SALE</span>
-                              <span className="text-stone-950 text-xs font-black leading-none">{formatPrice(p.price)}</span>
-                              <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{formatPrice(originalPrice)}</span>
+                              <span className="text-stone-950 text-xs font-black leading-none">{renderProductPrice(p.price, p.currency)}</span>
+                              <span className="line-through text-stone-400 text-[9.5px] mt-1 scale-90 block leading-none">{renderProductPrice(originalPrice, p.currency)}</span>
                             </div>
 
                             {/* Inventory Alert inside Image Bottom */}
@@ -1738,7 +1764,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                 }}
                                 className="px-5 py-2 bg-[#2481CC] hover:bg-[#1E71B3] hover:scale-102 active:scale-98 disabled:opacity-40 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-sm cursor-pointer"
                               >
-                                Buy now • {formatPrice(p.price)}
+                                Buy now • {renderProductPrice(p.price, p.currency)}
                               </button>
                             </div>
 
@@ -2006,7 +2032,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[9px] text-stone-400 uppercase font-black tracking-widest">Pre-clearance Price Check</p>
-                      <p className="text-xl font-black text-stone-950 font-sans mt-0.5">{formatPrice(selectedDetailedProduct.price)}</p>
+                      <p className="text-xl font-black text-stone-950 font-sans mt-0.5">{renderProductPrice(selectedDetailedProduct.price, selectedDetailedProduct.currency)}</p>
                     </div>
                     <div>
                       <p className="text-[9px] text-emerald-600 font-black uppercase tracking-widest text-right">DUTIES & TAXES</p>
@@ -2037,7 +2063,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         }}
                         className="flex-1 py-2.5 bg-[#2481CC] hover:bg-[#1E71B3] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-md disabled:opacity-40 cursor-pointer"
                       >
-                        Buy now • {formatPrice(selectedDetailedProduct.price)}
+                        Buy now • {renderProductPrice(selectedDetailedProduct.price, selectedDetailedProduct.currency)}
                       </button>
                     </div>
 
@@ -2056,7 +2082,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all select-none shadow-xs border border-amber-500/80 flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <span>🤝</span>
-                      <span>Buy via P2P Direct • {formatPrice(selectedDetailedProduct.price)}</span>
+                      <span>Buy via P2P Direct • {renderProductPrice(selectedDetailedProduct.price, selectedDetailedProduct.currency)}</span>
                     </button>
 
                     {/* Delete listing button for administration or listing creator */}
@@ -2678,28 +2704,76 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price USD ($)</label>
-                    <input 
-                      type="number" 
-                      required
-                      placeholder="35.00"
-                      value={newProductPrice}
-                      onChange={(e) => setNewProductPrice(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
-                    />
+                <div className="space-y-3.5">
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Currency</label>
+                      <select 
+                        value={newProductCurrency}
+                        onChange={(e) => setNewProductCurrency(e.target.value)}
+                        className="w-full px-2 py-2 bg-stone-50 border border-stone-200 focus:border-stone-900/40 text-[11px] font-black font-sans rounded-xl text-stone-800"
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="NGN">NGN (₦)</option>
+                        <option value="JPY">JPY (¥)</option>
+                        <option value="EXC">EXC (🪙)</option>
+                        <option value="Custom">Custom Currency...</option>
+                      </select>
+                    </div>
+
+                    {newProductCurrency === 'Custom' ? (
+                      <div className="space-y-1">
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Custom Symbol/Code</label>
+                        <input 
+                          type="text" 
+                          required
+                          placeholder="e.g. CAD, ₦, GHS"
+                          value={customCurrencySymbol}
+                          onChange={(e) => setCustomCurrencySymbol(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
+                        <input 
+                          type="number" 
+                          placeholder="10"
+                          value={newProductStock}
+                          onChange={(e) => setNewProductStock(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
-                    <input 
-                      type="number" 
-                      placeholder="10"
-                      value={newProductStock}
-                      onChange={(e) => setNewProductStock(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
-                    />
+                  <div className="grid grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price Amount</label>
+                      <input 
+                        type="number" 
+                        required
+                        placeholder="35.00"
+                        value={newProductPrice}
+                        onChange={(e) => setNewProductPrice(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                      />
+                    </div>
+
+                    {newProductCurrency === 'Custom' && (
+                      <div className="space-y-1">
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
+                        <input 
+                          type="number" 
+                          placeholder="10"
+                          value={newProductStock}
+                          onChange={(e) => setNewProductStock(e.target.value)}
+                          className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
 
