@@ -1209,7 +1209,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           <div className="flex items-center justify-between gap-4">
             {/* Left Side: Brand Wordmark Logo */}
             <div className="flex items-center gap-2.5">
-              <h1 className="font-serif italic text-2xl font-black tracking-normal text-stone-900 select-none cursor-pointer">
+              <h1 className="font-sans text-[24px] font-black tracking-tight text-stone-950 select-none cursor-pointer">
                 Exona
               </h1>
               
