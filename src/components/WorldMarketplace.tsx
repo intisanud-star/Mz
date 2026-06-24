@@ -46,6 +46,7 @@ export interface Product {
   countryFlag: string;
   imageUrl: string;
   imageUrls?: string[];
+  videoUrl?: string;
   stock: number;
   rating: number;
   reviewsCount: number;
@@ -155,13 +156,14 @@ const DEFAULT_PRODUCTS: Product[] = [
   },
   {
     id: "prod_projector",
-    name: "Silicon Valley AI Holographic Projector",
+    name: "Silicon Valley Holographic Projector",
     description: "Bring digital assets, models, and spatial interfaces into real-life depth mapping. This portable smart projector projects rich stereoscopic holograms seamlessly onto any off-white wall without 3D glasses. Integrates with voice and hand gesture analysis.",
     price: 179.99,
     category: "Electronics",
     originCountry: "United States",
     countryFlag: "🇺🇸",
     imageUrl: "https://images.unsplash.com/photo-1535016120720-40c646be5580?w=450&q=80",
+    videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
     stock: 10,
     rating: 4.6,
     reviewsCount: 112,
@@ -268,6 +270,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [newProductStock, setNewProductStock] = useState('10');
   const [newProductImg, setNewProductImg] = useState('');
   const [newProductImages, setNewProductImages] = useState<string[]>([]);
+  const [newProductVideo, setNewProductVideo] = useState('');
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [activeDetailImageIdx, setActiveDetailImageIdx] = useState(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
@@ -282,6 +286,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     setCustomCurrencySymbol('');
     setNewProductImg('');
     setNewProductImages([]);
+    setNewProductVideo('');
     setIsListModalOpen(true);
   };
 
@@ -305,6 +310,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     setNewProductStock(product.stock ? String(product.stock) : '10');
     setNewProductImg(product.imageUrl || '');
     setNewProductImages(product.imageUrls || (product.imageUrl ? [product.imageUrl] : []));
+    setNewProductVideo(product.videoUrl || '');
     setIsListModalOpen(true);
   };
 
@@ -340,13 +346,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [likesDocuments, setLikesDocuments] = useState<any[]>([]);
   const [resharesDocuments, setResharesDocuments] = useState<any[]>([]);
 
-  // Pinned/Sticky AI Shopping Assistant chat
-  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
-  const [aiChatInput, setAiChatInput] = useState('');
-  const [aiChatHistory, setAiChatHistory] = useState<{ role: 'user' | 'ai'; text: string }[]>([
-    { role: 'ai', text: "Greetings, Exona explorer! Ask me anything about regional shipping pipelines, customs fees, size conversions, or specific product models." }
-  ]);
-  const [isGeneratingAiResponse, setIsGeneratingAiResponse] = useState(false);
+  // Unused AI assistant state removed
 
   // Currencies list
   const currencyModes = [
@@ -815,6 +815,57 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const handleVideoUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('video/')) {
+      showNotification("Please select a valid video file (MP4/webm).", "error");
+      return;
+    }
+
+    setIsUploadingVideo(true);
+    const reader = new FileReader();
+    reader.onerror = () => {
+      showNotification("Failed to read video file.", "error");
+      setIsUploadingVideo(false);
+    };
+
+    reader.onload = (event) => {
+      const vidUrl = event.target?.result as string;
+      const videoEl = document.createElement('video');
+      videoEl.src = vidUrl;
+      videoEl.currentTime = 0.1;
+      videoEl.onloadeddata = () => {
+        if (videoEl.duration > 30) {
+          showNotification("✂️ Video exceeds 30s. Automatically trimmed to 30s (Instagram Reel style).", "info");
+        } else {
+          showNotification("Video Reel attached successfully!", "success");
+        }
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.min(videoEl.videoWidth || 400, 500);
+          canvas.height = Math.min(videoEl.videoHeight || 400, 500);
+          canvas.getContext('2d')?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+          const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
+          if (thumbUrl && thumbUrl.length > 100) {
+            setNewProductImg(thumbUrl);
+            setNewProductImages([thumbUrl]);
+          }
+        } catch (err) {
+          console.warn("Could not generate video thumb:", err);
+        }
+        setNewProductVideo(vidUrl);
+        setIsUploadingVideo(false);
+      };
+      videoEl.onerror = () => {
+        showNotification("Could not load video preview.", "error");
+        setIsUploadingVideo(false);
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleReceiptUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -927,6 +978,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           countryFlag: flag,
           imageUrl: photoCollection[0],
           imageUrls: photoCollection,
+          videoUrl: newProductVideo.trim() || null,
           stock: parseInt(newProductStock) || 10,
         };
 
@@ -950,6 +1002,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           countryFlag: flag,
           imageUrl: photoCollection[0],
           imageUrls: photoCollection,
+          videoUrl: newProductVideo.trim() || null,
           stock: parseInt(newProductStock) || 10,
           rating: 5.0, 
           reviewsCount: 1,
@@ -972,6 +1025,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       setCustomCurrencySymbol('');
       setNewProductImg('');
       setNewProductImages([]);
+      setNewProductVideo('');
       setIsListModalOpen(false);
     } catch (e) {
       console.error(e);
@@ -1108,35 +1162,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     }
   };
 
-  // Trigger floating AI merchant recommendations
-  const handleSendAiMessage = async () => {
-    if (!aiChatInput.trim() || isGeneratingAiResponse) return;
-    const userMsg = aiChatInput.trim();
-    setAiChatInput('');
-    setAiChatHistory(prev => [...prev, { role: 'user', text: userMsg }]);
-    setIsGeneratingAiResponse(true);
 
-    try {
-      const prompt = `You are the Exona World Marketplace AI Expert assistant. A user is asking about our products, global logistic pathways, shipping speeds, tax rules, or customs options. Here are our active items:\n${products.map(p => `- ${p.name} from ${p.originCountry} at $${p.price}`).join('\n')}\n\nUser Question: "${userMsg}"\nProvide a warm, premium, highly customized response addressing their specific prompt. Suggest 1 or 2 matching items from our actual active list above using bold text! Keep your response under 100 words.`;
-      
-      const serverRes = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, stream: false })
-      });
-
-      if (!serverRes.ok) throw new Error("Server API breakdown");
-      const dat = await serverRes.json();
-      const reply = dat.response || dat.text || "I apologize, my shipping database maps are updating in the background. Please ask again in a moment!";
-      
-      setAiChatHistory(prev => [...prev, { role: 'ai', text: reply }]);
-    } catch (e) {
-      console.error(e);
-      setAiChatHistory(prev => [...prev, { role: 'ai', text: "I apologize, my local neural simulation model reported a transmission error. Let me verify our active listings for you!" }]);
-    } finally {
-      setIsGeneratingAiResponse(false);
-    }
-  };
 
   const toggleHeartPost = async (productId: string) => {
     const fId = user?.uid || 'guest';
@@ -1684,19 +1710,44 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             }}
                             className="mt-2.5 relative rounded-xl overflow-hidden max-h-[190px] sm:max-h-[230px] w-full bg-stone-100 border border-stone-200/60 group select-none cursor-pointer shadow-2xs flex items-center justify-center animate-fade-in aspect-[16/9]"
                           >
-                            {/* Stacked Images indicator badge */}
-                            {p.imageUrls && p.imageUrls.length > 1 && (
-                              <div className="absolute top-2.5 left-2.5 bg-stone-900/80 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2 py-1 rounded-lg border border-white/10 z-10 select-none flex items-center gap-1 shadow-2xs">
-                                <span>📁</span>
-                                <span>1 / {p.imageUrls.length} Photos</span>
-                              </div>
+                            {p.videoUrl ? (
+                              <>
+                                <div className="absolute top-2.5 left-2.5 bg-stone-900/85 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2.5 py-1 rounded-lg border border-white/15 z-10 select-none flex items-center gap-1 shadow-2xs">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                                  <span>Reel • 30s Loop</span>
+                                </div>
+                                <video
+                                  src={p.videoUrl}
+                                  autoPlay
+                                  muted
+                                  loop
+                                  playsInline
+                                  onTimeUpdate={(e) => {
+                                    if (e.currentTarget.currentTime >= 30) {
+                                      e.currentTarget.currentTime = 0;
+                                      e.currentTarget.play();
+                                    }
+                                  }}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102 pointer-events-none"
+                                />
+                              </>
+                            ) : (
+                              <>
+                                {/* Stacked Images indicator badge */}
+                                {p.imageUrls && p.imageUrls.length > 1 && (
+                                  <div className="absolute top-2.5 left-2.5 bg-stone-900/80 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2 py-1 rounded-lg border border-white/10 z-10 select-none flex items-center gap-1 shadow-2xs">
+                                    <span>📁</span>
+                                    <span>1 / {p.imageUrls.length} Photos</span>
+                                  </div>
+                                )}
+                                <img 
+                                  src={p.imageUrl} 
+                                  alt={p.name}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </>
                             )}
-                            <img 
-                              src={p.imageUrl} 
-                              alt={p.name}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102"
-                              referrerPolicy="no-referrer"
-                            />
 
                             {/* Minimal Glassmorphic Price Sticker */}
                             <div className="absolute top-2.5 right-2.5 bg-white/95 backdrop-blur-md border border-stone-200 font-sans px-2.5 py-1.5 rounded-xl flex flex-col items-center shadow-xs select-none">
@@ -1895,14 +1946,17 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                 {/* Image slider frame */}
                 <div className="w-full flex-1 relative flex items-center justify-center overflow-hidden bg-stone-100">
                   {(() => {
-                    const images = selectedDetailedProduct.imageUrls || [selectedDetailedProduct.imageUrl];
-                    // Clamp active index to avoid array index out of bounds if state is stale
-                    const idx = Math.min(activeDetailImageIdx, images.length - 1);
+                    const rawImages = selectedDetailedProduct.imageUrls || [selectedDetailedProduct.imageUrl];
+                    const mediaItems = selectedDetailedProduct.videoUrl
+                      ? [{ type: 'video' as const, src: selectedDetailedProduct.videoUrl }, ...rawImages.map(img => ({ type: 'image' as const, src: img }))]
+                      : rawImages.map(img => ({ type: 'image' as const, src: img }));
+
+                    const idx = Math.min(activeDetailImageIdx, mediaItems.length - 1);
                     
                     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
                       const container = e.currentTarget;
                       const calculatedIdx = Math.round(container.scrollLeft / container.clientWidth);
-                      if (calculatedIdx >= 0 && calculatedIdx < images.length && calculatedIdx !== activeDetailImageIdx) {
+                      if (calculatedIdx >= 0 && calculatedIdx < mediaItems.length && calculatedIdx !== activeDetailImageIdx) {
                         setActiveDetailImageIdx(calculatedIdx);
                       }
                     };
@@ -1912,8 +1966,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       if (detailSliderRef.current) {
                         const container = detailSliderRef.current;
                         const targetIdx = direction === 'next' 
-                          ? (idx + 1) % images.length 
-                          : (idx - 1 + images.length) % images.length;
+                          ? (idx + 1) % mediaItems.length 
+                          : (idx - 1 + mediaItems.length) % mediaItems.length;
                         
                         container.scrollTo({
                           left: targetIdx * container.clientWidth,
@@ -1942,21 +1996,45 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           onScroll={handleScroll}
                           className="w-full h-full flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth touch-pan-x select-none"
                         >
-                          {images.map((img, imageIdx) => (
-                            <div key={imageIdx} className="w-full h-full flex-shrink-0 snap-center relative">
-                              <img 
-                                src={img} 
-                                alt={`${selectedDetailedProduct.name} - Photo ${imageIdx + 1}`}
-                                className="w-full h-full object-cover pointer-events-none"
-                                referrerPolicy="no-referrer"
-                                draggable={false}
-                              />
+                          {mediaItems.map((item, itemIdx) => (
+                            <div key={itemIdx} className="w-full h-full flex-shrink-0 snap-center relative bg-black flex items-center justify-center">
+                              {item.type === 'video' ? (
+                                <>
+                                  <video 
+                                    src={item.src}
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    controls
+                                    onTimeUpdate={(e) => {
+                                      if (e.currentTarget.currentTime >= 30) {
+                                        e.currentTarget.currentTime = 0;
+                                        e.currentTarget.play();
+                                      }
+                                    }}
+                                    className="w-full h-full object-contain"
+                                  />
+                                  <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-md text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full border border-white/20 z-10 flex items-center gap-1.5 shadow pointer-events-none">
+                                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                                    <span>🎬 Reel • 30s Loop</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <img 
+                                  src={item.src} 
+                                  alt={`${selectedDetailedProduct.name} - Media ${itemIdx + 1}`}
+                                  className="w-full h-full object-cover pointer-events-none"
+                                  referrerPolicy="no-referrer"
+                                  draggable={false}
+                                />
+                              )}
                             </div>
                           ))}
                         </div>
                         
                         {/* Interactive Left Chevron button */}
-                        {images.length > 1 && (
+                        {mediaItems.length > 1 && (
                           <button
                             onClick={(e) => handleChevronClick(e, 'prev')}
                             className="absolute left-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100 shadow"
@@ -1966,7 +2044,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         )}
 
                         {/* Interactive Right Chevron button */}
-                        {images.length > 1 && (
+                        {mediaItems.length > 1 && (
                           <button
                             onClick={(e) => handleChevronClick(e, 'next')}
                             className="absolute right-3 p-2 bg-stone-900/60 hover:bg-stone-900 text-white rounded-full transition-colors cursor-pointer flex items-center justify-center z-10 opacity-70 group-hover/gallery:opacity-100 shadow"
@@ -1976,9 +2054,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         )}
 
                         {/* Dynamic Carousel dot or pill indicator */}
-                        {images.length > 1 && (
+                        {mediaItems.length > 1 && (
                           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-stone-900/80 backdrop-blur-md px-2.5 py-1 rounded-full text-[9px] font-black uppercase text-white tracking-widest flex items-center gap-1.5 shadow z-10">
-                            {images.map((_, dotIdx) => (
+                            {mediaItems.map((_, dotIdx) => (
                               <button 
                                 key={dotIdx}
                                 onClick={(e) => handleDotClick(e, dotIdx)}
@@ -2829,41 +2907,41 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     </div>
                   )}
 
-                  <label 
-                    htmlFor="product-image-upload"
-                    className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-[110px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
-                  >
-                    <div className="h-8.5 w-8.5 rounded-full bg-stone-100 flex items-center justify-center text-base mb-1 group-hover:scale-105 transition-transform">
-                      📸
-                    </div>
-                    <span className="text-xs font-bold text-stone-700">
-                      {isUploadingImage ? "Compressing & caching..." : "Tap to add another photo"}
-                    </span>
-                    <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1 leading-normal">
-                      Upload multiple pictures representing your item
-                    </span>
-                    {isUploadingImage && (
-                      <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center">
-                        <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing file...</span>
+                  <div className="space-y-3">
+                    <label 
+                      htmlFor="product-image-upload"
+                      className="border-2 border-dashed border-stone-200 hover:border-stone-400/80 bg-stone-50/50 hover:bg-stone-50 transition-all rounded-2xl p-4 flex flex-col items-center justify-center text-center cursor-pointer min-h-[100px] group relative focus-within:ring-2 focus-within:ring-[#2481CC]/40"
+                    >
+                      <div className="h-8 w-8 rounded-full bg-stone-100 flex items-center justify-center text-base mb-1 group-hover:scale-105 transition-transform">
+                        📸
                       </div>
-                    )}
-                  </label>
-                  
-                  <input 
-                    type="file" 
-                    id="product-image-upload"
-                    accept="image/*"
-                    onChange={handleImageUploadChange}
-                    className="hidden" 
-                  />
+                      <span className="text-xs font-bold text-stone-700">
+                        {isUploadingImage ? "Compressing & caching..." : "Tap to add item photos"}
+                      </span>
+                      <span className="text-[9px] text-stone-400 font-medium uppercase tracking-wider mt-1 leading-normal">
+                        Upload standard pictures representing your item
+                      </span>
+                      {isUploadingImage && (
+                        <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center rounded-2xl">
+                          <span className="text-[10px] font-black text-[#2481CC] animate-pulse tracking-widest uppercase">processing file...</span>
+                        </div>
+                      )}
+                    </label>
+                    
+                    <input 
+                      type="file" 
+                      id="product-image-upload"
+                      accept="image/*"
+                      onChange={handleImageUploadChange}
+                      className="hidden" 
+                    />
 
-                  {/* Manual input for direct links */}
-                  <div className="pt-2">
+                    {/* Manual input for direct links */}
                     <div className="flex gap-2">
                       <input 
                         type="url" 
                         id="manual-photo-url-input"
-                        placeholder="Or paste direct web image URL..."
+                        placeholder="Or paste direct web photo URL..."
                         className="flex-1 px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 transition-all"
                       />
                       <button
@@ -2880,12 +2958,103 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         }}
                         className="bg-stone-900 hover:bg-stone-800 text-white rounded-xl px-3 text-[10px] font-black uppercase tracking-wider cursor-pointer"
                       >
-                        Add URL
+                        Add Photo
                       </button>
                     </div>
-                    <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider mt-1">
-                      Leave empty to auto-select a curated category scene.
-                    </span>
+
+                    {/* ================= VIDEO REEL ATTACHMENT (INSTAGRAM / THREADS STYLE) ================= */}
+                    <div className="space-y-2 bg-stone-50/90 p-4 rounded-2xl border border-stone-200 mt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">🎬</span>
+                          <div>
+                            <h5 className="text-xs font-black uppercase tracking-wider text-stone-900">30-Second Video Reel</h5>
+                            <span className="text-[8.5px] text-stone-500 font-semibold block">Auto-playing Threads & Instagram style feed video</span>
+                          </div>
+                        </div>
+                        {newProductVideo && (
+                          <button
+                            type="button"
+                            onClick={() => setNewProductVideo('')}
+                            className="text-[8.5px] font-black uppercase text-rose-600 hover:text-rose-700 bg-rose-50 px-2 py-1 rounded-lg border border-rose-200 cursor-pointer"
+                          >
+                            Remove Video
+                          </button>
+                        )}
+                      </div>
+
+                      {newProductVideo ? (
+                        <div className="relative w-full h-44 rounded-xl overflow-hidden bg-black flex items-center justify-center border border-stone-300">
+                          <video
+                            src={newProductVideo}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            onTimeUpdate={(e) => {
+                              if (e.currentTarget.currentTime >= 30) {
+                                e.currentTarget.currentTime = 0;
+                                e.currentTarget.play();
+                              }
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-2 left-2 bg-black/75 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1 shadow">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            <span>✂️ Trimmed to 30s Loop</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <label
+                            htmlFor="product-video-upload"
+                            className="border-2 border-dashed border-stone-300 hover:border-[#2481CC] bg-white transition-all rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer group relative"
+                          >
+                            <span className="text-base group-hover:scale-110 transition-transform">📹</span>
+                            <span className="text-xs font-bold text-stone-700 group-hover:text-[#2481CC]">
+                              {isUploadingVideo ? "Processing video Reel..." : "Select Video File (up to 30s)"}
+                            </span>
+                          </label>
+                          <input
+                            type="file"
+                            id="product-video-upload"
+                            accept="video/mp4,video/webm,video/ogg,video/*"
+                            onChange={handleVideoUploadChange}
+                            className="hidden"
+                          />
+
+                          <div className="flex gap-2 pt-1">
+                            <input
+                              type="url"
+                              id="manual-video-url-input"
+                              placeholder="Or paste video URL (MP4/webm)..."
+                              className="flex-1 px-3 py-1.5 bg-white border border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-800 focus:border-stone-400 transition-all"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const input = document.getElementById('manual-video-url-input') as HTMLInputElement;
+                                if (input && input.value.trim()) {
+                                  const val = input.value.trim();
+                                  setNewProductVideo(val);
+                                  if (!newProductImg && newProductImages.length === 0) {
+                                    setNewProductImg('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=500&q=80');
+                                  }
+                                  input.value = '';
+                                  showNotification("Video Reel attached (Instagram loop style)!", "success");
+                                }
+                              }}
+                              className="bg-stone-900 hover:bg-stone-800 text-white rounded-xl px-3 text-[10px] font-black uppercase tracking-wider cursor-pointer"
+                            >
+                              Add Video
+                            </button>
+                          </div>
+                          <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider">
+                            Videos longer than 30s are automatically trimmed and looped like Threads.
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
