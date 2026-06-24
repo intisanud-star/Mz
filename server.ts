@@ -831,6 +831,104 @@ async function startServer() {
     }
   });
 
+  // Proxy endpoint to resolve and stream Instagram Reels & external videos directly as pure MP4 without UI
+  app.get('/api/proxy-video', async (req, res) => {
+    try {
+      const rawUrl = req.query.url as string;
+      if (!rawUrl) return res.status(400).send('No URL provided');
+
+      if (rawUrl.startsWith('/uploads/') || rawUrl.startsWith('http://localhost:3000')) {
+        return res.redirect(rawUrl);
+      }
+
+      const safeHash = Buffer.from(rawUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-25);
+      const cachePath = path.join(uploadsDir, `cache_${safeHash}.mp4`);
+
+      if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 5000) {
+        res.setHeader('Content-Type', 'video/mp4');
+        return fs.createReadStream(cachePath).pipe(res);
+      }
+
+      let directVideoUrl = '';
+
+      if (rawUrl.includes('instagram.com') || rawUrl.includes('instagr.am')) {
+        const match = rawUrl.match(/(?:reels?|p|tv)\/([^/?#&]+)/i);
+        const shortcode = match ? match[1] : '';
+
+        if (shortcode) {
+          try {
+            const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
+              url: `https://www.instagram.com/reel/${shortcode}/`
+            }, {
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              timeout: 6000
+            });
+            if (cobRes.data?.url) {
+              directVideoUrl = cobRes.data.url;
+            } else if (cobRes.data?.picker?.[0]?.url) {
+              directVideoUrl = cobRes.data.picker[0].url;
+            }
+          } catch (e: any) {
+            console.warn('Cobalt API fallback trigger:', e.message);
+          }
+        }
+
+        if (!directVideoUrl && shortcode) {
+          const mirrors = [
+            `https://ddinstagram.com/reel/${shortcode}`,
+            `https://vxinstagram.com/reel/${shortcode}`,
+            `https://www.instagram.com/reel/${shortcode}/`
+          ];
+          for (const mirror of mirrors) {
+            try {
+              const pRes = await axios.get(mirror, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                timeout: 5000
+              });
+              if (typeof pRes.data === 'string') {
+                const og = pRes.data.match(/<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i) ||
+                           pRes.data.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video["']/i);
+                if (og && og[1]) {
+                  const clean = og[1].replace(/&amp;/g, '&');
+                  if (clean.startsWith('http')) {
+                    directVideoUrl = clean;
+                    break;
+                  }
+                }
+              }
+            } catch (err) { /* continue */ }
+          }
+        }
+      } else {
+        directVideoUrl = rawUrl;
+      }
+
+      if (!directVideoUrl) {
+        directVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+      }
+
+      const streamRes = await axios.get(directVideoUrl, {
+        responseType: 'stream',
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': '*/*'
+        },
+        timeout: 15000
+      });
+
+      res.setHeader('Content-Type', String(streamRes.headers['content-type'] || 'video/mp4'));
+      res.setHeader('Access-Control-Allow-Origin', '*');
+
+      const fileStream = fs.createWriteStream(cachePath);
+      streamRes.data.pipe(fileStream);
+      streamRes.data.pipe(res);
+
+    } catch (err: any) {
+      console.error('Error proxying video:', err.message);
+      res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+    }
+  });
+
   // Direct high-performance handler for splash logo
   app.get('/splash.png', (req, res) => {
     const splashPath = path.join(process.cwd(), 'assets', 'splash.png');

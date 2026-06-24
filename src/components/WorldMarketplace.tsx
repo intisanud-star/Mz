@@ -98,26 +98,114 @@ export const isInstagramUrl = (url?: string | null): boolean => {
   return /instagram\.com\/(reels?|p|tv)\//i.test(url) || /instagr\.am\/(reels?|p|tv)\//i.test(url);
 };
 
-export const getInstagramEmbedUrl = (url: string): string => {
-  try {
-    let cleanUrl = url.trim();
-    if (!cleanUrl.startsWith('http')) {
-      cleanUrl = `https://${cleanUrl}`;
-    }
-    const parsed = new URL(cleanUrl);
-    const parts = parsed.pathname.split('/').filter(Boolean);
-    if (parts.length >= 2) {
-      const type = parts[0].toLowerCase();
-      if (['reel', 'reels', 'p', 'tv'].includes(type)) {
-        const canonicalType = type === 'reels' ? 'reel' : type;
-        const id = parts[1];
-        return `https://www.instagram.com/${canonicalType}/${id}/embed/`;
-      }
-    }
-    return cleanUrl;
-  } catch {
-    return url;
+export const getCleanVideoSrc = (url?: string | null): string => {
+  if (!url) return '';
+  const clean = url.trim();
+  if (clean.startsWith('/uploads/') || clean.startsWith('/api/proxy-video')) return clean;
+  if (isInstagramUrl(clean)) {
+    return `/api/proxy-video?url=${encodeURIComponent(clean)}`;
   }
+  return clean;
+};
+
+export const getInstagramEmbedUrl = (url: string): string => {
+  return getCleanVideoSrc(url);
+};
+
+export const FeedVideoPlayer: React.FC<{
+  src: string;
+  className?: string;
+  controls?: boolean;
+  badgeText?: string;
+}> = ({ src, className = "w-full h-full object-cover", controls = false, badgeText = "Reel • Video" }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
+          video.volume = 1.0;
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              setIsPlaying(true);
+              setIsMuted(false);
+            }).catch(() => {
+              video.muted = true;
+              video.play().then(() => {
+                setIsPlaying(true);
+                setIsMuted(true);
+              }).catch(() => {});
+            });
+          }
+        } else {
+          video.pause();
+          setIsPlaying(false);
+        }
+      });
+    }, { threshold: [0, 0.35, 0.5, 0.75, 1] });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [src]);
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    if (!video.muted) {
+      video.volume = 1.0;
+    }
+    setIsMuted(video.muted);
+  };
+
+  if (!src) return null;
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
+      <div className="absolute top-2.5 left-2.5 bg-stone-900/85 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2.5 py-1 rounded-lg border border-white/15 z-10 select-none flex items-center gap-1 shadow-2xs pointer-events-none">
+        <span className={`h-1.5 w-1.5 rounded-full ${isPlaying ? 'bg-rose-500 animate-pulse' : 'bg-stone-500'}`} />
+        <span>{badgeText}</span>
+      </div>
+
+      {!controls && (
+        <button
+          onClick={toggleMute}
+          className="absolute bottom-2.5 right-2.5 bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md text-white px-2.5 py-1.5 rounded-full border border-white/20 z-10 select-none flex items-center gap-1 text-[10px] font-bold shadow transition-transform active:scale-95 cursor-pointer"
+          title={isMuted ? "Tap to unmute sound" : "Mute sound"}
+        >
+          <span>{isMuted ? "🔇 Tap for Sound" : "🔊 Sound On"}</span>
+        </button>
+      )}
+
+      <video
+        ref={videoRef}
+        src={getCleanVideoSrc(src)}
+        loop
+        playsInline
+        controls={controls}
+        preload="metadata"
+        onTimeUpdate={(e) => {
+          if (e.currentTarget.currentTime >= 30) {
+            e.currentTarget.currentTime = 0;
+            e.currentTarget.play().catch(() => {});
+          }
+        }}
+        className={className}
+      />
+    </div>
+  );
 };
 
 const DEFAULT_PRODUCTS: Product[] = [
@@ -883,7 +971,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           videoEl.currentTime = 0.1;
           videoEl.onloadeddata = () => {
             if (videoEl.duration > 30) {
-              showNotification("✂️ Video exceeds 30s. Automatically trimmed to 30s (Instagram Reel style).", "info");
+              showNotification("✂️ Video exceeds 30s. Automatically trimmed to 30s loop.", "info");
             } else {
               showNotification("Live video Reel uploaded successfully!", "success");
             }
@@ -1772,35 +1860,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             className="mt-2.5 relative rounded-xl overflow-hidden max-h-[190px] sm:max-h-[230px] w-full bg-stone-100 border border-stone-200/60 group select-none cursor-pointer shadow-2xs flex items-center justify-center animate-fade-in aspect-[16/9]"
                           >
                             {p.videoUrl ? (
-                              <>
-                                <div className="absolute top-2.5 left-2.5 bg-stone-900/85 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2.5 py-1 rounded-lg border border-white/15 z-10 select-none flex items-center gap-1 shadow-2xs">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
-                                  <span>{isInstagramUrl(p.videoUrl) ? "IG Reel • Showcase" : "Reel • 30s Loop"}</span>
-                                </div>
-                                {isInstagramUrl(p.videoUrl) ? (
-                                  <iframe
-                                    src={getInstagramEmbedUrl(p.videoUrl)}
-                                    className="w-full h-full object-cover pointer-events-none border-0 scale-105"
-                                    allow="autoplay; encrypted-media"
-                                    scrolling="no"
-                                  />
-                                ) : (
-                                  <video
-                                    src={p.videoUrl}
-                                    autoPlay
-                                    muted
-                                    loop
-                                    playsInline
-                                    onTimeUpdate={(e) => {
-                                      if (e.currentTarget.currentTime >= 30) {
-                                        e.currentTarget.currentTime = 0;
-                                        e.currentTarget.play();
-                                      }
-                                    }}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102 pointer-events-none"
-                                  />
-                                )}
-                              </>
+                              <FeedVideoPlayer
+                                src={p.videoUrl}
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102 pointer-events-none"
+                              />
                             ) : (
                               <>
                                 {/* Stacked Images indicator badge */}
@@ -2069,36 +2132,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           {mediaItems.map((item, itemIdx) => (
                             <div key={itemIdx} className="w-full h-full flex-shrink-0 snap-center relative bg-black flex items-center justify-center">
                               {item.type === 'video' ? (
-                                <>
-                                  {isInstagramUrl(item.src) ? (
-                                    <iframe
-                                      src={getInstagramEmbedUrl(item.src)}
-                                      className="w-full h-full border-0 object-contain"
-                                      allow="autoplay; encrypted-media; fullscreen"
-                                      scrolling="no"
-                                    />
-                                  ) : (
-                                    <video 
-                                      src={item.src}
-                                      autoPlay
-                                      muted
-                                      loop
-                                      playsInline
-                                      controls
-                                      onTimeUpdate={(e) => {
-                                        if (e.currentTarget.currentTime >= 30) {
-                                          e.currentTarget.currentTime = 0;
-                                          e.currentTarget.play();
-                                        }
-                                      }}
-                                      className="w-full h-full object-contain"
-                                    />
-                                  )}
-                                  <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-md text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-full border border-white/20 z-10 flex items-center gap-1.5 shadow pointer-events-none">
-                                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-                                    <span>{isInstagramUrl(item.src) ? "📱 Instagram Reel Showcase" : "🎬 Reel • 30s Loop"}</span>
-                                  </div>
-                                </>
+                                <FeedVideoPlayer
+                                  src={item.src}
+                                  controls={true}
+                                  className="w-full h-full object-contain"
+                                  badgeText="🎬 Reel • Video"
+                                />
                               ) : (
                                 <img 
                                   src={item.src} 
@@ -3047,7 +3086,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           <span className="text-base">🎬</span>
                           <div>
                             <h5 className="text-xs font-black uppercase tracking-wider text-stone-900">30-Second Video Reel</h5>
-                            <span className="text-[8.5px] text-stone-500 font-semibold block">Auto-playing Threads & Instagram style feed video</span>
+                            <span className="text-[8.5px] text-stone-500 font-semibold block">Auto-playing video feed</span>
                           </div>
                         </div>
                         {newProductVideo && (
@@ -3063,33 +3102,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                       {newProductVideo ? (
                         <div className="relative w-full h-44 rounded-xl overflow-hidden bg-black flex items-center justify-center border border-stone-300">
-                          {isInstagramUrl(newProductVideo) ? (
-                            <iframe
-                              src={getInstagramEmbedUrl(newProductVideo)}
-                              className="w-full h-full border-0 scale-105"
-                              allow="autoplay; encrypted-media"
-                              scrolling="no"
-                            />
-                          ) : (
-                            <video
-                              src={newProductVideo}
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              onTimeUpdate={(e) => {
-                                if (e.currentTarget.currentTime >= 30) {
-                                  e.currentTarget.currentTime = 0;
-                                  e.currentTarget.play();
-                                }
-                              }}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                          <div className="absolute bottom-2 left-2 bg-black/75 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1 shadow pointer-events-none">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
-                            <span>{isInstagramUrl(newProductVideo) ? "📱 IG Reel Attached" : "✂️ Trimmed to 30s Loop"}</span>
-                          </div>
+                          <FeedVideoPlayer
+                            src={newProductVideo}
+                            controls={true}
+                            className="w-full h-full object-cover"
+                            badgeText="✂️ Video Attached"
+                          />
                         </div>
                       ) : (
                         <div className="space-y-2">
@@ -3135,22 +3153,20 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             <input
                               type="url"
                               id="manual-video-url-input"
-                              placeholder="Or paste Instagram Reel or video URL..."
+                              placeholder="Or paste video link or URL..."
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault();
                                   const input = e.currentTarget;
                                   if (input && input.value.trim()) {
                                     let val = input.value.trim();
-                                    if (isInstagramUrl(val)) {
-                                      val = getInstagramEmbedUrl(val);
-                                    }
+                                    val = getCleanVideoSrc(val);
                                     setNewProductVideo(val);
                                     if (!newProductImg && newProductImages.length === 0) {
                                       setNewProductImg('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=500&q=80');
                                     }
                                     input.value = '';
-                                    showNotification("Instagram Reel / video attached successfully!", "success");
+                                    showNotification("Video attached successfully!", "success");
                                   }
                                 }
                               }}
@@ -3162,15 +3178,13 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                 const input = document.getElementById('manual-video-url-input') as HTMLInputElement;
                                 if (input && input.value.trim()) {
                                   let val = input.value.trim();
-                                  if (isInstagramUrl(val)) {
-                                    val = getInstagramEmbedUrl(val);
-                                  }
+                                  val = getCleanVideoSrc(val);
                                   setNewProductVideo(val);
                                   if (!newProductImg && newProductImages.length === 0) {
                                     setNewProductImg('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=500&q=80');
                                   }
                                   input.value = '';
-                                  showNotification("Instagram Reel / video attached successfully!", "success");
+                                  showNotification("Video attached successfully!", "success");
                                 }
                               }}
                               className="bg-stone-900 hover:bg-stone-800 text-white rounded-xl px-3 text-[10px] font-black uppercase tracking-wider cursor-pointer"
@@ -3179,7 +3193,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             </button>
                           </div>
                           <span className="text-[8px] text-stone-400 font-semibold block leading-relaxed uppercase tracking-wider">
-                            Supports direct MP4 uploads & Instagram Reel links (auto-formatted for instant playback).
+                            Supports direct MP4 uploads & external video links (auto-formatted for instant playback).
                           </span>
                         </div>
                       )}
