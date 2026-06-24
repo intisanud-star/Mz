@@ -841,12 +841,37 @@ async function startServer() {
         return res.redirect(rawUrl);
       }
 
+      // If it's already a direct Google Cloud Sample video or unproxied CDN, redirect directly for max performance
+      if (rawUrl.includes('commondatastorage.googleapis.com')) {
+        return res.redirect(rawUrl);
+      }
+
       const safeHash = Buffer.from(rawUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-25);
       const cachePath = path.join(uploadsDir, `cache_${safeHash}.mp4`);
+      const dlFlagPath = path.join(uploadsDir, `dl_${safeHash}.flag`);
 
-      if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 5000) {
-        res.setHeader('Content-Type', 'video/mp4');
-        return fs.createReadStream(cachePath).pipe(res);
+      const serveFile = () => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.contentType('video/mp4');
+        return res.sendFile(cachePath);
+      };
+
+      // If valid cached file exists and is not currently being written
+      if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 50000 && !fs.existsSync(dlFlagPath)) {
+        return serveFile();
+      }
+
+      // If another concurrent request is downloading this exact video, wait up to 12 seconds
+      if (fs.existsSync(dlFlagPath)) {
+        let attempts = 0;
+        while (fs.existsSync(dlFlagPath) && attempts < 24) {
+          await new Promise(r => setTimeout(r, 500));
+          attempts++;
+        }
+        if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 50000) {
+          return serveFile();
+        }
       }
 
       let directVideoUrl = '';
@@ -904,27 +929,38 @@ async function startServer() {
       }
 
       if (!directVideoUrl) {
-        directVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+        directVideoUrl = rawUrl;
       }
 
-      const streamRes = await axios.get(directVideoUrl, {
-        responseType: 'stream',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': '*/*'
-        },
-        timeout: 15000
-      });
+      fs.writeFileSync(dlFlagPath, '1');
+      try {
+        const dlRes = await axios.get(directVideoUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+          },
+          timeout: 25000,
+          maxContentLength: 75 * 1024 * 1024
+        });
 
-      res.setHeader('Content-Type', String(streamRes.headers['content-type'] || 'video/mp4'));
-      res.setHeader('Access-Control-Allow-Origin', '*');
+        if (dlRes.data && dlRes.data.length > 5000) {
+          fs.writeFileSync(cachePath, dlRes.data);
+          if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
+          return serveFile();
+        }
+      } finally {
+        if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
+      }
 
-      const fileStream = fs.createWriteStream(cachePath);
-      streamRes.data.pipe(fileStream);
-      streamRes.data.pipe(res);
+      // If downloading arraybuffer failed or file too small, redirect client directly to target URL
+      res.redirect(directVideoUrl || rawUrl);
 
     } catch (err: any) {
       console.error('Error proxying video:', err.message);
+      if (req.query.url) {
+        return res.redirect(String(req.query.url));
+      }
       res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
     }
   });
