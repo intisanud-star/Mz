@@ -799,6 +799,38 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Serve uploads directory statically for live media streaming & playback
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
+  // Live media HTTP Upload endpoint with real binary streaming
+  app.post('/api/upload-media', upload.single('file'), (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No file received' });
+      }
+      const file = req.file;
+      const ext = path.extname(file.originalname) || '.mp4';
+      const newFilename = `${file.filename}${ext}`;
+      const oldPath = path.join(uploadsDir, file.filename);
+      const newPath = path.join(uploadsDir, newFilename);
+      
+      if (fs.existsSync(oldPath)) {
+        fs.renameSync(oldPath, newPath);
+      }
+
+      const url = `/uploads/${newFilename}`;
+      console.log(`Live media upload success: ${url} (${file.size} bytes)`);
+      res.json({ success: true, url, filename: newFilename, size: file.size });
+    } catch (err: any) {
+      console.error('Error during media upload:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // Direct high-performance handler for splash logo
   app.get('/splash.png', (req, res) => {
     const splashPath = path.join(process.cwd(), 'assets', 'splash.png');

@@ -272,6 +272,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [newProductImages, setNewProductImages] = useState<string[]>([]);
   const [newProductVideo, setNewProductVideo] = useState('');
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [videoUploadPercent, setVideoUploadPercent] = useState(0);
   const [activeDetailImageIdx, setActiveDetailImageIdx] = useState(0);
   const [isCreatingProduct, setIsCreatingProduct] = useState(false);
 
@@ -730,6 +731,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
   // Helper to format/render the price of any product based on its custom currency if specified
   const renderProductPrice = (price: number, pCurrency?: string) => {
+    if (!price || price === 0 || isNaN(price)) {
+      return "Free / Reel Showcase";
+    }
     if (pCurrency && pCurrency !== 'USD' && pCurrency !== '$') {
       const symbolMap: { [key: string]: string } = {
         'USD': '$', '$': '$',
@@ -825,45 +829,79 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     }
 
     setIsUploadingVideo(true);
-    const reader = new FileReader();
-    reader.onerror = () => {
-      showNotification("Failed to read video file.", "error");
-      setIsUploadingVideo(false);
+    setVideoUploadPercent(1);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload-media', true);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        setVideoUploadPercent(percent);
+      }
     };
 
-    reader.onload = (event) => {
-      const vidUrl = event.target?.result as string;
-      const videoEl = document.createElement('video');
-      videoEl.src = vidUrl;
-      videoEl.currentTime = 0.1;
-      videoEl.onloadeddata = () => {
-        if (videoEl.duration > 30) {
-          showNotification("✂️ Video exceeds 30s. Automatically trimmed to 30s (Instagram Reel style).", "info");
-        } else {
-          showNotification("Video Reel attached successfully!", "success");
-        }
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const canvas = document.createElement('canvas');
-          canvas.width = Math.min(videoEl.videoWidth || 400, 500);
-          canvas.height = Math.min(videoEl.videoHeight || 400, 500);
-          canvas.getContext('2d')?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-          const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
-          if (thumbUrl && thumbUrl.length > 100) {
-            setNewProductImg(thumbUrl);
-            setNewProductImages([thumbUrl]);
-          }
+          const resDat = JSON.parse(xhr.responseText);
+          const liveUrl = resDat.url;
+
+          const videoEl = document.createElement('video');
+          videoEl.src = liveUrl;
+          videoEl.crossOrigin = 'anonymous';
+          videoEl.currentTime = 0.1;
+          videoEl.onloadeddata = () => {
+            if (videoEl.duration > 30) {
+              showNotification("✂️ Video exceeds 30s. Automatically trimmed to 30s (Instagram Reel style).", "info");
+            } else {
+              showNotification("Live video Reel uploaded successfully!", "success");
+            }
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.min(videoEl.videoWidth || 400, 500);
+              canvas.height = Math.min(videoEl.videoHeight || 400, 500);
+              canvas.getContext('2d')?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+              const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
+              if (thumbUrl && thumbUrl.length > 100) {
+                setNewProductImg(thumbUrl);
+                setNewProductImages([thumbUrl]);
+              }
+            } catch (err) {
+              console.warn("Could not generate video thumb:", err);
+            }
+            setNewProductVideo(liveUrl);
+            setIsUploadingVideo(false);
+            setVideoUploadPercent(0);
+          };
+          videoEl.onerror = () => {
+            setNewProductVideo(liveUrl);
+            setIsUploadingVideo(false);
+            setVideoUploadPercent(0);
+            showNotification("Live video uploaded successfully!", "success");
+          };
         } catch (err) {
-          console.warn("Could not generate video thumb:", err);
+          showNotification("Error parsing live upload response.", "error");
+          setIsUploadingVideo(false);
+          setVideoUploadPercent(0);
         }
-        setNewProductVideo(vidUrl);
+      } else {
+        showNotification("Cloud server upload failed.", "error");
         setIsUploadingVideo(false);
-      };
-      videoEl.onerror = () => {
-        showNotification("Could not load video preview.", "error");
-        setIsUploadingVideo(false);
-      };
+        setVideoUploadPercent(0);
+      }
     };
-    reader.readAsDataURL(file);
+
+    xhr.onerror = () => {
+      showNotification("Network error during live video upload.", "error");
+      setIsUploadingVideo(false);
+      setVideoUploadPercent(0);
+    };
+
+    xhr.send(formData);
   };
 
   const handleReceiptUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -938,11 +976,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       showNotification("Please enter a valid product name.", "error");
       return;
     }
-    const parsedPrice = parseFloat(newProductPrice);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) {
-      showNotification("Please provide a valid numeric positive price.", "error");
-      return;
-    }
+    const parsedPrice = parseFloat(newProductPrice) || 0;
 
     setIsCreatingProduct(true);
     try {
@@ -979,7 +1013,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           imageUrl: photoCollection[0],
           imageUrls: photoCollection,
           videoUrl: newProductVideo.trim() || null,
-          stock: parseInt(newProductStock) || 10,
+          stock: newProductStock.trim() === '' ? 999999 : (parseInt(newProductStock) || 1),
         };
 
         if (!editingProduct.id.startsWith('prod_')) {
@@ -1003,7 +1037,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           imageUrl: photoCollection[0],
           imageUrls: photoCollection,
           videoUrl: newProductVideo.trim() || null,
-          stock: parseInt(newProductStock) || 10,
+          stock: newProductStock.trim() === '' ? 999999 : (parseInt(newProductStock) || 1),
           rating: 5.0, 
           reviewsCount: 1,
           sellerName: userDoc?.displayName || user?.displayName || "Global Merchant",
@@ -2793,10 +2827,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       </div>
                     ) : (
                       <div className="space-y-1">
-                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Stock Amount</label>
                         <input 
                           type="number" 
-                          placeholder="10"
+                          placeholder="Optional (Unlimited)"
                           value={newProductStock}
                           onChange={(e) => setNewProductStock(e.target.value)}
                           className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
@@ -2807,11 +2841,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                   <div className="grid grid-cols-2 gap-3.5">
                     <div className="space-y-1">
-                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price Amount</label>
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Price Amount (Optional)</label>
                       <input 
                         type="number" 
-                        required
-                        placeholder="35.00"
+                        placeholder="0.00 (Optional for Reels)"
                         value={newProductPrice}
                         onChange={(e) => setNewProductPrice(e.target.value)}
                         className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
@@ -2820,10 +2853,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                     {newProductCurrency === 'Custom' && (
                       <div className="space-y-1">
-                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Initial stock count</label>
+                        <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">Product Stock Amount</label>
                         <input 
                           type="number" 
-                          placeholder="10"
+                          placeholder="Optional (Unlimited)"
                           value={newProductStock}
                           onChange={(e) => setNewProductStock(e.target.value)}
                           className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
@@ -3006,15 +3039,36 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          <label
-                            htmlFor="product-video-upload"
-                            className="border-2 border-dashed border-stone-300 hover:border-[#2481CC] bg-white transition-all rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer group relative"
-                          >
-                            <span className="text-base group-hover:scale-110 transition-transform">📹</span>
-                            <span className="text-xs font-bold text-stone-700 group-hover:text-[#2481CC]">
-                              {isUploadingVideo ? "Processing video Reel..." : "Select Video File (up to 30s)"}
-                            </span>
-                          </label>
+                          {isUploadingVideo ? (
+                            <div className="w-full space-y-2 p-3 bg-white border border-stone-200 rounded-xl shadow-xs">
+                              <div className="flex justify-between items-center text-[10px] font-black uppercase text-[#2481CC]">
+                                <span className="flex items-center gap-1.5 animate-pulse">
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                                  LIVE CLOUD STREAM UPLOAD
+                                </span>
+                                <span className="text-xs font-mono">{videoUploadPercent}%</span>
+                              </div>
+                              <div className="w-full bg-stone-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-stone-200">
+                                <div 
+                                  className="bg-gradient-to-r from-[#2481CC] to-emerald-500 h-full rounded-full transition-all duration-150"
+                                  style={{ width: `${videoUploadPercent}%` }}
+                                />
+                              </div>
+                              <span className="text-[9px] text-stone-500 font-semibold block text-center">
+                                Uploading live binary chunks to cloud server...
+                              </span>
+                            </div>
+                          ) : (
+                            <label
+                              htmlFor="product-video-upload"
+                              className="border-2 border-dashed border-stone-300 hover:border-[#2481CC] bg-white transition-all rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer group relative"
+                            >
+                              <span className="text-base group-hover:scale-110 transition-transform">📹</span>
+                              <span className="text-xs font-bold text-stone-700 group-hover:text-[#2481CC]">
+                                Select Video File (up to 30s)
+                              </span>
+                            </label>
+                          )}
                           <input
                             type="file"
                             id="product-video-upload"
