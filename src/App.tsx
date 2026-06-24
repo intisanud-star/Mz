@@ -3023,6 +3023,65 @@ const WordLayout = ({
   );
 };
 
+/**
+ * SecureVideo resolves signed download URLs for private or public Firebase Storage assets,
+ * with retry logic on playback failure.
+ */
+interface SecureVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
+  src?: string;
+}
+
+const SecureVideo: React.FC<SecureVideoProps> = ({ src, ...props }) => {
+  const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(src);
+  const [hasRetried, setHasRetried] = useState(false);
+
+  useEffect(() => {
+    setResolvedSrc(src);
+    setHasRetried(false);
+
+    if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('/uploads/') || src.startsWith('/api/proxy-video')) {
+      return;
+    }
+
+    const isFirebaseAsset = src.includes('firebasestorage.googleapis.com') ||
+                            src.startsWith('gs://') ||
+                            !src.startsWith('http');
+
+    if (isFirebaseAsset) {
+      let isMounted = true;
+      const fetchFreshUrl = async () => {
+        try {
+          const storageRef = ref(storage, src);
+          const freshUrl = await getDownloadURL(storageRef);
+          if (isMounted && freshUrl) {
+            setResolvedSrc(freshUrl);
+          }
+        } catch (err) {
+          if (isMounted) setResolvedSrc(src);
+        }
+      };
+      fetchFreshUrl();
+      return () => { isMounted = false; };
+    }
+  }, [src]);
+
+  const handleError = async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    if (!hasRetried && src && !src.startsWith('blob:') && !src.startsWith('data:')) {
+      setHasRetried(true);
+      try {
+        const storageRef = ref(storage, src);
+        const retryUrl = await getDownloadURL(storageRef);
+        if (retryUrl) setResolvedSrc(retryUrl);
+      } catch (retryErr) {
+        // keep existing
+      }
+    }
+    if (props.onError) props.onError(e);
+  };
+
+  return <video {...props} src={resolvedSrc} onError={handleError} />;
+};
+
 const FeedPost = ({ 
   post, 
   onUserClick, 
@@ -3182,7 +3241,7 @@ const FeedPost = ({
                     alt="Post Attachment"
                   />
                 ) : (
-                  <video src={url} controls className="w-full h-full object-contain bg-black" />
+                  <SecureVideo src={url} controls className="w-full h-full object-contain bg-black" />
                 )}
               </div>
             ))
@@ -3196,7 +3255,7 @@ const FeedPost = ({
                   alt="Post Attachment"
                 />
               ) : (
-                <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+                <SecureVideo src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
               )}
             </div>
           )}
@@ -21617,7 +21676,7 @@ function ExonaApp() {
                               {hasMedia && (
                                 <div className="relative aspect-video bg-gray-50 rounded-xl overflow-hidden mb-2.5 border border-gray-100/50">
                                   {isVideo ? (
-                                    <video 
+                                    <SecureVideo 
                                       src={post.mediaUrls?.[0] || post.mediaUrl} 
                                       controls 
                                       className="h-full w-full object-cover" 
@@ -27821,7 +27880,7 @@ function ExonaApp() {
                       {selectedPostFiles[idx]?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedPostFiles[idx]) ? (
                         <img src={url} className="w-full h-full object-cover" />
                       ) : (
-                        <video src={url} className="w-full h-full object-cover" controls={!isUploading} />
+                        <SecureVideo src={url} className="w-full h-full object-cover" controls={!isUploading} />
                       )}
                       
                       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -30474,7 +30533,7 @@ function ExonaApp() {
                     {selectedPostFiles[idx]?.type.startsWith('image/') ? (
                       <img src={url} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <video src={url} className="h-full w-full object-cover" />
+                      <SecureVideo src={url} className="h-full w-full object-cover" />
                     )}
                     <button
                       type="button"
@@ -30838,7 +30897,7 @@ function ExonaApp() {
                 </div>
               ) : (
                 <div className="relative w-full h-full flex items-center justify-center">
-                  <video 
+                  <SecureVideo 
                     src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
                     className="max-h-full max-w-full object-contain animate-fade-in" 
                     autoPlay

@@ -842,7 +842,7 @@ async function startServer() {
       }
 
       // If it's already a direct Google Cloud Sample video or unproxied CDN, redirect directly for max performance
-      if (rawUrl.includes('commondatastorage.googleapis.com')) {
+      if (rawUrl.includes('commondatastorage.googleapis.com') || rawUrl.includes('firebasestorage.googleapis.com')) {
         return res.redirect(rawUrl);
       }
 
