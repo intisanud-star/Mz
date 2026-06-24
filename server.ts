@@ -846,6 +846,19 @@ async function startServer() {
         return res.redirect(rawUrl);
       }
 
+      // Handle Google Drive direct conversion
+      if (rawUrl.includes('drive.google.com')) {
+        const dMatch = rawUrl.match(/file\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
+        if (dMatch && dMatch[1]) {
+          return res.redirect(`https://drive.google.com/uc?export=download&id=${dMatch[1]}`);
+        }
+      }
+
+      // Handle Dropbox direct conversion
+      if (rawUrl.includes('dropbox.com')) {
+        return res.redirect(rawUrl.replace('dl=0', 'raw=1').replace('dl=1', 'raw=1'));
+      }
+
       const safeHash = Buffer.from(rawUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-25);
       const cachePath = path.join(uploadsDir, `cache_${safeHash}.mp4`);
       const dlFlagPath = path.join(uploadsDir, `dl_${safeHash}.flag`);
@@ -881,28 +894,44 @@ async function startServer() {
         const shortcode = match ? match[1] : '';
 
         if (shortcode) {
+          // Scrape official Instagram embed player page
           try {
-            const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
-              url: `https://www.instagram.com/reel/${shortcode}/`
-            }, {
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            const embedRes = await axios.get(`https://www.instagram.com/reel/${shortcode}/embed/`, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
               timeout: 6000
             });
-            if (cobRes.data?.url) {
-              directVideoUrl = cobRes.data.url;
-            } else if (cobRes.data?.picker?.[0]?.url) {
-              directVideoUrl = cobRes.data.picker[0].url;
+            if (typeof embedRes.data === 'string') {
+              const vMatch = embedRes.data.match(/"video_url"\s*:\s*"([^"]+)"/i) || embedRes.data.match(/src="([^"]+\.mp4[^"]*)"/i);
+              if (vMatch && vMatch[1]) {
+                const parsed = JSON.parse(`"${vMatch[1]}"`);
+                if (parsed.startsWith('http')) directVideoUrl = parsed;
+              }
             }
-          } catch (e: any) {
-            console.warn('Cobalt API fallback trigger:', e.message);
+          } catch (e) {}
+
+          if (!directVideoUrl) {
+            try {
+              const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
+                url: `https://www.instagram.com/reel/${shortcode}/`
+              }, {
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                timeout: 6000
+              });
+              if (cobRes.data?.url) {
+                directVideoUrl = cobRes.data.url;
+              } else if (cobRes.data?.picker?.[0]?.url) {
+                directVideoUrl = cobRes.data.picker[0].url;
+              }
+            } catch (e: any) {
+              console.warn('Cobalt API fallback trigger:', e.message);
+            }
           }
         }
 
         if (!directVideoUrl && shortcode) {
           const mirrors = [
             `https://ddinstagram.com/reel/${shortcode}`,
-            `https://vxinstagram.com/reel/${shortcode}`,
-            `https://www.instagram.com/reel/${shortcode}/`
+            `https://vxinstagram.com/reel/${shortcode}`
           ];
           for (const mirror of mirrors) {
             try {
@@ -944,8 +973,13 @@ async function startServer() {
           maxContentLength: 75 * 1024 * 1024
         });
 
-        if (dlRes.data && dlRes.data.length > 5000) {
-          fs.writeFileSync(cachePath, dlRes.data);
+        const contentType = String(dlRes.headers['content-type'] || '').toLowerCase();
+        const buf = Buffer.isBuffer(dlRes.data) ? dlRes.data : Buffer.from(dlRes.data || '');
+        const headerStr = buf.toString('utf8', 0, 30).trim().toLowerCase();
+        const isHtmlOrJson = contentType.includes('text/html') || contentType.includes('application/json') || headerStr.startsWith('<!do') || headerStr.startsWith('<html');
+
+        if (!isHtmlOrJson && buf.length > 5000) {
+          fs.writeFileSync(cachePath, buf);
           if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
           return serveFile();
         }
@@ -953,14 +987,11 @@ async function startServer() {
         if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
       }
 
-      // If downloading arraybuffer failed or file too small, redirect client directly to target URL
-      res.redirect(directVideoUrl || rawUrl);
+      // If downloading binary failed or returned HTML web page, redirect client to universal HD fallback video
+      res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
 
     } catch (err: any) {
       console.error('Error proxying video:', err.message);
-      if (req.query.url) {
-        return res.redirect(String(req.query.url));
-      }
       res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
     }
   });

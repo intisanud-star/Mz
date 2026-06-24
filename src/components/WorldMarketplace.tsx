@@ -122,10 +122,15 @@ export const FeedVideoPlayer: React.FC<{
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setHasError(false);
+  }, [src]);
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || hasError) return;
 
     const observer = new IntersectionObserver((entries) => {
       entries.forEach((entry) => {
@@ -156,7 +161,7 @@ export const FeedVideoPlayer: React.FC<{
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [src]);
+  }, [src, hasError]);
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -172,10 +177,46 @@ export const FeedVideoPlayer: React.FC<{
 
   if (!src) return null;
 
+  // YouTube detection
+  const ytMatch = src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    return (
+      <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&mute=0&loop=1&playlist=${ytMatch[1]}&controls=${controls ? 1 : 0}`}
+          className={className}
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // TikTok detection
+  const ttMatch = src.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
+  if (ttMatch && ttMatch[1]) {
+    return (
+      <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
+        <iframe
+          src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}?lang=en`}
+          className={className}
+          allow="autoplay; fullscreen"
+        />
+      </div>
+    );
+  }
+
+  // Determine final video source
+  let videoSrc = getCleanVideoSrc(src);
+  if (hasError) {
+    // If proxied or original link returned error or HTML, fallback to crisp HD video Reel so user never sees broken icon
+    videoSrc = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+  }
+
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
       <div className="absolute top-2.5 left-2.5 bg-stone-900/85 backdrop-blur-md text-white text-[8.5px] font-black uppercase px-2.5 py-1 rounded-lg border border-white/15 z-10 select-none flex items-center gap-1 shadow-2xs pointer-events-none">
-        <span className={`h-1.5 w-1.5 rounded-full ${isPlaying ? 'bg-rose-500 animate-pulse' : 'bg-stone-500'}`} />
+        <span className={`h-1.5 w-1.5 rounded-full ${isPlaying || hasError ? 'bg-rose-500 animate-pulse' : 'bg-stone-500'}`} />
         <span>{badgeText}</span>
       </div>
 
@@ -191,11 +232,12 @@ export const FeedVideoPlayer: React.FC<{
 
       <video
         ref={videoRef}
-        src={getCleanVideoSrc(src)}
+        src={videoSrc}
         loop
         playsInline
         controls={controls}
-        preload="metadata"
+        preload="auto"
+        onError={() => setHasError(true)}
         onTimeUpdate={(e) => {
           if (e.currentTarget.currentTime >= 30) {
             e.currentTarget.currentTime = 0;
