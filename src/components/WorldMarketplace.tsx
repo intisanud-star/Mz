@@ -217,11 +217,35 @@ export const FeedVideoPlayer: React.FC<{
     );
   }
 
+  // Instagram iframe detection
+  const rawInstaUrl = src.includes('/api/proxy-video') ? decodeURIComponent(src) : src;
+  const instaMatch = rawInstaUrl.match(/(?:instagram\.com|instagr\.am)\/(?:reels?|p|tv)\/([^/?#&]+)/i);
+  
+  if (instaMatch && instaMatch[1]) {
+    return (
+      <div className="relative w-full h-full overflow-hidden bg-stone-900 flex items-center justify-center">
+        <iframe
+          src={`https://www.instagram.com/p/${instaMatch[1]}/embed`}
+          className={`${className} border-0 max-w-full`}
+          allowTransparency={true}
+          allow="encrypted-media"
+          scrolling="no"
+        />
+      </div>
+    );
+  }
+
   // Determine final video source
   let videoSrc = getCleanVideoSrc(src);
-  if (hasError) {
-    // If proxied or original link returned error or HTML, fallback to crisp HD video Reel so user never sees broken icon
-    videoSrc = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
+  if (hasError && !instaMatch) {
+    // If proxied or original link returned error or HTML, and it's not IG, show fallback error state
+    return (
+      <div className="relative w-full h-full overflow-hidden bg-stone-900 flex flex-col items-center justify-center p-4 text-center border border-stone-800 rounded-xl">
+        <span className="text-2xl mb-2">⚠️</span>
+        <span className="text-[10px] font-black text-white uppercase tracking-widest">Video Unavailable</span>
+        <span className="text-[8.5px] text-stone-400 font-semibold mt-1 max-w-[200px]">The external link could not be loaded. Please upload an MP4 directly.</span>
+      </div>
+    );
   }
 
   return (
@@ -242,6 +266,7 @@ export const FeedVideoPlayer: React.FC<{
       )}
 
       <video
+        key={videoSrc}
         ref={videoRef}
         src={videoSrc}
         loop

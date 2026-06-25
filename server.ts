@@ -987,12 +987,12 @@ async function startServer() {
         if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
       }
 
-      // If downloading binary failed or returned HTML web page, redirect client to universal HD fallback video
-      res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+      // If downloading binary failed or returned HTML web page, return 404 so client can fallback
+      res.status(404).send('Video not found or proxy failed');
 
     } catch (err: any) {
       console.error('Error proxying video:', err.message);
-      res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+      res.status(404).send('Video not found or proxy failed');
     }
   });
 
