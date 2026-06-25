@@ -39,6 +39,7 @@ import ExcoinP2PCentre from './components/ExcoinP2PCentre';
 import { YoutubeBroadcasts } from './components/YoutubeBroadcasts';
 import { BroadcastFeed } from './components/BroadcastFeed';
 import { WorldMarketplace } from './components/WorldMarketplace';
+import { UserShopItemsTab } from './components/UserShopItemsTab';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 declare global {
@@ -8185,7 +8186,8 @@ function ExonaApp() {
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
   const [showProfileSettings, setShowProfileSettings] = useState(false);
-  const [profileActiveTab, setProfileActiveTab] = useState<'broadcasts' | 'wealth' | 'institutions'>('broadcasts');
+  const [profileActiveTab, setProfileActiveTab] = useState<'broadcasts' | 'wealth' | 'institutions' | 'shop'>('broadcasts');
+  const [userProfileTab, setUserProfileTab] = useState<'broadcasts' | 'shop'>('broadcasts');
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#000000');
@@ -12814,6 +12816,7 @@ function ExonaApp() {
   const handleUserClick = async (profile: { uid: string, name: string, photo: string }) => {
     setSelectedUserProfile(profile);
     setSelectedUserProfileDoc(null); // Reset while loading
+    setUserProfileTab('broadcasts');
     setView('user-profile');
     
     try {
@@ -14920,34 +14923,53 @@ function ExonaApp() {
               </button>
             </div>
 
-            <div className="flex border-b border-gray-100 mb-4">
-              <button className="flex-1 py-3 text-[14px] font-bold text-ink border-b-2 border-ink">Broadcasts</button>
-              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Replies</button>
-              <button className="flex-1 py-3 text-[14px] font-bold text-muted hover:text-ink transition-colors">Reposts</button>
+            <div className="flex border-b border-gray-100 mb-4 overflow-x-auto no-scrollbar">
+              <button 
+                onClick={() => setUserProfileTab('broadcasts')}
+                className={`flex-1 py-3 px-2 text-[14px] font-bold whitespace-nowrap border-b-2 transition-colors ${
+                  userProfileTab === 'broadcasts' ? 'border-ink text-ink' : 'border-transparent text-muted hover:text-ink'
+                }`}
+              >
+                Broadcasts
+              </button>
+              <button 
+                onClick={() => setUserProfileTab('shop')}
+                className={`flex-1 py-3 px-2 text-[14px] font-bold whitespace-nowrap border-b-2 transition-colors ${
+                  userProfileTab === 'shop' ? 'border-ink text-ink' : 'border-transparent text-muted hover:text-ink'
+                }`}
+              >
+                Shop Items
+              </button>
+              <button className="flex-1 py-3 px-2 text-[14px] font-bold text-muted hover:text-ink transition-colors whitespace-nowrap border-b-2 border-transparent">Replies</button>
+              <button className="flex-1 py-3 px-2 text-[14px] font-bold text-muted hover:text-ink transition-colors whitespace-nowrap border-b-2 border-transparent">Reposts</button>
             </div>
 
             <div className="flex flex-col">
-              {profilePosts.map(post => {
-                const school = post.schoolId ? (schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId)) : null;
-                return (
-                  <FeedPost 
-                    key={post.id} 
-                    post={post} 
-                    onUserClick={handleUserClick}
-                    onInstitutionClick={handleInstitutionClick}
-                    onLike={handleLikePost}
-                    onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                    onMessage={handleMessageAuthor}
-                    onReshare={handleResharePost}
-                    onForward={handleForwardPost}
-                    onEdit={handleEditPost}
-                    onDelete={onDeletePostClick}
-                    currentUserId={user?.uid}
-                    canManage={userDoc?.role === 'admin' || (post.schoolId && [...schools, ...places].find(s => s.id === post.schoolId)?.creatorUid === user?.uid)}
-                    canReply={canUserReply(post, school || undefined)}
-                  />
-                );
-              })}
+              {userProfileTab === 'shop' ? (
+                <UserShopItemsTab userId={selectedUserProfile.uid} />
+              ) : (
+                profilePosts.map(post => {
+                  const school = post.schoolId ? (schools.find(s => s.id === post.schoolId) || places.find(p => p.id === post.schoolId)) : null;
+                  return (
+                    <FeedPost 
+                      key={post.id} 
+                      post={post} 
+                      onUserClick={handleUserClick}
+                      onInstitutionClick={handleInstitutionClick}
+                      onLike={handleLikePost}
+                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                      onMessage={handleMessageAuthor}
+                      onReshare={handleResharePost}
+                      onForward={handleForwardPost}
+                      onEdit={handleEditPost}
+                      onDelete={onDeletePostClick}
+                      currentUserId={user?.uid}
+                      canManage={userDoc?.role === 'admin' || (post.schoolId && [...schools, ...places].find(s => s.id === post.schoolId)?.creatorUid === user?.uid)}
+                      canReply={canUserReply(post, school || undefined)}
+                    />
+                  );
+                })
+              )}
             </div>
           </div>
         );
@@ -23028,6 +23050,7 @@ function ExonaApp() {
                             name: userMeta.displayName || activeChat.displayName || 'User',
                             photo: userMeta.photoURL || activeChat.photoURL || ''
                           });
+                          setUserProfileTab('broadcasts');
                           
                           const userRef = doc(db, 'users', targetUid);
                           const userSnap = await getDoc(userRef);
@@ -27041,18 +27064,26 @@ function ExonaApp() {
                 </div>
 
                 {/* THREADS STYLE TABS */}
-                <div className="flex border-b border-gray-150 mb-6">
+                <div className="flex border-b border-gray-150 mb-6 overflow-x-auto no-scrollbar">
                   <button 
                     onClick={() => setProfileActiveTab('broadcasts')}
-                    className={`flex-1 pb-3 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer ${
+                    className={`flex-1 pb-3 px-2 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                       profileActiveTab === 'broadcasts' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
                     }`}
                   >
                     Broadcasts
                   </button>
                   <button 
+                    onClick={() => setProfileActiveTab('shop')}
+                    className={`flex-1 pb-3 px-2 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                      profileActiveTab === 'shop' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
+                    }`}
+                  >
+                    Shop Items
+                  </button>
+                  <button 
                     onClick={() => setProfileActiveTab('wealth')}
-                    className={`flex-1 pb-3 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer ${
+                    className={`flex-1 pb-3 px-2 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                       profileActiveTab === 'wealth' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
                     }`}
                   >
@@ -27060,7 +27091,7 @@ function ExonaApp() {
                   </button>
                   <button 
                     onClick={() => setProfileActiveTab('institutions')}
-                    className={`flex-1 pb-3 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer ${
+                    className={`flex-1 pb-3 px-2 text-[11px] font-black uppercase tracking-wider text-center border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                       profileActiveTab === 'institutions' ? 'border-ink text-ink font-black' : 'border-transparent text-muted hover:text-ink'
                     }`}
                   >
@@ -27070,6 +27101,9 @@ function ExonaApp() {
 
                 {/* TAB WINDOW CONTENT */}
                 <div className="min-h-[200px]">
+                  {profileActiveTab === 'shop' && (
+                    <UserShopItemsTab userId={user.uid} />
+                  )}
                   {profileActiveTab === 'broadcasts' && (() => {
                     const myPosts = posts.filter(p => p.authorUid === user.uid);
                     if (myPosts.length === 0) {
