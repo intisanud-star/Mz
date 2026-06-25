@@ -12926,14 +12926,14 @@ function ExonaApp() {
         const newTargetFollowers = [...(targetData.followers || []), user.uid];
 
         // Optimistic update
-        setUserDoc({ ...userDoc, following: newFollowing });
+        setUserDoc({ ...userDoc, following: newFollowing, followingCount: newFollowing.length });
         if (selectedUserProfile?.uid === targetUid) {
-          setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers });
+          setSelectedUserProfileDoc({ ...targetData, followers: newTargetFollowers, followersCount: newTargetFollowers.length });
         }
         showNotification('Following user');
 
-        await setDoc(doc(db, 'users', user.uid), { following: newFollowing }, { merge: true });
-        await setDoc(doc(db, 'users', targetUid), { followers: newTargetFollowers }, { merge: true });
+        await setDoc(doc(db, 'users', user.uid), { following: newFollowing, followingCount: newFollowing.length }, { merge: true });
+        await setDoc(doc(db, 'users', targetUid), { followers: newTargetFollowers, followersCount: newTargetFollowers.length }, { merge: true });
       }
     } catch (error) {
       showNotification('Failed to follow user', 'error');
@@ -12981,19 +12981,20 @@ function ExonaApp() {
       const newFollowing = currentFollowing.filter((id: string) => id !== targetUid);
       
       // Optimistic update
-      setUserDoc({ ...userDoc, following: newFollowing });
+      setUserDoc({ ...userDoc, following: newFollowing, followingCount: newFollowing.length });
       if (selectedUserProfile?.uid === targetUid && selectedUserProfileDoc) {
         setSelectedUserProfileDoc({ 
           ...selectedUserProfileDoc, 
           followers: (selectedUserProfileDoc.followers || []).filter(id => id !== user.uid),
-          pendingFollowers: (selectedUserProfileDoc.pendingFollowers || []).filter(id => id !== user.uid)
+          followersCount: Math.max(0, (selectedUserProfileDoc.followersCount || 0) - 1)
         });
       }
       showNotification('Unfollowed user');
 
-      await setDoc(currentUserRef, { following: newFollowing }, { merge: true });
+      await setDoc(currentUserRef, { following: newFollowing, followingCount: newFollowing.length }, { merge: true });
       await setDoc(targetUserRef, { 
         followers: arrayRemove(user.uid),
+        followersCount: increment(-1),
         pendingFollowers: arrayRemove(user.uid)
       }, { merge: true });
     } catch (error) {
@@ -13026,14 +13027,18 @@ function ExonaApp() {
       if (school.followers?.includes(user.uid)) return;
 
       if (school.creatorUid === user.uid) {
-        // Owner joins automatically
+        // Optimistic update
+        setUserDoc({ ...userDoc, following: [...(userDoc.following || []), school.id] });
+        
         await Promise.all([
           setDoc(schoolRef, { 
             followers: arrayUnion(user.uid),
+            followersCount: increment(1),
             pendingFollowers: arrayRemove(user.uid)
           }, { merge: true }),
           setDoc(userRef, {
-            following: arrayUnion(school.id)
+            following: arrayUnion(school.id),
+            followingCount: increment(1)
           }, { merge: true })
         ]);
         showNotification(`Successfully joined ${school.name}!`, 'success');
@@ -13074,13 +13079,20 @@ function ExonaApp() {
       const schoolRef = doc(db, collectionName, school.id);
       const userRef = doc(db, 'users', uidToRemove);
       
+      // Optimistic update
+      if (!targetUid || targetUid === user.uid) {
+        setUserDoc({ ...userDoc, following: (userDoc.following || []).filter(id => id !== school.id) });
+      }
+      
       await Promise.all([
         setDoc(schoolRef, { 
           followers: arrayRemove(uidToRemove),
+          followersCount: increment(-1),
           pendingFollowers: arrayRemove(uidToRemove)
         }, { merge: true }),
         setDoc(userRef, { 
-          following: arrayRemove(school.id) 
+          following: arrayRemove(school.id),
+          followingCount: increment(-1)
         }, { merge: true })
       ]);
       showNotification('Unfollowed successfully');
@@ -13101,13 +13113,16 @@ function ExonaApp() {
       await Promise.all([
         setDoc(schoolRef, { 
           followers: arrayUnion(followerUid),
+          followersCount: increment(1),
           pendingFollowers: arrayRemove(followerUid)
         }, { merge: true }),
         setDoc(userRef, { 
-          following: arrayUnion(school.id, school.creatorUid) 
+          following: arrayUnion(school.id, school.creatorUid),
+          followingCount: increment(1)
         }, { merge: true }),
         school.creatorUid !== followerUid ? setDoc(creatorRef, {
-          followers: arrayUnion(followerUid)
+          followers: arrayUnion(followerUid),
+          followersCount: increment(1)
         }, { merge: true }) : Promise.resolve(),
         // Create notification for the new joiner
         handleCreateNotification(followerUid, {
