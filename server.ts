@@ -894,40 +894,26 @@ async function startServer() {
         const shortcode = match ? match[1] : '';
 
         if (shortcode) {
-          // Scrape official Instagram embed player page
           try {
-            const embedRes = await axios.get(`https://www.instagram.com/reel/${shortcode}/embed/`, {
-              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
-              timeout: 6000
+            const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
+              url: `https://www.instagram.com/reel/${shortcode}/`,
+              vimeoQuality: "720",
+              downloadMode: "auto", 
+            }, {
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              timeout: 10000
             });
-            if (typeof embedRes.data === 'string') {
-              const vMatch = embedRes.data.match(/"video_url"\s*:\s*"([^"]+)"/i) || embedRes.data.match(/src="([^"]+\.mp4[^"]*)"/i);
-              if (vMatch && vMatch[1]) {
-                const parsed = JSON.parse(`"${vMatch[1]}"`);
-                if (parsed.startsWith('http')) directVideoUrl = parsed;
-              }
+            if (cobRes.data?.url) {
+              directVideoUrl = cobRes.data.url;
+            } else if (cobRes.data?.picker?.[0]?.url) {
+              directVideoUrl = cobRes.data.picker[0].url;
             }
-          } catch (e) {}
-
-          if (!directVideoUrl) {
-            try {
-              const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
-                url: `https://www.instagram.com/reel/${shortcode}/`
-              }, {
-                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-                timeout: 6000
-              });
-              if (cobRes.data?.url) {
-                directVideoUrl = cobRes.data.url;
-              } else if (cobRes.data?.picker?.[0]?.url) {
-                directVideoUrl = cobRes.data.picker[0].url;
-              }
-            } catch (e: any) {
-              console.warn('Cobalt API fallback trigger:', e.message);
-            }
+          } catch (e: any) {
+            console.warn('Cobalt API fallback trigger:', e.message);
           }
         }
-
+        
+        // Fallbacks if cobalt failed
         if (!directVideoUrl && shortcode) {
           const mirrors = [
             `https://ddinstagram.com/reel/${shortcode}`,
