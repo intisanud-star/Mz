@@ -893,7 +893,21 @@ async function startServer() {
         const match = rawUrl.match(/(?:reels?|p|tv)\/([^/?#&]+)/i);
         const shortcode = match ? match[1] : '';
         if (shortcode) {
-          return res.redirect(`https://ddinstagram.com/reel/${shortcode}/video`);
+          try {
+            const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
+              url: `https://www.instagram.com/reel/${shortcode}/`,
+            }, {
+              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+              timeout: 10000
+            });
+            if (cobRes.data?.url) {
+              directVideoUrl = cobRes.data.url;
+            } else if (cobRes.data?.picker?.[0]?.url) {
+              directVideoUrl = cobRes.data.picker[0].url;
+            }
+          } catch (e: any) {
+            console.warn('Cobalt API fallback trigger:', e.message);
+          }
         }
       } else {
         directVideoUrl = rawUrl;

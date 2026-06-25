@@ -26715,6 +26715,22 @@ function ExonaApp() {
                   </label>
                 </div>
 
+                {/* Profile Stats Row */}
+                <div className="flex items-center gap-8 mb-6">
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm font-black text-ink">{userDoc?.postsCount || 0}</p>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
+                  </div>
+                  <div className="flex flex-col items-center cursor-pointer">
+                    <p className="text-sm font-black text-ink">{userDoc?.followersCount || 0}</p>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Followers</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm font-black text-ink">{userDoc?.followingCount || 0}</p>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Following</p>
+                  </div>
+                </div>
+
                 {/* Profile Info Row */}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex-1 mr-4 min-h-[80px] flex flex-col justify-center">
