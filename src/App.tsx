@@ -3031,9 +3031,10 @@ interface SecureVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
   src?: string;
 }
 
-const SecureVideo: React.FC<SecureVideoProps> = ({ src, ...props }) => {
+const SecureVideo: React.FC<SecureVideoProps> = ({ src, autoPlay, ...props }) => {
   const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(src);
   const [hasRetried, setHasRetried] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setResolvedSrc(src);
@@ -3065,6 +3066,22 @@ const SecureVideo: React.FC<SecureVideoProps> = ({ src, ...props }) => {
     }
   }, [src]);
 
+  useEffect(() => {
+    if (!autoPlay || !videoRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
+          videoRef.current?.play().catch(() => {});
+        } else {
+          videoRef.current?.pause();
+        }
+      });
+    }, { threshold: [0, 0.35, 0.5, 0.75, 1] });
+
+    observer.observe(videoRef.current);
+    return () => observer.disconnect();
+  }, [autoPlay, resolvedSrc]);
+
   const handleError = async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     if (!hasRetried && src && !src.startsWith('blob:') && !src.startsWith('data:')) {
       setHasRetried(true);
@@ -3079,7 +3096,7 @@ const SecureVideo: React.FC<SecureVideoProps> = ({ src, ...props }) => {
     if (props.onError) props.onError(e);
   };
 
-  return <video {...props} src={resolvedSrc} onError={handleError} />;
+  return <video ref={videoRef} {...props} autoPlay={autoPlay} src={resolvedSrc} onError={handleError} />;
 };
 
 const FeedPost = ({ 
@@ -21679,7 +21696,11 @@ function ExonaApp() {
                                     <SecureVideo 
                                       src={post.mediaUrls?.[0] || post.mediaUrl} 
                                       controls 
-                                      className="h-full w-full object-cover" 
+                                      autoPlay
+                                      muted
+                                      loop
+                                      playsInline
+                                      className="h-full w-full object-cover bg-black" 
                                       referrerPolicy="no-referrer"
                                     />
                                   ) : (

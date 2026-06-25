@@ -270,6 +270,7 @@ export const FeedVideoPlayer: React.FC<{
         ref={videoRef}
         src={videoSrc}
         loop
+        autoPlay
         playsInline
         muted={isMuted}
         controls={controls}
