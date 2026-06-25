@@ -14906,35 +14906,7 @@ function ExonaApp() {
           );
         }
         const labels = getLabels(selectedSchool?.type);
-        const isMgmt = canManageInstitution(selectedSchool) || userDoc?.role === 'admin';
-        const hasRecordsPass = true;
-        
-        if (!isMgmt && !hasRecordsPass) {
-          return (
-            <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white border border-gray-150 rounded-[2.5rem] max-w-xl mx-auto my-12 shadow-sm">
-              <div className="h-24 w-24 bg-amber-50 border border-amber-100 rounded-full flex items-center justify-center text-amber-600 mb-8 animate-pulse">
-                <Lock size={40} strokeWidth={1.5} />
-              </div>
-              <h2 className="text-xl font-black text-ink mb-3 uppercase tracking-tight">Institution Records Locked</h2>
-              <p className="text-slate-500 text-xs font-bold max-w-sm mb-8 leading-relaxed">
-                You require an active Member Record viewing pass to access this institution's files, balances, and records. Administrative management bypasses this fee.
-              </p>
-              <button 
-                onClick={() => setInstSubscriptionSelector({
-                  schoolId: selectedSchool.id,
-                  schoolName: selectedSchool.name,
-                  type: 'records',
-                  targetView: 'records'
-                })}
-                className="px-10 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md hover:scale-[1.02] active:scale-98 flex items-center gap-2 mx-auto"
-              >
-                <Lock size={12} /> Unlock Records Access Pass
-              </button>
-            </div>
-          );
-        }
-
-        const activeRecordsForSource = recordStorageEngine === 'sqlite_offline' ? localSqliteRecords.filter(r => r.schoolId === selectedSchool.id) : records;
+        const activeRecordsForSource = records.filter(r => r.schoolId === selectedSchool.id);
         const filteredRecords = activeRecordsForSource
           .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
           .filter(r => !selectedSubFolder || r.subFolder === selectedSubFolder)
@@ -20421,7 +20393,7 @@ function ExonaApp() {
           );
         }
 
-        const activeAttendanceSrc = recordStorageEngine === 'sqlite_offline' ? localSqliteAttendance.filter(a => a.schoolId === selectedSchool.id) : attendance;
+        const activeAttendanceSrc = attendance.filter(a => a.schoolId === selectedSchool.id);
         const categories = Array.from(new Set(activeAttendanceSrc.map(a => a.category || '').filter(Boolean)));
         const filteredAttendance = activeAttendanceSrc.filter(r => {
           const nameMatches = r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase());
