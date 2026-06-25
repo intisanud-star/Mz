@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Product } from './WorldMarketplace';
+import { Product, FeedVideoPlayer } from './WorldMarketplace';
 import { Package } from 'lucide-react';
 
 export const UserShopItemsTab = ({ userId }: { userId: string }) => {
@@ -75,7 +75,7 @@ export const UserShopItemsTab = ({ userId }: { userId: string }) => {
           <div key={product.id} className="group cursor-pointer bg-white border border-stone-100/70 hover:border-stone-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col active:scale-[0.98]">
             <div className="relative aspect-[4/5] bg-stone-50 overflow-hidden">
               {product.videoUrl ? (
-                <video src={product.videoUrl} className="w-full h-full object-cover pointer-events-none" muted loop playsInline />
+                <FeedVideoPlayer src={product.videoUrl} className="w-full h-full object-cover pointer-events-none" controls={false} />
               ) : (
                 <img src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" alt={product.name} />
               )}
