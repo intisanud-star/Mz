@@ -892,52 +892,8 @@ async function startServer() {
       if (rawUrl.includes('instagram.com') || rawUrl.includes('instagr.am')) {
         const match = rawUrl.match(/(?:reels?|p|tv)\/([^/?#&]+)/i);
         const shortcode = match ? match[1] : '';
-
         if (shortcode) {
-          try {
-            const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
-              url: `https://www.instagram.com/reel/${shortcode}/`,
-              vimeoQuality: "720",
-              downloadMode: "auto", 
-            }, {
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              timeout: 10000
-            });
-            if (cobRes.data?.url) {
-              directVideoUrl = cobRes.data.url;
-            } else if (cobRes.data?.picker?.[0]?.url) {
-              directVideoUrl = cobRes.data.picker[0].url;
-            }
-          } catch (e: any) {
-            console.warn('Cobalt API fallback trigger:', e.message);
-          }
-        }
-        
-        // Fallbacks if cobalt failed
-        if (!directVideoUrl && shortcode) {
-          const mirrors = [
-            `https://ddinstagram.com/reel/${shortcode}`,
-            `https://vxinstagram.com/reel/${shortcode}`
-          ];
-          for (const mirror of mirrors) {
-            try {
-              const pRes = await axios.get(mirror, {
-                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-                timeout: 5000
-              });
-              if (typeof pRes.data === 'string') {
-                const og = pRes.data.match(/<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i) ||
-                           pRes.data.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video["']/i);
-                if (og && og[1]) {
-                  const clean = og[1].replace(/&amp;/g, '&');
-                  if (clean.startsWith('http')) {
-                    directVideoUrl = clean;
-                    break;
-                  }
-                }
-              }
-            } catch (err) { /* continue */ }
-          }
+          return res.redirect(`https://ddinstagram.com/reel/${shortcode}/video`);
         }
       } else {
         directVideoUrl = rawUrl;
