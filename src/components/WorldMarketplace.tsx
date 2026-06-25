@@ -32,7 +32,7 @@ import {
   BadgeCheck,
   Users
 } from 'lucide-react';
-import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc, where } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc, where, serverTimestamp } from 'firebase/firestore';
 import { db, storage, ref, uploadBytesResumable, getDownloadURL } from '../firebase';
 import LogisticsDeliveryMap from './LogisticsDeliveryMap';
 
@@ -1199,7 +1199,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
         };
 
         if (!editingProduct.id.startsWith('prod_')) {
-          await updateDoc(doc(db, 'marketplace_products', editingProduct.id), updatedProd);
+          updateDoc(doc(db, 'marketplace_products', editingProduct.id), updatedProd).catch(e => {
+            console.error("Error updating marketplace product in background:", e);
+          });
         }
         
         // Optimistically update local state
@@ -1225,11 +1227,13 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           sellerName: userDoc?.displayName || user?.displayName || "Global Merchant",
           sellerId: user?.uid || "custom-seller",
           sellerPhoto: user?.photoURL || "",
-          timestamp: new Date(),
+          timestamp: serverTimestamp(),
           isCustom: true
         };
 
-        await addDoc(collection(db, 'marketplace_products'), customProd);
+        addDoc(collection(db, 'marketplace_products'), customProd).catch(e => {
+          console.error("Error adding marketplace product in background:", e);
+        });
         showNotification(`Item "${newProductName}" has been uploaded to the international marketplace!`, 'success');
       }
       
