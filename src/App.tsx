@@ -3023,6 +3023,65 @@ const WordLayout = ({
   );
 };
 
+/**
+ * SecureVideo resolves signed download URLs for private or public Firebase Storage assets,
+ * with retry logic on playback failure.
+ */
+interface SecureVideoProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
+  src?: string;
+}
+
+const SecureVideo: React.FC<SecureVideoProps> = ({ src, ...props }) => {
+  const [resolvedSrc, setResolvedSrc] = useState<string | undefined>(src);
+  const [hasRetried, setHasRetried] = useState(false);
+
+  useEffect(() => {
+    setResolvedSrc(src);
+    setHasRetried(false);
+
+    if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('/uploads/') || src.startsWith('/api/proxy-video')) {
+      return;
+    }
+
+    const isFirebaseAsset = src.includes('firebasestorage.googleapis.com') ||
+                            src.startsWith('gs://') ||
+                            !src.startsWith('http');
+
+    if (isFirebaseAsset) {
+      let isMounted = true;
+      const fetchFreshUrl = async () => {
+        try {
+          const storageRef = ref(storage, src);
+          const freshUrl = await getDownloadURL(storageRef);
+          if (isMounted && freshUrl) {
+            setResolvedSrc(freshUrl);
+          }
+        } catch (err) {
+          if (isMounted) setResolvedSrc(src);
+        }
+      };
+      fetchFreshUrl();
+      return () => { isMounted = false; };
+    }
+  }, [src]);
+
+  const handleError = async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    if (!hasRetried && src && !src.startsWith('blob:') && !src.startsWith('data:')) {
+      setHasRetried(true);
+      try {
+        const storageRef = ref(storage, src);
+        const retryUrl = await getDownloadURL(storageRef);
+        if (retryUrl) setResolvedSrc(retryUrl);
+      } catch (retryErr) {
+        // keep existing
+      }
+    }
+    if (props.onError) props.onError(e);
+  };
+
+  return <video {...props} src={resolvedSrc} onError={handleError} />;
+};
+
 const FeedPost = ({ 
   post, 
   onUserClick, 
@@ -3182,7 +3241,7 @@ const FeedPost = ({
                     alt="Post Attachment"
                   />
                 ) : (
-                  <video src={url} controls className="w-full h-full object-contain bg-black" />
+                  <SecureVideo src={url} controls className="w-full h-full object-contain bg-black" />
                 )}
               </div>
             ))
@@ -3196,7 +3255,7 @@ const FeedPost = ({
                   alt="Post Attachment"
                 />
               ) : (
-                <video src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
+                <SecureVideo src={post.mediaUrl} controls className="w-full h-full object-contain bg-black" />
               )}
             </div>
           )}
@@ -3465,6 +3524,7 @@ function ExonaApp() {
   const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
+  const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
   const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
   const lastScrollTop = useRef(0);
   const [exonaAiInput, setExonaAiInput] = useState('');
@@ -3537,6 +3597,11 @@ function ExonaApp() {
 
     return () => clearTimeout(timer);
   }, [view, renderedView]);
+
+  // Reset bottom navigation hidden state on view changes
+  useEffect(() => {
+    setHideBottomNavInShop(false);
+  }, [view]);
 
   useEffect(() => {
     let checkInterval: any;
@@ -14887,6 +14952,7 @@ function ExonaApp() {
                 showNotification={showNotification}
                 excoinBalance={excoinBalance}
                 handleDebitExcoin={handleDebitExcoin}
+                onScrollHideNav={setHideBottomNavInShop}
               />
             </div>
           </div>
@@ -21610,7 +21676,7 @@ function ExonaApp() {
                               {hasMedia && (
                                 <div className="relative aspect-video bg-gray-50 rounded-xl overflow-hidden mb-2.5 border border-gray-100/50">
                                   {isVideo ? (
-                                    <video 
+                                    <SecureVideo 
                                       src={post.mediaUrls?.[0] || post.mediaUrl} 
                                       controls 
                                       className="h-full w-full object-cover" 
@@ -27814,7 +27880,7 @@ function ExonaApp() {
                       {selectedPostFiles[idx]?.type.startsWith('image/') || (editingPost?.mediaType === 'image' && !selectedPostFiles[idx]) ? (
                         <img src={url} className="w-full h-full object-cover" />
                       ) : (
-                        <video src={url} className="w-full h-full object-cover" controls={!isUploading} />
+                        <SecureVideo src={url} className="w-full h-full object-cover" controls={!isUploading} />
                       )}
                       
                       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
@@ -30467,7 +30533,7 @@ function ExonaApp() {
                     {selectedPostFiles[idx]?.type.startsWith('image/') ? (
                       <img src={url} alt="" className="h-full w-full object-cover" />
                     ) : (
-                      <video src={url} className="h-full w-full object-cover" />
+                      <SecureVideo src={url} className="h-full w-full object-cover" />
                     )}
                     <button
                       type="button"
@@ -30560,10 +30626,13 @@ function ExonaApp() {
           <motion.div 
             key="regular-nav"
             initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
+            animate={{ 
+              y: (hideBottomNavInShop && view === 'schools') ? 80 : 0, 
+              opacity: (hideBottomNavInShop && view === 'schools') ? 0 : 1 
+            }}
             exit={{ y: 50, opacity: 0 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[68px] flex items-center justify-center w-full no-print select-none shadow-lg"
+            className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[68px] flex items-center justify-center w-full no-print select-none shadow-lg ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
           >
             <div className="w-full max-w-lg h-full flex items-center justify-around relative px-2">
               
@@ -30635,14 +30704,11 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'feed' && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Home size={23} strokeWidth={view === 'feed' ? 2.8 : 2.2} />
+                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <Home size={23} className={view === 'feed' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'feed' ? 2.5 : 2.2} />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Feed
                 </span>
@@ -30656,14 +30722,11 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'schools' && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <ShoppingBag size={23} strokeWidth={view === 'schools' ? 2.8 : 2.2} />
+                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <ShoppingBag size={23} className={view === 'schools' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'schools' ? 2.5 : 2.2} />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Shop
                 </span>
@@ -30676,18 +30739,15 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {isMiddleMenuOpen && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
+                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
                   {isMiddleMenuOpen ? (
                     <X size={23} strokeWidth={2.8} />
                   ) : (
-                    <LayoutGrid size={23} strokeWidth={2.2} />
+                    <LayoutGrid size={23} className="group-active:fill-current fill-none" strokeWidth={2.2} />
                   )}
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Hub
                 </span>
@@ -30701,14 +30761,11 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                {view === 'finance' && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
-                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800'}`}>
-                  <Wallet size={23} strokeWidth={view === 'finance' ? 2.8 : 2.2} />
+                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <Wallet size={23} className={view === 'finance' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'finance' ? 2.5 : 2.2} />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Wallet
                 </span>
@@ -30726,13 +30783,10 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-95 relative font-sans cursor-pointer group"
               >
-                {(view === 'profile' || view === 'login') && (
-                  <span className="absolute top-0 w-10 h-1 bg-[#2481CC] rounded-b-md" />
-                )}
                 <div className={`relative h-[30px] w-[30px] rounded-full overflow-hidden transition-all duration-200 ${
                   view === 'profile' || view === 'login'
                     ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
-                    : 'group-hover:scale-105'
+                    : 'group-hover:scale-105 group-active:ring-2 group-active:ring-[#2481CC] group-active:ring-offset-2 group-active:scale-105'
                 }`}>
                   <img 
                     src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
@@ -30743,7 +30797,7 @@ function ExonaApp() {
                   <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600'
+                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Profile
                 </span>
@@ -30843,7 +30897,7 @@ function ExonaApp() {
                 </div>
               ) : (
                 <div className="relative w-full h-full flex items-center justify-center">
-                  <video 
+                  <SecureVideo 
                     src={selectedStoryGroup[activeStoryIndex].mediaUrl} 
                     className="max-h-full max-w-full object-contain animate-fade-in" 
                     autoPlay

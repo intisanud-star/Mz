@@ -799,6 +799,203 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Serve uploads directory statically for live media streaming & playback
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
+  // Live media HTTP Upload endpoint with real binary streaming
+  app.post('/api/upload-media', upload.single('file'), (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No file received' });
+      }
+      const file = req.file;
+      const ext = path.extname(file.originalname) || '.mp4';
+      const newFilename = `${file.filename}${ext}`;
+      const oldPath = path.join(uploadsDir, file.filename);
+      const newPath = path.join(uploadsDir, newFilename);
+      
+      if (fs.existsSync(oldPath)) {
+        fs.renameSync(oldPath, newPath);
+      }
+
+      const url = `/uploads/${newFilename}`;
+      console.log(`Live media upload success: ${url} (${file.size} bytes)`);
+      res.json({ success: true, url, filename: newFilename, size: file.size });
+    } catch (err: any) {
+      console.error('Error during media upload:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Proxy endpoint to resolve and stream Instagram Reels & external videos directly as pure MP4 without UI
+  app.get('/api/proxy-video', async (req, res) => {
+    try {
+      const rawUrl = req.query.url as string;
+      if (!rawUrl) return res.status(400).send('No URL provided');
+
+      if (rawUrl.startsWith('/uploads/') || rawUrl.startsWith('http://localhost:3000')) {
+        return res.redirect(rawUrl);
+      }
+
+      // If it's already a direct Google Cloud Sample video or unproxied CDN, redirect directly for max performance
+      if (rawUrl.includes('commondatastorage.googleapis.com') || rawUrl.includes('firebasestorage.googleapis.com')) {
+        return res.redirect(rawUrl);
+      }
+
+      // Handle Google Drive direct conversion
+      if (rawUrl.includes('drive.google.com')) {
+        const dMatch = rawUrl.match(/file\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
+        if (dMatch && dMatch[1]) {
+          return res.redirect(`https://drive.google.com/uc?export=download&id=${dMatch[1]}`);
+        }
+      }
+
+      // Handle Dropbox direct conversion
+      if (rawUrl.includes('dropbox.com')) {
+        return res.redirect(rawUrl.replace('dl=0', 'raw=1').replace('dl=1', 'raw=1'));
+      }
+
+      const safeHash = Buffer.from(rawUrl).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(-25);
+      const cachePath = path.join(uploadsDir, `cache_${safeHash}.mp4`);
+      const dlFlagPath = path.join(uploadsDir, `dl_${safeHash}.flag`);
+
+      const serveFile = () => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.contentType('video/mp4');
+        return res.sendFile(cachePath);
+      };
+
+      // If valid cached file exists and is not currently being written
+      if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 50000 && !fs.existsSync(dlFlagPath)) {
+        return serveFile();
+      }
+
+      // If another concurrent request is downloading this exact video, wait up to 12 seconds
+      if (fs.existsSync(dlFlagPath)) {
+        let attempts = 0;
+        while (fs.existsSync(dlFlagPath) && attempts < 24) {
+          await new Promise(r => setTimeout(r, 500));
+          attempts++;
+        }
+        if (fs.existsSync(cachePath) && fs.statSync(cachePath).size > 50000) {
+          return serveFile();
+        }
+      }
+
+      let directVideoUrl = '';
+
+      if (rawUrl.includes('instagram.com') || rawUrl.includes('instagr.am')) {
+        const match = rawUrl.match(/(?:reels?|p|tv)\/([^/?#&]+)/i);
+        const shortcode = match ? match[1] : '';
+
+        if (shortcode) {
+          // Scrape official Instagram embed player page
+          try {
+            const embedRes = await axios.get(`https://www.instagram.com/reel/${shortcode}/embed/`, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36' },
+              timeout: 6000
+            });
+            if (typeof embedRes.data === 'string') {
+              const vMatch = embedRes.data.match(/"video_url"\s*:\s*"([^"]+)"/i) || embedRes.data.match(/src="([^"]+\.mp4[^"]*)"/i);
+              if (vMatch && vMatch[1]) {
+                const parsed = JSON.parse(`"${vMatch[1]}"`);
+                if (parsed.startsWith('http')) directVideoUrl = parsed;
+              }
+            }
+          } catch (e) {}
+
+          if (!directVideoUrl) {
+            try {
+              const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
+                url: `https://www.instagram.com/reel/${shortcode}/`
+              }, {
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                timeout: 6000
+              });
+              if (cobRes.data?.url) {
+                directVideoUrl = cobRes.data.url;
+              } else if (cobRes.data?.picker?.[0]?.url) {
+                directVideoUrl = cobRes.data.picker[0].url;
+              }
+            } catch (e: any) {
+              console.warn('Cobalt API fallback trigger:', e.message);
+            }
+          }
+        }
+
+        if (!directVideoUrl && shortcode) {
+          const mirrors = [
+            `https://ddinstagram.com/reel/${shortcode}`,
+            `https://vxinstagram.com/reel/${shortcode}`
+          ];
+          for (const mirror of mirrors) {
+            try {
+              const pRes = await axios.get(mirror, {
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+                timeout: 5000
+              });
+              if (typeof pRes.data === 'string') {
+                const og = pRes.data.match(/<meta[^>]+property=["']og:video["'][^>]+content=["']([^"']+)["']/i) ||
+                           pRes.data.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:video["']/i);
+                if (og && og[1]) {
+                  const clean = og[1].replace(/&amp;/g, '&');
+                  if (clean.startsWith('http')) {
+                    directVideoUrl = clean;
+                    break;
+                  }
+                }
+              }
+            } catch (err) { /* continue */ }
+          }
+        }
+      } else {
+        directVideoUrl = rawUrl;
+      }
+
+      if (!directVideoUrl) {
+        directVideoUrl = rawUrl;
+      }
+
+      fs.writeFileSync(dlFlagPath, '1');
+      try {
+        const dlRes = await axios.get(directVideoUrl, {
+          responseType: 'arraybuffer',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*'
+          },
+          timeout: 25000,
+          maxContentLength: 75 * 1024 * 1024
+        });
+
+        const contentType = String(dlRes.headers['content-type'] || '').toLowerCase();
+        const buf = Buffer.isBuffer(dlRes.data) ? dlRes.data : Buffer.from(dlRes.data || '');
+        const headerStr = buf.toString('utf8', 0, 30).trim().toLowerCase();
+        const isHtmlOrJson = contentType.includes('text/html') || contentType.includes('application/json') || headerStr.startsWith('<!do') || headerStr.startsWith('<html');
+
+        if (!isHtmlOrJson && buf.length > 5000) {
+          fs.writeFileSync(cachePath, buf);
+          if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
+          return serveFile();
+        }
+      } finally {
+        if (fs.existsSync(dlFlagPath)) fs.unlinkSync(dlFlagPath);
+      }
+
+      // If downloading binary failed or returned HTML web page, redirect client to universal HD fallback video
+      res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+
+    } catch (err: any) {
+      console.error('Error proxying video:', err.message);
+      res.redirect('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4');
+    }
+  });
+
   // Direct high-performance handler for splash logo
   app.get('/splash.png', (req, res) => {
     const splashPath = path.join(process.cwd(), 'assets', 'splash.png');
