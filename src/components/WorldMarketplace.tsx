@@ -91,6 +91,7 @@ interface WorldMarketplaceProps {
   excoinBalance?: number;
   handleDebitExcoin?: (amount: number, description: string) => Promise<boolean>;
   onScrollHideNav?: (hide: boolean) => void;
+  onUserClick: (profile: { uid: string, name: string, photo: string }) => void;
 }
 
 export const isInstagramUrl = (url?: string | null): boolean => {
@@ -403,7 +404,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   showNotification,
   excoinBalance = 0,
   handleDebitExcoin,
-  onScrollHideNav
+  onScrollHideNav,
+  onUserClick
 }) => {
   const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
   const [products, setProducts] = useState<Product[]>([]);
@@ -1853,8 +1855,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           <div className="flex items-center justify-between gap-1.5 flex-wrap">
                             <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                               <span 
-                                onClick={() => {
-                                  showNotification(`Private messaging with ${p.sellerName} is encrypted.`, "info");
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (p.sellerId) {
+                                    onUserClick({ uid: p.sellerId, name: p.sellerName, photo: p.sellerPhoto || '' });
+                                  }
                                 }}
                                 className="text-xs font-black text-stone-950 hover:underline cursor-pointer tracking-tight"
                               >
@@ -2270,7 +2275,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       </div>
                       <div>
                         <p className="text-xs font-black text-stone-900 leading-none uppercase flex items-center gap-1">
-                          <span>{selectedDetailedProduct.sellerName}</span>
+                          <span className="cursor-pointer hover:underline" onClick={() => {
+                            if (selectedDetailedProduct.sellerId) {
+                                      onUserClick({ uid: selectedDetailedProduct.sellerId, name: selectedDetailedProduct.sellerName, photo: selectedDetailedProduct.sellerPhoto || '' });
+                                    }
+                          }}>{selectedDetailedProduct.sellerName}</span>
                           <BadgeCheck size={12} className="text-blue-500 fill-blue-500 shrink-0" />
                         </p>
                         <p className="text-[10px] text-stone-450 font-bold uppercase tracking-wider mt-1">Verified Merchant</p>

@@ -40,6 +40,7 @@ import { YoutubeBroadcasts } from './components/YoutubeBroadcasts';
 import { BroadcastFeed } from './components/BroadcastFeed';
 import { WorldMarketplace } from './components/WorldMarketplace';
 import { UserShopItemsTab } from './components/UserShopItemsTab';
+import { UserPostsTab } from './components/UserPostsTab';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
 
 declare global {
@@ -11148,6 +11149,7 @@ function ExonaApp() {
       };
 
       await addDoc(collection(db, 'posts'), postData);
+      await setDoc(doc(db, 'users', user.uid), { postsCount: increment(1) }, { merge: true });
       showNotification(type === 'voice' ? 'Voice broadcast transmitted!' : 'Broadcast transmitted!', 'success');
     } catch (error) {
       console.error('Failed to send channel message:', error);
@@ -11509,6 +11511,7 @@ function ExonaApp() {
           commentsCount: 0,
           reshares: 0,
         });
+        await setDoc(doc(db, 'users', user.uid), { postsCount: increment(1) }, { merge: true });
       }
       
       setNewPostContent('');
@@ -11553,6 +11556,9 @@ function ExonaApp() {
     if (!user || !postToDelete) return;
     try {
       await deleteDoc(doc(db, 'posts', postToDelete.id));
+      if (postToDelete.authorUid === user.uid) {
+         await setDoc(doc(db, 'users', user.uid), { postsCount: increment(-1) }, { merge: true });
+      }
       showNotification('Broadcast deleted');
       setIsDeletePostModalOpen(false);
       setPostToDelete(null);
@@ -11670,6 +11676,7 @@ function ExonaApp() {
       await setDoc(doc(db, 'posts', post.id), { 
         reshares: (post.reshares || 0) + 1 
       }, { merge: true });
+      await setDoc(doc(db, 'users', user.uid), { postsCount: increment(1) }, { merge: true });
       showNotification('Broadcast reshared');
     } catch (error) {
       // Rollback
@@ -14835,14 +14842,42 @@ function ExonaApp() {
               )}
             </div>
 
+            {/* Profile Stats Row */}
+            <div className="flex items-center gap-8 mb-6">
+              <div className="flex flex-col items-center">
+                <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.postsCount ?? profilePosts.length ?? 0}</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
+              </div>
+              <div className="flex flex-col items-center cursor-pointer">
+                <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.followers?.length ?? selectedUserProfileDoc?.followersCount ?? 0}</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Followers</p>
+              </div>
+              <div className="flex flex-col items-center">
+                <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.following?.length ?? selectedUserProfileDoc?.followingCount ?? 0}</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Following</p>
+              </div>
+            </div>
+
             {/* Previous View Profile Info Row */}
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
                 <div className="flex items-center gap-2">
                   <p className="text-ink text-[14px]">{selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '')}</p>
-                  <span className="px-2 py-0.5 bg-white border border-gray-100 rounded-full text-muted text-[11px] font-bold">exona.io</span>
                 </div>
+                <button
+                    onClick={() => {
+                        setActiveChat({
+                            uid: selectedUserProfile.uid,
+                            displayName: selectedUserProfile.name,
+                            photoURL: selectedUserProfile.photo
+                        });
+                        setView('chat');
+                    }}
+                    className="mt-3 px-4 py-2 bg-black text-white text-[12px] font-bold rounded-full hover:bg-gray-800 transition-all flex items-center gap-2"
+                 >
+                    Message
+                 </button>
               </div>
               <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 shrink-0">
                 {selectedUserProfile.photo ? (
@@ -14856,6 +14891,7 @@ function ExonaApp() {
             </div>
 
             <div className="flex flex-col mt-4">
+              <h3 className="text-sm font-black text-ink mb-4">Shop Items</h3>
               <UserShopItemsTab userId={selectedUserProfile.uid} />
             </div>
           </div>
@@ -14879,6 +14915,7 @@ function ExonaApp() {
                 excoinBalance={excoinBalance}
                 handleDebitExcoin={handleDebitExcoin}
                 onScrollHideNav={setHideBottomNavInShop}
+                onUserClick={handleUserClick}
               />
             </div>
           </div>
@@ -26705,15 +26742,15 @@ function ExonaApp() {
                 {/* Profile Stats Row */}
                 <div className="flex items-center gap-8 mb-6">
                   <div className="flex flex-col items-center">
-                    <p className="text-sm font-black text-ink">{userDoc?.postsCount || 0}</p>
+                    <p className="text-sm font-black text-ink">{userDoc?.postsCount ?? posts.filter(p => p.authorUid === user?.uid).length ?? 0}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
                   </div>
                   <div className="flex flex-col items-center cursor-pointer">
-                    <p className="text-sm font-black text-ink">{userDoc?.followersCount || 0}</p>
+                    <p className="text-sm font-black text-ink">{userDoc?.followers?.length ?? userDoc?.followersCount ?? 0}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Followers</p>
                   </div>
                   <div className="flex flex-col items-center">
-                    <p className="text-sm font-black text-ink">{userDoc?.followingCount || 0}</p>
+                    <p className="text-sm font-black text-ink">{userDoc?.following?.length ?? userDoc?.followingCount ?? 0}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Following</p>
                   </div>
                 </div>
@@ -26731,6 +26768,7 @@ function ExonaApp() {
                           className="space-y-2"
                         >
                           <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
+                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mt-4">Bio / Shop Description</label>
                           <input 
                             type="text" 
                             value={editingProfile.displayName}
@@ -26748,6 +26786,7 @@ function ExonaApp() {
                           exit={{ opacity: 0, y: -10 }}
                         >
                           <h2 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2 tracking-tight">{user.displayName}</h2>
+                           {userDoc?.bio && <p className="text-sm text-muted mb-4">{userDoc.bio}</p>}
                           <div className="flex items-center gap-2.5 flex-wrap">
                             <p className="text-ink text-[16px] font-semibold">{user.email?.split('@')[0]}</p>
                             <span className="px-2.5 py-0.5 bg-gray-50 border border-gray-150 rounded-full text-zinc-500 text-[12px] font-bold">institutional portal</span>
@@ -26803,6 +26842,7 @@ function ExonaApp() {
                 </div>
 
                 <div className="min-h-[200px] mt-6">
+                  <h3 className="text-sm font-black text-ink mb-4">Shop Items</h3>
                   <UserShopItemsTab userId={user.uid} />
                 </div>
               </div>
@@ -29850,24 +29890,6 @@ function ExonaApp() {
           {/* Tab switcher bar */}
           <div className="px-4 sm:px-6 h-11 flex items-center justify-between w-full border-t border-gray-100/40">
             <div className="flex items-center gap-4 sm:gap-8 h-full">
-              <button 
-                onClick={() => setView('feed')}
-                className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'feed' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-              >
-                <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'feed' ? 'text-ink' : 'text-muted'}`}>Home</span>
-                {view === 'feed' && (
-                  <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-                )}
-              </button>
-              <button 
-                onClick={() => setView('schools')}
-                className={`h-full flex flex-col items-center justify-center gap-1 relative px-1 sm:px-2 transition-all ${view === 'schools' ? 'text-ink' : 'text-muted hover:text-ink'}`}
-              >
-                <span className={`text-[13px] sm:text-[14.5px] font-black uppercase tracking-widest transition-all ${view === 'schools' ? 'text-ink' : 'text-muted'}`}>Marketplace</span>
-                {view === 'schools' && (
-                  <motion.div layoutId="header-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-ink" />
-                )}
-              </button>
             </div>
 
             <div className="flex-1 max-w-md mx-4 relative group hidden md:block">
