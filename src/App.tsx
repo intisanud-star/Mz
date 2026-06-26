@@ -26899,7 +26899,7 @@ function ExonaApp() {
                           </div>
 
                           <div className="flex items-center gap-2.5 flex-wrap">
-                            <p className="text-ink text-[16px] font-semibold">{user.email?.split('@')[0]}</p>
+                            <p className="text-ink text-[14px] font-semibold">@{user.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
                             <span className="px-2.5 py-0.5 bg-gray-50 border border-gray-150 rounded-full text-zinc-500 text-[12px] font-bold">institutional portal</span>
                             {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
                               <button 
