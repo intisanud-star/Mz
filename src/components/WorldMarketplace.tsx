@@ -1022,70 +1022,87 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     setIsUploadingVideo(true);
     setVideoUploadPercent(0);
 
-    const videoStorageRef = ref(storage, `marketplace_videos/${Date.now()}_${file.name}`);
-    const uploadTask = uploadBytesResumable(videoStorageRef, file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-    uploadTask.on(
-      'state_changed',
-      (snapshot) => {
-        const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload-media', true);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
         setVideoUploadPercent(percent);
-      },
-      (error) => {
-        showNotification("Cloud server upload failed.", "error");
-        setIsUploadingVideo(false);
-        setVideoUploadPercent(0);
-        console.error("Video upload error:", error);
-      },
-      async () => {
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200) {
         try {
-          const liveUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          const response = JSON.parse(xhr.responseText);
+          if (response.success && response.url) {
+            const liveUrl = response.url;
 
-          const videoEl = document.createElement('video');
-          videoEl.crossOrigin = 'anonymous';
-          videoEl.muted = true;
-          videoEl.playsInline = true;
+            const videoEl = document.createElement('video');
+            videoEl.crossOrigin = 'anonymous';
+            videoEl.muted = true;
+            videoEl.playsInline = true;
 
-          let hasFired = false;
-          const finalizeVideo = () => {
-            if (hasFired) return;
-            hasFired = true;
-            setNewProductVideo(liveUrl);
-            setIsUploadingVideo(false);
-            setVideoUploadPercent(0);
-            showNotification("Live video uploaded successfully!", "success");
-          };
+            let hasFired = false;
+            const finalizeVideo = () => {
+              if (hasFired) return;
+              hasFired = true;
+              setNewProductVideo(liveUrl);
+              setIsUploadingVideo(false);
+              setVideoUploadPercent(0);
+              showNotification("Live video uploaded successfully!", "success");
+            };
 
-          // Fallback if video takes too long to load metadata
-          setTimeout(finalizeVideo, 2500);
+            setTimeout(finalizeVideo, 2500);
 
-          videoEl.onloadeddata = () => {
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = Math.min(videoEl.videoWidth || 400, 500);
-              canvas.height = Math.min(videoEl.videoHeight || 400, 500);
-              canvas.getContext('2d')?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-              const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
-              if (thumbUrl && thumbUrl.length > 100) {
-                setNewProductImg(thumbUrl);
-                setNewProductImages([thumbUrl]);
+            videoEl.onloadeddata = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.min(videoEl.videoWidth || 400, 500);
+                canvas.height = Math.min(videoEl.videoHeight || 400, 500);
+                canvas.getContext('2d')?.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                const thumbUrl = canvas.toDataURL('image/jpeg', 0.75);
+                if (thumbUrl && thumbUrl.length > 100) {
+                  setNewProductImg(thumbUrl);
+                  setNewProductImages([thumbUrl]);
+                }
+              } catch (err) {
+                console.warn("Could not generate video thumb:", err);
               }
-            } catch (err) {
-              console.warn("Could not generate video thumb:", err);
-            }
-            finalizeVideo();
-          };
-          
-          videoEl.onerror = finalizeVideo;
-          videoEl.src = liveUrl;
-          videoEl.currentTime = 0.1;
+              finalizeVideo();
+            };
+            
+            videoEl.onerror = finalizeVideo;
+            videoEl.src = liveUrl;
+            videoEl.currentTime = 0.1;
+          } else {
+            throw new Error(response.error || "Upload failed");
+          }
         } catch (err) {
           showNotification("Error parsing live upload response.", "error");
           setIsUploadingVideo(false);
           setVideoUploadPercent(0);
         }
+      } else {
+        showNotification("Cloud server upload failed.", "error");
+        setIsUploadingVideo(false);
+        setVideoUploadPercent(0);
+        console.error("Video upload error:", xhr.statusText);
       }
-    );
+    };
+
+    xhr.onerror = () => {
+      showNotification("Cloud server upload failed.", "error");
+      setIsUploadingVideo(false);
+      setVideoUploadPercent(0);
+      console.error("Video upload error:", xhr.statusText);
+    };
+
+    xhr.send(formData);
   };
 
   const handleReceiptUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
