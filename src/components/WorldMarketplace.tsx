@@ -1088,7 +1088,11 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           setVideoUploadPercent(0);
         }
       } else {
-        showNotification("Cloud server upload failed.", "error");
+        if (xhr.status === 413) {
+           showNotification("Video too large (Max 1MB allowed on proxy). Please use a video link instead.", "error");
+        } else {
+           showNotification(`Cloud server upload failed (${xhr.status}).`, "error");
+        }
         setIsUploadingVideo(false);
         setVideoUploadPercent(0);
         console.error("Video upload error:", xhr.statusText);
@@ -1096,7 +1100,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     };
 
     xhr.onerror = () => {
-      showNotification("Cloud server upload failed.", "error");
+      showNotification("Cloud server upload failed (Network Error).", "error");
       setIsUploadingVideo(false);
       setVideoUploadPercent(0);
       console.error("Video upload error:", xhr.statusText);
