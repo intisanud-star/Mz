@@ -3573,6 +3573,8 @@ function ExonaApp() {
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const currencySymbol = useMemo(() => userDoc?.currency || '₦', [userDoc?.currency]);
   const [selectedUserProfileDoc, setSelectedUserProfileDoc] = useState<any>(null);
+  const [myShopItemsCount, setMyShopItemsCount] = useState(0);
+  const [selectedUserShopItemsCount, setSelectedUserShopItemsCount] = useState(0);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [splashDone, setSplashDone] = useState(false);
@@ -12825,16 +12827,17 @@ function ExonaApp() {
     setSelectedUserProfileDoc(null); // Reset while loading
     setUserProfileTab('broadcasts');
     setView('user-profile');
-    
-    try {
-      const docSnap = await getDoc(doc(db, 'users', profile.uid));
+  };
+
+  useEffect(() => {
+    if (!selectedUserProfile?.uid) return;
+    const unsub = onSnapshot(doc(db, 'users', selectedUserProfile.uid), (docSnap) => {
       if (docSnap.exists()) {
         setSelectedUserProfileDoc(docSnap.data());
       }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
-    }
-  };
+    });
+    return () => unsub();
+  }, [selectedUserProfile?.uid]);
 
   const handleInstitutionClick = (id: string) => {
     const inst = [...schools, ...places].find(i => i.id === id);
@@ -14845,7 +14848,7 @@ function ExonaApp() {
             {/* Profile Stats Row */}
             <div className="flex items-center gap-8 mb-6">
               <div className="flex flex-col items-center">
-                <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.postsCount ?? profilePosts.length ?? 0}</p>
+                <p className="text-sm font-black text-ink">{selectedUserShopItemsCount}</p>
                 <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
               </div>
               <div className="flex flex-col items-center cursor-pointer">
@@ -14892,7 +14895,7 @@ function ExonaApp() {
 
             <div className="flex flex-col mt-4">
               <h3 className="text-sm font-black text-ink mb-4">Shop Items</h3>
-              <UserShopItemsTab userId={selectedUserProfile.uid} />
+              <UserShopItemsTab userId={selectedUserProfile.uid} onCountUpdate={setSelectedUserShopItemsCount} />
             </div>
           </div>
         );
@@ -26742,7 +26745,7 @@ function ExonaApp() {
                 {/* Profile Stats Row */}
                 <div className="flex items-center gap-8 mb-6">
                   <div className="flex flex-col items-center">
-                    <p className="text-sm font-black text-ink">{userDoc?.postsCount ?? posts.filter(p => p.authorUid === user?.uid).length ?? 0}</p>
+                    <p className="text-sm font-black text-ink">{myShopItemsCount}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
                   </div>
                   <div className="flex flex-col items-center cursor-pointer">
@@ -26843,7 +26846,7 @@ function ExonaApp() {
 
                 <div className="min-h-[200px] mt-6">
                   <h3 className="text-sm font-black text-ink mb-4">Shop Items</h3>
-                  <UserShopItemsTab userId={user.uid} />
+                  <UserShopItemsTab userId={user.uid} onCountUpdate={setMyShopItemsCount} />
                 </div>
               </div>
             )}

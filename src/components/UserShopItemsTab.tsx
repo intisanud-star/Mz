@@ -1,48 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, FeedVideoPlayer } from './WorldMarketplace';
 import { Package } from 'lucide-react';
 
-export const UserShopItemsTab = ({ userId }: { userId: string }) => {
+export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, onCountUpdate?: (count: number) => void }) => {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchItems = async () => {
-      setLoading(true);
-      try {
-        const q = query(
-          collection(db, 'marketplace_products'),
-          where('sellerId', '==', userId)
-        );
-        const snap = await getDocs(q);
-        const fetched: Product[] = [];
-        snap.forEach(doc => {
-          fetched.push({ id: doc.id, ...doc.data() } as Product);
-        });
-        
-        // Sort in memory by timestamp if available or just by name
-        fetched.sort((a: any, b: any) => {
-          if (b.timestamp && a.timestamp) {
-            return b.timestamp.seconds - a.timestamp.seconds;
-          }
-          return 0;
-        });
-
-        if (isMounted) setItems(fetched);
-      } catch (err) {
-        console.error("Error fetching user shop items:", err);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+    if (!userId) return;
     
-    if (userId) {
-      fetchItems();
-    }
-  }, [userId]);
+    setLoading(true);
+    const q = query(
+      collection(db, 'marketplace_products'),
+      where('sellerId', '==', userId)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const fetched: Product[] = [];
+      snap.forEach(doc => {
+        fetched.push({ id: doc.id, ...doc.data() } as Product);
+      });
+      
+      // Sort in memory by timestamp if available or just by name
+      fetched.sort((a: any, b: any) => {
+        if (b.timestamp && a.timestamp) {
+          return b.timestamp.seconds - a.timestamp.seconds;
+        }
+        return 0;
+      });
+
+      setItems(fetched);
+      if (onCountUpdate) onCountUpdate(fetched.length);
+      setLoading(false);
+    }, (err) => {
+      console.error("Error fetching user shop items:", err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId, onCountUpdate]);
 
   if (loading) {
     return (
