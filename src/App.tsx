@@ -13882,9 +13882,9 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="w-full bg-white/95 backdrop-blur-md border-b border-gray-100 flex-none sticky top-0 z-50">
+            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
               <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col gap-3">
                 {/* Top Row: Brand & Top-right Actions (Bell, Menu) */}
                 <div className="flex items-center justify-between w-full">
@@ -13913,50 +13913,28 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                {/* Bottom Row: Segmented Control & Search Bar (Responsive flex-row on desktop, stack on mobile) */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-                  {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
-                  <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
-                    <button 
-                      onClick={() => setView('feed')}
-                      className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                    >
-                      Home
-                    </button>
-                    <button 
-                      onClick={() => setView('videos')}
-                      className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                    >
-                      Satellite
-                    </button>
-                  </div>
-
-                  {/* Search bar taking full width of row / gap */}
-                  <div className="relative flex-1 sm:max-w-md group min-w-0 w-full">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
-                    <input 
-                      type="text" 
-                      placeholder="Search institutions, people, groups..." 
-                      value={globalSearch}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setGlobalSearch(val);
-                        handleSearchUsers(val);
-                        if (val.trim()) setView('search');
-                      }}
-                      onFocus={() => {
-                        if (globalSearch) setView('search');
-                      }}
-                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
-                    />
-                  </div>
+                {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                  >
+                    Home
+                  </button>
+                  <button 
+                    onClick={() => setView('videos')}
+                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                  >
+                    Satellite
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Scrollable Timeline Box */}
             <div 
-              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32"
+              ref={view === 'feed' ? scrollContainerRef : undefined}
+              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[116px]"
               onScroll={(e) => {
                 const currentScrollTop = e.currentTarget.scrollTop;
                 if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
@@ -13967,7 +13945,27 @@ function ExonaApp() {
                 lastScrollTop.current = currentScrollTop;
               }}
             >
-              <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+              <div className="w-full pt-4 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                {/* Search Bar (Scrolling with page content) */}
+                <div className="relative group min-w-0 w-full mb-5">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                  <input 
+                    type="text" 
+                    placeholder="Search institutions, people, groups..." 
+                    value={globalSearch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGlobalSearch(val);
+                      handleSearchUsers(val);
+                      if (val.trim()) setView('search');
+                    }}
+                    onFocus={() => {
+                      if (globalSearch) setView('search');
+                    }}
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                  />
+                </div>
+
                 <div className="block">
               <div 
                 className="flex items-center gap-1 mb-4 flex-wrap w-full py-1 select-none"
@@ -14421,7 +14419,10 @@ function ExonaApp() {
             </div>
 
             {/* Scrollable Contents Pane */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-32">
+            <div 
+              ref={view === 'school-feed' ? scrollContainerRef : undefined}
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-32"
+            >
 
             {schoolFeedTab === 'feed' && isManager && (
               <div className="mb-6 bg-white p-4 rounded-2xl border border-gray-100">
@@ -23583,9 +23584,9 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full h-full flex flex-col bg-white overflow-hidden">
+          <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="w-full bg-white/95 backdrop-blur-md border-b border-gray-100 flex-none sticky top-0 z-50">
+            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
               <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col gap-3">
                 {/* Top Row: Brand & Top-right Actions (Bell, Menu) */}
                 <div className="flex items-center justify-between w-full">
@@ -23614,50 +23615,50 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                {/* Bottom Row: Segmented Control & Search Bar (Responsive flex-row on desktop, stack on mobile) */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full">
-                  {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
-                  <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
-                    <button 
-                      onClick={() => setView('feed')}
-                      className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                    >
-                      Home
-                    </button>
-                    <button 
-                      onClick={() => setView('videos')}
-                      className={`flex-1 sm:flex-initial text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                    >
-                      Satellite
-                    </button>
-                  </div>
-
-                  {/* Search bar taking full width of row / gap */}
-                  <div className="relative flex-1 sm:max-w-md group min-w-0 w-full">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
-                    <input 
-                      type="text" 
-                      placeholder="Search institutions, people, groups..." 
-                      value={globalSearch}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setGlobalSearch(val);
-                        handleSearchUsers(val);
-                        if (val.trim()) setView('search');
-                      }}
-                      onFocus={() => {
-                        if (globalSearch) setView('search');
-                      }}
-                      className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
-                    />
-                  </div>
+                {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
+                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                  >
+                    Home
+                  </button>
+                  <button 
+                    onClick={() => setView('videos')}
+                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                  >
+                    Satellite
+                  </button>
                 </div>
               </div>
             </div>
 
             {/* Scrollable Broadcasts Content Box */}
-            <div className="flex-1 overflow-y-auto no-scrollbar w-full pb-32">
-              <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+            <div 
+              ref={view === 'videos' ? scrollContainerRef : undefined}
+              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[116px]"
+            >
+              <div className="w-full pt-4 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                {/* Search Bar (Scrolling with page content) */}
+                <div className="relative group min-w-0 w-full mb-5">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+                  <input 
+                    type="text" 
+                    placeholder="Search institutions, people, groups..." 
+                    value={globalSearch}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setGlobalSearch(val);
+                      handleSearchUsers(val);
+                      if (val.trim()) setView('search');
+                    }}
+                    onFocus={() => {
+                      if (globalSearch) setView('search');
+                    }}
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                  />
+                </div>
+
                 <div className="mt-4">
                 <YoutubeBroadcasts
                   user={user}
@@ -29933,7 +29934,7 @@ function ExonaApp() {
         const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools'].includes(view);
         return (
           <main 
-            ref={scrollContainerRef}
+            ref={!isFixedLayoutView ? scrollContainerRef : undefined}
             className={`flex-1 ${isFixedLayoutView ? 'overflow-hidden flex flex-col h-full' : 'overflow-y-auto'} bg-card relative`}
             onScroll={(e) => {
               const currentScrollTop = e.currentTarget.scrollTop;
