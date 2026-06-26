@@ -2135,36 +2135,25 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               </button>
                             </div>
 
-                            {/* 🛒 Buy & Bag Actions (Right Aligned) */}
-                            <div className="flex items-center gap-1.5 ml-auto shrink-0">
-                              {/* Compact Shopping Bag button */}
-                              <button
-                                disabled={p.stock === 0}
-                                onClick={(e) => addToCart(p, e)}
-                                className="h-8 w-8 rounded-full bg-stone-50 hover:bg-stone-100 border border-stone-200/60 disabled:opacity-40 text-stone-600 flex items-center justify-center transition-all select-none cursor-pointer shrink-0 active:scale-95"
-                                title="Add to Bag"
-                              >
-                                <ShoppingBag size={14} />
-                              </button>
-
-                              {/* 🛒 Buy Button */}
-                              <button
-                                disabled={p.stock === 0}
-                                onClick={() => {
-                                  setCart([{ product: p, quantity: 1 }]);
-                                  setCheckoutPaymentMethod('standard');
-                                  setIsCheckoutOpen(true);
-                                  setCheckoutStep(1);
-                                }}
-                                className="px-4 py-1.5 bg-[#2481CC] hover:bg-[#1E71B3] active:scale-95 disabled:opacity-40 text-white rounded-full text-xs font-black uppercase tracking-wider transition-all select-none shadow-2xs cursor-pointer shrink-0 inline-flex items-center gap-1.5"
-                                title="Buy directly"
-                              >
-                                <ShoppingCart size={13} />
-                                <span>Buy</span>
-                                <span className="opacity-65">•</span>
-                                <span>{renderProductPrice(p.price, p.currency)}</span>
-                              </button>
-                            </div>
+                            {/* 🛒 Buy Action (Right Aligned) */}
+                            <button
+                              disabled={p.stock === 0}
+                              onClick={() => {
+                                setCart([{ product: p, quantity: 1 }]);
+                                setCheckoutPaymentMethod('standard');
+                                setIsCheckoutOpen(true);
+                                setCheckoutStep(1);
+                              }}
+                              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border transition-all text-[11px] font-bold select-none cursor-pointer active:scale-95 ml-auto ${
+                                p.stock === 0
+                                  ? 'bg-stone-100 text-stone-400 border-stone-200 cursor-not-allowed opacity-50'
+                                  : 'bg-[#2481CC] text-white border-[#2481CC] hover:bg-[#1E71B3]'
+                              }`}
+                              title="Buy directly"
+                            >
+                              <ShoppingCart size={13} />
+                              <span>Buy</span>
+                            </button>
 
                           </div>
 
