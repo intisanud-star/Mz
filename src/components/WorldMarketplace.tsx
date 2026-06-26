@@ -94,15 +94,14 @@ interface WorldMarketplaceProps {
   onUserClick: (profile: { uid: string, name: string, photo: string }) => void;
 }
 
-export const isInstagramUrl = (url?: string | null): boolean => {
-  if (!url) return false;
-  return /instagram\.com\/(reels?|p|tv)\//i.test(url) || /instagr\.am\/(reels?|p|tv)\//i.test(url);
-};
-
 export const getCleanVideoSrc = (url?: string | null): string => {
   if (!url) return '';
   const clean = url.trim();
   if (clean.startsWith('/uploads/') || clean.startsWith('/api/proxy-video')) return clean;
+  // Use proxy-video only for Instagram, as it might have a fallback
+  if (/instagram\.com\/(reels?|p|tv)\//i.test(clean) || /instagr\.am\/(reels?|p|tv)\//i.test(clean)) {
+    return `/api/proxy-video?url=${encodeURIComponent(clean)}`;
+  }
   return clean;
 };
 
@@ -191,26 +190,48 @@ export const FeedVideoPlayer: React.FC<{
   if (ytMatch && ytMatch[1]) {
     return (
       <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
-        <iframe
-          src={`https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=${controls ? 1 : 0}`}
-          className={className}
-          allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-          allowFullScreen
-        />
+        {/* Scale 1.35 and overflow hidden to crop out YouTube watermarks and titles */}
+        <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ transform: 'scale(1.35)' }}>
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${ytMatch[1]}&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&fs=0&playsinline=1`}
+            className="w-full h-full border-none"
+            allow="autoplay; encrypted-media; picture-in-picture"
+          />
+        </div>
+        {/* Transparent overlay to block clicks on the iframe to prevent taking users to youtube */}
+        <div className="absolute inset-0 w-full h-full z-10 bg-transparent" />
+        
+        {/* Custom Mute/Unmute Button Overlay */}
+        {!controls && (
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleMute();
+              showNotification("YouTube audio cannot be toggled via custom controls. Please upload an MP4 directly for native audio.", "error");
+            }}
+            className="absolute bottom-2.5 right-2.5 bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md text-white px-2.5 py-1.5 rounded-full border border-white/20 z-20 select-none flex items-center gap-1 text-[10px] font-bold shadow pointer-events-auto"
+          >
+            <span>{isMuted ? "🔇 Muted" : "🔊 Sound"}</span>
+          </button>
+        )}
       </div>
     );
   }
 
   // TikTok detection
-  const ttMatch = src.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i);
+  const ttMatch = src.match(/tiktok\.com\/@?[^\/]+\/video\/(\d+)/i) || src.match(/tiktok\.com\/.*video\/(\d+)/i);
   if (ttMatch && ttMatch[1]) {
     return (
       <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
-        <iframe
-          src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}?lang=en`}
-          className={className}
-          allow="autoplay; fullscreen"
-        />
+        <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ transform: 'scale(1.05)' }}>
+          <iframe
+            src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}?lang=en`}
+            className="w-full h-full border-none"
+            allow="autoplay; fullscreen"
+          />
+        </div>
+        <div className="absolute inset-0 w-full h-full z-10 bg-transparent" />
       </div>
     );
   }
@@ -220,12 +241,14 @@ export const FeedVideoPlayer: React.FC<{
   if (igMatch && igMatch[1]) {
     return (
       <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
-        <iframe
-          src={`https://www.instagram.com/p/${igMatch[1]}/embed`}
-          className={className}
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-        />
+        <div className="absolute inset-0 w-full h-full pointer-events-none" style={{ transform: 'scale(1.05)' }}>
+          <iframe
+            src={`https://www.instagram.com/p/${igMatch[1]}/embed`}
+            className="w-full h-full border-none"
+            allow="autoplay; encrypted-media"
+          />
+        </div>
+        <div className="absolute inset-0 w-full h-full z-10 bg-transparent" />
       </div>
     );
   }

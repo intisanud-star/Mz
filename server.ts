@@ -930,25 +930,21 @@ async function startServer() {
 
       let directVideoUrl = '';
 
-      if (rawUrl.includes('instagram.com') || rawUrl.includes('instagr.am')) {
-        const match = rawUrl.match(/(?:reels?|p|tv)\/([^/?#&]+)/i);
-        const shortcode = match ? match[1] : '';
-        if (shortcode) {
-          try {
-            const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
-              url: `https://www.instagram.com/reel/${shortcode}/`,
-            }, {
-              headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-              timeout: 10000
-            });
-            if (cobRes.data?.url) {
-              directVideoUrl = cobRes.data.url;
-            } else if (cobRes.data?.picker?.[0]?.url) {
-              directVideoUrl = cobRes.data.picker[0].url;
-            }
-          } catch (e: any) {
-            console.warn('Cobalt API fallback trigger:', e.message);
+      if (rawUrl.includes('instagram.com') || rawUrl.includes('instagr.am') || rawUrl.includes('youtube.com') || rawUrl.includes('youtu.be') || rawUrl.includes('tiktok.com')) {
+        try {
+          const cobRes = await axios.post('https://api.cobalt.tools/api/json', {
+            url: rawUrl,
+          }, {
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+            timeout: 10000
+          });
+          if (cobRes.data?.url) {
+            directVideoUrl = cobRes.data.url;
+          } else if (cobRes.data?.picker?.[0]?.url) {
+            directVideoUrl = cobRes.data.picker[0].url;
           }
+        } catch (e: any) {
+          console.warn('Cobalt API fallback trigger:', e.message);
         }
       } else {
         directVideoUrl = rawUrl;
