@@ -114,7 +114,8 @@ export const FeedVideoPlayer: React.FC<{
   className?: string;
   controls?: boolean;
   badgeText?: string;
-}> = ({ src, className = "w-full h-full object-cover", controls = false, badgeText = "Reel • Video" }) => {
+  showNotification?: (msg: string, type: 'success' | 'error' | 'info') => void;
+}> = ({ src, className = "w-full h-full object-cover", controls = false, badgeText = "Reel • Video", showNotification }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
@@ -205,10 +206,10 @@ export const FeedVideoPlayer: React.FC<{
         {!controls && (
           <button
             onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleMute();
-              showNotification("YouTube audio cannot be toggled via custom controls. Please upload an MP4 directly for native audio.", "error");
+              toggleMute(e);
+              if (showNotification) {
+                showNotification("YouTube audio cannot be toggled via custom controls. Please upload an MP4 directly for native audio.", "error");
+              }
             }}
             className="absolute bottom-2.5 right-2.5 bg-stone-900/85 hover:bg-stone-800 backdrop-blur-md text-white px-2.5 py-1.5 rounded-full border border-white/20 z-20 select-none flex items-center gap-1 text-[10px] font-bold shadow pointer-events-auto"
           >
@@ -1962,9 +1963,47 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               )}
                             </div>
 
-                            <span className="text-[10px] text-stone-400 font-medium select-none">
-                              2h
-                            </span>
+                            <div className="flex items-center gap-2 select-none">
+                              <span className="text-[10px] text-stone-400 font-medium select-none">
+                                2h
+                              </span>
+                              
+                              <span className="text-stone-200 text-[10px]">•</span>
+
+                              {/* Secondary Actions (Repost, Edit, Delete) to avoid cluttering bottom row */}
+                              <div className="flex items-center gap-1 bg-stone-50 border border-stone-200/40 rounded-full px-2 py-0.5 shadow-3xs">
+                                {/* Repost */}
+                                <button 
+                                  onClick={() => handleResharePost(p.id, p.name)}
+                                  className="text-stone-400 hover:text-[#2481CC] p-0.5 cursor-pointer transition-colors"
+                                  title="Forward catalog post"
+                                >
+                                  <Repeat size={12} className={getProductResharesCount(p.id) > 0 ? 'text-[#2481CC]' : 'text-stone-400'} />
+                                </button>
+
+                                {/* Edit/Modify button (Admins or product author) */}
+                                {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
+                                  <button 
+                                    onClick={() => startEditingProduct(p)}
+                                    className="text-stone-450 hover:text-blue-600 p-0.5 cursor-pointer transition-colors"
+                                    title="Edit/Modify posting"
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
+                                )}
+
+                                {/* Delete button (Admins or product author) */}
+                                {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
+                                  <button 
+                                    onClick={() => handleDeleteProduct(p.id, p.name)}
+                                    className="text-stone-455 hover:text-red-500 p-0.5 cursor-pointer transition-colors"
+                                    title="Delete posting"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
 
                           {/* Category Tag Header */}
@@ -1998,6 +2037,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             {p.videoUrl ? (
                               <FeedVideoPlayer
                                 src={p.videoUrl}
+                                showNotification={showNotification}
                                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102 pointer-events-none"
                               />
                             ) : (
@@ -2050,76 +2090,64 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             </span>
                           </div>
 
-                          {/* Dynamic Threads Action Row & Shopping Integration (Very close icons & compact Buy button) */}
-                          <div className="mt-2.5 pt-1.5 flex items-center justify-between gap-2 w-full flex-wrap sm:flex-nowrap">
+                          {/* Dynamic Threads Action Row & Shopping Integration (Simplified: Like, Chat, Buy) */}
+                          <div className="mt-3 pt-2.5 border-t border-stone-100/60 flex items-center justify-between gap-2.5 w-full">
                             
-                            {/* Standard Threads Social Action Icons placed very close to each other */}
-                            <div className="flex items-center gap-2 sm:gap-3 select-none text-stone-500 shrink-0">
+                            {/* Primary Social Actions: Like & Chat as clean, intuitive pill buttons */}
+                            <div className="flex items-center gap-2 select-none shrink-0">
                               
-                              {/* Love/Wishlist standard toggle */}
+                              {/* ❤️ Like Pill Button */}
                               <button 
                                 onClick={() => toggleHeartPost(p.id)}
-                                className="group flex items-center gap-1 hover:text-rose-500 transition-colors p-1 cursor-pointer"
-                                title="Like / Save to wishlist"
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[11px] font-bold select-none cursor-pointer active:scale-95 ${
+                                  hasHeart 
+                                    ? 'bg-rose-50 text-rose-600 border-rose-200/60 hover:bg-rose-100/50' 
+                                    : 'bg-stone-50 text-stone-600 border-stone-200/60 hover:bg-stone-100'
+                                }`}
+                                title="Like posting"
                               >
-                                <Heart size={18} className={hasHeart ? 'fill-rose-500 text-rose-500' : 'text-stone-400'} />
-                                <span className="text-[10px] font-extrabold text-stone-600">{likesCount}</span>
+                                <Heart size={13} className={hasHeart ? 'fill-rose-500 text-rose-500' : 'text-stone-400'} />
+                                <span>Like</span>
+                                {likesCount > 0 && (
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${hasHeart ? 'bg-rose-100 text-rose-700' : 'bg-stone-200/60 text-stone-700'}`}>
+                                    {likesCount}
+                                  </span>
+                                )}
                               </button>
 
-                              {/* Discussion Toggle */}
+                              {/* 💬 Chat Pill Button */}
                               <button 
                                 onClick={() => setExpandedReviews(prev => ({ ...prev, [p.id]: !isExpanded }))}
-                                className="group flex items-center gap-1 hover:text-stone-900 transition-colors p-1 cursor-pointer"
-                                title="Inquire / Discuss"
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[11px] font-bold select-none cursor-pointer active:scale-95 ${
+                                  isExpanded
+                                    ? 'bg-stone-900 text-white border-stone-900 hover:bg-stone-800'
+                                    : 'bg-stone-50 text-stone-600 border-stone-200/60 hover:bg-stone-100'
+                                }`}
+                                title="Chat / Open Discussion"
                               >
-                                <MessageCircle size={18} className={isExpanded ? 'text-stone-950' : 'text-stone-400'} />
-                                <span className="text-[10px] font-extrabold text-stone-600">{comments.length}</span>
+                                <MessageCircle size={13} className={isExpanded ? 'text-white' : 'text-stone-400'} />
+                                <span>Chat</span>
+                                {comments.length > 0 && (
+                                  <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${isExpanded ? 'bg-stone-800 text-stone-200' : 'bg-stone-200/60 text-stone-700'}`}>
+                                    {comments.length}
+                                  </span>
+                                )}
                               </button>
-
-                              {/* Dispatch / Forward Share */}
-                              <button 
-                                onClick={() => handleResharePost(p.id, p.name)}
-                                className="group flex items-center gap-1 hover:text-blue-500 transition-colors p-1 cursor-pointer"
-                                title="Forward catalog post"
-                              >
-                                <Repeat size={17} className={getProductResharesCount(p.id) > 0 ? 'text-blue-500' : 'text-stone-400'} />
-                                <span className="text-[10px] font-extrabold text-stone-600">{getProductResharesCount(p.id)}</span>
-                              </button>
-
-                              {/* Edit/Modify button (Admins or product author) */}
-                              {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
-                                <button 
-                                  onClick={() => startEditingProduct(p)}
-                                  className="text-stone-350 hover:text-blue-500 p-1 cursor-pointer transition-colors"
-                                  title="Edit/Modify posting"
-                                >
-                                  <Edit2 size={15} />
-                                </button>
-                              )}
-
-                              {/* Delete button (Admins or product author) */}
-                              {(isAdmin || p.sellerId === (user?.uid || 'guest')) && (
-                                <button 
-                                  onClick={() => handleDeleteProduct(p.id, p.name)}
-                                  className="text-stone-350 hover:text-red-500 p-1 cursor-pointer transition-colors"
-                                  title="Delete posting"
-                                >
-                                  <Trash2 size={15} />
-                                </button>
-                              )}
                             </div>
 
-                            {/* Compact Buy button & bag button fitting easily in same row */}
+                            {/* 🛒 Buy & Bag Actions (Right Aligned) */}
                             <div className="flex items-center gap-1.5 ml-auto shrink-0">
+                              {/* Compact Shopping Bag button */}
                               <button
                                 disabled={p.stock === 0}
                                 onClick={(e) => addToCart(p, e)}
-                                className="h-7 w-7 rounded-full bg-stone-100 hover:bg-stone-200 border border-stone-200/80 disabled:opacity-40 text-stone-700 flex items-center justify-center transition-all select-none cursor-pointer shrink-0"
+                                className="h-8 w-8 rounded-full bg-stone-50 hover:bg-stone-100 border border-stone-200/60 disabled:opacity-40 text-stone-600 flex items-center justify-center transition-all select-none cursor-pointer shrink-0 active:scale-95"
                                 title="Add to Bag"
                               >
                                 <ShoppingBag size={14} />
                               </button>
 
+                              {/* 🛒 Buy Button */}
                               <button
                                 disabled={p.stock === 0}
                                 onClick={() => {
@@ -2128,10 +2156,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                   setIsCheckoutOpen(true);
                                   setCheckoutStep(1);
                                 }}
-                                className="px-3.5 py-1.5 bg-[#2481CC] hover:bg-[#1E71B3] active:scale-95 disabled:opacity-40 text-white rounded-full text-[10px] font-black uppercase tracking-wider transition-all select-none shadow-2xs cursor-pointer shrink-0 inline-flex items-center gap-1"
+                                className="px-4 py-1.5 bg-[#2481CC] hover:bg-[#1E71B3] active:scale-95 disabled:opacity-40 text-white rounded-full text-xs font-black uppercase tracking-wider transition-all select-none shadow-2xs cursor-pointer shrink-0 inline-flex items-center gap-1.5"
+                                title="Buy directly"
                               >
+                                <ShoppingCart size={13} />
                                 <span>Buy</span>
-                                <span>•</span>
+                                <span className="opacity-65">•</span>
                                 <span>{renderProductPrice(p.price, p.currency)}</span>
                               </button>
                             </div>
