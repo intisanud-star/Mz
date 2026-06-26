@@ -1968,35 +1968,39 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         <div className="flex-1 min-w-0 pr-1">
                           
                           {/* Seller Row */}
-                          <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                              <span 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (p.sellerId) {
-                                    onUserClick({ uid: p.sellerId, name: p.sellerName, photo: p.sellerPhoto || '' });
-                                  }
-                                }}
-                                className="text-xs font-black text-stone-950 hover:underline cursor-pointer tracking-tight"
-                              >
-                                {p.sellerName}
-                              </span>
-                              <BadgeCheck size={14} className="text-blue-500 fill-blue-500 shrink-0" />
-                              <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 select-none">
-                                <span>{p.countryFlag}</span> {p.originCountry}
-                              </span>
+                          <div className="flex items-start justify-between gap-1.5 flex-wrap">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex flex-col min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (p.sellerId) {
+                                        onUserClick({ uid: p.sellerId, name: p.sellerName, photo: p.sellerPhoto || '' });
+                                      }
+                                    }}
+                                    className="text-xs font-black text-stone-950 hover:underline cursor-pointer tracking-tight"
+                                  >
+                                    {p.sellerName}
+                                  </span>
+                                  <BadgeCheck size={14} className="text-blue-500 fill-blue-500 shrink-0" />
+                                </div>
+                                
+                                {/* Country name is below user name */}
+                                <div className="mt-1 flex items-center">
+                                  <span className="text-[9px] text-[#2481CC] font-bold uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shrink-0 select-none">
+                                    <span>{p.countryFlag}</span> {p.originCountry}
+                                  </span>
+                                </div>
+                              </div>
 
-                              {/* Follow Button */}
-                              {p.sellerId && p.sellerId !== (user?.uid || 'guest') && (
+                              {/* Follow Button: Only shown if NOT followed */}
+                              {p.sellerId && p.sellerId !== (user?.uid || 'guest') && !followedSellers.includes(p.sellerId) && (
                                 <button
                                   onClick={(e) => handleToggleFollow(p.sellerId!, p.sellerName || 'Vendor', e)}
-                                  className={`text-[8.5px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
-                                    followedSellers.includes(p.sellerId)
-                                      ? 'bg-stone-50 text-stone-450 border-stone-200 hover:bg-stone-100'
-                                      : 'bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3]'
-                                  }`}
+                                  className="text-[8.5px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all cursor-pointer select-none active:scale-95 bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3] shrink-0"
                                 >
-                                  {followedSellers.includes(p.sellerId) ? '✓ Following' : '+ Follow'}
+                                  + Follow
                                 </button>
                               )}
                             </div>
@@ -2421,16 +2425,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     </div>
 
                     {/* Follow button in details modal */}
-                    {selectedDetailedProduct.sellerId && selectedDetailedProduct.sellerId !== (user?.uid || 'guest') && (
+                    {selectedDetailedProduct.sellerId && selectedDetailedProduct.sellerId !== (user?.uid || 'guest') && !followedSellers.includes(selectedDetailedProduct.sellerId) && (
                       <button
                         onClick={(e) => handleToggleFollow(selectedDetailedProduct.sellerId!, selectedDetailedProduct.sellerName || 'Vendor', e)}
-                        className={`text-[9px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full border transition-all cursor-pointer select-none active:scale-95 ${
-                          followedSellers.includes(selectedDetailedProduct.sellerId)
-                            ? 'bg-stone-50 text-stone-450 border-stone-200 hover:bg-stone-100'
-                            : 'bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3]'
-                        }`}
+                        className="text-[9px] font-extrabold uppercase tracking-widest px-3 py-1 rounded-full border transition-all cursor-pointer select-none active:scale-95 bg-[#2481CC] text-white border-transparent hover:bg-[#1E71B3]"
                       >
-                        {followedSellers.includes(selectedDetailedProduct.sellerId) ? '✓ Following' : '+ Follow'}
+                        + Follow
                       </button>
                     )}
                   </div>

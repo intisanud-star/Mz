@@ -8189,6 +8189,14 @@ function ExonaApp() {
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
   const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
   const [showProfileSettings, setShowProfileSettings] = useState(false);
+  const [settingsDisplayName, setSettingsDisplayName] = useState('');
+  const [isSavingSettingsName, setIsSavingSettingsName] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setSettingsDisplayName(user.displayName || '');
+    }
+  }, [user, showProfileSettings]);
   const [profileActiveTab, setProfileActiveTab] = useState<'broadcasts' | 'wealth' | 'institutions' | 'shop'>('broadcasts');
   const [userProfileTab, setUserProfileTab] = useState<'broadcasts' | 'shop'>('broadcasts');
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
@@ -11647,6 +11655,27 @@ function ExonaApp() {
     } catch (error) {
       console.error('Error updating profile:', error);
       showNotification('Failed to update profile', 'error');
+    }
+  };
+
+  const handleSaveSettingsName = async () => {
+    if (!user) return;
+    if (!settingsDisplayName.trim()) {
+      showNotification('Name cannot be empty', 'error');
+      return;
+    }
+    setIsSavingSettingsName(true);
+    try {
+      await updateProfile(user, { displayName: settingsDisplayName.trim() });
+      await setDoc(doc(db, 'users', user.uid), {
+        displayName: settingsDisplayName.trim()
+      }, { merge: true });
+      showNotification('Display name updated in settings');
+    } catch (error) {
+      console.error('Error saving settings name:', error);
+      showNotification('Failed to update name', 'error');
+    } finally {
+      setIsSavingSettingsName(false);
     }
   };
 
@@ -26657,6 +26686,32 @@ function ExonaApp() {
                   </div>
                 </section>
 
+                {/* Profile Name Settings */}
+                <section>
+                  <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Profile Details</h3>
+                  <div className="bg-white border border-gray-100 rounded-[2rem] p-6 space-y-4 shadow-sm">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-muted uppercase tracking-widest block">Change Display Name</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text" 
+                          value={settingsDisplayName}
+                          onChange={(e) => setSettingsDisplayName(e.target.value)}
+                          className="flex-1 text-sm font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-accent/20 transition-all"
+                          placeholder="Your display name..."
+                        />
+                        <button
+                          onClick={handleSaveSettingsName}
+                          disabled={isSavingSettingsName}
+                          className="px-5 py-2.5 bg-[#2481CC] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#1E71B3] transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
+                        >
+                          {isSavingSettingsName ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+
                 {/* Workspace Settings */}
                 <section>
                   <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
@@ -26780,18 +26835,44 @@ function ExonaApp() {
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: 10 }}
-                          className="space-y-2"
+                          className="space-y-4 w-full bg-gray-50/50 p-5 rounded-3xl border border-gray-100"
                         >
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest">Display Name</label>
-                          <label className="text-[10px] font-bold text-muted uppercase tracking-widest mt-4">Bio / Shop Description</label>
-                          <input 
-                            type="text" 
-                            value={editingProfile.displayName}
-                            onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
-                            className="text-xl font-bold text-ink bg-gray-50 border border-gray-100 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all"
-                            placeholder="Your name..."
-                            autoFocus
-                          />
+                          <div>
+                            <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">Display Name</label>
+                            <input 
+                              type="text" 
+                              value={editingProfile.displayName}
+                              onChange={(e) => setEditingProfile({...editingProfile, displayName: e.target.value})}
+                              className="text-sm font-bold text-ink bg-white border border-gray-200 outline-none rounded-xl px-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all shadow-sm"
+                              placeholder="Your name..."
+                              autoFocus
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">About Me / Description</label>
+                            <textarea 
+                              value={editingProfile.bio}
+                              onChange={(e) => setEditingProfile({...editingProfile, bio: e.target.value})}
+                              className="text-sm font-semibold text-ink bg-white border border-gray-200 outline-none rounded-xl px-4 py-2 w-full h-24 resize-none focus:bg-white focus:border-accent/20 transition-all shadow-sm"
+                              placeholder="Add a bio or description about yourself..."
+                            />
+                          </div>
+
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={handleUpdateProfile}
+                              className="flex-1 py-2.5 bg-[#2481CC] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#1E71B3] transition-all cursor-pointer text-center active:scale-95"
+                            >
+                              Save Changes
+                            </button>
+                            <button
+                              onClick={() => setIsEditingProfileInline(false)}
+                              className="flex-1 py-2.5 bg-gray-200 text-stone-600 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-gray-300 transition-all cursor-pointer text-center active:scale-95"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </motion.div>
                       ) : (
                         <motion.div
@@ -26801,7 +26882,22 @@ function ExonaApp() {
                           exit={{ opacity: 0, y: -10 }}
                         >
                           <h2 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2 tracking-tight">{user.displayName}</h2>
-                           {userDoc?.bio && <p className="text-sm text-muted mb-4">{userDoc.bio}</p>}
+                          {userDoc?.bio ? (
+                            <p className="text-sm text-muted mb-4 font-semibold leading-relaxed">{userDoc.bio}</p>
+                          ) : (
+                            <p className="text-xs text-stone-400 italic mb-4 font-medium">No description added yet.</p>
+                          )}
+                          
+                          <div className="flex items-center gap-2.5 flex-wrap mb-4">
+                            <button
+                              onClick={handleEditProfile}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-150 rounded-full text-zinc-600 text-[11px] font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-sm"
+                            >
+                              <Pencil size={11} />
+                              Edit Profile / Bio
+                            </button>
+                          </div>
+
                           <div className="flex items-center gap-2.5 flex-wrap">
                             <p className="text-ink text-[16px] font-semibold">{user.email?.split('@')[0]}</p>
                             <span className="px-2.5 py-0.5 bg-gray-50 border border-gray-150 rounded-full text-zinc-500 text-[12px] font-bold">institutional portal</span>
@@ -27264,6 +27360,14 @@ function ExonaApp() {
             >
               {isAuthenticating && <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
               {authMode === 'signin' ? (isAuthenticating ? 'Authorizing...' : 'Sign In') : (isAuthenticating ? 'Creating Account...' : 'Create Account')}
+            </button>
+
+            <button 
+              onClick={handleGoogleSignIn}
+              className="w-full py-4 bg-white border border-gray-200 hover:bg-gray-50 text-stone-700 rounded-2xl font-bold text-sm transition-all mb-4 active:scale-[0.98] flex items-center justify-center gap-3 shadow-sm cursor-pointer"
+            >
+              <Chrome size={18} className="text-[#EA4335]" />
+              Continue with Google
             </button>
 
             <div className="w-full flex items-center gap-4 mb-4">
