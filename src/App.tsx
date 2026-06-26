@@ -14919,6 +14919,9 @@ function ExonaApp() {
                 handleDebitExcoin={handleDebitExcoin}
                 onScrollHideNav={setHideBottomNavInShop}
                 onUserClick={handleUserClick}
+                onNotificationClick={() => setView(user ? 'notifications' : 'login')}
+                onMenuClick={() => setSidebarOpen(true)}
+                unreadNotificationsCount={unreadNotificationsCount}
               />
             </div>
           </div>

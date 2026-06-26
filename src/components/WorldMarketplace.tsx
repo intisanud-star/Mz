@@ -22,6 +22,8 @@ import {
   CreditCard, 
   AlertCircle, 
   Clock, 
+  Bell,
+  MoreVertical, 
   MessageCircle,
   Heart,
   Repeat,
@@ -92,6 +94,9 @@ interface WorldMarketplaceProps {
   handleDebitExcoin?: (amount: number, description: string) => Promise<boolean>;
   onScrollHideNav?: (hide: boolean) => void;
   onUserClick: (profile: { uid: string, name: string, photo: string }) => void;
+  onNotificationClick?: () => void;
+  onMenuClick?: () => void;
+  unreadNotificationsCount?: number;
 }
 
 export const getCleanVideoSrc = (url?: string | null): string => {
@@ -441,7 +446,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   excoinBalance = 0,
   handleDebitExcoin,
   onScrollHideNav,
-  onUserClick
+  onUserClick,
+  onNotificationClick,
+  onMenuClick,
+  unreadNotificationsCount = 0
 }) => {
   const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
   const [products, setProducts] = useState<Product[]>([]);
@@ -1518,8 +1526,15 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           <div className="flex items-center justify-between gap-4">
             {/* Left Side: Brand Wordmark Logo */}
             <div className="flex items-center gap-2.5">
-              <h1 className="font-sans text-[24px] font-black tracking-tight text-stone-950 select-none cursor-pointer">
-                Exona
+              <h1 
+                onClick={() => {
+                  setActiveMarketView('browse');
+                  setSelectedCategory('ALL');
+                  setSearchQuery('');
+                }}
+                className="font-sans text-[23px] font-extrabold tracking-tight text-[#2481CC] select-none cursor-pointer"
+              >
+                ExonaApp
               </h1>
               
               {/* Super compact Currency Dropdown */}
@@ -1538,7 +1553,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             </div>
 
             {/* Right Side: Clean Instagram Action Row */}
-            <div className="flex items-center gap-4.5">
+            <div className="flex items-center gap-4">
               {/* Search Toggle Button */}
               <button 
                 onClick={() => setShowSearchBar(!showSearchBar)}
@@ -1602,6 +1617,29 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                     {cart.reduce((total, item) => total + item.quantity, 0)}
                   </span>
                 )}
+              </button>
+
+              {/* 🔔 Notification Bell Button */}
+              <button 
+                onClick={onNotificationClick}
+                className="relative p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
+                title="Notifications"
+              >
+                <Bell size={21} className="stroke-[2px]" />
+                {unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
+                    {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* ☰ Side Plane (Menu) Button */}
+              <button 
+                onClick={onMenuClick}
+                className="p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
+                title="Menu"
+              >
+                <MoreVertical size={21} className="stroke-[2px]" />
               </button>
             </div>
           </div>
