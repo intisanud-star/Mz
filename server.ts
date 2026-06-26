@@ -806,7 +806,48 @@ async function startServer() {
   }
   app.use('/uploads', express.static(uploadsDir));
 
-  // Live media HTTP Upload endpoint with real binary streaming
+  // Live media HTTP chunked upload endpoint to bypass 1MB Nginx limit
+  app.post('/api/upload-chunk', upload.single('file'), (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'No chunk received' });
+      }
+
+      const { fileId, chunkIndex, totalChunks, fileName } = req.body;
+      const chunkFile = req.file;
+
+      const tempFilePath = path.join(uploadsDir, `${fileId}.temp`);
+      
+      // Append chunk to temp file
+      const chunkData = fs.readFileSync(chunkFile.path);
+      fs.appendFileSync(tempFilePath, chunkData);
+      
+      // Remove the multer temp file
+      try {
+        fs.unlinkSync(chunkFile.path);
+      } catch (e) {}
+
+      if (parseInt(chunkIndex) === parseInt(totalChunks) - 1) {
+        // Last chunk, rename temp file to final file
+        const ext = path.extname(fileName) || '.mp4';
+        const finalFilename = `${fileId}${ext}`;
+        const finalPath = path.join(uploadsDir, finalFilename);
+        
+        fs.renameSync(tempFilePath, finalPath);
+        
+        const url = `/uploads/${finalFilename}`;
+        console.log(`Live media chunked upload success: ${url}`);
+        return res.json({ success: true, url, filename: finalFilename });
+      } else {
+        return res.json({ success: true, message: `Chunk ${chunkIndex} received` });
+      }
+    } catch (err: any) {
+      console.error('Error during chunked upload:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Legacy full upload endpoint (might hit Nginx limit)
   app.post('/api/upload-media', upload.single('file'), (req: any, res) => {
     try {
       if (!req.file) {
