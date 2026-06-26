@@ -103,9 +103,6 @@ export const getCleanVideoSrc = (url?: string | null): string => {
   if (!url) return '';
   const clean = url.trim();
   if (clean.startsWith('/uploads/') || clean.startsWith('/api/proxy-video')) return clean;
-  if (isInstagramUrl(clean)) {
-    return `/api/proxy-video?url=${encodeURIComponent(clean)}`;
-  }
   return clean;
 };
 
@@ -213,6 +210,21 @@ export const FeedVideoPlayer: React.FC<{
           src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}?lang=en`}
           className={className}
           allow="autoplay; fullscreen"
+        />
+      </div>
+    );
+  }
+
+  // Instagram detection
+  const igMatch = src.match(/(?:instagram\.com|instagr\.am)\/(?:reels?|p|tv)\/([^/?#&]+)/i);
+  if (igMatch && igMatch[1]) {
+    return (
+      <div className="relative w-full h-full overflow-hidden bg-black flex items-center justify-center">
+        <iframe
+          src={`https://www.instagram.com/p/${igMatch[1]}/embed`}
+          className={className}
+          allow="autoplay; encrypted-media"
+          allowFullScreen
         />
       </div>
     );
@@ -1030,15 +1042,24 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           const liveUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
           const videoEl = document.createElement('video');
-          videoEl.src = liveUrl;
           videoEl.crossOrigin = 'anonymous';
-          videoEl.currentTime = 0.1;
+          videoEl.muted = true;
+          videoEl.playsInline = true;
+
+          let hasFired = false;
+          const finalizeVideo = () => {
+            if (hasFired) return;
+            hasFired = true;
+            setNewProductVideo(liveUrl);
+            setIsUploadingVideo(false);
+            setVideoUploadPercent(0);
+            showNotification("Live video uploaded successfully!", "success");
+          };
+
+          // Fallback if video takes too long to load metadata
+          setTimeout(finalizeVideo, 2500);
+
           videoEl.onloadeddata = () => {
-            if (videoEl.duration > 30) {
-              showNotification("✂️ Video exceeds 30s. Automatically trimmed to 30s loop.", "info");
-            } else {
-              showNotification("Live video Reel uploaded successfully!", "success");
-            }
             try {
               const canvas = document.createElement('canvas');
               canvas.width = Math.min(videoEl.videoWidth || 400, 500);
@@ -1052,16 +1073,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             } catch (err) {
               console.warn("Could not generate video thumb:", err);
             }
-            setNewProductVideo(liveUrl);
-            setIsUploadingVideo(false);
-            setVideoUploadPercent(0);
+            finalizeVideo();
           };
-          videoEl.onerror = () => {
-            setNewProductVideo(liveUrl);
-            setIsUploadingVideo(false);
-            setVideoUploadPercent(0);
-            showNotification("Live video uploaded successfully!", "success");
-          };
+          
+          videoEl.onerror = finalizeVideo;
+          videoEl.src = liveUrl;
+          videoEl.currentTime = 0.1;
         } catch (err) {
           showNotification("Error parsing live upload response.", "error");
           setIsUploadingVideo(false);

@@ -1,14 +1,24 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Product, FeedVideoPlayer } from './WorldMarketplace';
-import { Package, X } from 'lucide-react';
+import { Package, X, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, onCountUpdate?: (count: number) => void }) => {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<Product | null>(null);
+  const feedContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedItem) {
+      setTimeout(() => {
+        const el = document.getElementById(`feed-item-${selectedItem.id}`);
+        if (el) el.scrollIntoView({ behavior: 'auto' });
+      }, 100);
+    }
+  }, [selectedItem]);
 
   useEffect(() => {
     if (!userId) return;
@@ -103,69 +113,77 @@ export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, on
       {/* Selected Item Modal / Feed View */}
       <AnimatePresence>
         {selectedItem && (
-          <div className="fixed inset-0 bg-stone-950/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4">
-            <div className="absolute inset-0 cursor-pointer" onClick={() => setSelectedItem(null)} />
-            
+          <div className="fixed inset-0 bg-stone-950 z-[250] flex flex-col md:p-4">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl flex flex-col border border-stone-150 relative z-10 max-h-[85vh] sm:max-h-[90vh]"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white md:rounded-[2rem] w-full h-full md:max-w-xl md:mx-auto overflow-hidden shadow-2xl flex flex-col relative"
             >
-              <button 
-                onClick={() => setSelectedItem(null)}
-                className="absolute top-3 right-3 h-8 w-8 bg-black/40 hover:bg-black/60 rounded-full text-white flex items-center justify-center transition-colors cursor-pointer z-20"
-              >
-                <X size={16} />
-              </button>
-
-              <div className="overflow-y-auto w-full max-h-full">
-                {/* Media */}
-                <div className="w-full bg-stone-50 border-b border-stone-100 flex flex-col justify-between relative overflow-hidden group/gallery">
-                  {selectedItem.videoUrl ? (
-                    <FeedVideoPlayer src={selectedItem.videoUrl} className="w-full aspect-[4/5] object-contain bg-black" controls={true} autoPlay={true} />
-                  ) : (
-                    <img src={selectedItem.imageUrl} className="w-full aspect-[4/5] object-contain bg-black" referrerPolicy="no-referrer" alt={selectedItem.name} />
-                  )}
-                  
-                  <div className="absolute bottom-3 left-3 flex gap-2">
-                    {selectedItem.featured && (
-                      <div className="bg-rose-500/90 backdrop-blur text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm">
-                        Verified Deal
-                      </div>
-                    )}
-                    <div className="bg-stone-900/80 backdrop-blur text-white px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest shadow-sm flex items-center gap-1">
-                      <span>{selectedItem.countryFlag}</span>
-                      <span>{selectedItem.originCountry}</span>
-                    </div>
-                  </div>
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 border-b border-stone-150 sticky top-0 bg-white/90 backdrop-blur z-20">
+                <button 
+                  onClick={() => setSelectedItem(null)}
+                  className="p-2 -ml-1 text-stone-900 hover:bg-stone-100 rounded-full transition-colors"
+                >
+                  <ArrowLeft size={22} />
+                </button>
+                <div className="flex flex-col items-center">
+                  <h3 className="font-bold text-stone-900 text-[13px] uppercase tracking-widest">Posts</h3>
                 </div>
+                <div className="w-9" />
+              </div>
 
-                {/* Content */}
-                <div className="p-5">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-[10px] font-black text-[#2481CC] uppercase tracking-widest mb-1">{selectedItem.category}</p>
-                      <h3 className="text-xl font-black text-stone-900 leading-tight pr-4">{selectedItem.name}</h3>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xl font-black text-emerald-600 font-sans">
-                        {selectedItem.price > 0 ? (
-                           (selectedItem as any).currency ? `${(selectedItem as any).currency === 'USD' ? '$' : (selectedItem as any).currency === 'NGN' ? '₦' : (selectedItem as any).currency === 'EUR' ? '€' : (selectedItem as any).currency === 'GBP' ? '£' : (selectedItem as any).currency === 'EXC' ? '🪙' : ''}${selectedItem.price.toLocaleString()}` : `$${selectedItem.price.toLocaleString()}`
-                        ) : 'Free'}
-                      </p>
-                    </div>
-                  </div>
+              {/* Scrollable Feed */}
+              <div className="overflow-y-auto w-full h-full bg-stone-100 flex flex-col" ref={feedContainerRef}>
+                {items.map((item) => {
+                  const displayPrice = item.price > 0 ? (
+                    (item as any).currency ? `${(item as any).currency === 'USD' ? '$' : (item as any).currency === 'NGN' ? '₦' : (item as any).currency === 'EUR' ? '€' : (item as any).currency === 'GBP' ? '£' : (item as any).currency === 'EXC' ? '🪙' : ''}${item.price.toLocaleString()}` : `$${item.price.toLocaleString()}`
+                  ) : 'Free';
 
-                  {selectedItem.description && (
-                    <div className="mt-4 pb-4">
-                      <h4 className="text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">Details</h4>
-                      <p className="text-sm text-stone-600 leading-relaxed font-medium whitespace-pre-wrap">
-                        {selectedItem.description}
-                      </p>
+                  return (
+                    <div key={item.id} id={`feed-item-${item.id}`} className="w-full bg-white mb-2 border-b border-stone-200">
+                       {/* Post header */}
+                       <div className="flex items-center p-3 gap-3">
+                         <div className="h-9 w-9 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center font-black text-xs text-stone-500 overflow-hidden">
+                            {(item as any).sellerPhoto ? (
+                              <img src={(item as any).sellerPhoto} className="w-full h-full object-cover" />
+                            ) : (
+                              (item as any).sellerName?.[0] || 'S'
+                            )}
+                         </div>
+                         <div className="flex-1">
+                           <p className="text-xs font-bold text-stone-900">{(item as any).sellerName || 'Seller'}</p>
+                           <p className="text-[10px] text-stone-500 flex items-center gap-1 mt-0.5">
+                             <span>{item.countryFlag}</span>
+                             <span>{item.originCountry}</span>
+                           </p>
+                         </div>
+                       </div>
+
+                       {/* Media */}
+                       <div className="w-full bg-black aspect-square md:aspect-[4/5] flex items-center justify-center relative">
+                          {item.videoUrl ? (
+                            <FeedVideoPlayer src={item.videoUrl} className="w-full h-full object-contain" controls={true} badgeText="Video" />
+                          ) : (
+                            <img src={item.imageUrl} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={item.name} />
+                          )}
+                       </div>
+
+                       {/* Footer / Info */}
+                       <div className="p-4">
+                         <div className="flex items-center justify-between mb-2">
+                            <p className="text-[11px] font-black text-[#2481CC] uppercase tracking-widest">{item.category}</p>
+                            <p className="text-lg font-black text-emerald-600 font-sans">{displayPrice}</p>
+                         </div>
+                         <p className="font-bold text-[14px] text-stone-900 leading-snug">{item.name}</p>
+                         {item.description && (
+                           <p className="text-xs text-stone-700 mt-2 leading-relaxed whitespace-pre-wrap">{item.description}</p>
+                         )}
+                       </div>
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             </motion.div>
           </div>
