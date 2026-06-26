@@ -30322,7 +30322,12 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <Home size={23} className={view === 'feed' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'feed' ? 2.5 : 2.2} />
+                  <Home 
+                    size={23} 
+                    fill={view === 'feed' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'feed' ? 0.15 : 0} 
+                    strokeWidth={view === 'feed' ? 2.4 : 2.0} 
+                  />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
@@ -30340,7 +30345,12 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <ShoppingBag size={23} className={view === 'schools' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'schools' ? 2.5 : 2.2} />
+                  <ShoppingBag 
+                    size={23} 
+                    fill={view === 'schools' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'schools' ? 0.15 : 0} 
+                    strokeWidth={view === 'schools' ? 2.4 : 2.0} 
+                  />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
@@ -30356,15 +30366,20 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 ${isMiddleMenuOpen ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                <div className={`transition-all duration-150 ${(isMiddleMenuOpen || view === 'workspace' || view === 'tools') ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
                   {isMiddleMenuOpen ? (
                     <X size={23} strokeWidth={2.8} />
                   ) : (
-                    <LayoutGrid size={23} className="group-active:fill-current fill-none" strokeWidth={2.2} />
+                    <LayoutGrid 
+                      size={23} 
+                      fill={(view === 'workspace' || view === 'tools') ? 'currentColor' : 'none'} 
+                      fillOpacity={(view === 'workspace' || view === 'tools') ? 0.15 : 0} 
+                      strokeWidth={(view === 'workspace' || view === 'tools') ? 2.4 : 2.0} 
+                    />
                   )}
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  isMiddleMenuOpen ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
+                  (isMiddleMenuOpen || view === 'workspace' || view === 'tools') ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
                   Hub
                 </span>
@@ -30379,7 +30394,12 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <Wallet size={23} className={view === 'finance' ? 'fill-current' : 'group-active:fill-current fill-none'} strokeWidth={view === 'finance' ? 2.5 : 2.2} />
+                  <Wallet 
+                    size={23} 
+                    fill={view === 'finance' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'finance' ? 0.15 : 0} 
+                    strokeWidth={view === 'finance' ? 2.4 : 2.0} 
+                  />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
                   view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
