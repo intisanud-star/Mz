@@ -1,11 +1,17 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Product, FeedVideoPlayer } from './WorldMarketplace';
-import { Package, X, ArrowLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useState, useRef } from "react";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase";
+import { Product, FeedVideoPlayer } from "./WorldMarketplace";
+import { Package, X, ArrowLeft, Heart, ShoppingCart } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
-export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, onCountUpdate?: (count: number) => void }) => {
+export const UserShopItemsTab = ({
+  userId,
+  onCountUpdate,
+}: {
+  userId: string;
+  onCountUpdate?: (count: number) => void;
+}) => {
   const [items, setItems] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<Product | null>(null);
@@ -15,41 +21,45 @@ export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, on
     if (selectedItem) {
       setTimeout(() => {
         const el = document.getElementById(`feed-item-${selectedItem.id}`);
-        if (el) el.scrollIntoView({ behavior: 'auto' });
+        if (el) el.scrollIntoView({ behavior: "auto" });
       }, 100);
     }
   }, [selectedItem]);
 
   useEffect(() => {
     if (!userId) return;
-    
+
     setLoading(true);
     const q = query(
-      collection(db, 'marketplace_products'),
-      where('sellerId', '==', userId)
+      collection(db, "marketplace_products"),
+      where("sellerId", "==", userId),
     );
-    
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const fetched: Product[] = [];
-      snap.forEach(doc => {
-        fetched.push({ id: doc.id, ...doc.data() } as Product);
-      });
-      
-      // Sort in memory by timestamp if available or just by name
-      fetched.sort((a: any, b: any) => {
-        if (b.timestamp && a.timestamp) {
-          return b.timestamp.seconds - a.timestamp.seconds;
-        }
-        return 0;
-      });
 
-      setItems(fetched);
-      if (onCountUpdate) onCountUpdate(fetched.length);
-      setLoading(false);
-    }, (err) => {
-      console.error("Error fetching user shop items:", err);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        const fetched: Product[] = [];
+        snap.forEach((doc) => {
+          fetched.push({ id: doc.id, ...doc.data() } as Product);
+        });
+
+        // Sort in memory by timestamp if available or just by name
+        fetched.sort((a: any, b: any) => {
+          if (b.timestamp && a.timestamp) {
+            return b.timestamp.seconds - a.timestamp.seconds;
+          }
+          return 0;
+        });
+
+        setItems(fetched);
+        if (onCountUpdate) onCountUpdate(fetched.length);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error fetching user shop items:", err);
+        setLoading(false);
+      },
+    );
 
     return () => unsubscribe();
   }, [userId, onCountUpdate]);
@@ -69,7 +79,9 @@ export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, on
           <Package size={28} />
         </div>
         <h3 className="text-sm font-bold text-ink">No Shop Items</h3>
-        <p className="text-xs text-muted mt-1 max-w-xs">This user has not listed any products in the marketplace yet.</p>
+        <p className="text-xs text-muted mt-1 max-w-xs">
+          This user has not listed any products in the marketplace yet.
+        </p>
       </div>
     );
   }
@@ -78,32 +90,56 @@ export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, on
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 md:gap-4 py-2">
         {items.map((product) => {
-          const displayPrice = product.price > 0 ? (
-             (product as any).currency ? `${(product as any).currency === 'USD' ? '$' : (product as any).currency === 'NGN' ? '₦' : (product as any).currency === 'EUR' ? '€' : (product as any).currency === 'GBP' ? '£' : (product as any).currency === 'EXC' ? '🪙' : ''}${product.price.toLocaleString()}` : `$${product.price.toLocaleString()}`
-          ) : 'Free';
-          
+          const displayPrice =
+            product.price > 0
+              ? (product as any).currency
+                ? `${(product as any).currency === "USD" ? "$" : (product as any).currency === "NGN" ? "₦" : (product as any).currency === "EUR" ? "€" : (product as any).currency === "GBP" ? "£" : (product as any).currency === "EXC" ? "🪙" : ""}${product.price.toLocaleString()}`
+                : `$${product.price.toLocaleString()}`
+              : "Free";
+
           return (
-            <div key={product.id} onClick={() => setSelectedItem(product)} className="group cursor-pointer bg-white border border-stone-100/70 hover:border-stone-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col active:scale-[0.98]">
+            <div
+              key={product.id}
+              onClick={() => setSelectedItem(product)}
+              className="group cursor-pointer bg-white border border-stone-100/70 hover:border-stone-200 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col active:scale-[0.98]"
+            >
               <div className="relative aspect-[4/5] bg-stone-50 overflow-hidden">
                 {product.videoUrl ? (
-                  <FeedVideoPlayer src={product.videoUrl} className="w-full h-full object-cover pointer-events-none" controls={false} />
+                  <FeedVideoPlayer
+                    src={product.videoUrl}
+                    className="w-full h-full object-cover pointer-events-none"
+                    controls={false}
+                  />
                 ) : (
-                  <img src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" referrerPolicy="no-referrer" alt={product.name} />
+                  <img
+                    src={product.imageUrl}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    referrerPolicy="no-referrer"
+                    alt={product.name}
+                  />
                 )}
-                
+
                 <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-[10px] font-black text-stone-800 shadow-sm">
                   {displayPrice}
                 </div>
-                
+
                 <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-stone-900/80 backdrop-blur-md px-1.5 py-0.5 rounded-md text-[8px] font-bold text-white tracking-widest uppercase shadow-sm">
-                  <span className="text-[10px] leading-none">{product.countryFlag}</span>
-                  <span className="truncate max-w-[60px]">{product.originCountry}</span>
+                  <span className="text-[10px] leading-none">
+                    {product.countryFlag}
+                  </span>
+                  <span className="truncate max-w-[60px]">
+                    {product.originCountry}
+                  </span>
                 </div>
               </div>
-              
+
               <div className="p-3 bg-white border-t border-stone-50/50 flex flex-col flex-1">
-                <p className="text-[9px] font-bold text-[#2481CC] uppercase tracking-[0.1em] mb-1 truncate">{product.category}</p>
-                <h3 className="font-bold text-xs sm:text-sm text-stone-800 leading-tight line-clamp-2 mb-1 flex-1 group-hover:text-stone-950">{product.name}</h3>
+                <p className="text-[9px] font-bold text-[#2481CC] uppercase tracking-[0.1em] mb-1 truncate">
+                  {product.category}
+                </p>
+                <h3 className="font-bold text-xs sm:text-sm text-stone-800 leading-tight line-clamp-2 mb-1 flex-1 group-hover:text-stone-950">
+                  {product.name}
+                </h3>
               </div>
             </div>
           );
@@ -122,65 +158,133 @@ export const UserShopItemsTab = ({ userId, onCountUpdate }: { userId: string, on
             >
               {/* Header */}
               <div className="flex items-center justify-between p-3 border-b border-stone-150 sticky top-0 bg-white/90 backdrop-blur z-20">
-                <button 
+                <button
                   onClick={() => setSelectedItem(null)}
                   className="p-2 -ml-1 text-stone-900 hover:bg-stone-100 rounded-full transition-colors"
                 >
                   <ArrowLeft size={22} />
                 </button>
                 <div className="flex flex-col items-center">
-                  <h3 className="font-bold text-stone-900 text-[13px] uppercase tracking-widest">Posts</h3>
+                  <h3 className="font-bold text-stone-900 text-[13px] uppercase tracking-widest">
+                    Posts
+                  </h3>
                 </div>
                 <div className="w-9" />
               </div>
 
               {/* Scrollable Feed */}
-              <div className="overflow-y-auto w-full h-full bg-stone-100 flex flex-col" ref={feedContainerRef}>
+              <div
+                className="overflow-y-auto w-full h-full bg-stone-100 flex flex-col"
+                ref={feedContainerRef}
+              >
                 {items.map((item) => {
-                  const displayPrice = item.price > 0 ? (
-                    (item as any).currency ? `${(item as any).currency === 'USD' ? '$' : (item as any).currency === 'NGN' ? '₦' : (item as any).currency === 'EUR' ? '€' : (item as any).currency === 'GBP' ? '£' : (item as any).currency === 'EXC' ? '🪙' : ''}${item.price.toLocaleString()}` : `$${item.price.toLocaleString()}`
-                  ) : 'Free';
+                  const displayPrice =
+                    item.price > 0
+                      ? (item as any).currency
+                        ? `${(item as any).currency === "USD" ? "$" : (item as any).currency === "NGN" ? "₦" : (item as any).currency === "EUR" ? "€" : (item as any).currency === "GBP" ? "£" : (item as any).currency === "EXC" ? "🪙" : ""}${item.price.toLocaleString()}`
+                        : `$${item.price.toLocaleString()}`
+                      : "Free";
 
                   return (
-                    <div key={item.id} id={`feed-item-${item.id}`} className="w-full bg-white mb-2 border-b border-stone-200">
-                       {/* Post header */}
-                       <div className="flex items-center p-3 gap-3">
-                         <div className="h-9 w-9 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center font-black text-xs text-stone-500 overflow-hidden">
-                            {(item as any).sellerPhoto ? (
-                              <img src={(item as any).sellerPhoto} className="w-full h-full object-cover" />
-                            ) : (
-                              (item as any).sellerName?.[0] || 'S'
-                            )}
-                         </div>
-                         <div className="flex-1">
-                           <p className="text-xs font-bold text-stone-900">{(item as any).sellerName || 'Seller'}</p>
-                           <p className="text-[10px] text-stone-500 flex items-center gap-1 mt-0.5">
-                             <span>{item.countryFlag}</span>
-                             <span>{item.originCountry}</span>
-                           </p>
-                         </div>
-                       </div>
-
-                       {/* Media */}
-                       <div className="w-full bg-black aspect-square md:aspect-[4/5] flex items-center justify-center relative">
-                          {item.videoUrl ? (
-                            <FeedVideoPlayer src={item.videoUrl} className="w-full h-full object-contain" controls={true} badgeText="Video" />
+                    <div
+                      key={item.id}
+                      id={`feed-item-${item.id}`}
+                      className="w-full bg-white mb-2 border-b border-stone-200"
+                    >
+                      {/* Post header */}
+                      <div className="flex items-center p-3 gap-3">
+                        <div className="h-9 w-9 rounded-full bg-stone-100 border border-stone-200 flex items-center justify-center font-black text-xs text-stone-500 overflow-hidden">
+                          {(item as any).sellerPhoto ? (
+                            <img
+                              src={(item as any).sellerPhoto}
+                              className="w-full h-full object-cover"
+                            />
                           ) : (
-                            <img src={item.imageUrl} className="w-full h-full object-contain" referrerPolicy="no-referrer" alt={item.name} />
+                            (item as any).sellerName?.[0] || "S"
                           )}
-                       </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-xs font-bold text-stone-900">
+                            {(item as any).sellerName || "Seller"}
+                          </p>
+                          <p className="text-[10px] text-stone-500 flex items-center gap-1 mt-0.5">
+                            <span>{item.countryFlag}</span>
+                            <span>{item.originCountry}</span>
+                          </p>
+                        </div>
+                      </div>
 
-                       {/* Footer / Info */}
-                       <div className="p-4">
-                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-[11px] font-black text-[#2481CC] uppercase tracking-widest">{item.category}</p>
-                            <p className="text-lg font-black text-emerald-600 font-sans">{displayPrice}</p>
-                         </div>
-                         <p className="font-bold text-[14px] text-stone-900 leading-snug">{item.name}</p>
-                         {item.description && (
-                           <p className="text-xs text-stone-700 mt-2 leading-relaxed whitespace-pre-wrap">{item.description}</p>
-                         )}
-                       </div>
+                      {/* Media */}
+                      <div className="w-full bg-black h-[75vh] flex items-center justify-center relative overflow-hidden">
+                        {item.videoUrl ? (
+                          <FeedVideoPlayer
+                            src={item.videoUrl}
+                            className="w-full h-full object-cover"
+                            controls={true}
+                            badgeText="Video"
+                          />
+                        ) : (
+                          <img
+                            src={item.imageUrl}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                            alt={item.name}
+                          />
+                        )}
+                      </div>
+
+                      {/* Footer / Info */}
+                      <div className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[11px] font-black text-[#2481CC] uppercase tracking-widest">
+                            {item.category}
+                          </p>
+                          <p className="text-lg font-black text-emerald-600 font-sans">
+                            {displayPrice}
+                          </p>
+                        </div>
+                        <p className="font-bold text-[14px] text-stone-900 leading-snug">
+                          {item.name}
+                        </p>
+                        {item.description && (
+                          <p className="text-xs text-stone-700 mt-2 leading-relaxed whitespace-pre-wrap">
+                            {item.description}
+                          </p>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-stone-100">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              alert("Added to favorites");
+                            }}
+                            className="h-11 w-11 flex items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:text-rose-500 hover:border-rose-200 transition-colors cursor-pointer"
+                            title="Like"
+                          >
+                            <Heart size={20} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              alert("Added to cart");
+                            }}
+                            className="h-11 w-11 flex items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:text-indigo-500 hover:border-indigo-200 transition-colors cursor-pointer"
+                            title="Add to Cart"
+                          >
+                            <ShoppingCart size={20} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              alert("Proceeding to checkout...");
+                            }}
+                            className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
+                          >
+                            Buy Now
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
