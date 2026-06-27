@@ -63,6 +63,7 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  currency?: string;
   category: string;
   originCountry: string;
   countryFlag: string;
@@ -532,6 +533,25 @@ const DEFAULT_PRODUCTS: Product[] = [
   },
 ];
 
+const CURRENCY_MODES = [
+  { code: "USD", name: "US Dollar", symbol: "$", rate: 1 },
+  { code: "EUR", name: "Euro", symbol: "€", rate: 0.92 },
+  { code: "GBP", name: "UK Pound", symbol: "£", rate: 0.78 },
+  { code: "NGN", name: "Naira", symbol: "₦", rate: 1450 },
+  { code: "JPY", name: "Yen", symbol: "¥", rate: 156 },
+  { code: "EXC", name: "Exona Coin", symbol: "🪙", rate: 2.5 },
+];
+
+const getProductUsdPrice = (product: Product) => {
+  const price = product.price || 0;
+  const pCurrency = (product.currency || "USD").toUpperCase();
+  const mode = CURRENCY_MODES.find((c) => c.code === pCurrency);
+  if (mode && mode.rate > 0) {
+    return price / mode.rate;
+  }
+  return price;
+};
+
 export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   user,
   userDoc,
@@ -579,8 +599,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [paymentNote, setPaymentNote] = useState("");
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<
-    "standard" | "excoin" | "p2p"
-  >("standard");
+    "excoin" | "p2p"
+  >("excoin");
   const [p2pReceiptImg, setP2pReceiptImg] = useState("");
   const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [p2pSenderName, setP2pSenderName] = useState("");
@@ -707,14 +727,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Currencies list
-  const currencyModes = [
-    { code: "USD", name: "US Dollar", symbol: "$", rate: 1 },
-    { code: "EUR", name: "Euro", symbol: "€", rate: 0.92 },
-    { code: "GBP", name: "UK Pound", symbol: "£", rate: 0.78 },
-    { code: "NGN", name: "Naira", symbol: "₦", rate: 1450 },
-    { code: "JPY", name: "Yen", symbol: "¥", rate: 156 },
-    { code: "EXC", name: "Exona Coin", symbol: "🪙", rate: 2.5 },
-  ];
+  const currencyModes = CURRENCY_MODES;
   const [currencyCode, setCurrencyCode] = useState("USD");
   const activeCurrency = useMemo(() => {
     return (
@@ -1171,10 +1184,12 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     showNotification("Product removed from order cart.", "info");
   };
 
-  const cartSubtotal = cart.reduce(
-    (total, item) => total + item.product.price * item.quantity,
-    0,
-  );
+  const cartSubtotal = useMemo(() => {
+    return cart.reduce(
+      (total, item) => total + getProductUsdPrice(item.product) * item.quantity,
+      0,
+    );
+  }, [cart]);
 
   const shippingCost = useMemo(() => {
     if (cart.length === 0) return 0;
@@ -3043,7 +3058,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               disabled={p.stock === 0}
                               onClick={() => {
                                 setCart([{ product: p, quantity: 1 }]);
-                                setCheckoutPaymentMethod("standard");
+                                setCheckoutPaymentMethod("excoin");
                                 setIsCheckoutOpen(true);
                                 setCheckoutStep(1);
                               }}
@@ -3467,7 +3482,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                             { product: selectedDetailedProduct, quantity: 1 },
                           ]);
                           setSelectedDetailedProduct(null);
-                          setCheckoutPaymentMethod("standard");
+                          setCheckoutPaymentMethod("excoin");
                           setIsCheckoutOpen(true);
                           setCheckoutStep(1);
                         }}
@@ -3647,7 +3662,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         {/* Qty and Prices select */}
                         <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-stone-50">
                           <span className="text-xs font-black text-emerald-600 font-sans">
-                            {formatPrice(item.product.price * item.quantity)}
+                            {formatPrice(getProductUsdPrice(item.product) * item.quantity)}
                           </span>
                           <div className="flex items-center gap-2 bg-stone-50 border border-stone-150 rounded-lg px-2 py-0.5 select-none">
                             <button
@@ -3703,7 +3718,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                   <button
                     onClick={() => {
                       setIsCartOpen(false);
-                      setCheckoutPaymentMethod("standard");
+                      setCheckoutPaymentMethod("excoin");
                       setIsCheckoutOpen(true);
                       setCheckoutStep(1);
                     }}
@@ -3937,25 +3952,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                       <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
                         Settlement Channel
                       </label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <div
-                          onClick={() => setCheckoutPaymentMethod("standard")}
-                          className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
-                            checkoutPaymentMethod === "standard"
-                              ? "border-stone-900 bg-stone-50/50 font-bold scale-102 shadow-xs"
-                              : "border-stone-150 bg-stone-50/30 hover:bg-stone-50"
-                          }`}
-                        >
-                          <div>
-                            <p className="text-[10px] uppercase font-black text-stone-900">
-                              Escrow
-                            </p>
-                            <p className="text-[7.5px] text-stone-400 mt-0.5 font-semibold uppercase leading-none">
-                              Credit Card
-                            </p>
-                          </div>
-                        </div>
-
+                      <div className="grid grid-cols-2 gap-1.5">
                         <div
                           onClick={() => setCheckoutPaymentMethod("excoin")}
                           className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all select-none text-left ${
@@ -4049,10 +4046,18 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                     <span className="text-stone-900 font-extrabold">
                                       {seller}
                                     </span>
-                                    <span className="text-[#2481CC] font-extrabold">
-                                      {formatPrice(
-                                        item.product.price * item.quantity,
-                                      )}
+                                    <span className="text-right flex flex-col items-end">
+                                      <span className="text-[#2481CC] font-extrabold">
+                                        {renderProductPrice(
+                                          item.product.price * item.quantity,
+                                          item.product.currency,
+                                        )}
+                                      </span>
+                                      <span className="text-stone-400 text-[8.5px] font-bold">
+                                        ~ {formatPrice(
+                                          getProductUsdPrice(item.product) * item.quantity,
+                                        )}
+                                      </span>
                                     </span>
                                   </div>
                                   {hasBankInfo ? (

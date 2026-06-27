@@ -8091,8 +8091,7 @@ function ExonaApp() {
       { id: 'all', label: 'All' },
       { id: 'chats', label: 'Chat' },
       { id: 'groups', label: 'Group' },
-      { id: 'school', label: 'School' },
-      { id: 'place', label: 'Place' }
+      { id: 'school', label: 'School' }
     ];
     try {
       const stored = localStorage.getItem('exon_custom_categories');
@@ -8213,8 +8212,8 @@ function ExonaApp() {
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [settingsDisplayName, setSettingsDisplayName] = useState('');
   const [isSavingSettingsName, setIsSavingSettingsName] = useState(false);
-  const [showChatSection, setShowChatSection] = useState(true);
-  const [showGroupSection, setShowGroupSection] = useState(true);
+  const [showChatSection, setShowChatSection] = useState(false);
+  const [showGroupSection, setShowGroupSection] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -14063,23 +14062,32 @@ function ExonaApp() {
 
                 <div className="block">
               <div 
-                className="flex items-center gap-1 mb-4 flex-wrap w-full py-1 select-none"
+                className="flex items-center gap-1.5 mb-4 flex-wrap w-full py-1 select-none"
               >
                 {categories.map((c) => {
                   const count = getFilterCount(c.id);
                   const isSelected = schoolFilter === c.id;
+                  
+                  let CategoryIcon = null;
+                  if (c.id === 'all') CategoryIcon = <Home size={11} className="shrink-0" />;
+                  else if (c.id === 'chats') CategoryIcon = <MessageSquare size={11} className="shrink-0" />;
+                  else if (c.id === 'groups') CategoryIcon = <Users size={11} className="shrink-0" />;
+                  else if (c.id === 'school') CategoryIcon = <GraduationCap size={11} className="shrink-0" />;
+                  else if (c.id === 'place') CategoryIcon = <MapPin size={11} className="shrink-0" />;
+
                   return (
                     <div key={c.id} className="relative group shrink-0 flex items-center">
                       <button
                         onClick={() => setSchoolFilter(c.id)}
-                        className={`h-[26px] px-2 rounded-full text-[10.5px] font-black transition-all outline-none flex items-center justify-center font-sans ${
+                        className={`h-[26px] px-2.5 rounded-full text-[10.5px] font-black transition-all outline-none flex items-center justify-center font-sans ${
                           isSelected 
                             ? 'bg-[#2481CC]/15 text-[#2481CC]' 
                             : 'bg-slate-50/80 text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
                         }`}
                       >
-                        <span className="flex items-center gap-1">
-                          {c.label}
+                        <span className="flex items-center gap-1.5">
+                          {CategoryIcon}
+                          <span>{c.label}</span>
                           {count > 0 && (
                             <span className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full ${
                               isSelected ? 'bg-[#2481CC] text-white' : 'bg-slate-200/85 text-slate-600'
