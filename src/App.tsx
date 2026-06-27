@@ -2676,6 +2676,7 @@ interface UserDoc {
   isPrivate?: boolean;
   country?: string;
   currency?: string;
+  username?: string;
 }
 
 interface ExonWallet {
@@ -3085,12 +3086,32 @@ const SecureVideo: React.FC<SecureVideoProps> = ({ src, autoPlay, ...props }) =>
   }, [autoPlay, resolvedSrc]);
 
   const handleError = async (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    const videoElement = e.currentTarget;
+    const currentTime = videoElement.currentTime;
+
     if (!hasRetried && src && !src.startsWith('blob:') && !src.startsWith('data:')) {
       setHasRetried(true);
       try {
-        const storageRef = ref(storage, src);
-        const retryUrl = await getDownloadURL(storageRef);
-        if (retryUrl) setResolvedSrc(retryUrl);
+        const isFirebaseAsset = src.includes('firebasestorage.googleapis.com') ||
+                                src.startsWith('gs://') ||
+                                !src.startsWith('http');
+                                
+        if (isFirebaseAsset) {
+          const storageRef = ref(storage, src);
+          const retryUrl = await getDownloadURL(storageRef);
+          if (retryUrl) {
+            setResolvedSrc(retryUrl);
+            // Restore playback position after a short delay to allow new src to load
+            setTimeout(() => {
+              if (videoRef.current) {
+                videoRef.current.currentTime = currentTime;
+                if (autoPlay || currentTime > 0) {
+                  videoRef.current.play().catch(() => {});
+                }
+              }
+            }, 500);
+          }
+        }
       } catch (retryErr) {
         // keep existing
       }
@@ -3562,6 +3583,7 @@ function ExonaApp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [signupUsername, setSignupUsername] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [verificationSent, setVerificationSent] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -8187,10 +8209,12 @@ function ExonaApp() {
   const [refreshing, setRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [isEditingProfileInline, setIsEditingProfileInline] = useState(false);
-  const [editingProfile, setEditingProfile] = useState({ displayName: '', bio: '', isPrivate: false });
+  const [editingProfile, setEditingProfile] = useState({ displayName: '', username: '', bio: '', isPrivate: false });
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [settingsDisplayName, setSettingsDisplayName] = useState('');
   const [isSavingSettingsName, setIsSavingSettingsName] = useState(false);
+  const [showChatSection, setShowChatSection] = useState(true);
+  const [showGroupSection, setShowGroupSection] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -11368,7 +11392,23 @@ function ExonaApp() {
           mediaUrl = await getDownloadURL(fileRef);
         } else {
           const fileRef = ref(storage, `stories_video/${user.uid}/${Date.now()}_${file.name}`);
-          await uploadBytes(fileRef, file);
+          const uploadTask = uploadBytesResumable(fileRef, file);
+          
+          await new Promise((resolve, reject) => {
+            uploadTask.on('state_changed', 
+              (snapshot) => {
+                const individualProgress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(individualProgress);
+              },
+              (error) => {
+                reject(error);
+              },
+              () => {
+                resolve(null);
+              }
+            );
+          });
+          
           mediaUrl = await getDownloadURL(fileRef);
         }
       }
@@ -11635,6 +11675,7 @@ function ExonaApp() {
   const handleEditProfile = () => {
     setEditingProfile({
       displayName: user?.displayName || '',
+      username: userDoc?.username || user?.displayName?.toLowerCase().replace(/\s+/g, '') || '',
       bio: userDoc?.bio || '',
       isPrivate: userDoc?.isPrivate || false
     });
@@ -11643,13 +11684,36 @@ function ExonaApp() {
 
   const handleUpdateProfile = async () => {
     if (!user) return;
+    let cleanedUsername = editingProfile.username.trim().toLowerCase();
+    if (cleanedUsername.startsWith('@')) {
+      cleanedUsername = cleanedUsername.substring(1);
+    }
+    cleanedUsername = cleanedUsername.replace(/[^a-z0-9_.-]/g, '');
+
+    if (!cleanedUsername) {
+      showNotification('Username cannot be empty', 'error');
+      return;
+    }
+
     try {
       await updateProfile(user, { displayName: editingProfile.displayName });
       await setDoc(doc(db, 'users', user.uid), {
         displayName: editingProfile.displayName,
+        username: cleanedUsername,
         bio: editingProfile.bio,
         isPrivate: editingProfile.isPrivate
       }, { merge: true });
+      
+      if (userDoc) {
+        setUserDoc({
+          ...userDoc,
+          displayName: editingProfile.displayName,
+          username: cleanedUsername,
+          bio: editingProfile.bio,
+          isPrivate: editingProfile.isPrivate
+        });
+      }
+      
       showNotification('Profile updated');
       setIsEditingProfileInline(false);
     } catch (error) {
@@ -12719,18 +12783,34 @@ function ExonaApp() {
   };
 
   const handleEmailSignUp = async () => {
-    if (!email || !password || !displayName) {
-      setAuthError('Please enter your name, email, and a password.');
+    if (!email || !password || !displayName || !signupUsername) {
+      setAuthError('Please enter your name, username, email, and a password.');
       return;
     }
+    const cleanUsername = signupUsername.trim().toLowerCase().replace(/\s+/g, '');
+    if (cleanUsername.length < 3) {
+      setAuthError('Username must be at least 3 characters long.');
+      return;
+    }
+    
     setAuthError(null);
     setIsAuthenticating(true);
     try {
+      // Check if username already exists
+      const usernameQuery = query(collection(db, 'users'), where('username', '==', cleanUsername));
+      const usernameSnap = await getDocs(usernameQuery);
+      if (!usernameSnap.empty) {
+        setAuthError('This username is already taken. Please choose another one.');
+        setIsAuthenticating(false);
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
       await ensureUserDocument(userCredential.user, localStorage.getItem('exona_ref'), {
         country: selectedSignupCountry.name,
-        currency: selectedSignupCountry.currency
+        currency: selectedSignupCountry.currency,
+        username: cleanUsername
       });
       
       // Send email verification
@@ -13530,7 +13610,7 @@ function ExonaApp() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Image (File or URL)</label>
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Image Upload</label>
                       <div className="flex gap-2">
                         <input 
                           type="file" 
@@ -13541,24 +13621,17 @@ function ExonaApp() {
                         />
                         <label 
                           htmlFor="broadcast-image-file"
-                          className={`px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer text-xs font-bold transition-all flex items-center gap-2 ${broadcastImageFile ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-gray-50 border-gray-100 text-muted hover:bg-gray-100'}`}
+                          className={`flex-1 px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer text-xs font-bold transition-all flex items-center justify-center gap-2 ${broadcastImageFile ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-gray-50 border-gray-100 text-muted hover:bg-gray-100'}`}
                         >
                           <ImageIcon size={14} />
                           {broadcastImageFile ? broadcastImageFile.name : 'Upload Image'}
                         </label>
-                        <input 
-                          type="text" 
-                          value={broadcastImageUrl}
-                          onChange={(e) => setBroadcastImageUrl(e.target.value)}
-                          placeholder="Or paste image URL..."
-                          className="flex-1 px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
-                        />
                       </div>
                     </div>
                   </div>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Video (File or URL)</label>
+                      <label className="text-[10px] font-bold text-muted uppercase tracking-widest px-1">Video Upload</label>
                       <div className="flex gap-2">
                         <input 
                           type="file" 
@@ -13569,18 +13642,11 @@ function ExonaApp() {
                         />
                         <label 
                           htmlFor="broadcast-video-file"
-                          className={`px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer text-xs font-bold transition-all flex items-center gap-2 ${broadcastVideoFile ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-gray-50 border-gray-100 text-muted hover:bg-gray-100'}`}
+                          className={`flex-1 px-4 py-3 rounded-2xl border-2 border-dashed cursor-pointer text-xs font-bold transition-all flex items-center justify-center gap-2 ${broadcastVideoFile ? 'bg-cyan-50 border-cyan-200 text-cyan-600' : 'bg-gray-50 border-gray-100 text-muted hover:bg-gray-100'}`}
                         >
                           <VideoIcon size={14} />
                           {broadcastVideoFile ? broadcastVideoFile.name : 'Upload Video'}
                         </label>
-                        <input 
-                          type="text" 
-                          value={broadcastVideoUrl}
-                          onChange={(e) => setBroadcastVideoUrl(e.target.value)}
-                          placeholder="Or paste video URL..."
-                          className="flex-1 px-5 py-3 rounded-2xl bg-gray-50 border-none focus:ring-2 focus:ring-cyan-500/20 text-xs font-medium"
-                        />
                       </div>
                     </div>
                   </div>
@@ -14277,19 +14343,47 @@ function ExonaApp() {
 
                           {filteredDirectChats.length > 0 && (
                             <div className="mb-6">
-                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-1 font-sans">CHAT</div>
-                              <div className="space-y-1">
-                                {filteredDirectChats.map(renderChatItem)}
-                              </div>
+                              <button 
+                                onClick={() => setShowChatSection(!showChatSection)} 
+                                className="w-full flex items-center justify-between mb-3 px-2 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
+                                title={showChatSection ? "Hide Chats" : "Show Chats"}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <MessageSquare size={12} className="text-[#94a3b8] group-hover/header:text-slate-600" />
+                                  <span className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] font-sans group-hover/header:text-slate-600">CHAT</span>
+                                </div>
+                                <div className="text-[#94a3b8] group-hover/header:text-slate-600">
+                                  {showChatSection ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </div>
+                              </button>
+                              {showChatSection && (
+                                <div className="space-y-1">
+                                  {filteredDirectChats.map(renderChatItem)}
+                                </div>
+                              )}
                             </div>
                           )}
 
                           {filteredGroupChats.length > 0 && (
                             <div className="mb-6">
-                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-1 font-sans">GROUP</div>
-                              <div className="space-y-1">
-                                {filteredGroupChats.map(renderChatItem)}
-                              </div>
+                              <button 
+                                onClick={() => setShowGroupSection(!showGroupSection)} 
+                                className="w-full flex items-center justify-between mb-3 px-2 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
+                                title={showGroupSection ? "Hide Groups" : "Show Groups"}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <Users size={12} className="text-[#94a3b8] group-hover/header:text-slate-600" />
+                                  <span className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] font-sans group-hover/header:text-slate-600">GROUP</span>
+                                </div>
+                                <div className="text-[#94a3b8] group-hover/header:text-slate-600">
+                                  {showGroupSection ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                </div>
+                              </button>
+                              {showGroupSection && (
+                                <div className="space-y-1">
+                                  {filteredGroupChats.map(renderChatItem)}
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -14900,7 +14994,7 @@ function ExonaApp() {
               <div>
                 <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
                 <div className="flex items-center gap-2">
-                  <p className="text-ink text-[14px]">{selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '')}</p>
+                  <p className="text-ink text-[14px] font-semibold">@{selectedUserProfileDoc?.username || selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
                 </div>
                 <button
                     onClick={() => {
@@ -17604,7 +17698,16 @@ function ExonaApp() {
             let fileName = '';
             if (newLessonFile) {
               const fileRef = ref(storage, `classrooms/${selectedClassroom.id}/lessons/${Date.now()}_${newLessonFile.name}`);
-              await uploadBytes(fileRef, newLessonFile);
+              const uploadTask = uploadBytesResumable(fileRef, newLessonFile);
+              
+              await new Promise((resolve, reject) => {
+                uploadTask.on('state_changed', 
+                  (snapshot) => {},
+                  (error) => reject(error),
+                  () => resolve(null)
+                );
+              });
+              
               fileUrl = await getDownloadURL(fileRef);
               fileName = newLessonFile.name;
             }
@@ -26720,7 +26823,7 @@ function ExonaApp() {
                       { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-500', onClick: () => setIsSecurityModalOpen(true) },
                       { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
                       { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-500', onClick: () => setIsThemeModalOpen(true) },
-                      { icon: Database, label: 'Data & Storage', desc: 'Manage your institutional data', color: 'emerald-500', onClick: () => setIsDataStorageModalOpen(true) }
+                      { icon: Database, label: 'Data & Storage', desc: 'Manage your personal data', color: 'emerald-500', onClick: () => setIsDataStorageModalOpen(true) }
                     ].map((item, i) => (
                       <button 
                         key={i} 
@@ -26837,7 +26940,7 @@ function ExonaApp() {
                           exit={{ opacity: 0, y: 10 }}
                           className="space-y-4 w-full bg-gray-50/50 p-5 rounded-3xl border border-gray-100"
                         >
-                          <div>
+                                                  <div>
                             <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">Display Name</label>
                             <input 
                               type="text" 
@@ -26847,6 +26950,20 @@ function ExonaApp() {
                               placeholder="Your name..."
                               autoFocus
                             />
+                          </div>
+
+                          <div>
+                            <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-1">Username</label>
+                            <div className="relative flex items-center">
+                              <span className="absolute left-3.5 text-stone-400 font-bold text-sm">@</span>
+                              <input 
+                                type="text" 
+                                value={editingProfile.username}
+                                onChange={(e) => setEditingProfile({...editingProfile, username: e.target.value})}
+                                className="text-sm font-bold text-ink bg-white border border-gray-200 outline-none rounded-xl pl-8 pr-4 py-2 w-full focus:bg-white focus:border-accent/20 transition-all shadow-sm"
+                                placeholder="username"
+                              />
+                            </div>
                           </div>
 
                           <div>
@@ -26899,8 +27016,7 @@ function ExonaApp() {
                           </div>
 
                           <div className="flex items-center gap-2.5 flex-wrap">
-                            <p className="text-ink text-[14px] font-semibold">@{user.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
-                            <span className="px-2.5 py-0.5 bg-gray-50 border border-gray-150 rounded-full text-zinc-500 text-[12px] font-bold">institutional portal</span>
+                            <p className="text-ink text-[14px] font-semibold">@{userDoc?.username || user.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
                             {!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && (
                               <button 
                                 onClick={async () => {
@@ -27308,6 +27424,16 @@ function ExonaApp() {
                     placeholder="Full Name"
                     className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
                   />
+                  <div className="relative group">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
+                    <input 
+                      type="text" 
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value)}
+                      placeholder="username"
+                      className="w-full pl-9 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                    />
+                  </div>
                   <div className="relative group">
                     <label className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-4">Select Country (Currency)</label>
                     <select 
