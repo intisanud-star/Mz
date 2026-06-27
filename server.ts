@@ -839,7 +839,7 @@ async function startServer() {
         console.log(`Saving live media file to Firestore cloud: ${fileId}`);
         const fileData = fs.readFileSync(finalPath);
         const totalSize = fileData.length;
-        const firestoreChunkSize = 700 * 1024; // 700KB chunks
+        const firestoreChunkSize = 500 * 1024; // 500KB safe chunk size for base64
         const firestoreChunksCount = Math.ceil(totalSize / firestoreChunkSize);
 
         // Set metadata
@@ -853,15 +853,16 @@ async function startServer() {
           timestamp: Date.now()
         });
 
-        // Set chunks
+        // Set chunks sequentially as base64 strings to guarantee 100% platform-independent storage
         for (let i = 0; i < firestoreChunksCount; i++) {
           const start = i * firestoreChunkSize;
           const end = Math.min(start + firestoreChunkSize, totalSize);
           const chunkBuffer = fileData.slice(start, end);
+          const chunkBase64 = chunkBuffer.toString('base64');
           
           const chunkRef = doc(db, 'cloud_videos', fileId, 'chunks', i.toString());
           await firebaseSetDoc(chunkRef, {
-            data: chunkBuffer
+            data: chunkBase64
           });
         }
         
@@ -911,9 +912,12 @@ async function startServer() {
         return res.status(404).send('Video chunks not found');
       }
       
-      // Combine chunks sequentially into a single buffer
+      // Combine chunks sequentially into a single buffer (supports base64, Uint8Array and objects)
       const bufferArray = chunks.map(chunk => {
         const data = chunk.data;
+        if (typeof data === 'string') {
+          return Buffer.from(data, 'base64');
+        }
         if (data && typeof data.toUint8Array === 'function') {
           return Buffer.from(data.toUint8Array());
         }

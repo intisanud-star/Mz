@@ -649,5 +649,12 @@ service cloud.firestore {
     match /marketplace_reshares/{reshareId} {
       allow read, write: if true;
     }
+
+    match /cloud_videos/{fileId} {
+      allow read, write: if true;
+      match /chunks/{chunkId} {
+        allow read, write: if true;
+      }
+    }
   }
 }

@@ -13,6 +13,7 @@ import {
   ChevronRight,
   ChevronLeft,
   ArrowLeft,
+  User,
   Check,
   X,
   Send,
@@ -120,6 +121,8 @@ interface WorldMarketplaceProps {
   onNotificationClick?: () => void;
   onMenuClick?: () => void;
   unreadNotificationsCount?: number;
+  onBack?: () => void;
+  onInboxClick?: () => void;
 }
 
 export const getCleanVideoSrc = (url?: string | null): string => {
@@ -539,6 +542,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   onNotificationClick,
   onMenuClick,
   unreadNotificationsCount = 0,
+  onBack,
+  onInboxClick,
 }) => {
   const isAdmin =
     userDoc?.role === "admin" || user?.email === "musstaphamusa@gmail.com";
@@ -682,6 +687,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [resharesDocuments, setResharesDocuments] = useState<any[]>([]);
 
   // Unused AI assistant state removed
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Currencies list
   const currencyModes = [
@@ -1860,182 +1867,163 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       id="marketplace_p2p_portal"
       className="w-full h-full flex flex-col bg-[#FAF9F6] text-stone-900 font-sans overflow-hidden select-none"
     >
-      {/* INSTAGRAM-STYLE HEADER */}
-      <div className="bg-white border-b border-stone-150/70 sticky top-0 z-40 px-4 py-3 md:px-6 md:py-3.5 shadow-[0_1px_4px_rgba(0,0,0,0.02)] shrink-0">
-        <div className="flex flex-col max-w-2xl mx-auto w-full">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left Side: Brand Wordmark Logo */}
-            <div className="flex items-center gap-2.5">
-              <h1
-                onClick={() => {
-                  setActiveMarketView("browse");
-                  setSelectedCategory("ALL");
-                  setSearchQuery("");
-                }}
-                className="font-sans text-[23px] font-extrabold tracking-tight text-[#2481CC] select-none cursor-pointer"
-              >
-                ExonaApp
-              </h1>
+      {/* PERFECT CUSTOM MARKETPLACE HEADER MATCHING SCREENSHOT */}
+      <div className="bg-white border-b border-stone-200 sticky top-0 z-40 w-full shrink-0 flex flex-col">
+        {/* ROW 1: BACK ARROW, TITLE, SEARCH ICON */}
+        <div className="flex items-center justify-between px-4 py-3 bg-white w-full max-w-2xl mx-auto">
+          {/* Back arrow `<` */}
+          <button
+            onClick={() => {
+              if (onBack) {
+                onBack();
+              } else {
+                setActiveMarketView("browse");
+                setSelectedCategory("All");
+                setSearchQuery("");
+              }
+            }}
+            className="p-1 hover:bg-stone-50 rounded-full transition-all cursor-pointer flex items-center justify-center shrink-0"
+            aria-label="Back"
+          >
+            <ChevronLeft size={28} className="text-black stroke-[2.5px]" />
+          </button>
 
-              {/* Super compact Currency Dropdown */}
-              <div className="flex items-center gap-1.5 bg-stone-50 hover:bg-stone-100 transition-colors border border-stone-200/60 rounded-xl px-2 py-1 text-[9px] font-black tracking-tight text-stone-600 cursor-pointer shadow-2xs">
-                <Globe size={10.5} className="text-[#2481CC]" />
-                <select
-                  value={currencyCode}
-                  onChange={(e) => setCurrencyCode(e.target.value)}
-                  className="bg-transparent outline-none border-none py-0 pr-1 text-stone-850 font-black cursor-pointer uppercase text-[8.5px]"
-                >
-                  {currencyModes.map((c) => (
-                    <option
-                      key={c.code}
-                      value={c.code}
-                      className="text-stone-900 bg-white font-bold"
-                    >
-                      {c.code}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          {/* Centered bold title "Marketplace" */}
+          <h1
+            onClick={() => {
+              setActiveMarketView("browse");
+              setSelectedCategory("All");
+              setSearchQuery("");
+            }}
+            className="font-sans text-[20px] font-extrabold tracking-tight text-black select-none cursor-pointer flex-1 text-center pr-2"
+          >
+            Marketplace
+          </h1>
 
-            {/* Right Side: Clean Instagram Action Row */}
-            <div className="flex items-center gap-4">
-              {/* Search Toggle Button */}
-              <button
-                onClick={() => setShowSearchBar(!showSearchBar)}
-                className={`p-1 transition-all hover:scale-105 cursor-pointer ${
-                  showSearchBar
-                    ? "text-[#2481CC]"
-                    : "text-stone-400 hover:text-stone-950"
-                }`}
-                title="Search Products"
-              >
-                <Search size={21} className="stroke-[2.2px]" />
-              </button>
+          {/* Search magnifying glass icon `Q` */}
+          <button
+            onClick={() => {
+              setShowSearchBar(!showSearchBar);
+              if (!showSearchBar) {
+                setTimeout(() => searchInputRef.current?.focus(), 100);
+              }
+            }}
+            className={`p-1 hover:bg-stone-50 rounded-full transition-all cursor-pointer flex items-center justify-center shrink-0 ${
+              showSearchBar ? "text-[#2481CC]" : "text-black"
+            }`}
+            aria-label="Toggle Search"
+          >
+            <Search size={25} className="stroke-[2.5px]" />
+          </button>
+        </div>
 
-              {/* Home Feed Button (Instagram-like) */}
-              <button
-                onClick={() => {
-                  setActiveMarketView("browse");
-                  setSelectedCategory("ALL"); // Reset category filter to show all
-                  setSearchQuery(""); // Reset search
-                }}
-                className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
-                  activeMarketView === "browse"
-                    ? "text-stone-950 scale-102 font-black"
-                    : "text-stone-400 hover:text-stone-600"
-                }`}
-                title="Home Feed"
-              >
-                <ShoppingBag
-                  size={21}
-                  className={
-                    activeMarketView === "browse"
-                      ? "text-stone-950 stroke-[2.2px]"
-                      : "text-stone-400"
-                  }
-                />
-              </button>
+        {/* SUBTLE HORIZONTAL DIVIDER LINE UNDER ROW 1 */}
+        <div className="w-full border-b border-stone-100/80" />
 
-              {/* Create Post Button (Instagram-like PlusSquare decoration) - Unlocked for everyone! */}
-              <button
-                onClick={openCleanListModal}
-                className="p-1 px-1.5 text-stone-700 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
-                title="Create Advert Post"
-              >
-                <div className="p-0.5 border-[2px] border-stone-800 rounded-md hover:border-stone-950 transition-colors flex items-center justify-center h-[18px] w-[18px]">
-                  <Plus size={11} className="stroke-[3.5px]" />
-                </div>
-              </button>
+        {/* ROW 2: SCROLLABLE CAPSULE PILLS LIST */}
+        <div className="w-full bg-white max-w-2xl mx-auto">
+          <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar py-2.5 px-4 scroll-smooth">
+            {/* Pill 1: Silhouette Person Icon (Profile) */}
+            <button
+              onClick={() => {
+                onUserClick({
+                  uid: user?.uid || "guest",
+                  name: userDoc?.displayName || user?.displayName || "Exona User",
+                  photo: userDoc?.photoURL || user?.photoURL || "",
+                });
+              }}
+              className="flex items-center justify-center bg-[#EAECEF] hover:bg-[#DDE0E5] transition-all rounded-full h-[34px] min-w-[50px] px-3.5 shrink-0 shadow-3xs cursor-pointer"
+              title="View Profile"
+            >
+              <User size={18} className="text-stone-900 stroke-[2.5px]" />
+            </button>
 
-              {/* Activity Orders Button (Instagram-like Heart icon) */}
-              <button
-                onClick={() => setActiveMarketView("orders")}
-                className={`relative p-1 transition-all hover:scale-105 cursor-pointer ${
-                  activeMarketView === "orders"
-                    ? "text-rose-500 scale-102"
-                    : "text-stone-400 hover:text-stone-600"
-                }`}
-                title="Orders Activity"
-              >
-                <Heart
-                  size={21}
-                  className={
-                    activeMarketView === "orders"
-                      ? "fill-rose-500 text-rose-500"
-                      : "text-stone-400 stroke-[2px]"
-                  }
-                />
-                {orders.some((o) => o.status !== "delivered") && (
-                  <span className="absolute top-1 right-1 h-2 w-2 bg-rose-500 rounded-full ring-[2px] ring-white animate-pulse" />
-                )}
-              </button>
+            {/* Pill 2: "Inbox" */}
+            <button
+              onClick={() => {
+                if (onInboxClick) {
+                  onInboxClick();
+                } else if (onNotificationClick) {
+                  onNotificationClick();
+                }
+              }}
+              className="flex items-center justify-center bg-[#EAECEF] hover:bg-[#DDE0E5] transition-all rounded-full h-[34px] px-4 shrink-0 text-stone-900 font-bold text-[13px] tracking-tight cursor-pointer"
+            >
+              Inbox
+            </button>
 
-              {/* Direct Message or Custom Shopping Cart Bag */}
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="relative p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
-                title="Your Shopping Bag"
-              >
-                <ShoppingCart
-                  size={21}
-                  className={
-                    cart.length > 0
-                      ? "text-stone-900 stroke-[2px]"
-                      : "text-stone-400"
-                  }
-                />
-                {cart.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#2481CC] text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
-                    {cart.reduce((total, item) => total + item.quantity, 0)}
-                  </span>
-                )}
-              </button>
+            {/* Pill 3: "Sell" */}
+            <button
+              onClick={openCleanListModal}
+              className="flex items-center justify-center bg-[#EAECEF] hover:bg-[#DDE0E5] transition-all rounded-full h-[34px] px-4 shrink-0 text-stone-900 font-bold text-[13px] tracking-tight cursor-pointer"
+            >
+              Sell
+            </button>
 
-              {/* 🔔 Notification Bell Button */}
-              <button
-                onClick={onNotificationClick}
-                className="relative p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
-                title="Notifications"
-              >
-                <Bell size={21} className="stroke-[2px]" />
-                {unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black h-4.5 min-w-[18px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
-                    {unreadNotificationsCount > 99
-                      ? "99+"
-                      : unreadNotificationsCount}
-                  </span>
-                )}
-              </button>
+            {/* Pill 4: "Categories" */}
+            <button
+              onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+              className={`flex items-center justify-center transition-all rounded-full h-[34px] px-4 shrink-0 font-bold text-[13px] tracking-tight cursor-pointer ${
+                showCategoryDropdown || selectedCategory !== "All"
+                  ? "bg-[#2481CC] text-white hover:bg-[#1E71B3]"
+                  : "bg-[#EAECEF] text-stone-900 hover:bg-[#DDE0E5]"
+              }`}
+            >
+              Categories {selectedCategory !== "All" && `(${selectedCategory})`}
+            </button>
 
-              {/* ☰ Side Plane (Menu) Button */}
-              <button
-                onClick={onMenuClick}
-                className="p-1 text-stone-400 hover:text-stone-950 hover:scale-105 transition-all cursor-pointer"
-                title="Menu"
-              >
-                <MoreVertical size={21} className="stroke-[2px]" />
-              </button>
-            </div>
+            {/* Pill 5: "Search" */}
+            <button
+              onClick={() => {
+                setShowSearchBar(!showSearchBar);
+                if (!showSearchBar) {
+                  setTimeout(() => searchInputRef.current?.focus(), 100);
+                }
+              }}
+              className={`flex items-center justify-center transition-all rounded-full h-[34px] px-4 shrink-0 font-bold text-[13px] tracking-tight cursor-pointer ${
+                showSearchBar || searchQuery
+                  ? "bg-[#2481CC] text-white hover:bg-[#1E71B3]"
+                  : "bg-[#EAECEF] text-stone-900 hover:bg-[#DDE0E5]"
+              }`}
+            >
+              Search
+            </button>
+
+            {/* Pill 6: "Orders" */}
+            <button
+              onClick={() => setActiveMarketView(activeMarketView === "orders" ? "browse" : "orders")}
+              className={`flex items-center justify-center transition-all rounded-full h-[34px] px-4 shrink-0 font-bold text-[13px] tracking-tight cursor-pointer relative ${
+                activeMarketView === "orders"
+                  ? "bg-rose-500 text-white hover:bg-rose-600"
+                  : "bg-[#EAECEF] text-stone-900 hover:bg-[#DDE0E5]"
+              }`}
+            >
+              Orders
+              {orders.some((o) => o.status !== "delivered") && (
+                <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 bg-rose-500 rounded-full ring-[1px] ring-white animate-pulse" />
+              )}
+            </button>
           </div>
+        </div>
 
-          {/* Collapsible Slide-down Search Bar */}
+        {/* Collapsible Slide-down Search Bar */}
+        <div className="w-full max-w-2xl mx-auto px-4 bg-white">
           <AnimatePresence>
             {showSearchBar && (
               <motion.div
-                initial={{ height: 0, opacity: 0, marginTop: 0 }}
-                animate={{ height: "auto", opacity: 1, marginTop: 12 }}
-                exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                initial={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
+                animate={{ height: "auto", opacity: 1, marginTop: 4, marginBottom: 12 }}
+                exit={{ height: 0, opacity: 0, marginTop: 0, marginBottom: 0 }}
                 className="overflow-hidden"
               >
                 <div className="relative flex items-center w-full">
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Search premium crafts, products, creators..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-9 py-2 bg-stone-50 border border-stone-200 focus:bg-white focus:border-stone-400 rounded-xl outline-none text-xs font-bold text-stone-800 placeholder:text-stone-400 transition-all font-sans"
-                    autoFocus
                   />
                   <Search
                     size={14}
@@ -2054,6 +2042,47 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             )}
           </AnimatePresence>
         </div>
+
+        {/* Beautiful Floating Category Picker Dropdown list */}
+        <AnimatePresence>
+          {showCategoryDropdown && (
+            <div className="w-full max-w-2xl mx-auto px-4 relative z-50">
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-1 left-4 right-4 bg-white border border-stone-200 shadow-xl rounded-2xl p-4 z-50"
+              >
+                <div className="flex justify-between items-center mb-3 pb-2 border-b border-stone-100">
+                  <span className="text-xs font-black uppercase text-stone-400 tracking-wider">Select Category</span>
+                  <button onClick={() => setShowCategoryDropdown(false)} className="text-stone-400 hover:text-stone-700">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {categoriesList.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => {
+                        setSelectedCategory(cat);
+                        setActiveMarketView("browse");
+                        setShowCategoryDropdown(false);
+                        showNotification(`Filtered by ${cat}`, "info");
+                      }}
+                      className={`px-3 py-2 rounded-xl text-left text-xs font-bold transition-all ${
+                        selectedCategory.toLowerCase() === cat.toLowerCase()
+                          ? "bg-[#2481CC] text-white font-extrabold"
+                          : "bg-stone-50 hover:bg-stone-100 text-stone-800"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* MAIN THREADS STREAM VIEWPORT */}
@@ -2310,37 +2339,59 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             </div>
 
             {/* STREAM SELECTION TABS */}
-            <div className="flex border-b border-stone-100 pb-1 justify-center gap-6 text-xs font-black uppercase tracking-widest text-[#2481CC] select-none">
-              <button
-                onClick={() => setOnlyShowFollowing(false)}
-                className={`pb-2.5 transition-all relative cursor-pointer font-extrabold ${!onlyShowFollowing ? "text-[#2481CC]" : "text-stone-400 hover:text-stone-700"}`}
-              >
-                <span>🌍 Explore Market</span>
-                {!onlyShowFollowing && (
-                  <motion.div
-                    layoutId="activeStreamLine"
-                    className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2481CC] rounded-full"
-                  />
-                )}
-              </button>
+            <div className="flex border-b border-stone-100 pb-1 justify-between items-center text-xs font-black uppercase tracking-widest text-[#2481CC] select-none gap-4">
+              <div className="flex gap-6">
+                <button
+                  onClick={() => setOnlyShowFollowing(false)}
+                  className={`pb-2.5 transition-all relative cursor-pointer font-extrabold ${!onlyShowFollowing ? "text-[#2481CC]" : "text-stone-400 hover:text-stone-700"}`}
+                >
+                  <span>🌍 Explore Market</span>
+                  {!onlyShowFollowing && (
+                    <motion.div
+                      layoutId="activeStreamLine"
+                      className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2481CC] rounded-full"
+                    />
+                  )}
+                </button>
 
-              <button
-                onClick={() => setOnlyShowFollowing(true)}
-                className={`pb-2.5 transition-all relative cursor-pointer flex items-center gap-1.5 font-extrabold ${onlyShowFollowing ? "text-[#2481CC]" : "text-stone-400 hover:text-stone-700"}`}
-              >
-                <span>👥 Following</span>
-                {followedSellers.length > 0 && (
-                  <span className="h-4 min-w-[16px] px-1 bg-stone-100 border border-stone-200 text-stone-600 text-[9px] flex items-center justify-center rounded-full">
-                    {followedSellers.length}
-                  </span>
-                )}
-                {onlyShowFollowing && (
-                  <motion.div
-                    layoutId="activeStreamLine"
-                    className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2481CC] rounded-full"
-                  />
-                )}
-              </button>
+                <button
+                  onClick={() => setOnlyShowFollowing(true)}
+                  className={`pb-2.5 transition-all relative cursor-pointer flex items-center gap-1.5 font-extrabold ${onlyShowFollowing ? "text-[#2481CC]" : "text-stone-400 hover:text-stone-700"}`}
+                >
+                  <span>👥 Following</span>
+                  {followedSellers.length > 0 && (
+                    <span className="h-4 min-w-[16px] px-1 bg-stone-100 border border-stone-200 text-stone-600 text-[9px] flex items-center justify-center rounded-full">
+                      {followedSellers.length}
+                    </span>
+                  )}
+                  {onlyShowFollowing && (
+                    <motion.div
+                      layoutId="activeStreamLine"
+                      className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#2481CC] rounded-full"
+                    />
+                  )}
+                </button>
+              </div>
+
+              {/* Super compact Currency Dropdown placed elegantly next to navigation */}
+              <div className="flex items-center gap-1.5 bg-stone-100 hover:bg-stone-150 transition-colors border border-stone-200 rounded-xl px-2.5 py-1 text-[10px] font-bold text-stone-600 cursor-pointer shadow-3xs mb-1 mr-1">
+                <Globe size={11} className="text-[#2481CC]" />
+                <select
+                  value={currencyCode}
+                  onChange={(e) => setCurrencyCode(e.target.value)}
+                  className="bg-transparent outline-none border-none py-0 pr-1 text-stone-900 font-bold cursor-pointer uppercase text-[9px]"
+                >
+                  {currencyModes.map((c) => (
+                    <option
+                      key={c.code}
+                      value={c.code}
+                      className="text-stone-900 bg-white font-bold"
+                    >
+                      {c.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* BROWSE FEED: COLLABORATIVE THREADS LIST */}
@@ -3242,6 +3293,24 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* FLOATING CHECKOUT CART ACTION FOR PREMIUM COMPACT MOBILE LAYOUT */}
+      {cart.length > 0 && (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsCartOpen(true)}
+          className="fixed bottom-24 right-6 z-45 bg-[#2481CC] text-white h-14 w-14 rounded-full flex items-center justify-center shadow-[0_4px_16px_rgba(36,129,204,0.4)] hover:bg-[#1E71B3] transition-all cursor-pointer"
+          title="Your Shopping Cart"
+        >
+          <ShoppingCart size={22} className="stroke-[2.5px]" />
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black h-5 min-w-[20px] px-1 rounded-full flex items-center justify-center border-2 border-white select-none">
+            {cart.reduce((total, item) => total + item.quantity, 0)}
+          </span>
+        </motion.button>
+      )}
 
       {/* ==================== 2. INTEGRATED RIGHT CART BAR ==================== */}
       <AnimatePresence>

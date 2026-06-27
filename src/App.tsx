@@ -15050,6 +15050,8 @@ function ExonaApp() {
                 onNotificationClick={() => setView(user ? 'notifications' : 'login')}
                 onMenuClick={() => setSidebarOpen(true)}
                 unreadNotificationsCount={unreadNotificationsCount}
+                onBack={() => setView('feed')}
+                onInboxClick={() => setView('chat')}
               />
             </div>
           </div>
