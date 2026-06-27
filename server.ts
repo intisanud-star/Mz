@@ -806,8 +806,8 @@ async function startServer() {
   }
   app.use('/uploads', express.static(uploadsDir));
 
-  // Live media HTTP chunked upload endpoint to bypass 1MB Nginx limit
-  app.post('/api/upload-chunk', upload.single('file'), (req: any, res) => {
+  // Live media HTTP chunked upload endpoint to bypass 1MB Nginx limit and save to persistent Cloud Firestore
+  app.post('/api/upload-chunk', upload.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ success: false, error: 'No chunk received' });
@@ -835,8 +835,43 @@ async function startServer() {
         
         fs.renameSync(tempFilePath, finalPath);
         
-        const url = `/uploads/${finalFilename}`;
-        console.log(`Live media chunked upload success: ${url}`);
+        // Save the assembled file into persistent Cloud Firestore chunks
+        console.log(`Saving live media file to Firestore cloud: ${fileId}`);
+        const fileData = fs.readFileSync(finalPath);
+        const totalSize = fileData.length;
+        const firestoreChunkSize = 700 * 1024; // 700KB chunks
+        const firestoreChunksCount = Math.ceil(totalSize / firestoreChunkSize);
+
+        // Set metadata
+        const metaRef = doc(db, 'cloud_videos', fileId);
+        await firebaseSetDoc(metaRef, {
+          fileId,
+          fileName: fileName || `${fileId}${ext}`,
+          totalSize,
+          totalChunks: firestoreChunksCount,
+          contentType: 'video/mp4',
+          timestamp: Date.now()
+        });
+
+        // Set chunks
+        for (let i = 0; i < firestoreChunksCount; i++) {
+          const start = i * firestoreChunkSize;
+          const end = Math.min(start + firestoreChunkSize, totalSize);
+          const chunkBuffer = fileData.slice(start, end);
+          
+          const chunkRef = doc(db, 'cloud_videos', fileId, 'chunks', i.toString());
+          await firebaseSetDoc(chunkRef, {
+            data: chunkBuffer
+          });
+        }
+        
+        // Clean up final local file to keep workspace clean
+        try {
+          fs.unlinkSync(finalPath);
+        } catch (e) {}
+
+        const url = `/api/video-cloud/${fileId}`;
+        console.log(`Live media cloud chunked upload success: ${url}`);
         return res.json({ success: true, url, filename: finalFilename });
       } else {
         return res.json({ success: true, message: `Chunk ${chunkIndex} received` });
@@ -844,6 +879,77 @@ async function startServer() {
     } catch (err: any) {
       console.error('Error during chunked upload:', err);
       res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Streaming endpoint for cloud videos persisted in Firestore with standard range support for video seeking
+  app.get('/api/video-cloud/:fileId', async (req, res) => {
+    try {
+      const { fileId } = req.params;
+      
+      // Fetch metadata
+      const metaRef = doc(db, 'cloud_videos', fileId);
+      const metaSnap = await firebaseGetDoc(metaRef);
+      if (!metaSnap.exists()) {
+        return res.status(404).send('Video not found in cloud database');
+      }
+      const meta = metaSnap.data();
+      
+      // Fetch all chunks
+      const chunksColl = collection(db, 'cloud_videos', fileId, 'chunks');
+      const chunksSnap = await firebaseGetDocs(chunksColl);
+      
+      const chunks: any[] = [];
+      chunksSnap.forEach((docSnap) => {
+        chunks.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      
+      // Sort chunks sequentially by index
+      chunks.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+      
+      if (chunks.length === 0) {
+        return res.status(404).send('Video chunks not found');
+      }
+      
+      // Combine chunks sequentially into a single buffer
+      const bufferArray = chunks.map(chunk => {
+        const data = chunk.data;
+        if (data && typeof data.toUint8Array === 'function') {
+          return Buffer.from(data.toUint8Array());
+        }
+        return Buffer.from(data);
+      });
+      
+      const fullBuffer = Buffer.concat(bufferArray);
+      
+      // Handle standard Range requests (crucial for video scrub/seek/iOS compatibility)
+      const range = req.headers.range;
+      if (range) {
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fullBuffer.length - 1;
+        
+        const chunksize = (end - start) + 1;
+        const file = fullBuffer.slice(start, end + 1);
+        
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fullBuffer.length}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': meta.contentType || 'video/mp4'
+        });
+        res.end(file);
+      } else {
+        res.writeHead(200, {
+          'Content-Length': fullBuffer.length,
+          'Content-Type': meta.contentType || 'video/mp4',
+          'Accept-Ranges': 'bytes'
+        });
+        res.end(fullBuffer);
+      }
+    } catch (err: any) {
+      console.error('Error streaming cloud video:', err);
+      res.status(500).send('Error streaming cloud video');
     }
   });
 

@@ -122,7 +122,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   }
 }
 
-export async function ensureUserDocument(user: User, referredBy?: string | null, additionalData?: { country?: string, currency?: string }) {
+export async function ensureUserDocument(user: User, referredBy?: string | null, additionalData?: { country?: string, currency?: string, username?: string, [key: string]: any }) {
   const userRef = doc(db, 'users', user.uid);
   const isAdminEmail = user.email === 'musstaphamusa@gmail.com';
   

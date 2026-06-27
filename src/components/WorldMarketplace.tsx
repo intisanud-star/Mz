@@ -125,7 +125,11 @@ interface WorldMarketplaceProps {
 export const getCleanVideoSrc = (url?: string | null): string => {
   if (!url) return "";
   const clean = url.trim();
-  if (clean.startsWith("/uploads/") || clean.startsWith("/api/proxy-video"))
+  if (
+    clean.startsWith("/uploads/") ||
+    clean.startsWith("/api/proxy-video") ||
+    clean.startsWith("/api/video-cloud")
+  )
     return clean;
   // Use proxy-video only for Instagram, as it might have a fallback
   if (
@@ -1282,30 +1286,9 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
     const fileId =
       Date.now().toString() + "_" + file.name.replace(/[^a-zA-Z0-9.]/g, "");
-    const storageRef = ref(storage, `videos/${fileId}`);
 
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const progress = Math.round(
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100,
-        );
-        setVideoUploadPercent(progress);
-      },
-      (error) => {
-        console.error("Firebase Storage Upload Error:", error);
-        showNotification("Cloud storage upload failed.", "error");
-        setIsUploadingVideo(false);
-        setVideoUploadPercent(0);
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          finalizeVideoUpload(downloadURL);
-        });
-      },
-    );
+    const chunkSize = 1024 * 1024; // 1MB chunks to safely bypass server and reverse-proxy limits
+    const totalChunks = Math.ceil(file.size / chunkSize);
 
     const finalizeVideoUpload = (liveUrl: string) => {
       const videoEl = document.createElement("video");
@@ -1348,6 +1331,48 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       videoEl.src = liveUrl;
       videoEl.currentTime = 0.1;
     };
+
+    try {
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        const formData = new FormData();
+        formData.append("file", chunk);
+        formData.append("fileId", fileId);
+        formData.append("chunkIndex", chunkIndex.toString());
+        formData.append("totalChunks", totalChunks.toString());
+        formData.append("fileName", file.name);
+
+        const response = await fetch("/api/upload-chunk", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed for chunk ${chunkIndex + 1}/${totalChunks}`);
+        }
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || "Chunk upload rejected");
+        }
+
+        const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+        setVideoUploadPercent(progress);
+
+        if (chunkIndex === totalChunks - 1) {
+          // Last chunk, finalize video upload using the cloud video stream URL
+          finalizeVideoUpload(data.url);
+        }
+      }
+    } catch (error: any) {
+      console.error("Chunk upload error:", error);
+      showNotification(error.message || "Cloud server upload failed.", "error");
+      setIsUploadingVideo(false);
+      setVideoUploadPercent(0);
+    }
   };
 
   const handleReceiptUploadChange = (
