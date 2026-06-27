@@ -2,7 +2,14 @@ import React, { useEffect, useState, useRef } from "react";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { Product, FeedVideoPlayer } from "./WorldMarketplace";
-import { Package, X, ArrowLeft, Heart, ShoppingCart } from "lucide-react";
+import {
+  Package,
+  X,
+  ArrowLeft,
+  Heart,
+  ShoppingCart,
+  MessageCircle,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export const UserShopItemsTab = ({
@@ -215,18 +222,20 @@ export const UserShopItemsTab = ({
                       </div>
 
                       {/* Media */}
-                      <div className="w-full bg-black h-[75vh] flex items-center justify-center relative overflow-hidden">
+                      <div className="w-full bg-stone-950 flex items-center justify-center relative overflow-hidden">
                         {item.videoUrl ? (
-                          <FeedVideoPlayer
-                            src={item.videoUrl}
-                            className="w-full h-full object-cover"
-                            controls={true}
-                            badgeText="Video"
-                          />
+                          <div className="w-full aspect-[4/5] sm:aspect-video relative">
+                            <FeedVideoPlayer
+                              src={item.videoUrl}
+                              className="w-full h-full object-contain"
+                              controls={true}
+                              badgeText="Video"
+                            />
+                          </div>
                         ) : (
                           <img
                             src={item.imageUrl}
-                            className="w-full h-full object-cover"
+                            className="w-full h-auto max-h-[85vh] object-contain"
                             referrerPolicy="no-referrer"
                             alt={item.name}
                           />
@@ -253,35 +262,52 @@ export const UserShopItemsTab = ({
                         )}
 
                         {/* Action Buttons */}
-                        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-stone-100">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              alert("Added to favorites");
-                            }}
-                            className="h-11 w-11 flex items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:text-rose-500 hover:border-rose-200 transition-colors cursor-pointer"
-                            title="Like"
-                          >
-                            <Heart size={20} />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              alert("Added to cart");
-                            }}
-                            className="h-11 w-11 flex items-center justify-center rounded-xl border border-stone-200 text-stone-500 hover:text-indigo-500 hover:border-indigo-200 transition-colors cursor-pointer"
-                            title="Add to Cart"
-                          >
-                            <ShoppingCart size={20} />
-                          </button>
+                        <div className="mt-4 pt-3 border-t border-stone-100/60 flex items-center justify-between gap-2.5 w-full">
+                          <div className="flex items-center gap-2 select-none shrink-0">
+                            {/* ❤️ Like Pill Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                alert("Liked!");
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[11px] font-bold select-none cursor-pointer active:scale-95 bg-stone-50 text-stone-600 border-stone-200/60 hover:bg-stone-100"
+                              title="Like posting"
+                            >
+                              <Heart size={13} className="text-stone-400" />
+                              <span>Like</span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-black bg-stone-200/60 text-stone-700">
+                                {Math.floor(Math.random() * 20) + 1}
+                              </span>
+                            </button>
+
+                            {/* 💬 Chat Pill Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                alert("Chat opened");
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all text-[11px] font-bold select-none cursor-pointer active:scale-95 bg-stone-50 text-stone-600 border-stone-200/60 hover:bg-stone-100"
+                              title="Chat / Open Discussion"
+                            >
+                              <MessageCircle
+                                size={13}
+                                className="text-stone-400"
+                              />
+                              <span>Chat</span>
+                            </button>
+                          </div>
+
+                          {/* 🛒 Buy Action */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               alert("Proceeding to checkout...");
                             }}
-                            className="flex-1 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-colors shadow-sm cursor-pointer"
+                            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border transition-all text-[11px] font-bold select-none cursor-pointer active:scale-95 ml-auto bg-[#2481CC] text-white border-[#2481CC] hover:bg-[#1E71B3]"
+                            title="Buy directly"
                           >
-                            Buy Now
+                            <ShoppingCart size={13} />
+                            <span>Buy</span>
                           </button>
                         </div>
                       </div>
