@@ -34,6 +34,7 @@ import {
   Monitor,
   BadgeCheck,
   Users,
+  Navigation,
 } from "lucide-react";
 import {
   collection,
@@ -56,7 +57,6 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "../firebase";
-import LogisticsDeliveryMap from "./LogisticsDeliveryMap";
 
 export interface Product {
   id: string;
@@ -77,6 +77,10 @@ export interface Product {
   sellerId?: string;
   sellerPhoto?: string;
   isCustom?: boolean;
+  deliveryPrice?: number;
+  sellerBankName?: string;
+  sellerBankAccountNo?: string;
+  sellerBankAccountName?: string;
 }
 
 export interface CartItem {
@@ -570,8 +574,8 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [shippingAddress, setShippingAddress] = useState("");
   const [shippingCountry, setShippingCountry] = useState("United States");
   const [shippingSpeed, setShippingSpeed] = useState<
-    "standard" | "express" | "supersonic"
-  >("standard");
+    "pickup" | "company" | "exona"
+  >("pickup");
   const [paymentNote, setPaymentNote] = useState("");
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState<
@@ -587,6 +591,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
   const [newProductName, setNewProductName] = useState("");
   const [newProductDesc, setNewProductDesc] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductDeliveryPrice, setNewProductDeliveryPrice] = useState("");
+  const [newSellerBankName, setNewSellerBankName] = useState("");
+  const [newSellerBankAccountNo, setNewSellerBankAccountNo] = useState("");
+  const [newSellerBankAccountName, setNewSellerBankAccountName] = useState("");
   const [newProductCurrency, setNewProductCurrency] = useState("USD");
   const [customCurrencySymbol, setCustomCurrencySymbol] = useState("");
   const [newProductCategory, setNewProductCategory] = useState("Electronics");
@@ -607,6 +615,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     setNewProductName("");
     setNewProductDesc("");
     setNewProductPrice("");
+    setNewProductDeliveryPrice("");
+    setNewSellerBankName("");
+    setNewSellerBankAccountNo("");
+    setNewSellerBankAccountName("");
     setNewProductCurrency("USD");
     setCustomCurrencySymbol("");
     setNewProductImg("");
@@ -620,6 +632,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
     setNewProductName(product.name || "");
     setNewProductDesc(product.description || "");
     setNewProductPrice(product.price ? String(product.price) : "");
+    setNewProductDeliveryPrice(product.deliveryPrice !== undefined ? String(product.deliveryPrice) : "");
+    setNewSellerBankName(product.sellerBankName || "");
+    setNewSellerBankAccountNo(product.sellerBankAccountNo || "");
+    setNewSellerBankAccountName(product.sellerBankAccountName || "");
 
     const existingCurrency = product.currency || "USD";
     const knownCurrencies = ["USD", "EUR", "GBP", "NGN", "JPY", "EXC"];
@@ -1162,12 +1178,24 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
   const shippingCost = useMemo(() => {
     if (cart.length === 0) return 0;
-    if (shippingSpeed === "standard") return 4.99;
-    if (shippingSpeed === "express") return 14.99;
-    return 49.99; // Super fast drone transport
-  }, [shippingSpeed, cart.length]);
+    if (shippingSpeed === "pickup") return 0; // Self-Collection / Pickup is Free
+    if (shippingSpeed === "company") {
+      // Sum the custom delivery price specified by the product authors
+      return cart.reduce((total, item) => total + (item.product.deliveryPrice || 0) * item.quantity, 0);
+    }
+    return 14.99; // Exona Delivery (Exona Men collect and deliver)
+  }, [shippingSpeed, cart]);
 
-  const cartTotal = cartSubtotal + shippingCost;
+  const transactionFeePercent = useMemo(() => {
+    if (checkoutPaymentMethod === "excoin") return 0;
+    return 0.03; // 3% for standard or p2p
+  }, [checkoutPaymentMethod]);
+
+  const transactionFee = useMemo(() => {
+    return (cartSubtotal + shippingCost) * transactionFeePercent;
+  }, [cartSubtotal, shippingCost, transactionFeePercent]);
+
+  const cartTotal = cartSubtotal + shippingCost + transactionFee;
 
   // Format dynamic currency prices based on user active conversion code
   const formatPrice = (usdAmount: number) => {
@@ -1463,6 +1491,7 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       return;
     }
     const parsedPrice = parseFloat(newProductPrice) || 0;
+    const parsedDeliveryPrice = parseFloat(newProductDeliveryPrice) || 0;
 
     setIsCreatingProduct(true);
     try {
@@ -1509,6 +1538,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             newProductDesc ||
             "Premium international item curated for the Exona world marketplace.",
           price: parsedPrice,
+          deliveryPrice: parsedDeliveryPrice,
+          sellerBankName: newSellerBankName.trim(),
+          sellerBankAccountNo: newSellerBankAccountNo.trim(),
+          sellerBankAccountName: newSellerBankAccountName.trim(),
           currency: customCurrency,
           category: newProductCategory,
           originCountry: newProductCountry,
@@ -1553,6 +1586,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
             newProductDesc ||
             "Premium international item curated for the Exona world marketplace.",
           price: parsedPrice,
+          deliveryPrice: parsedDeliveryPrice,
+          sellerBankName: newSellerBankName.trim(),
+          sellerBankAccountNo: newSellerBankAccountNo.trim(),
+          sellerBankAccountName: newSellerBankAccountName.trim(),
           currency: customCurrency,
           category: newProductCategory,
           originCountry: newProductCountry,
@@ -1589,6 +1626,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
       setNewProductName("");
       setNewProductDesc("");
       setNewProductPrice("");
+      setNewProductDeliveryPrice("");
+      setNewSellerBankName("");
+      setNewSellerBankAccountNo("");
+      setNewSellerBankAccountName("");
       setNewProductCurrency("USD");
       setCustomCurrencySymbol("");
       setNewProductImg("");
@@ -2178,6 +2219,20 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         <div className="flex flex-wrap gap-4 text-left">
                           <div>
                             <p className="text-stone-400 uppercase font-black tracking-widest text-[8.5px]">
+                              Delivery Method
+                            </p>
+                            <p className="font-black text-[#2481CC] mt-0.5 uppercase text-[10px]">
+                              {o.shippingSpeed === "pickup"
+                                ? "Self-Collection (Free)"
+                                : o.shippingSpeed === "company"
+                                  ? "Seller Delivery"
+                                  : o.shippingSpeed === "exona"
+                                    ? "Exona Men"
+                                    : "Standard Shipping"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-stone-400 uppercase font-black tracking-widest text-[8.5px]">
                               Items Total
                             </p>
                             <p className="font-black text-emerald-600 mt-0.5">
@@ -2281,27 +2336,228 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           </div>
                         </div>
 
-                        {/* LIVE GOOGLE MAP ROUTING COMPONENT */}
-                        <LogisticsDeliveryMap
-                          orderId={o.id}
-                          sellerName={
-                            o.items[0]?.name || "Exona Verified Seller"
-                          }
-                          sellerCountry={o.items[0]?.originCountry || "Japan"}
-                          buyerAddress={o.address}
-                          buyerCountry={o.country}
-                          orderStatus={o.status}
-                          onUpdateStatus={(newStatus, desc) => {
-                            // Update local status of order in real-time as well for smooth reactive state changes
-                            o.status = newStatus as any;
-                            if (!o.trackingUpdates) o.trackingUpdates = [];
-                            o.trackingUpdates.push({
-                              status: newStatus,
-                              time: new Date().toLocaleTimeString(),
-                              desc,
-                            });
-                          }}
-                        />
+                        {/* PURE LOGISTICS STATUS AND WORKFLOW PANEL (REPLACED GOOGLE MAP) */}
+                        <div className="bg-stone-50 border border-stone-200/90 rounded-[2rem] overflow-hidden p-5 space-y-5 shadow-sm mt-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-widest text-[#2481CC] flex items-center gap-1.5 select-none">
+                                <span className="p-1 bg-blue-50 text-[#2481CC] rounded-lg border border-blue-100 flex items-center justify-center shrink-0">
+                                  <Navigation size={12} className="animate-pulse" />
+                                </span>
+                                <span>Real-time Routing Companion</span>
+                              </h4>
+                              <p className="text-[10px] text-stone-400 font-bold uppercase mt-1">
+                                Tracking Active Delivery Pipeline: ID {o.id.slice(0, 10).toUpperCase()}...
+                              </p>
+                            </div>
+
+                            <div className="flex bg-stone-150/70 border border-stone-200/50 p-0.5 rounded-xl shrink-0 text-[10px] font-black uppercase tracking-wider select-none">
+                              <span className="px-3 py-1.5 bg-white text-stone-900 rounded-lg shadow-3xs">
+                                {o.shippingSpeed === "pickup" ? "🚶 Self-Pickup" : "🚚 Deliver Product"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Control Nodes Panel */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 bg-white border border-stone-150 rounded-2xl p-4 text-[11px] font-bold">
+                            {/* Origin / Seller Depot */}
+                            <div className="space-y-1">
+                              <label className="text-stone-400 font-black uppercase text-[8.5px] tracking-wider block">
+                                Warehouse Origin Depot
+                              </label>
+                              <div className="bg-stone-50 border border-stone-150 rounded-xl px-3 py-2 text-stone-900 flex items-center gap-2">
+                                <MapPin size={13} className="text-stone-400 shrink-0" />
+                                <span className="truncate">{o.items[0]?.originCountry || "Exona Warehouse Hub"}</span>
+                              </div>
+                            </div>
+
+                            {/* Destination / Buyer Delivery Dropoff */}
+                            <div className="space-y-1">
+                              <label className="text-stone-400 font-black uppercase text-[8.5px] tracking-wider block">
+                                Delivery Dropoff Address
+                              </label>
+                              <div className="bg-stone-50 border border-stone-150 rounded-xl px-3 py-2 text-stone-900 flex items-center gap-2">
+                                <User size={13} className="text-[#2481CC] shrink-0" />
+                                <span className="truncate">{o.address}, {o.country}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Beautiful Interactive Stepper Visual */}
+                          <div className="bg-white border border-stone-150 rounded-2xl p-5">
+                            <p className="text-[9px] font-black uppercase tracking-widest text-stone-400 mb-4 block">
+                              LOGISTICS PIPELINE PROGRESS
+                            </p>
+                            
+                            <div className="relative flex items-center justify-between w-full max-w-md mx-auto">
+                              {/* Horizontal track line */}
+                              <div className="absolute top-3.5 left-4 right-4 h-0.5 bg-stone-100 -z-0" />
+                              <div 
+                                className="absolute top-3.5 left-4 h-0.5 bg-[#2481CC] transition-all duration-500 -z-0" 
+                                style={{
+                                  width: o.status === "pending" ? "0%" :
+                                         o.status === "dispatched" ? "33%" :
+                                         o.status === "out_for_delivery" ? "66%" : "100%"
+                                }}
+                              />
+
+                              {[
+                                { status: "pending", label: "Pending", icon: "⏳" },
+                                { status: "dispatched", label: "Dispatched", icon: "📦" },
+                                { status: "out_for_delivery", label: "In Transit", icon: "🚚" },
+                                { status: "delivered", label: "Delivered", icon: "✅" }
+                              ].map((step, idx) => {
+                                const isCompleted = idx <= (
+                                  o.status === "pending" ? 0 :
+                                  o.status === "dispatched" ? 1 :
+                                  o.status === "out_for_delivery" ? 2 : 3
+                                );
+                                const isActive = o.status === step.status;
+
+                                return (
+                                  <div key={step.status} className="flex flex-col items-center relative z-10">
+                                    <div className={`h-8.5 w-8.5 rounded-full border-2 flex items-center justify-center text-xs transition-all ${
+                                      isActive 
+                                        ? "bg-white border-[#2481CC] text-[#2481CC] font-bold shadow-sm scale-110" 
+                                        : isCompleted 
+                                          ? "bg-[#2481CC] border-[#2481CC] text-white" 
+                                          : "bg-white border-stone-200 text-stone-300"
+                                    }`}>
+                                      {step.icon}
+                                    </div>
+                                    <span className={`text-[9px] uppercase tracking-wider font-extrabold mt-2 ${
+                                      isActive ? "text-[#2481CC]" : "text-stone-400"
+                                    }`}>
+                                      {step.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Stats Indicators beneath Map */}
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-white border border-stone-150 p-4 rounded-2xl">
+                            <div className="flex flex-wrap gap-5 text-[11px] font-bold">
+                              <div className="flex items-center gap-1.5 text-stone-605">
+                                <Clock size={14} className="text-stone-450" />
+                                <div>
+                                  <p className="text-stone-400 text-[8px] uppercase tracking-wider">Logistics travel eta</p>
+                                  <p className="text-stone-900 font-extrabold uppercase mt-0.5 whitespace-nowrap">
+                                    {o.status === "delivered" ? "Delivered" : "28 mins (Est)"}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-stone-605">
+                                <Truck size={14} className="text-stone-450" />
+                                <div>
+                                  <p className="text-stone-400 text-[8px] uppercase tracking-wider">Pipeline distance</p>
+                                  <p className="text-stone-900 font-extrabold uppercase mt-0.5 whitespace-nowrap">
+                                    14.8 KM (Est)
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-stone-605">
+                                <CheckCircle2 size={13} className="text-emerald-500" />
+                                <div>
+                                  <p className="text-stone-400 text-[8px] uppercase tracking-wider">Courier driver status</p>
+                                  <p className="text-emerald-600 font-extrabold uppercase mt-0.5 whitespace-nowrap">
+                                    {o.status === "out_for_delivery" ? "Active Local Delivery" : 
+                                     o.status === "delivered" ? "Completed" : "Preparing dispatch"}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Courier dispatch management for simulations */}
+                            <div className="flex flex-wrap gap-2">
+                              {o.status !== "out_for_delivery" && o.status !== "delivered" && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const orderRef = doc(db, "marketplace_orders", o.id);
+                                      const timeString = new Date().toLocaleTimeString();
+                                      const nextStatus = o.status === "pending" ? "dispatched" : "out_for_delivery";
+                                      const desc = nextStatus === "dispatched" 
+                                        ? "Item sorted and dispatched from regional sorting center."
+                                        : "Delivery guy has loaded the product and is en route on physical path!";
+                                      
+                                      const updatedUpdates = [
+                                        ...(o.trackingUpdates || []),
+                                        { status: nextStatus, time: timeString, desc }
+                                      ];
+
+                                      await updateDoc(orderRef, {
+                                        status: nextStatus,
+                                        trackingUpdates: updatedUpdates
+                                      });
+
+                                      setOrders(prev => prev.map(item => item.id === o.id ? {
+                                        ...item,
+                                        status: nextStatus as any,
+                                        trackingUpdates: updatedUpdates
+                                      } : item));
+
+                                      if (showNotification) {
+                                        showNotification(`Order dispatched successfully!`, "success");
+                                      }
+                                    } catch (err) {
+                                      console.error("Firestore order update error:", err);
+                                      if (showNotification) {
+                                        showNotification("Could not dispatch driver.", "error");
+                                      }
+                                    }
+                                  }}
+                                  className="px-3.5 py-1.5 bg-yellow-500 hover:bg-yellow-600 font-black text-stone-950 uppercase tracking-widest text-[9.5px] rounded-xl transition-all font-sans cursor-pointer active:scale-95 flex items-center gap-1"
+                                >
+                                  <Truck size={11} className="stroke-[2.5px]" />
+                                  {o.status === "pending" ? "Dispatch Package" : "Out for Delivery"}
+                                </button>
+                              )}
+
+                              {o.status === "out_for_delivery" && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const orderRef = doc(db, "marketplace_orders", o.id);
+                                      const timeString = new Date().toLocaleTimeString();
+                                      const desc = "Delivery completed! Buyer signed invoice at dropoff point.";
+                                      
+                                      const updatedUpdates = [
+                                        ...(o.trackingUpdates || []),
+                                        { status: "delivered", time: timeString, desc }
+                                      ];
+
+                                      await updateDoc(orderRef, {
+                                        status: "delivered",
+                                        trackingUpdates: updatedUpdates
+                                      });
+
+                                      setOrders(prev => prev.map(item => item.id === o.id ? {
+                                        ...item,
+                                        status: "delivered" as any,
+                                        trackingUpdates: updatedUpdates
+                                      } : item));
+
+                                      if (showNotification) {
+                                        showNotification("Delivery completed!", "success");
+                                      }
+                                    } catch (err) {
+                                      console.error("Firestore order update error:", err);
+                                      if (showNotification) {
+                                        showNotification("Could not confirm delivery.", "error");
+                                      }
+                                    }
+                                  }}
+                                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 font-black text-white uppercase tracking-widest text-[9.5px] rounded-xl transition-all font-sans cursor-pointer active:scale-95 flex items-center gap-1"
+                                >
+                                  <Check size={11} className="stroke-[3.5px]" />
+                                  Confirm Delivery
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -3553,47 +3809,62 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
 
                     <div className="space-y-1 text-left">
                       <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
-                        Assigned Delivery Velocity
+                        Choose Delivery Method
                       </label>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 gap-2.5">
                         {[
                           {
-                            speed: "standard",
-                            title: "Standard Air",
-                            desc: "Ships 3-5d",
-                            cost: 4.99,
+                            speed: "pickup",
+                            title: "Self-Collection / Pickup",
+                            desc: "User will come and collect his product, which is free",
+                            cost: 0,
                           },
                           {
-                            speed: "express",
-                            title: "Supra Express",
-                            desc: "Ships 1-2d",
+                            speed: "company",
+                            title: "Company / Seller Delivery",
+                            desc: "The company will make the delivery and the charges depend on what they provide as delivery prices",
+                            cost: cart.reduce((total, item) => total + (item.product.deliveryPrice || 0) * item.quantity, 0),
+                          },
+                          {
+                            speed: "exona",
+                            title: "Exona Delivery (Exona Men)",
+                            desc: "Exona men to make the delivery to go and collect from seller or company to deliver it to the buyer",
                             cost: 14.99,
-                          },
-                          {
-                            speed: "supersonic",
-                            title: "Drone Direct",
-                            desc: "Ships 1hr",
-                            cost: 49.99,
                           },
                         ].map((v) => (
                           <div
                             key={v.speed}
                             onClick={() => setShippingSpeed(v.speed as any)}
-                            className={`p-2.5 border rounded-xl cursor-pointer flex flex-col justify-between transition-all text-left ${
+                            className={`p-3.5 border rounded-2xl cursor-pointer flex items-start gap-3 transition-all text-left ${
                               shippingSpeed === v.speed
-                                ? "border-stone-900 bg-stone-50 scale-102 font-black shadow-xs"
+                                ? "border-[#2481CC] bg-blue-50/30 scale-101 font-black shadow-xs"
                                 : "border-stone-150 hover:bg-stone-50"
                             }`}
                           >
-                            <span className="text-[10px] font-black text-stone-900">
-                              {v.title}
-                            </span>
-                            <span className="text-[9px] text-[#2481CC] font-bold mt-1 uppercase leading-none">
-                              {v.desc}
-                            </span>
-                            <span className="text-[9.5px] font-black text-emerald-600 mt-1">
-                              ${v.cost}
-                            </span>
+                            <div className="mt-1 shrink-0">
+                              <div className={`h-4.5 w-4.5 rounded-full border flex items-center justify-center ${
+                                shippingSpeed === v.speed
+                                  ? "border-[#2481CC] bg-[#2481CC]"
+                                  : "border-stone-300"
+                              }`}>
+                                {shippingSpeed === v.speed && (
+                                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-baseline gap-2">
+                                <span className="text-xs font-black text-stone-900 leading-tight">
+                                  {v.title}
+                                </span>
+                                <span className={`text-xs font-black shrink-0 ${v.cost === 0 ? "text-emerald-600" : "text-[#2481CC]"}`}>
+                                  {v.cost === 0 ? "FREE" : formatPrice(v.cost)}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-stone-500 font-bold mt-1 leading-normal">
+                                {v.desc}
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -3641,9 +3912,15 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Aviation Freight Charges:</span>
-                        <span className="text-stone-900">
-                          ${shippingCost.toFixed(2)}
+                        <span>Delivery / Logistic Charges:</span>
+                        <span className="text-stone-900 font-extrabold">
+                          {shippingCost === 0 ? "FREE" : formatPrice(shippingCost)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Transaction Charge ({checkoutPaymentMethod === "excoin" ? "0%" : "3%"}):</span>
+                        <span className={`font-extrabold ${checkoutPaymentMethod === "excoin" ? "text-emerald-600" : "text-stone-900"}`}>
+                          {checkoutPaymentMethod === "excoin" ? "FREE (Exona Coin Special)" : formatPrice(transactionFee)}
                         </span>
                       </div>
                       <div className="border-t border-stone-200 pt-3 flex justify-between text-stone-900 text-xs">
@@ -3752,19 +4029,10 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                               const seller = String(
                                 item.product.sellerName || "Exona Partner",
                               );
-                              const charSum = seller
-                                .split("")
-                                .reduce(
-                                  (sum, char) => sum + char.charCodeAt(0),
-                                  0,
-                                );
-                              const accountNo = `90${((charSum * 33) % 90000000) + 10000000}`;
-                              const bankCode =
-                                charSum % 3 === 0
-                                  ? "Carbon Microfinance Bank"
-                                  : charSum % 3 === 1
-                                    ? "VFD Microfinance Bank"
-                                    : "OPay Digital Ltd";
+                              const bankCode = item.product.sellerBankName || "";
+                              const accountNo = item.product.sellerBankAccountNo || "";
+                              const accountName = item.product.sellerBankAccountName || seller;
+                              const hasBankInfo = bankCode.trim() !== "" && accountNo.trim() !== "";
 
                               return (
                                 <div
@@ -3787,20 +4055,26 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                                       )}
                                     </span>
                                   </div>
-                                  <div className="text-[10px] text-stone-650 bg-stone-50 p-2 rounded-lg border border-stone-100 font-mono flex flex-col mt-1">
-                                    <span>
-                                      🏛️ Bank: <strong>{bankCode}</strong>
-                                    </span>
-                                    <span>
-                                      💳 No:{" "}
-                                      <strong className="text-stone-900 select-all font-bold">
-                                        {accountNo}
-                                      </strong>
-                                    </span>
-                                    <span>
-                                      👤 Name: <strong>{seller}</strong>
-                                    </span>
-                                  </div>
+                                  {hasBankInfo ? (
+                                    <div className="text-[10px] text-stone-650 bg-stone-50 p-2 rounded-lg border border-stone-100 font-mono flex flex-col mt-1">
+                                      <span>
+                                        🏛️ Bank: <strong>{bankCode}</strong>
+                                      </span>
+                                      <span>
+                                        💳 No:{" "}
+                                        <strong className="text-stone-900 select-all font-bold">
+                                          {accountNo}
+                                        </strong>
+                                      </span>
+                                      <span>
+                                        👤 Name: <strong>{accountName}</strong>
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <div className="text-[9.5px] text-amber-700 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100 mt-1 leading-normal font-semibold">
+                                      ⚠️ The author has not provided bank transfer information for P2P payments. Please contact the seller or choose Excoin as payment method instead.
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -4149,6 +4423,74 @@ export const WorldMarketplace: React.FC<WorldMarketplaceProps> = ({
                           </option>
                         ))}
                     </select>
+                  </div>
+                </div>
+
+                {/* Custom Delivery Settings */}
+                <div className="pt-2 border-t border-stone-100 space-y-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-stone-900 flex items-center gap-1">
+                    <span>🚚</span> Custom Delivery Settings
+                  </h4>
+                  <div className="space-y-1">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                      Company/Seller Delivery Price
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 5.99 (Leave blank/0 for FREE)"
+                      value={newProductDeliveryPrice}
+                      onChange={(e) => setNewProductDeliveryPrice(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                    />
+                    <span className="text-[8px] text-stone-400 font-semibold uppercase leading-none block mt-0.5">
+                      Set your own price for Company/Seller delivery method.
+                    </span>
+                  </div>
+                </div>
+
+                {/* Seller P2P Bank Details */}
+                <div className="pt-2 border-t border-stone-100 space-y-3">
+                  <h4 className="text-[10px] font-black uppercase tracking-wider text-stone-900 flex items-center gap-1">
+                    <span>🏛️</span> Seller Bank Transfer Details (For P2P Payments)
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. GTBank, Carbon, Kuda"
+                        value={newSellerBankName}
+                        onChange={(e) => setNewSellerBankName(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-850 transition-all font-sans"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                        Account Number
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 0123456789"
+                        value={newSellerBankAccountNo}
+                        onChange={(e) => setNewSellerBankAccountNo(e.target.value)}
+                        className="w-full px-3 py-1.5 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-[11px] font-bold text-stone-850 transition-all font-sans"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-stone-400 font-black uppercase tracking-wider text-[8.5px]">
+                      Account Holder Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. John Doe Enterprise"
+                      value={newSellerBankAccountName}
+                      onChange={(e) => setNewSellerBankAccountName(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-stone-50 focus:bg-white border focus:border-stone-900/35 border-stone-200 rounded-xl outline-none text-xs font-bold text-stone-850 transition-all font-sans"
+                    />
                   </div>
                 </div>
 
