@@ -5303,13 +5303,13 @@ function ExonaApp() {
   const [isStandalone, setIsStandalone] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const hasApp = params.has('app') || params.has('workspaceApp');
-    return hasApp || window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+    return hasApp;
   });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hasApp = params.has('app') || params.has('workspaceApp');
-    setIsStandalone(hasApp || window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone);
+    setIsStandalone(hasApp);
   }, []);
 
   enum OperationType {
