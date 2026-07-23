@@ -15039,38 +15039,22 @@ function ExonaApp() {
       }
       case 'schools': {
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[99999] flex flex-col">
-            {/* White Top Header Bar with iOS safe-area notch safety */}
-            <div 
-              style={{ 
-                paddingTop: 'env(safe-area-inset-top, 20px)',
-                paddingBottom: '12px'
+          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[99999]">
+            {/* Floating Back Button - notch-safe circle overlay */}
+            <button
+              onClick={() => setView('feed')}
+              style={{
+                top: 'calc(16px + env(safe-area-inset-top, 20px))',
+                left: 'calc(16px + env(safe-area-inset-left, 0px))'
               }}
-              className="w-full bg-white border-b border-zinc-200/60 z-[9999] flex items-center justify-between px-4 select-none shrink-0"
+              className="fixed w-11 h-11 bg-white hover:bg-zinc-50 text-slate-800 rounded-full shadow-lg border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer active:scale-95 z-[99999]"
+              aria-label="Back to Home"
             >
-              {/* Back to Home Button */}
-              <button
-                onClick={() => setView('feed')}
-                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95"
-              >
-                <ArrowLeft size={13} className="text-[#2481CC] stroke-[3]" />
-                <span>Back to Home</span>
-              </button>
+              <ArrowLeft size={20} className="text-[#2481CC] stroke-[3]" />
+            </button>
 
-              {/* Open in New Tab Button */}
-              <a
-                href="https://shopping-time-400371160094.europe-west2.run.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95 decoration-none"
-              >
-                <ExternalLinkIcon size={13} className="text-[#2481CC] stroke-[2.5]" />
-                <span>Open in New Tab</span>
-              </a>
-            </div>
-
-            {/* Scrolling wrapper to fix iOS Safari iframe expansion */}
-            <div className="flex-1 w-full min-h-0 relative overflow-hidden bg-white">
+            {/* Scrolling wrapper to fix iOS Safari iframe expansion - occupying 100% full screen */}
+            <div className="w-full h-full relative overflow-hidden bg-white">
               <iframe 
                 src="https://shopping-time-400371160094.europe-west2.run.app" 
                 style={{
@@ -23749,38 +23733,22 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[99999] flex flex-col">
-            {/* White Top Header Bar with iOS safe-area notch safety */}
-            <div 
-              style={{ 
-                paddingTop: 'env(safe-area-inset-top, 20px)',
-                paddingBottom: '12px'
+          <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[99999]">
+            {/* Floating Back Button - notch-safe circle overlay */}
+            <button
+              onClick={() => setView('feed')}
+              style={{
+                top: 'calc(16px + env(safe-area-inset-top, 20px))',
+                left: 'calc(16px + env(safe-area-inset-left, 0px))'
               }}
-              className="w-full bg-white border-b border-zinc-200/60 z-[9999] flex items-center justify-between px-4 select-none shrink-0"
+              className="fixed w-11 h-11 bg-white hover:bg-zinc-50 text-slate-800 rounded-full shadow-lg border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer active:scale-95 z-[99999]"
+              aria-label="Back to Home"
             >
-              {/* Back to Home Button */}
-              <button
-                onClick={() => setView('feed')}
-                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95"
-              >
-                <ArrowLeft size={13} className="text-[#2481CC] stroke-[3]" />
-                <span>Back to Home</span>
-              </button>
+              <ArrowLeft size={20} className="text-[#2481CC] stroke-[3]" />
+            </button>
 
-              {/* Open in New Tab Button */}
-              <a
-                href="https://remix-exona-400371160094.europe-west2.run.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95 decoration-none"
-              >
-                <ExternalLinkIcon size={13} className="text-[#2481CC] stroke-[2.5]" />
-                <span>Open in New Tab</span>
-              </a>
-            </div>
-
-            {/* Scrolling wrapper to fix iOS Safari iframe expansion */}
-            <div className="flex-1 w-full min-h-0 relative overflow-hidden bg-[#070b19]">
+            {/* Scrolling wrapper to fix iOS Safari iframe expansion - occupying 100% full screen */}
+            <div className="w-full h-full relative overflow-hidden bg-[#070b19]">
               <iframe 
                 src="https://remix-exona-400371160094.europe-west2.run.app" 
                 style={{
