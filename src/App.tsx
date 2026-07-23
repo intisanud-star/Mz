@@ -3629,7 +3629,8 @@ function ExonaApp() {
     if (view === renderedView) return;
 
     // Fast-track initial transitions so cold boots show instant menus
-    if (renderedView === 'splash') {
+    // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
+    if (renderedView === 'splash' || view === 'schools' || view === 'videos') {
       setRenderedView(view);
       return;
     }
