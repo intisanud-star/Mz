@@ -5387,29 +5387,10 @@ function ExonaApp() {
   }, []);
 
   const installApp = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDeferredPrompt(null);
-      return;
-    }
-
-    // Force open the provided Vercel URL in Chrome for PWA installation
-    const urlWithoutScheme = 'mz-rosy.vercel.app';
-    const ua = window.navigator.userAgent.toLowerCase();
-    const isAndroid = /android/.test(ua);
-    const isIOS = /iphone|ipad|ipod/.test(ua);
-    
-    if (isAndroid) {
-      window.location.href = `intent://${urlWithoutScheme}#Intent;scheme=http;package=com.android.chrome;end`;
-    } else if (isIOS) {
-      window.location.href = `googlechromes://${urlWithoutScheme}`;
-      setTimeout(() => {
-        window.location.href = `http://${urlWithoutScheme}`;
-      }, 500);
-    } else {
-      window.open(`http://${urlWithoutScheme}`, '_blank');
-    }
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') setDeferredPrompt(null);
   };
 
   const [notificationFilter, setNotificationFilter] = useState<'all' | 'system' | 'social' | 'treasury'>('all');
@@ -6233,13 +6214,13 @@ function ExonaApp() {
                <div className="px-8 mt-6">
                   <div className="flex items-center justify-between mb-3 px-2">
                      <h5 className="text-[9px] font-black text-ink uppercase tracking-widest">Protocol Sync Status</h5>
-                     {!isStandalone && (
+                     {deferredPrompt && (
                         <button 
                           onClick={installApp}
-                          className="flex items-center gap-1.5 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest animate-bounce cursor-pointer"
+                          className="flex items-center gap-1.5 px-3 py-1 bg-ink text-white rounded-lg text-[8px] font-black uppercase tracking-widest animate-bounce"
                         >
                            <Download size={10} />
-                           Install App in Chrome
+                           Install APK/App
                         </button>
                      )}
                   </div>
