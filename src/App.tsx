@@ -15039,42 +15039,52 @@ function ExonaApp() {
       }
       case 'schools': {
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[100] flex flex-col">
-            {/* Floating Back to Home Button - fixed positioning with iOS notch-safe margins */}
-            <button
-              onClick={() => setView('feed')}
-              style={{
-                top: 'calc(12px + env(safe-area-inset-top, 24px))',
-                left: 'calc(16px + env(safe-area-inset-left, 0px))'
+          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[99999] flex flex-col">
+            {/* White Top Header Bar with iOS safe-area notch safety */}
+            <div 
+              style={{ 
+                paddingTop: 'env(safe-area-inset-top, 20px)',
+                paddingBottom: '12px'
               }}
-              className="fixed z-[99999] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-left-5 duration-300"
+              className="w-full bg-white border-b border-zinc-200/60 z-[9999] flex items-center justify-between px-4 select-none shrink-0"
             >
-              <ArrowLeft size={12} className="text-[#2481CC] stroke-[3]" />
-              <span>Back to Home</span>
-            </button>
+              {/* Back to Home Button */}
+              <button
+                onClick={() => setView('feed')}
+                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95"
+              >
+                <ArrowLeft size={13} className="text-[#2481CC] stroke-[3]" />
+                <span>Back to Home</span>
+              </button>
 
-            {/* Floating Open in New Tab Button - fixed positioning with iOS notch-safe margins */}
-            <a
-              href="https://shopping-time-400371160094.europe-west2.run.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                top: 'calc(12px + env(safe-area-inset-top, 24px))',
-                right: 'calc(16px + env(safe-area-inset-right, 0px))'
-              }}
-              className="fixed z-[99999] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-right-5 duration-300 decoration-none"
-            >
-              <ExternalLinkIcon size={12} className="text-[#2481CC] stroke-[2.5]" />
-              <span>Open in New Tab</span>
-            </a>
+              {/* Open in New Tab Button */}
+              <a
+                href="https://shopping-time-400371160094.europe-west2.run.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95 decoration-none"
+              >
+                <ExternalLinkIcon size={13} className="text-[#2481CC] stroke-[2.5]" />
+                <span>Open in New Tab</span>
+              </a>
+            </div>
 
-            <iframe 
-              src="https://shopping-time-400371160094.europe-west2.run.app" 
-              className="w-full h-full border-0 flex-1 bg-white"
-              title="Shop View"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            {/* Scrolling wrapper to fix iOS Safari iframe expansion */}
+            <div className="flex-1 w-full min-h-0 relative overflow-hidden bg-white">
+              <iframe 
+                src="https://shopping-time-400371160094.europe-west2.run.app" 
+                style={{
+                  width: '1px',
+                  minWidth: '100%',
+                  height: '100%',
+                  border: 'none',
+                }}
+                className="absolute inset-0 w-full h-full bg-white"
+                title="Shop View"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
           </div>
         );
       }
@@ -23739,42 +23749,52 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[100] flex flex-col">
-            {/* Floating Back to Home Button - fixed positioning with iOS notch-safe margins */}
-            <button
-              onClick={() => setView('feed')}
-              style={{
-                top: 'calc(12px + env(safe-area-inset-top, 24px))',
-                left: 'calc(16px + env(safe-area-inset-left, 0px))'
+          <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[99999] flex flex-col">
+            {/* White Top Header Bar with iOS safe-area notch safety */}
+            <div 
+              style={{ 
+                paddingTop: 'env(safe-area-inset-top, 20px)',
+                paddingBottom: '12px'
               }}
-              className="fixed z-[99999] flex items-center gap-1.5 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 hover:text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-2xl border border-zinc-800 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-left-5 duration-300"
+              className="w-full bg-white border-b border-zinc-200/60 z-[9999] flex items-center justify-between px-4 select-none shrink-0"
             >
-              <ArrowLeft size={12} className="text-sky-400 stroke-[3]" />
-              <span>Back to Home</span>
-            </button>
+              {/* Back to Home Button */}
+              <button
+                onClick={() => setView('feed')}
+                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95"
+              >
+                <ArrowLeft size={13} className="text-[#2481CC] stroke-[3]" />
+                <span>Back to Home</span>
+              </button>
 
-            {/* Floating Open in New Tab Button - fixed positioning with iOS notch-safe margins */}
-            <a
-              href="https://remix-exona-400371160094.europe-west2.run.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                top: 'calc(12px + env(safe-area-inset-top, 24px))',
-                right: 'calc(16px + env(safe-area-inset-right, 0px))'
-              }}
-              className="fixed z-[99999] flex items-center gap-1.5 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 hover:text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-2xl border border-zinc-800 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-right-5 duration-300 decoration-none"
-            >
-              <ExternalLinkIcon size={12} className="text-sky-400 stroke-[2.5]" />
-              <span>Open in New Tab</span>
-            </a>
+              {/* Open in New Tab Button */}
+              <a
+                href="https://remix-exona-400371160094.europe-west2.run.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 bg-zinc-50 hover:bg-zinc-100 text-slate-800 font-bold text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-full shadow-sm border border-zinc-200/80 transition-all cursor-pointer active:scale-95 decoration-none"
+              >
+                <ExternalLinkIcon size={13} className="text-[#2481CC] stroke-[2.5]" />
+                <span>Open in New Tab</span>
+              </a>
+            </div>
 
-            <iframe 
-              src="https://remix-exona-400371160094.europe-west2.run.app" 
-              className="w-full h-full border-0 flex-1 bg-[#070b19]"
-              title="Satellite View"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            {/* Scrolling wrapper to fix iOS Safari iframe expansion */}
+            <div className="flex-1 w-full min-h-0 relative overflow-hidden bg-[#070b19]">
+              <iframe 
+                src="https://remix-exona-400371160094.europe-west2.run.app" 
+                style={{
+                  width: '1px',
+                  minWidth: '100%',
+                  height: '100%',
+                  border: 'none',
+                }}
+                className="absolute inset-0 w-full h-full bg-[#070b19]"
+                title="Satellite View"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
           </div>
         );
       }
