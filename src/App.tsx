@@ -23719,19 +23719,19 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[100] flex flex-col">
+          <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[100] flex flex-col">
             {/* Floating Back to Home Button */}
             <button
               onClick={() => setView('feed')}
-              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none"
+              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-zinc-900/90 hover:bg-zinc-850 text-zinc-100 hover:text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-2xl border border-zinc-800 transition-all cursor-pointer active:scale-95 select-none"
             >
-              <ArrowLeft size={12} className="text-[#2481CC] stroke-[3]" />
+              <ArrowLeft size={12} className="text-sky-400 stroke-[3]" />
               <span>Back to Home</span>
             </button>
 
             <iframe 
               src="https://remix-exona-400371160094.europe-west2.run.app" 
-              className="w-full h-full border-0 flex-1"
+              className="w-full h-full border-0 flex-1 bg-[#070b19]"
               title="Satellite View"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
