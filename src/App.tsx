@@ -12468,7 +12468,7 @@ function ExonaApp() {
 
   // 4. Stories Listener
   useEffect(() => {
-    if (isQuotaExceeded || !['feed', 'school-feed', 'schools'].includes(view)) return;
+    if (isQuotaExceeded || !user || !['feed', 'school-feed', 'schools'].includes(view)) return;
 
     const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const qStories = query(collection(db, 'stories'), where('timestamp', '>', yesterday), orderBy('timestamp', 'desc'));
@@ -12479,7 +12479,7 @@ function ExonaApp() {
     });
 
     return () => unsubStories();
-  }, [isQuotaExceeded, view]);
+  }, [user, isQuotaExceeded, view]);
 
   // 5. Educational and Financial Records Listener (system-wide admin tracking only, standard users lazy load on-click)
   useEffect(() => {
@@ -23777,57 +23777,15 @@ function ExonaApp() {
 
             {/* Scrollable Broadcasts Content Box */}
             <div 
-              ref={view === 'videos' ? scrollContainerRef : undefined}
-              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[116px]"
+              className="flex-1 w-full pt-[116px] pb-24"
             >
-              <div className="w-full pt-4 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-                {/* Search Bar (Scrolling with page content) */}
-                <div className="relative group min-w-0 w-full mb-5">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
-                  <input 
-                    type="text" 
-                    placeholder="Search institutions, people, groups..." 
-                    value={globalSearch}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setGlobalSearch(val);
-                      handleSearchUsers(val);
-                      if (val.trim()) setView('search');
-                    }}
-                    onFocus={() => {
-                      if (globalSearch) setView('search');
-                    }}
-                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
-                  />
-                </div>
-
-                <div className="mt-4">
-                <YoutubeBroadcasts
-                  user={user}
-                  userDoc={userDoc}
-                  customBroadcasts={broadcastEngine === 'sqlite_offline' ? localSqliteBroadcasts : youtubeBroadcasts}
-                  broadcastEngine={broadcastEngine}
-                  setBroadcastEngine={setBroadcastEngine}
-                  onAddBroadcast={handleAddYoutubeBroadcast}
-                  onDeleteBroadcast={handleDeleteYoutubeBroadcast}
-                  onLikeBroadcast={handleLikeYoutubeBroadcast}
-                  handleDebitExcoin={handleDebitExcoin}
-                  showNotification={showNotification}
-                  onOpenPlace={(creatorUid, creatorName) => {
-                    const foundSchool = schools.find(s => s.creatorUid === creatorUid || s.name.toLowerCase() === creatorName?.toLowerCase());
-                    if (foundSchool) {
-                      setSelectedSchool(foundSchool);
-                      setView('school-feed');
-                      showNotification(`Welcome to ${foundSchool.name}!`, 'success');
-                    } else {
-                      showNotification("The associated institution/place could not be found.", "error");
-                    }
-                  }}
-                  onClose={() => setView('feed')}
-                  isTabActive={view === 'videos'}
-                />
-              </div>
-            </div>
+              <iframe 
+                src="https://remix-exona-400371160094.europe-west2.run.app" 
+                className="w-full h-full border-0"
+                title="Satellite View"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
           </div>
         );
