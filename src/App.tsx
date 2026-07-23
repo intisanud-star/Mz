@@ -15043,15 +15043,26 @@ function ExonaApp() {
             {/* Floating Back to Home Button */}
             <button
               onClick={() => setView('feed')}
-              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none"
+              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-left-5 duration-300"
             >
               <ArrowLeft size={12} className="text-[#2481CC] stroke-[3]" />
               <span>Back to Home</span>
             </button>
 
+            {/* Floating Open in New Tab Button (Fallback for iframe blocking) */}
+            <a
+              href="https://shopping-time-400371160094.europe-west2.run.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute top-4 right-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-right-5 duration-300 decoration-none"
+            >
+              <ExternalLinkIcon size={12} className="text-[#2481CC] stroke-[2.5]" />
+              <span>Open in New Tab</span>
+            </a>
+
             <iframe 
               src="https://shopping-time-400371160094.europe-west2.run.app" 
-              className="w-full h-full border-0 flex-1"
+              className="w-full h-full border-0 flex-1 bg-white"
               title="Shop View"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
