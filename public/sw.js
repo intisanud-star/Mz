@@ -2,7 +2,7 @@
 // This ensures developers and users see instant code modifications while online,
 // but can load and run the complete application seamlessly in offline mode.
 
-const CACHE_NAME = 'exona-offline-v1';
+const CACHE_NAME = 'exona-offline-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
