@@ -23726,67 +23726,23 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
-            {/* Perfectly Constant, Stationary Header */}
-            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
-              <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col gap-3">
-                {/* Top Row: Brand & Top-right Actions (Bell, Menu) */}
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-ink">
-                    <button 
-                      onClick={() => setView('notifications')}
-                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink cursor-pointer"
-                    >
-                      <Bell size={20} />
-                      {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
-                          {unreadNotificationsCount}
-                        </span>
-                      )}
-                    </button>
-                    <button 
-                      onClick={() => setSidebarOpen(true)}
-                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink cursor-pointer"
-                    >
-                      <Menu size={20} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
-                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
-                  <button 
-                    onClick={() => setView('feed')}
-                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                  >
-                    Home
-                  </button>
-                  <button 
-                    onClick={() => setView('videos')}
-                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                  >
-                    Satellite
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Scrollable Broadcasts Content Box */}
-            <div 
-              className="flex-1 w-full pt-[116px] pb-24"
+          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[100] flex flex-col">
+            {/* Floating Back to Home Button */}
+            <button
+              onClick={() => setView('feed')}
+              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none"
             >
-              <iframe 
-                src="https://remix-exona-400371160094.europe-west2.run.app" 
-                className="w-full h-full border-0"
-                title="Satellite View"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+              <ArrowLeft size={12} className="text-[#2481CC] stroke-[3]" />
+              <span>Back to Home</span>
+            </button>
+
+            <iframe 
+              src="https://remix-exona-400371160094.europe-west2.run.app" 
+              className="w-full h-full border-0 flex-1"
+              title="Satellite View"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
           </div>
         );
       }
