@@ -15040,21 +15040,29 @@ function ExonaApp() {
       case 'schools': {
         return (
           <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[100] flex flex-col">
-            {/* Floating Back to Home Button */}
+            {/* Floating Back to Home Button - fixed positioning with iOS notch-safe margins */}
             <button
               onClick={() => setView('feed')}
-              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-left-5 duration-300"
+              style={{
+                top: 'calc(12px + env(safe-area-inset-top, 24px))',
+                left: 'calc(16px + env(safe-area-inset-left, 0px))'
+              }}
+              className="fixed z-[99999] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-left-5 duration-300"
             >
               <ArrowLeft size={12} className="text-[#2481CC] stroke-[3]" />
               <span>Back to Home</span>
             </button>
 
-            {/* Floating Open in New Tab Button (Fallback for iframe blocking) */}
+            {/* Floating Open in New Tab Button - fixed positioning with iOS notch-safe margins */}
             <a
               href="https://shopping-time-400371160094.europe-west2.run.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="absolute top-4 right-4 z-[110] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-right-5 duration-300 decoration-none"
+              style={{
+                top: 'calc(12px + env(safe-area-inset-top, 24px))',
+                right: 'calc(16px + env(safe-area-inset-right, 0px))'
+              }}
+              className="fixed z-[99999] flex items-center gap-1.5 bg-white/95 hover:bg-white text-slate-800 font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-xl border border-slate-200/60 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-right-5 duration-300 decoration-none"
             >
               <ExternalLinkIcon size={12} className="text-[#2481CC] stroke-[2.5]" />
               <span>Open in New Tab</span>
@@ -23732,14 +23740,33 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         return (
           <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[100] flex flex-col">
-            {/* Floating Back to Home Button */}
+            {/* Floating Back to Home Button - fixed positioning with iOS notch-safe margins */}
             <button
               onClick={() => setView('feed')}
-              className="absolute top-4 left-4 z-[110] flex items-center gap-1.5 bg-zinc-900/90 hover:bg-zinc-850 text-zinc-100 hover:text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-2xl border border-zinc-800 transition-all cursor-pointer active:scale-95 select-none"
+              style={{
+                top: 'calc(12px + env(safe-area-inset-top, 24px))',
+                left: 'calc(16px + env(safe-area-inset-left, 0px))'
+              }}
+              className="fixed z-[99999] flex items-center gap-1.5 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 hover:text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-2xl border border-zinc-800 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-left-5 duration-300"
             >
               <ArrowLeft size={12} className="text-sky-400 stroke-[3]" />
               <span>Back to Home</span>
             </button>
+
+            {/* Floating Open in New Tab Button - fixed positioning with iOS notch-safe margins */}
+            <a
+              href="https://remix-exona-400371160094.europe-west2.run.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                top: 'calc(12px + env(safe-area-inset-top, 24px))',
+                right: 'calc(16px + env(safe-area-inset-right, 0px))'
+              }}
+              className="fixed z-[99999] flex items-center gap-1.5 bg-zinc-900/90 hover:bg-zinc-800 text-zinc-100 hover:text-white font-black text-[10px] uppercase tracking-wider px-3.5 py-2 rounded-full shadow-2xl border border-zinc-800 transition-all cursor-pointer active:scale-95 select-none animate-in fade-in slide-in-from-right-5 duration-300 decoration-none"
+            >
+              <ExternalLinkIcon size={12} className="text-sky-400 stroke-[2.5]" />
+              <span>Open in New Tab</span>
+            </a>
 
             <iframe 
               src="https://remix-exona-400371160094.europe-west2.run.app" 
