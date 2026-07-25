@@ -2498,6 +2498,24 @@ const DATA_PLANS = [
 ];
 const BILL_TYPES = ['Electricity', 'Cable TV', 'Internet', 'Betting'];
 
+const getAvatarGradient = (name: string) => {
+  const colors = [
+    'from-blue-500 to-indigo-600',
+    'from-purple-500 to-pink-600',
+    'from-indigo-500 to-violet-600',
+    'from-emerald-500 to-teal-600',
+    'from-rose-500 to-orange-500',
+    'from-amber-500 to-yellow-600',
+    'from-slate-700 to-slate-950',
+    'from-sky-500 to-blue-600'
+  ];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const NIGERIAN_BANKS = [
   'Access Bank',
   'First Bank of Nigeria',
@@ -14241,24 +14259,6 @@ function ExonaApp() {
                       );
                     }
 
-                    const getAvatarGradient = (name: string) => {
-                      const colors = [
-                        'from-blue-500 to-indigo-600',
-                        'from-purple-500 to-pink-600',
-                        'from-indigo-500 to-violet-600',
-                        'from-emerald-500 to-teal-600',
-                        'from-rose-500 to-orange-500',
-                        'from-amber-500 to-yellow-600',
-                        'from-slate-700 to-slate-950',
-                        'from-sky-500 to-blue-600'
-                      ];
-                      let hash = 0;
-                      for (let i = 0; i < (name || '').length; i++) {
-                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-                      }
-                      return colors[Math.abs(hash) % colors.length];
-                    };
-
                     const getAnnouncementTime = (announcement: any) => {
                       if (!announcement) return '';
                       const timestamp = announcement.timestamp || announcement.createdAt;
@@ -23719,61 +23719,133 @@ function ExonaApp() {
       case 'hub': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="flex-1 flex flex-col bg-zinc-50 min-h-full">
-            <div className="p-6 md:p-10 max-w-4xl mx-auto w-full space-y-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Exona Hub</h1>
-                  <p className="text-sm font-bold text-zinc-500 mt-1">Select a destination to continue</p>
+          <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
+            {/* Stationary Header (Mirrors Feed) */}
+            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
+              <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col gap-3">
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-ink">
+                    <button onClick={() => setView('notifications')} className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted cursor-pointer">
+                      <Bell size={20} />
+                      {unreadNotificationsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
+                          {unreadNotificationsCount}
+                        </span>
+                      )}
+                    </button>
+                    <button onClick={() => setSidebarOpen(true)} className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted cursor-pointer">
+                      <Menu size={20} />
+                    </button>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setView('feed')}
-                  className="h-10 w-10 bg-white border border-zinc-200 rounded-full flex items-center justify-center text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm active:scale-95"
-                >
-                  <ArrowLeft size={18} />
-                </button>
-              </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 md:gap-6">
+                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
+                  <button onClick={() => setView('feed')} className="flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all text-slate-500 hover:text-ink cursor-pointer">
+                    Home
+                  </button>
+                  <button onClick={() => setView('videos')} className="flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all text-slate-500 hover:text-ink cursor-pointer">
+                    Satellite
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Content (Simplified Feed List for Hub Context) */}
+            <div className="flex-1 overflow-y-auto no-scrollbar w-full pb-48 pt-[116px]">
+              <div className="w-full pt-4 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                <div className="relative group min-w-0 w-full mb-5">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" size={15} />
+                  <input 
+                    type="text" 
+                    placeholder="Search institutions, people, groups..." 
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-2xl outline-none text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400" 
+                    readOnly
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 mb-6 flex-wrap">
+                  {categories.slice(0, 4).map(c => (
+                    <div key={c.id} className="h-[26px] px-2.5 rounded-full text-[10.5px] font-black bg-slate-50 text-slate-500 flex items-center gap-1.5">
+                      {c.id === 'all' && <Home size={11} />}
+                      {c.id === 'chats' && <MessageSquare size={11} />}
+                      {c.id === 'groups' && <Users size={11} />}
+                      {c.id === 'school' && <GraduationCap size={11} />}
+                      <span>{c.label}</span>
+                    </div>
+                  ))}
+                  <div className="h-8 w-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center"><Plus size={15} /></div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Institutions</h4>
+                    <div className="space-y-4">
+                      {schools.slice(0, 2).map(s => (
+                        <div key={s.id} className="flex items-center gap-4 group cursor-pointer">
+                          <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${getAvatarGradient(s.name)} flex items-center justify-center text-white text-xl font-black shadow-sm group-hover:scale-105 transition-transform`}>
+                            {s.logo ? <img src={s.logo} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" /> : s.name.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-black text-slate-900 truncate">{s.name}</h3>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">No announcements yet</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex items-center justify-between group cursor-pointer border-t border-gray-50 pt-6">
+                    <div className="flex items-center gap-3">
+                      <MessageSquare size={16} className="text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Chat</span>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+                  </div>
+
+                  <div className="pt-4 flex items-center justify-between group cursor-pointer border-t border-gray-50 pt-6">
+                    <div className="flex items-center gap-3">
+                      <Users size={16} className="text-slate-400" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Group</span>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* THE FLOATING CARD - CENTER BOTTOM */}
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[280px] px-4 z-50">
+              <motion.div 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="bg-white border-[1.5px] border-zinc-200/80 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex items-center justify-between p-1.5 h-[80px] backdrop-blur-md bg-white/95"
+              >
                 <button 
                   onClick={() => setView('schools')}
-                  className="flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-[2.5rem] shadow-sm hover:shadow-md hover:border-blue-400 transition-all group cursor-pointer aspect-square sm:aspect-auto sm:h-64"
+                  className="flex-1 h-full flex flex-col items-center justify-center group active:scale-95 transition-all"
                 >
-                  <div className="h-20 w-20 rounded-[1.8rem] bg-blue-50 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-300">
-                    <GraduationCap size={40} strokeWidth={1.5} />
+                  <div className="h-10 w-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                    <LayoutGrid size={22} strokeWidth={2} />
                   </div>
-                  <h3 className="text-xl font-black text-zinc-900">Nexclass</h3>
-                  <p className="text-xs font-bold text-zinc-400 mt-2 text-center px-4">Academic records and institution directory</p>
+                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Nexclass</span>
                 </button>
+                
+                <div className="w-[1px] h-10 bg-zinc-100 mx-1" />
 
                 <button 
                   onClick={() => setIsBrainBattleActive(true)}
-                  className="flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-[2.5rem] shadow-sm hover:shadow-md hover:border-purple-400 transition-all group cursor-pointer aspect-square sm:aspect-auto sm:h-64"
+                  className="flex-1 h-full flex flex-col items-center justify-center group active:scale-95 transition-all"
                 >
-                  <div className="h-20 w-20 rounded-[1.8rem] bg-purple-50 text-purple-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-300">
-                    <BrainCircuit size={40} strokeWidth={1.5} />
+                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                    <BrainCircuit size={22} strokeWidth={2} />
                   </div>
-                  <h3 className="text-xl font-black text-zinc-900">BrainB</h3>
-                  <p className="text-xs font-bold text-zinc-400 mt-2 text-center px-4">Challenge your mind with live assessments</p>
+                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">BrainB</span>
                 </button>
-
-                {/* Turn 2: link inside hub to wallet place and name it reels */}
-                <button 
-                  onClick={() => setView('finance')}
-                  className="col-span-2 flex items-center gap-6 p-6 bg-white border border-zinc-200 rounded-[2.5rem] shadow-sm hover:shadow-md hover:border-emerald-400 transition-all group cursor-pointer"
-                >
-                  <div className="h-16 w-16 rounded-[1.4rem] bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0">
-                    <Clapperboard size={30} strokeWidth={1.5} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black text-zinc-900">Reels</h3>
-                    <p className="text-xs font-bold text-zinc-400 mt-1">Manage your Exona Wallet and financial history</p>
-                  </div>
-                  <div className="ml-auto h-10 w-10 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-400 group-hover:text-emerald-500 group-hover:bg-emerald-50 transition-all">
-                    <ArrowRight size={20} />
-                  </div>
-                </button>
-              </div>
+              </motion.div>
             </div>
           </div>
         );
@@ -30557,7 +30629,7 @@ function ExonaApp() {
                 </span>
               </button>
 
-              {/* Icon 3: CORE HUB BUTTON */}
+              {/* Icon 3: HUB */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -30566,11 +30638,9 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 <div className={`transition-all duration-150 ${view === 'hub' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <LayoutGrid 
+                  <X 
                     size={23} 
-                    fill={view === 'hub' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'hub' ? 0.15 : 0} 
-                    strokeWidth={view === 'hub' ? 2.4 : 2.0} 
+                    strokeWidth={view === 'hub' ? 3.5 : 2.5} 
                   />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
