@@ -30536,25 +30536,17 @@ function ExonaApp() {
               {/* Icon 3: CORE HUB BUTTON */}
               <button 
                 onClick={() => {
-                  setIsMiddleMenuOpen(!isMiddleMenuOpen);
+                  window.open("https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app", "_blank");
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 ${(isMiddleMenuOpen || view === 'workspace' || view === 'tools') ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  {isMiddleMenuOpen ? (
-                    <X size={23} strokeWidth={2.8} />
-                  ) : (
-                    <LayoutGrid 
-                      size={23} 
-                      fill={(view === 'workspace' || view === 'tools') ? 'currentColor' : 'none'} 
-                      fillOpacity={(view === 'workspace' || view === 'tools') ? 0.15 : 0} 
-                      strokeWidth={(view === 'workspace' || view === 'tools') ? 2.4 : 2.0} 
-                    />
-                  )}
+                <div className="transition-all duration-150 text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105">
+                  <LayoutGrid 
+                    size={23} 
+                    strokeWidth={2.0} 
+                  />
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  (isMiddleMenuOpen || view === 'workspace' || view === 'tools') ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
+                <span className="text-[11px] font-bold mt-1 transition-all duration-150 text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black">
                   Hub
                 </span>
               </button>
