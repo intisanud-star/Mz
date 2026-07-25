@@ -982,6 +982,41 @@ async function startServer() {
     }
   });
 
+  // Proxy endpoint to load a remote webpage securely inside an iframe on the same origin, stripping X-Frame-Options & CSP headers
+  app.get('/api/proxy-hub', async (req, res) => {
+    try {
+      const targetUrl = 'https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app';
+      const response = await axios.get(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        timeout: 15000
+      });
+
+      let html = response.data;
+      if (typeof html === 'string') {
+        // Inject base tag so all relative assets (js, css, etc) point to the target domain correctly
+        const baseTag = `<base href="${targetUrl}/">`;
+        if (html.includes('<head>')) {
+          html = html.replace('<head>', `<head>${baseTag}`);
+        } else {
+          html = baseTag + html;
+        }
+      }
+
+      // Remove headers that prevent framing
+      res.removeHeader('X-Frame-Options');
+      res.removeHeader('Content-Security-Policy');
+      res.setHeader('X-Frame-Options', 'ALLOWALL');
+      res.setHeader('Content-Security-Policy', "frame-ancestors 'self' *; default-src * 'unsafe-inline' 'unsafe-eval';");
+      res.contentType('text/html');
+      res.send(html);
+    } catch (err: any) {
+      console.error('Error proxying hub html:', err.message);
+      res.status(500).send(`Failed to proxy Hub: ${err.message}`);
+    }
+  });
+
   // Proxy endpoint to resolve and stream Instagram Reels & external videos directly as pure MP4 without UI
   app.get('/api/proxy-video', async (req, res) => {
     try {

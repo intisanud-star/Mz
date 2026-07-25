@@ -23786,7 +23786,7 @@ function ExonaApp() {
             {/* Scrolling wrapper to fix iOS Safari iframe expansion - occupying 100% full screen */}
             <div className="w-full h-full relative overflow-hidden bg-white">
               <iframe 
-                src="https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app" 
+                src="/api/proxy-hub" 
                 style={{
                   width: '1px',
                   minWidth: '100%',
