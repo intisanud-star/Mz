@@ -30638,9 +30638,11 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 <div className={`transition-all duration-150 ${view === 'hub' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <X 
+                  <LayoutGrid 
                     size={23} 
-                    strokeWidth={view === 'hub' ? 3.5 : 2.5} 
+                    fill={view === 'hub' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'hub' ? 0.15 : 0} 
+                    strokeWidth={view === 'hub' ? 2.4 : 2.0} 
                   />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
