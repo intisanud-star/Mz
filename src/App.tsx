@@ -3561,7 +3561,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -3630,7 +3630,7 @@ function ExonaApp() {
 
     // Fast-track initial transitions so cold boots show instant menus
     // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
-    if (renderedView === 'splash' || view === 'schools' || view === 'videos') {
+    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub') {
       setRenderedView(view);
       return;
     }
@@ -23766,6 +23766,42 @@ function ExonaApp() {
           </div>
         );
       }
+      case 'hub': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[99999]">
+            {/* Floating Back Button - notch-safe circle overlay */}
+            <button
+              onClick={() => setView('feed')}
+              style={{
+                top: 'calc(16px + env(safe-area-inset-top, 20px))',
+                left: 'calc(16px + env(safe-area-inset-left, 0px))'
+              }}
+              className="fixed w-11 h-11 bg-white hover:bg-zinc-50 text-slate-800 rounded-full shadow-lg border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer active:scale-95 z-[99999]"
+              aria-label="Back to Home"
+            >
+              <ArrowLeft size={20} className="text-[#2481CC] stroke-[3]" />
+            </button>
+
+            {/* Scrolling wrapper to fix iOS Safari iframe expansion - occupying 100% full screen */}
+            <div className="w-full h-full relative overflow-hidden bg-white">
+              <iframe 
+                src="https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app" 
+                style={{
+                  width: '1px',
+                  minWidth: '100%',
+                  height: '100%',
+                  border: 'none',
+                }}
+                className="absolute inset-0 w-full h-full bg-white"
+                title="Hub View"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        );
+      }
       case 'notifications': {
         if (!user) { setView('login'); return null; }
         return (
@@ -30035,7 +30071,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -30105,7 +30141,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub'].includes(view);
         return (
           <main 
             ref={!isFixedLayoutView ? scrollContainerRef : undefined}
@@ -30307,7 +30343,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'hub'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
@@ -30536,17 +30572,22 @@ function ExonaApp() {
               {/* Icon 3: CORE HUB BUTTON */}
               <button 
                 onClick={() => {
-                  window.open("https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app", "_blank");
+                  setActiveChat(null);
+                  setView('hub');
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className="transition-all duration-150 text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105">
+                <div className={`transition-all duration-150 ${view === 'hub' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
                   <Clapperboard 
                     size={23} 
-                    strokeWidth={2.0} 
+                    fill={view === 'hub' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'hub' ? 0.15 : 0} 
+                    strokeWidth={view === 'hub' ? 2.4 : 2.0} 
                   />
                 </div>
-                <span className="text-[11px] font-bold mt-1 transition-all duration-150 text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black">
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
+                  view === 'hub' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
+                }`}>
                   Hub
                 </span>
               </button>
