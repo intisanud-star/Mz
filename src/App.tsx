@@ -3562,7 +3562,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -3631,7 +3631,7 @@ function ExonaApp() {
 
     // Fast-track initial transitions so cold boots show instant menus
     // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
-    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub') {
+    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels') {
       setRenderedView(view);
       return;
     }
@@ -23728,6 +23728,18 @@ function ExonaApp() {
           />
         );
       }
+      case 'reels': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <ShopIframeView 
+            onClose={() => setView('feed')} 
+            iframeUrl="https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app" 
+            title="Reels"
+            bgColor="bg-white"
+            isDark={false}
+          />
+        );
+      }
       case 'notifications': {
         if (!user) { setView('login'); return null; }
         return (
@@ -29997,7 +30009,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -30067,7 +30079,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels'].includes(view);
         return (
           <main 
             ref={!isFixedLayoutView ? scrollContainerRef : undefined}
@@ -30269,7 +30281,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'hub'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
@@ -30498,46 +30510,41 @@ function ExonaApp() {
               {/* Icon 3: CORE HUB BUTTON */}
               <button 
                 onClick={() => {
-                  setActiveChat(null);
-                  setView('hub');
+                  window.open("https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app", "_blank");
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 ${view === 'hub' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <Clapperboard 
+                <div className="transition-all duration-150 text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105">
+                  <LayoutGrid 
                     size={23} 
-                    fill={view === 'hub' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'hub' ? 0.15 : 0} 
-                    strokeWidth={view === 'hub' ? 2.4 : 2.0} 
+                    strokeWidth={2.0} 
                   />
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'hub' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
+                <span className="text-[11px] font-bold mt-1 transition-all duration-150 text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black">
                   Hub
                 </span>
               </button>
 
-              {/* Icon 4: WALLET */}
+              {/* Icon 4: REELS */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
-                  handleWalletClick();
+                  setView('reels');
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className={`transition-all duration-150 ${view === 'finance' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <Wallet 
+                <div className={`transition-all duration-150 ${view === 'reels' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
+                  <Clapperboard 
                     size={23} 
-                    fill={view === 'finance' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'finance' ? 0.15 : 0} 
-                    strokeWidth={view === 'finance' ? 2.4 : 2.0} 
+                    fill={view === 'reels' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'reels' ? 0.15 : 0} 
+                    strokeWidth={view === 'reels' ? 2.4 : 2.0} 
                   />
                 </div>
                 <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'finance' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
+                  view === 'reels' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
                 }`}>
-                  Wallet
+                  Reels
                 </span>
               </button>
 
@@ -31224,6 +31231,20 @@ function ExonaApp() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  {/* Wallet Shortcut */}
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsExonaAiModalOpen(false);
+                      setView('finance');
+                    }}
+                    title="Exona Wallet"
+                    className="px-3 py-1.5 text-[11px] font-bold text-white bg-[#2481CC] hover:bg-[#1e6ea9] border border-transparent rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm active:scale-95"
+                  >
+                    <Wallet size={11} />
+                    <span>Exona Wallet</span>
+                  </button>
+
                   {/* Clear Chat session button */}
                   <button 
                     type="button"
@@ -31262,10 +31283,38 @@ function ExonaApp() {
                 <div className="max-w-3xl mx-auto w-full flex flex-col h-full justify-between">
                   {exonaAiChat.length <= 1 ? (
                     /* Elegant Welcome Hero in Center Stage */
-                    <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto py-12 space-y-5">
+                    <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto py-12 space-y-6">
                       <h1 className="text-3xl sm:text-4xl font-extrabold text-zinc-900 tracking-tight leading-tight">
                         What's on your mind?
                       </h1>
+                      
+                      {/* Interactive Premium Shortcut Cards */}
+                      <div className="grid grid-cols-2 gap-4 w-full max-w-md pt-2">
+                        <button 
+                          onClick={() => {
+                            setIsExonaAiModalOpen(false);
+                            setView('finance');
+                          }}
+                          className="flex flex-col items-center justify-center p-5 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/60 hover:border-zinc-300 rounded-2xl transition-all group cursor-pointer shadow-sm text-center"
+                        >
+                          <div className="h-10 w-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+                            <Wallet size={20} />
+                          </div>
+                          <span className="text-xs font-bold text-zinc-800">Exona Wallet</span>
+                          <span className="text-[10px] text-zinc-400 mt-1">Manage finances & balance</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => setExonaAiInput("Help me write an academic essay on Artificial Intelligence")}
+                          className="flex flex-col items-center justify-center p-5 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200/60 hover:border-zinc-300 rounded-2xl transition-all group cursor-pointer shadow-sm text-center"
+                        >
+                          <div className="h-10 w-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center mb-2.5 group-hover:scale-105 transition-transform">
+                            <Sparkles size={18} />
+                          </div>
+                          <span className="text-xs font-bold text-zinc-800">AI Assistant</span>
+                          <span className="text-[10px] text-zinc-400 mt-1">Draft studies & essays</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     /* Compact Simple Timeline UI */
