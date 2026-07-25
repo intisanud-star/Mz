@@ -23707,73 +23707,25 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-[#070b19] overflow-hidden z-[99999]">
-            {/* Floating Back Button - notch-safe circle overlay */}
-            <button
-              onClick={() => setView('feed')}
-              style={{
-                top: 'calc(16px + env(safe-area-inset-top, 20px))',
-                left: 'calc(16px + env(safe-area-inset-left, 0px))'
-              }}
-              className="fixed w-11 h-11 bg-white hover:bg-zinc-50 text-slate-800 rounded-full shadow-lg border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer active:scale-95 z-[99999]"
-              aria-label="Back to Home"
-            >
-              <ArrowLeft size={20} className="text-[#2481CC] stroke-[3]" />
-            </button>
-
-            {/* Scrolling wrapper to fix iOS Safari iframe expansion - occupying 100% full screen */}
-            <div className="w-full h-full relative overflow-hidden bg-[#070b19]">
-              <iframe 
-                src="https://remix-exona-400371160094.europe-west2.run.app" 
-                style={{
-                  width: '1px',
-                  minWidth: '100%',
-                  height: '100%',
-                  border: 'none',
-                }}
-                className="absolute inset-0 w-full h-full bg-[#070b19]"
-                title="Satellite View"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
+          <ShopIframeView 
+            onClose={() => setView('feed')} 
+            iframeUrl="https://remix-exona-400371160094.europe-west2.run.app" 
+            title="Satellite View"
+            bgColor="bg-[#070b19]"
+            isDark={true}
+          />
         );
       }
       case 'hub': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[99999]">
-            {/* Floating Back Button - notch-safe circle overlay */}
-            <button
-              onClick={() => setView('feed')}
-              style={{
-                top: 'calc(16px + env(safe-area-inset-top, 20px))',
-                left: 'calc(16px + env(safe-area-inset-left, 0px))'
-              }}
-              className="fixed w-11 h-11 bg-white hover:bg-zinc-50 text-slate-800 rounded-full shadow-lg border border-zinc-200/80 flex items-center justify-center transition-all cursor-pointer active:scale-95 z-[99999]"
-              aria-label="Back to Home"
-            >
-              <ArrowLeft size={20} className="text-[#2481CC] stroke-[3]" />
-            </button>
-
-            {/* Scrolling wrapper to fix iOS Safari iframe expansion - occupying 100% full screen */}
-            <div className="w-full h-full relative overflow-hidden bg-white">
-              <iframe 
-                src="/api/proxy-hub" 
-                style={{
-                  width: '1px',
-                  minWidth: '100%',
-                  height: '100%',
-                  border: 'none',
-                }}
-                className="absolute inset-0 w-full h-full bg-white"
-                title="Hub View"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
+          <ShopIframeView 
+            onClose={() => setView('feed')} 
+            iframeUrl="/api/proxy-hub" 
+            title="Hub View"
+            bgColor="bg-white"
+            isDark={false}
+          />
         );
       }
       case 'notifications': {

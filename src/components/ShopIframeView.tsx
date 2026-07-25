@@ -5,9 +5,18 @@ import { motion, AnimatePresence } from 'motion/react';
 interface ShopIframeViewProps {
   onClose: () => void;
   iframeUrl: string;
+  title?: string;
+  bgColor?: string;
+  isDark?: boolean;
 }
 
-export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeUrl }) => {
+export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ 
+  onClose, 
+  iframeUrl, 
+  title = "Shop View", 
+  bgColor = "bg-white", 
+  isDark = false 
+}) => {
   const [dragState, setDragState] = useState<'top' | 'bottom' | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const startYRef = useRef<number>(0);
@@ -84,7 +93,7 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
   const percentToThreshold = Math.min(100, (pullDistance / threshold) * 100);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-white overflow-hidden z-[99999] select-none">
+    <div className={`fixed inset-0 w-screen h-screen ${bgColor} overflow-hidden z-[99999] select-none`}>
       
       {/* 
         Top Edge Pull Zone 
@@ -96,7 +105,7 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
         style={{ top: 0 }}
         className="absolute left-0 right-0 h-10 z-[100000] cursor-row-resize flex items-center justify-center bg-gradient-to-b from-black/[0.03] to-transparent"
       >
-        <div className="w-16 h-1 bg-zinc-300 rounded-full opacity-60 pointer-events-none mt-1" />
+        <div className={`w-16 h-1 ${isDark ? 'bg-zinc-600' : 'bg-zinc-300'} rounded-full opacity-60 pointer-events-none mt-1`} />
       </div>
 
       {/* 
@@ -109,7 +118,7 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
         style={{ bottom: 0 }}
         className="absolute left-0 right-0 h-12 z-[100000] cursor-row-resize flex items-center justify-center bg-gradient-to-t from-black/[0.03] to-transparent"
       >
-        <div className="w-16 h-1 bg-zinc-300 rounded-full opacity-60 pointer-events-none mb-2" />
+        <div className={`w-16 h-1 ${isDark ? 'bg-zinc-600' : 'bg-zinc-300'} rounded-full opacity-60 pointer-events-none mb-2`} />
       </div>
 
       {/* Pull down visual indicator overlay (rendered when pulling down from top) */}
@@ -125,7 +134,9 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
             <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg border transition-all ${
               pullDistance >= threshold 
                 ? 'bg-[#2481CC] border-[#2481CC] text-white scale-105' 
-                : 'bg-white border-zinc-200 text-zinc-700'
+                : isDark 
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
+                  : 'bg-white border-zinc-200 text-zinc-700'
             }`}>
               <motion.div
                 animate={{ rotate: pullDistance >= threshold ? 180 : 0 }}
@@ -138,10 +149,10 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
               </span>
             </div>
             {/* Minimal Progress Bar */}
-            <div className="w-24 h-1 bg-zinc-100 rounded-full overflow-hidden mt-2 shadow-sm border border-zinc-200/40">
+            <div className={`w-24 h-1 ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-100 border-zinc-200/40'} rounded-full overflow-hidden mt-2 shadow-sm border`}>
               <div 
                 style={{ width: `${percentToThreshold}%` }} 
-                className={`h-full transition-all duration-75 ${pullDistance >= threshold ? 'bg-[#2481CC]' : 'bg-zinc-400'}`} 
+                className={`h-full transition-all duration-75 ${pullDistance >= threshold ? 'bg-[#2481CC]' : isDark ? 'bg-zinc-500' : 'bg-zinc-400'}`} 
               />
             </div>
           </motion.div>
@@ -161,7 +172,9 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
             <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg border transition-all ${
               pullDistance >= threshold 
                 ? 'bg-[#2481CC] border-[#2481CC] text-white scale-105' 
-                : 'bg-white border-zinc-200 text-zinc-700'
+                : isDark 
+                  ? 'bg-zinc-800 border-zinc-700 text-zinc-100'
+                  : 'bg-white border-zinc-200 text-zinc-700'
             }`}>
               <motion.div
                 animate={{ rotate: pullDistance >= threshold ? 180 : 0 }}
@@ -174,10 +187,10 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
               </span>
             </div>
             {/* Minimal Progress Bar */}
-            <div className="w-24 h-1 bg-zinc-100 rounded-full overflow-hidden mt-2 shadow-sm border border-zinc-200/40">
+            <div className={`w-24 h-1 ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-100 border-zinc-200/40'} rounded-full overflow-hidden mt-2 shadow-sm border`}>
               <div 
                 style={{ width: `${percentToThreshold}%` }} 
-                className={`h-full transition-all duration-75 ${pullDistance >= threshold ? 'bg-[#2481CC]' : 'bg-zinc-400'}`} 
+                className={`h-full transition-all duration-75 ${pullDistance >= threshold ? 'bg-[#2481CC]' : isDark ? 'bg-zinc-500' : 'bg-zinc-400'}`} 
               />
             </div>
           </motion.div>
@@ -185,7 +198,7 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
       </AnimatePresence>
 
       {/* Full screen Shop Iframe container */}
-      <div className="w-full h-full relative overflow-hidden bg-white select-none">
+      <div className={`w-full h-full relative overflow-hidden ${bgColor} select-none`}>
         <iframe 
           src={iframeUrl} 
           style={{
@@ -194,8 +207,8 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ onClose, iframeU
             height: '100%',
             border: 'none',
           }}
-          className="absolute inset-0 w-full h-full bg-white"
-          title="Shop View"
+          className={`absolute inset-0 w-full h-full ${bgColor}`}
+          title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
