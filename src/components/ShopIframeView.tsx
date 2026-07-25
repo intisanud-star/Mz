@@ -103,9 +103,9 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
         onMouseDown={(e) => initiateDrag('top', e.clientY)}
         onTouchStart={(e) => initiateDrag('top', e.touches[0].clientY)}
         style={{ top: 0 }}
-        className="absolute left-0 right-0 h-10 z-[100000] cursor-row-resize flex items-center justify-center bg-gradient-to-b from-black/[0.03] to-transparent"
+        className="absolute left-0 right-0 h-6 z-[100000] cursor-row-resize flex items-start justify-center bg-gradient-to-b from-black/[0.02] to-transparent"
       >
-        <div className={`w-16 h-1 ${isDark ? 'bg-zinc-600' : 'bg-zinc-300'} rounded-full opacity-60 pointer-events-none mt-1`} />
+        <div className={`w-10 h-[3px] ${isDark ? 'bg-zinc-700' : 'bg-zinc-300'} rounded-full opacity-60 pointer-events-none mt-1`} />
       </div>
 
       {/* 
@@ -116,9 +116,9 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
         onMouseDown={(e) => initiateDrag('bottom', e.clientY)}
         onTouchStart={(e) => initiateDrag('bottom', e.touches[0].clientY)}
         style={{ bottom: 0 }}
-        className="absolute left-0 right-0 h-12 z-[100000] cursor-row-resize flex items-center justify-center bg-gradient-to-t from-black/[0.03] to-transparent"
+        className="absolute left-0 right-0 h-6 z-[100000] cursor-row-resize flex items-end justify-center bg-gradient-to-t from-black/[0.02] to-transparent"
       >
-        <div className={`w-16 h-1 ${isDark ? 'bg-zinc-600' : 'bg-zinc-300'} rounded-full opacity-60 pointer-events-none mb-2`} />
+        <div className={`w-10 h-[3px] ${isDark ? 'bg-zinc-700' : 'bg-zinc-300'} rounded-full opacity-60 pointer-events-none mb-1`} />
       </div>
 
       {/* Pull down visual indicator overlay (rendered when pulling down from top) */}
