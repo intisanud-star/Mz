@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30541,7 +30541,7 @@ function ExonaApp() {
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
                 <div className="transition-all duration-150 text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105">
-                  <LayoutGrid 
+                  <Clapperboard 
                     size={23} 
                     strokeWidth={2.0} 
                   />
