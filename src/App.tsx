@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23719,13 +23719,63 @@ function ExonaApp() {
       case 'hub': {
         if (!user) { setView('login'); return null; }
         return (
-          <ShopIframeView 
-            onClose={() => setView('feed')} 
-            iframeUrl="/api/proxy-hub" 
-            title="Hub View"
-            bgColor="bg-white"
-            isDark={false}
-          />
+          <div className="flex-1 flex flex-col bg-zinc-50 min-h-full">
+            <div className="p-6 md:p-10 max-w-4xl mx-auto w-full space-y-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Exona Hub</h1>
+                  <p className="text-sm font-bold text-zinc-500 mt-1">Select a destination to continue</p>
+                </div>
+                <button 
+                  onClick={() => setView('feed')}
+                  className="h-10 w-10 bg-white border border-zinc-200 rounded-full flex items-center justify-center text-zinc-600 hover:bg-zinc-50 transition-all shadow-sm active:scale-95"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 md:gap-6">
+                <button 
+                  onClick={() => setView('schools')}
+                  className="flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-[2.5rem] shadow-sm hover:shadow-md hover:border-blue-400 transition-all group cursor-pointer aspect-square sm:aspect-auto sm:h-64"
+                >
+                  <div className="h-20 w-20 rounded-[1.8rem] bg-blue-50 text-blue-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-300">
+                    <GraduationCap size={40} strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-xl font-black text-zinc-900">Nexclass</h3>
+                  <p className="text-xs font-bold text-zinc-400 mt-2 text-center px-4">Academic records and institution directory</p>
+                </button>
+
+                <button 
+                  onClick={() => setIsBrainBattleActive(true)}
+                  className="flex flex-col items-center justify-center p-8 bg-white border border-zinc-200 rounded-[2.5rem] shadow-sm hover:shadow-md hover:border-purple-400 transition-all group cursor-pointer aspect-square sm:aspect-auto sm:h-64"
+                >
+                  <div className="h-20 w-20 rounded-[1.8rem] bg-purple-50 text-purple-600 flex items-center justify-center mb-6 group-hover:scale-105 transition-transform duration-300">
+                    <BrainCircuit size={40} strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-xl font-black text-zinc-900">BrainB</h3>
+                  <p className="text-xs font-bold text-zinc-400 mt-2 text-center px-4">Challenge your mind with live assessments</p>
+                </button>
+
+                {/* Turn 2: link inside hub to wallet place and name it reels */}
+                <button 
+                  onClick={() => setView('finance')}
+                  className="col-span-2 flex items-center gap-6 p-6 bg-white border border-zinc-200 rounded-[2.5rem] shadow-sm hover:shadow-md hover:border-emerald-400 transition-all group cursor-pointer"
+                >
+                  <div className="h-16 w-16 rounded-[1.4rem] bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0">
+                    <Clapperboard size={30} strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-zinc-900">Reels</h3>
+                    <p className="text-xs font-bold text-zinc-400 mt-1">Manage your Exona Wallet and financial history</p>
+                  </div>
+                  <div className="ml-auto h-10 w-10 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-400 group-hover:text-emerald-500 group-hover:bg-emerald-50 transition-all">
+                    <ArrowRight size={20} />
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
         );
       }
       case 'reels': {
@@ -30510,17 +30560,22 @@ function ExonaApp() {
               {/* Icon 3: CORE HUB BUTTON */}
               <button 
                 onClick={() => {
-                  window.open("https://ais-pre-whkebfdrrgwrstlezyoblp-538663974620.europe-west2.run.app", "_blank");
+                  setActiveChat(null);
+                  setView('hub');
                 }}
                 className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
               >
-                <div className="transition-all duration-150 text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105">
+                <div className={`transition-all duration-150 ${view === 'hub' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
                   <LayoutGrid 
                     size={23} 
-                    strokeWidth={2.0} 
+                    fill={view === 'hub' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'hub' ? 0.15 : 0} 
+                    strokeWidth={view === 'hub' ? 2.4 : 2.0} 
                   />
                 </div>
-                <span className="text-[11px] font-bold mt-1 transition-all duration-150 text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black">
+                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
+                  view === 'hub' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
+                }`}>
                   Hub
                 </span>
               </button>
