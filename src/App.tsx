@@ -4554,7 +4554,7 @@ function ExonaApp() {
       return;
     }
     if (toolId === 'videos') {
-      window.location.href = 'https://remix-exona-8054.ai.studio';
+      setActiveChat(null); setView('videos');
       return;
     }
     if (toolId === 'editor') {
@@ -7844,7 +7844,7 @@ function ExonaApp() {
       if (app === 'finance' && view !== 'finance') {
         handleWalletClick();
       } else if (app === 'videos') {
-        window.location.href = 'https://remix-exona-8054.ai.studio';
+        setActiveChat(null); setView('videos');
       } else if (app !== 'finance' && app !== 'videos' && (view !== 'workspace' || activeWorkspaceTool !== app)) {
         setView('workspace');
         setActiveWorkspaceTool(app);
@@ -12035,7 +12035,7 @@ function ExonaApp() {
         if (appParam === 'finance') {
           handleWalletClick();
         } else if (appParam === 'videos') {
-          window.location.href = 'https://remix-exona-8054.ai.studio';
+          setActiveChat(null); setView('videos');
         } else {
           setView('workspace');
           setActiveWorkspaceTool(appParam);
@@ -14069,7 +14069,7 @@ function ExonaApp() {
                       All
                     </button>
                     <button 
-                      onClick={() => window.location.href = 'https://remix-exona-8054.ai.studio'}
+                      onClick={() => setView('videos')}
                       className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                     >
                       Satellite
@@ -23628,19 +23628,9 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <YoutubeBroadcasts
-            user={user}
-            userDoc={userDoc}
-            customBroadcasts={youtubeBroadcasts}
-            broadcastEngine={broadcastEngine}
-            setBroadcastEngine={setBroadcastEngine}
-            onAddBroadcast={handleAddYoutubeBroadcast}
-            onDeleteBroadcast={handleDeleteYoutubeBroadcast}
-            onLikeBroadcast={handleLikeYoutubeBroadcast}
-            handleDebitExcoin={handleDebitExcoin}
-            showNotification={showNotification}
-            onClose={() => setView('feed')}
-            isTabActive={view === 'videos'}
+          <ShopIframeView 
+            onClose={() => setView('feed')} 
+            iframeUrl="https://remix-exona-8054.ai.studio" 
           />
         );
       }
@@ -24026,7 +24016,8 @@ function ExonaApp() {
                 if (id === 'finance') {
                   handleWalletClick();
                 } else if (id === 'videos') {
-                  window.location.href = 'https://remix-exona-8054.ai.studio';
+                  setActiveChat(null);
+                  setView('videos');
                 } else if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'].includes(id)) {
                   setActiveWorkspaceTool(id);
                 } else {
