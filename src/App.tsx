@@ -23631,6 +23631,8 @@ function ExonaApp() {
           <ShopIframeView 
             onClose={() => setView('feed')} 
             iframeUrl="https://remix-exona-8054.ai.studio" 
+            bgColor="bg-black"
+            isDark={true}
           />
         );
       }
