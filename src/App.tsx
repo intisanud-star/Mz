@@ -4554,8 +4554,7 @@ function ExonaApp() {
       return;
     }
     if (toolId === 'videos') {
-      setActiveChat(null);
-      setView('videos');
+      window.location.href = 'https://remix-exona-8054.ai.studio';
       return;
     }
     if (toolId === 'editor') {
@@ -7844,9 +7843,8 @@ function ExonaApp() {
     } else if (app) {
       if (app === 'finance' && view !== 'finance') {
         handleWalletClick();
-      } else if (app === 'videos' && view !== 'videos') {
-        setActiveChat(null);
-        setView('videos');
+      } else if (app === 'videos') {
+        window.location.href = 'https://remix-exona-8054.ai.studio';
       } else if (app !== 'finance' && app !== 'videos' && (view !== 'workspace' || activeWorkspaceTool !== app)) {
         setView('workspace');
         setActiveWorkspaceTool(app);
@@ -12037,8 +12035,7 @@ function ExonaApp() {
         if (appParam === 'finance') {
           handleWalletClick();
         } else if (appParam === 'videos') {
-          setActiveChat(null);
-          setView('videos');
+          window.location.href = 'https://remix-exona-8054.ai.studio';
         } else {
           setView('workspace');
           setActiveWorkspaceTool(appParam);
@@ -14072,7 +14069,7 @@ function ExonaApp() {
                       All
                     </button>
                     <button 
-                      onClick={() => setView('videos')}
+                      onClick={() => window.location.href = 'https://remix-exona-8054.ai.studio'}
                       className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
                     >
                       Satellite
@@ -24029,8 +24026,7 @@ function ExonaApp() {
                 if (id === 'finance') {
                   handleWalletClick();
                 } else if (id === 'videos') {
-                  setActiveChat(null);
-                  setView('videos');
+                  window.location.href = 'https://remix-exona-8054.ai.studio';
                 } else if (['docs', 'editor', 'pdf', 'file-share', 'storage', 'e-test'].includes(id)) {
                   setActiveWorkspaceTool(id);
                 } else {
