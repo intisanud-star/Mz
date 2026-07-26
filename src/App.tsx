@@ -27340,22 +27340,22 @@ function ExonaApp() {
     }
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-6 relative">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-white p-4 sm:p-8 md:p-12 relative">
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }} 
-          className="w-full max-w-sm"
+          className="w-full max-w-5xl"
         >
-          <div className="bg-white border border-gray-100 p-8 sm:p-12 rounded-[2.5rem] mb-4 flex flex-col items-center">
-            <h1 className="text-5xl sm:text-6xl font-bold mb-8 sm:mb-12 mt-4 font-display">Exona</h1>
+          <div className="bg-white border border-gray-100 p-8 sm:p-16 md:p-20 rounded-[2.5rem] mb-6 flex flex-col items-center w-full shadow-sm">
+            <h1 className="text-6xl sm:text-7xl font-bold mb-10 sm:mb-16 mt-4 font-display text-ink tracking-tight">Exona</h1>
             
             {authError && (
-              <div className="mb-6 p-4 w-full bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs text-center font-bold">
+              <div className="mb-8 p-4 w-full max-w-xl bg-red-50 border border-red-100 rounded-2xl text-red-600 text-xs text-center font-bold">
                 {authError}
               </div>
             )}
 
-            <div className="w-full space-y-3 mb-6">
+            <div className="w-full max-w-xl space-y-4 mb-8">
               {authMode === 'signup' && (
                 <>
                   <input 
@@ -27363,33 +27363,33 @@ function ExonaApp() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Full Name"
-                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
                   />
                   <div className="relative group">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">@</span>
                     <input 
                       type="text" 
                       value={signupUsername}
                       onChange={(e) => setSignupUsername(e.target.value)}
                       placeholder="username"
-                      className="w-full pl-9 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                      className="w-full pl-10 pr-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
                     />
                   </div>
                   <div className="relative group">
-                    <label className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-4">Select Country (Currency)</label>
+                    <label className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1.5 block ml-5">Select Country (Currency)</label>
                     <select 
                       value={selectedSignupCountry.code}
                       onChange={(e) => {
                         const country = COUNTRIES.find(c => c.code === e.target.value);
                         if (country) setSelectedSignupCountry(country);
                       }}
-                      className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold appearance-none cursor-pointer"
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold appearance-none cursor-pointer"
                     >
                       {COUNTRIES.map(c => (
                         <option key={c.code} value={c.code}>{c.name} ({c.currency})</option>
                       ))}
                     </select>
-                    <div className="absolute right-4 top-[38px] pointer-events-none text-muted">
+                    <div className="absolute right-5 top-[40px] pointer-events-none text-muted">
                       <ChevronDown size={16} />
                     </div>
                   </div>
@@ -27400,7 +27400,7 @@ function ExonaApp() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Email address"
-                  className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
                 />
                 <div className="relative">
                   <input 
@@ -27408,47 +27408,51 @@ function ExonaApp() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Password"
-                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none focus:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all text-sm font-bold"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors"
+                    className="absolute right-5 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors"
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
             </div>
 
-            <button 
-              onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
-              disabled={isAuthenticating}
-              className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 transition-all mb-4 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
-            >
-              {isAuthenticating && <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-              {authMode === 'signin' ? (isAuthenticating ? 'Authorizing...' : 'Sign In') : (isAuthenticating ? 'Creating Account...' : 'Create Account')}
-            </button>
-
-            <button 
-              onClick={handleGoogleSignIn}
-              className="w-full py-4 bg-white border border-gray-200 hover:bg-gray-50 text-stone-700 rounded-2xl font-bold text-sm transition-all mb-4 active:scale-[0.98] flex items-center justify-center gap-3 shadow-sm cursor-pointer"
-            >
-              <Chrome size={18} className="text-[#EA4335]" />
-              Continue with Google
-            </button>
-
-            {authMode === 'signin' && (
+            <div className="w-full max-w-xl space-y-4">
               <button 
-                onClick={handleForgotPassword}
-                disabled={isResettingPassword}
-                className={`text-xs font-bold text-accent hover:underline transition-all ${isResettingPassword ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                onClick={authMode === 'signin' ? handleEmailSignIn : handleEmailSignUp} 
+                disabled={isAuthenticating}
+                className="w-full py-4 bg-accent text-white rounded-2xl font-bold text-sm hover:bg-accent/90 transition-all mb-2 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
               >
-                {isResettingPassword ? 'Sending reset link...' : 'Forgot password?'}
+                {isAuthenticating && <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                {authMode === 'signin' ? (isAuthenticating ? 'Authorizing...' : 'Sign In') : (isAuthenticating ? 'Creating Account...' : 'Create Account')}
               </button>
-            )}
+
+              <button 
+                onClick={handleGoogleSignIn}
+                className="w-full py-4 bg-white border border-gray-200 hover:bg-gray-50 text-stone-700 rounded-2xl font-bold text-sm transition-all mb-4 active:scale-[0.98] flex items-center justify-center gap-3 shadow-sm cursor-pointer"
+              >
+                <Chrome size={18} className="text-[#EA4335]" />
+                Continue with Google
+              </button>
+
+              {authMode === 'signin' && (
+                <div className="text-center">
+                  <button 
+                    onClick={handleForgotPassword}
+                    disabled={isResettingPassword}
+                    className={`text-xs font-bold text-accent hover:underline transition-all ${isResettingPassword ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    {isResettingPassword ? 'Sending reset link...' : 'Forgot password?'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="bg-white border border-gray-100 p-8 rounded-[2rem] text-center">
+          <div className="bg-white border border-gray-100 p-8 rounded-[2rem] text-center w-full shadow-sm mb-6">
             <p className="text-sm font-medium text-muted">
               {authMode === 'signin' ? "Don't have an account?" : "Already have an account?"}{' '}
               <button 
