@@ -27430,14 +27430,6 @@ function ExonaApp() {
                 {authMode === 'signin' ? (isAuthenticating ? 'Authorizing...' : 'Sign In') : (isAuthenticating ? 'Creating Account...' : 'Create Account')}
               </button>
 
-              <button 
-                onClick={handleGoogleSignIn}
-                className="w-full py-4 bg-white border border-gray-200 hover:bg-gray-50 text-stone-700 rounded-2xl font-bold text-sm transition-all mb-4 active:scale-[0.98] flex items-center justify-center gap-3 shadow-sm cursor-pointer"
-              >
-                <Chrome size={18} className="text-[#EA4335]" />
-                Continue with Google
-              </button>
-
               {authMode === 'signin' && (
                 <div className="text-center">
                   <button 
