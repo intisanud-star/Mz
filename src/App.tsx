@@ -27437,31 +27437,6 @@ function ExonaApp() {
               Continue with Google
             </button>
 
-            <div className="w-full flex items-center gap-4 mb-4">
-              <div className="h-px flex-1 bg-gray-100"></div>
-              <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Or</span>
-              <div className="h-px flex-1 bg-gray-100"></div>
-            </div>
-
-            <button 
-              onClick={() => {
-                if (!isBattleWindowOpen()) {
-                  fetchLeaderboard();
-                  setIsBrainBattleActive(true);
-                  setBattleStep('leaderboard');
-                  return;
-                }
-                const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
-                setCurrentBattleQuestions(shuffled);
-                setIsBrainBattleActive(true);
-                setBattleStep('welcome');
-              }}
-              className="w-full py-4 bg-ink text-white rounded-2xl font-bold text-sm hover:bg-ink/90 transition-all mb-8 active:scale-[0.98] flex items-center justify-center gap-3"
-            >
-              <Zap size={18} className="text-yellow-400 fill-yellow-400" />
-              Play Brain Battle
-            </button>
-
             {authMode === 'signin' && (
               <button 
                 onClick={handleForgotPassword}
