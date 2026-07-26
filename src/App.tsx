@@ -2498,24 +2498,6 @@ const DATA_PLANS = [
 ];
 const BILL_TYPES = ['Electricity', 'Cable TV', 'Internet', 'Betting'];
 
-const getAvatarGradient = (name: string) => {
-  const colors = [
-    'from-blue-500 to-indigo-600',
-    'from-purple-500 to-pink-600',
-    'from-indigo-500 to-violet-600',
-    'from-emerald-500 to-teal-600',
-    'from-rose-500 to-orange-500',
-    'from-amber-500 to-yellow-600',
-    'from-slate-700 to-slate-950',
-    'from-sky-500 to-blue-600'
-  ];
-  let hash = 0;
-  for (let i = 0; i < (name || '').length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-};
-
 const NIGERIAN_BANKS = [
   'Access Bank',
   'First Bank of Nigeria',
@@ -2826,12 +2808,21 @@ const getLabels = (type?: 'school' | 'place') => {
   const NavIcon = ({ icon: Icon, active, onClick, label }: { icon: any, active: boolean, onClick: () => void, label: string }) => (
     <button 
       onClick={onClick}
-      className={`p-3 sm:p-4 rounded-2xl transition-all relative group ${active ? 'text-ink' : 'text-muted hover:text-ink hover:bg-white border border-transparent hover:border-gray-100'}`}
+      className={`px-4 py-2.5 rounded-2xl transition-all relative group flex flex-col items-center justify-center cursor-pointer ${
+        active 
+          ? 'bg-[#2481CC]/12 text-[#2481CC]' 
+          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/70 border border-transparent'
+      }`}
       title={label}
     >
-      <Icon size={24} strokeWidth={active ? 2.5 : 2} />
-      {active && <motion.div layoutId="nav-pill" className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-6 bg-ink rounded-full" />}
-      <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-ink text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap uppercase tracking-widest">
+      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+      {active && (
+        <motion.div 
+          layoutId="nav-pill" 
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 w-6 bg-[#2481CC] rounded-full shadow-xs" 
+        />
+      )}
+      <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-[#17212B] text-white text-[10px] font-bold px-2.5 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap uppercase tracking-wider shadow-md z-50">
         {label}
       </span>
     </button>
@@ -2841,25 +2832,27 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
   <motion.button 
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className={`w-full flex items-center justify-between px-6 py-4 rounded-2xl transition-all duration-300 group relative overflow-hidden ${
+    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 group relative overflow-hidden cursor-pointer ${
       active 
-        ? 'bg-accent/5 text-accent' 
-        : 'text-muted hover:bg-white border border-transparent hover:border-gray-100 hover:text-ink'
+        ? 'bg-[#2481CC]/12 text-[#2481CC] font-bold shadow-2xs' 
+        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 font-medium'
     }`}
   >
-    <div className="flex items-center gap-4 relative z-10">
-      <Icon size={20} className={`${active ? 'text-accent' : 'text-muted group-hover:text-ink'} transition-colors duration-300`} />
-      <span className={`text-[14px] font-bold tracking-tight transition-colors duration-300 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}>{label}</span>
+    <div className="flex items-center gap-3.5 relative z-10">
+      <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-[#2481CC] text-white' : 'bg-slate-100 text-slate-500 group-hover:text-slate-800 group-hover:bg-slate-200/60'}`}>
+        <Icon size={18} className="transition-colors duration-200" />
+      </div>
+      <span className={`text-[13.5px] tracking-tight transition-colors duration-200 ${active ? 'text-[#2481CC] font-bold' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{label}</span>
     </div>
     {badge && (
-      <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full relative z-10">
+      <span className="bg-[#2481CC] text-white text-[10px] font-bold px-2 py-0.5 rounded-full relative z-10 shadow-2xs">
         {badge}
       </span>
     )}
     {active && (
       <motion.div 
         layoutId="sidebar-active"
-        className="absolute left-0 top-0 bottom-0 w-1 bg-accent"
+        className="absolute left-0 top-1/2 -translate-y-1/2 h-7 w-1 bg-[#2481CC] rounded-r-full"
       />
     )}
   </motion.button>
@@ -3432,16 +3425,24 @@ const FeedPost = ({
 const NavButton = ({ active, onClick, icon: Icon, label }: { active: boolean, onClick: () => void, icon: any, label: string }) => (
   <button 
     onClick={onClick} 
-    className="flex flex-col items-center justify-center flex-1 h-full gap-1 group relative"
+    className="flex flex-col items-center justify-center flex-1 h-full gap-1 group relative cursor-pointer"
   >
-    <div className={`transition-all duration-300 ${active ? 'text-accent scale-110' : 'text-muted group-hover:text-ink'}`}>
-      <Icon size={22} strokeWidth={active ? 2.5 : 2} />
+    <div className={`px-4 py-1.5 rounded-full transition-all duration-200 flex items-center justify-center relative ${
+      active 
+        ? 'bg-[#2481CC]/15 text-[#2481CC] scale-105 font-bold' 
+        : 'text-slate-400 group-hover:text-slate-700'
+    }`}>
+      <Icon size={21} strokeWidth={active ? 2.5 : 2} />
     </div>
-    <span className={`text-[11px] font-bold tracking-tight transition-colors duration-300 ${active ? 'text-accent' : 'text-muted group-hover:text-ink'}`}>{label}</span>
+    <span className={`text-[11px] tracking-tight transition-colors duration-200 ${
+      active 
+        ? 'text-[#2481CC] font-bold' 
+        : 'text-slate-500 font-medium group-hover:text-slate-800'
+    }`}>{label}</span>
     {active && (
       <motion.div 
         layoutId="nav-active"
-        className="absolute bottom-0 w-1 h-1 bg-accent rounded-full"
+        className="absolute bottom-0 w-1.5 h-1.5 bg-[#2481CC] rounded-full shadow-2xs"
       />
     )}
   </button>
@@ -13436,7 +13437,7 @@ function ExonaApp() {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
-        className="py-3 px-3 hover:bg-slate-50 active:bg-slate-100/80 rounded-2xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
+        className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
         onClick={() => {
           setActiveChat({
             uid: chat.otherUid,
@@ -13998,48 +13999,29 @@ function ExonaApp() {
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
-              <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col gap-3">
-                {/* Top Row: Brand & Top-right Actions (Bell, Menu) */}
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-ink">
-                    <button 
-                      onClick={() => setView('notifications')}
-                      className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink cursor-pointer"
-                    >
-                      <Bell size={20} />
-                      {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
-                          {unreadNotificationsCount}
-                        </span>
-                      )}
-                    </button>
-                    <button 
-                      onClick={() => setSidebarOpen(true)}
-                      className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink cursor-pointer"
-                    >
-                      <Menu size={20} />
-                    </button>
-                  </div>
+            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50 h-[56px] flex items-center">
+              <div className="w-full px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
                 </div>
-
-                {/* Segmented control for HOME (institution list) vs SATELLITE (broadcast streams) */}
-                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
+                
+                <div className="flex items-center gap-2 text-ink">
                   <button 
-                    onClick={() => setView('feed')}
-                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    onClick={() => setView('notifications')}
+                    className="relative p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
                   >
-                    Home
+                    <Bell size={20} />
+                    {unreadNotificationsCount > 0 && (
+                      <span className="absolute top-1 right-1 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
+                        {unreadNotificationsCount}
+                      </span>
+                    )}
                   </button>
                   <button 
-                    onClick={() => setView('videos')}
-                    className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    onClick={() => setSidebarOpen(true)}
+                    className="p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
                   >
-                    Satellite
+                    <Menu size={20} />
                   </button>
                 </div>
               </div>
@@ -14048,7 +14030,7 @@ function ExonaApp() {
             {/* Scrollable Timeline Box */}
             <div 
               ref={view === 'feed' ? scrollContainerRef : undefined}
-              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[116px]"
+              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[56px]"
               onScroll={(e) => {
                 const currentScrollTop = e.currentTarget.scrollTop;
                 if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
@@ -14059,13 +14041,12 @@ function ExonaApp() {
                 lastScrollTop.current = currentScrollTop;
               }}
             >
-              <div className="w-full pt-4 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-                {/* Search Bar (Scrolling with page content) */}
-                <div className="relative group min-w-0 w-full mb-5">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={15} />
+              <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                {/* Search Bar (Moving on scroll, positioned on top of Home & Satellite) */}
+                <div className="relative group min-w-0 w-full mb-3 flex items-center justify-center">
                   <input 
                     type="text" 
-                    placeholder="Search institutions, people, groups..." 
+                    placeholder="Search" 
                     value={globalSearch}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -14076,106 +14057,31 @@ function ExonaApp() {
                     onFocus={() => {
                       if (globalSearch) setView('search');
                     }}
-                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink" 
+                    className="w-full text-center placeholder:text-center pl-10 pr-10 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-sm" 
                   />
+                  <Search className="absolute left-1/2 -translate-x-[40px] top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
+                </div>
+
+                {/* Sticky Home / Satellite Segmented Control (sticks at top right where Search bar was when scrolling) */}
+                <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-gray-100 mb-4 transition-all">
+                  <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
+                    <button 
+                      onClick={() => setView('feed')}
+                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    >
+                      All
+                    </button>
+                    <button 
+                      onClick={() => setView('videos')}
+                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                    >
+                      Satellite
+                    </button>
+                  </div>
                 </div>
 
                 <div className="block">
-              <div 
-                className="flex items-center gap-1.5 mb-4 flex-wrap w-full py-1 select-none"
-              >
-                {categories.map((c) => {
-                  const count = getFilterCount(c.id);
-                  const isSelected = schoolFilter === c.id;
-                  
-                  let CategoryIcon = null;
-                  if (c.id === 'all') CategoryIcon = <Home size={11} className="shrink-0" />;
-                  else if (c.id === 'chats') CategoryIcon = <MessageSquare size={11} className="shrink-0" />;
-                  else if (c.id === 'groups') CategoryIcon = <Users size={11} className="shrink-0" />;
-                  else if (c.id === 'school') CategoryIcon = <GraduationCap size={11} className="shrink-0" />;
-                  else if (c.id === 'place') CategoryIcon = <MapPin size={11} className="shrink-0" />;
-
-                  return (
-                    <div key={c.id} className="relative group shrink-0 flex items-center">
-                      <button
-                        onClick={() => setSchoolFilter(c.id)}
-                        className={`h-[26px] px-2.5 rounded-full text-[10.5px] font-black transition-all outline-none flex items-center justify-center font-sans ${
-                          isSelected 
-                            ? 'bg-[#2481CC]/15 text-[#2481CC]' 
-                            : 'bg-slate-50/80 text-slate-500 hover:bg-slate-100/80 hover:text-slate-800'
-                        }`}
-                      >
-                        <span className="flex items-center gap-1.5">
-                          {CategoryIcon}
-                          <span>{c.label}</span>
-                          {count > 0 && (
-                            <span className={`text-[8.5px] font-black px-1.5 py-0.5 rounded-full ${
-                              isSelected ? 'bg-[#2481CC] text-white' : 'bg-slate-200/85 text-slate-600'
-                            }`}>
-                              {count}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                      {!['all', 'place', 'school', 'chats', 'groups'].includes(c.id) && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteCategory(c.id);
-                          }}
-                          className="absolute -top-1 -right-0.5 bg-red-500 hover:bg-red-600 text-white h-3.5 w-3.5 rounded-full flex items-center justify-center text-[7px] font-medium shadow transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          title="Delete category"
-                        >
-                          <X size={7} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-                
-                {/* Plus button to add custom category */}
-                {isAddingCategory ? (
-                  <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      handleCreateCustomCategory();
-                    }}
-                    className="flex items-center gap-1 bg-slate-100 rounded-full h-8 pl-3 pr-1.5 shrink-0"
-                  >
-                    <input
-                      type="text"
-                      value={newCategoryInput}
-                      onChange={(e) => setNewCategoryInput(e.target.value)}
-                      placeholder="New category"
-                      className="bg-transparent text-[12px] font-semibold outline-none w-20 text-[#54656f] placeholder:text-[#54656f]/40"
-                      autoFocus
-                    />
-                    <button 
-                      type="submit"
-                      className="h-6 w-6 bg-accent text-white rounded-full flex items-center justify-center hover:bg-accent/90 shrink-0"
-                    >
-                      <Check size={11} />
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => setIsAddingCategory(false)}
-                      className="h-6 w-6 bg-slate-200 text-muted rounded-full flex items-center justify-center hover:bg-slate-300 shrink-0"
-                    >
-                      <X size={11} />
-                    </button>
-                  </form>
-                ) : (
-                  <button
-                    onClick={() => setIsAddingCategory(true)}
-                    className="h-8 w-8 bg-slate-50 text-slate-500 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all select-none shrink-0"
-                    title="Add Category"
-                  >
-                    <Plus size={15} />
-                  </button>
-                )}
-              </div>
-
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 -mx-4 sm:-mx-6 md:-mx-8">
                 <AnimatePresence mode="popLayout">
                   {(() => {
                     const filteredSchoolsAndPlaces = [...schools, ...places]
@@ -14259,6 +14165,24 @@ function ExonaApp() {
                       );
                     }
 
+                    const getAvatarGradient = (name: string) => {
+                      const colors = [
+                        'from-blue-500 to-indigo-600',
+                        'from-purple-500 to-pink-600',
+                        'from-indigo-500 to-violet-600',
+                        'from-emerald-500 to-teal-600',
+                        'from-rose-500 to-orange-500',
+                        'from-amber-500 to-yellow-600',
+                        'from-slate-700 to-slate-950',
+                        'from-sky-500 to-blue-600'
+                      ];
+                      let hash = 0;
+                      for (let i = 0; i < (name || '').length; i++) {
+                        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                      }
+                      return colors[Math.abs(hash) % colors.length];
+                    };
+
                     const getAnnouncementTime = (announcement: any) => {
                       if (!announcement) return '';
                       const timestamp = announcement.timestamp || announcement.createdAt;
@@ -14299,7 +14223,7 @@ function ExonaApp() {
                         <div className="flex flex-col gap-2 w-full pt-1">
                           {filteredSchoolsAndPlaces.length > 0 && (
                             <div className="mb-6">
-                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-1 font-sans">INSTITUTIONS</div>
+                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-4 sm:px-6 font-sans">INSTITUTIONS</div>
                               <div className="space-y-1">
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -14312,7 +14236,7 @@ function ExonaApp() {
                                       animate={{ opacity: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
-                                      className="py-3 px-3 hover:bg-slate-50 active:bg-slate-100/80 rounded-2xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
+                                      className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
                                       onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                     >
                                       <div className="flex-1 flex items-center gap-3.5 min-w-0">
@@ -14355,7 +14279,7 @@ function ExonaApp() {
                             <div className="mb-6">
                               <button 
                                 onClick={() => setShowChatSection(!showChatSection)} 
-                                className="w-full flex items-center justify-between mb-3 px-2 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
+                                className="w-full flex items-center justify-between mb-3 px-4 sm:px-6 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
                                 title={showChatSection ? "Hide Chats" : "Show Chats"}
                               >
                                 <div className="flex items-center gap-2">
@@ -14378,7 +14302,7 @@ function ExonaApp() {
                             <div className="mb-6">
                               <button 
                                 onClick={() => setShowGroupSection(!showGroupSection)} 
-                                className="w-full flex items-center justify-between mb-3 px-2 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
+                                className="w-full flex items-center justify-between mb-3 px-4 sm:px-6 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
                                 title={showGroupSection ? "Hide Groups" : "Show Groups"}
                               >
                                 <div className="flex items-center gap-2">
@@ -14424,7 +14348,7 @@ function ExonaApp() {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.96 }}
                                 transition={{ duration: 0.2 }}
-                                className="py-3 px-3 hover:bg-slate-50 active:bg-slate-100/80 rounded-2xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
+                                className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
                                 onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                               >
                                 <div className="flex-1 flex items-center gap-3.5 min-w-0">
@@ -23707,145 +23631,133 @@ function ExonaApp() {
       case 'videos': {
         if (!user) { setView('login'); return null; }
         return (
-          <ShopIframeView 
-            onClose={() => setView('feed')} 
-            iframeUrl="https://remix-exona-400371160094.europe-west2.run.app" 
-            title="Satellite View"
-            bgColor="bg-[#070b19]"
-            isDark={true}
+          <YoutubeBroadcasts
+            user={user}
+            userDoc={userDoc}
+            customBroadcasts={youtubeBroadcasts}
+            broadcastEngine={broadcastEngine}
+            setBroadcastEngine={setBroadcastEngine}
+            onAddBroadcast={handleAddYoutubeBroadcast}
+            onDeleteBroadcast={handleDeleteYoutubeBroadcast}
+            onLikeBroadcast={handleLikeYoutubeBroadcast}
+            handleDebitExcoin={handleDebitExcoin}
+            showNotification={showNotification}
+            onClose={() => setView('feed')}
+            isTabActive={view === 'videos'}
           />
         );
       }
       case 'hub': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
-            {/* Stationary Header (Mirrors Feed) */}
-            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50">
-              <div className="w-full pt-4 pb-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex flex-col gap-3">
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-ink">
-                    <button onClick={() => setView('notifications')} className="relative p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted cursor-pointer">
-                      <Bell size={20} />
-                      {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
-                          {unreadNotificationsCount}
-                        </span>
-                      )}
-                    </button>
-                    <button onClick={() => setSidebarOpen(true)} className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted cursor-pointer">
-                      <Menu size={20} />
-                    </button>
-                  </div>
+          <div className="flex-1 flex flex-col bg-slate-50 min-h-full pb-28">
+            <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2.5xl sm:text-3xl font-black text-slate-900 tracking-tight">Exona Hub</h1>
+                  <p className="text-xs sm:text-sm font-bold text-slate-500 mt-1">Select a destination or tool to launch</p>
                 </div>
-
-                <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
-                  <button onClick={() => setView('feed')} className="flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all text-slate-500 hover:text-ink cursor-pointer">
-                    Home
-                  </button>
-                  <button onClick={() => setView('videos')} className="flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all text-slate-500 hover:text-ink cursor-pointer">
-                    Satellite
-                  </button>
-                </div>
+                <button 
+                  onClick={() => setView('feed')}
+                  className="h-10 w-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                  title="Back to Feed"
+                >
+                  <ArrowLeft size={18} />
+                </button>
               </div>
-            </div>
 
-            {/* Content (Simplified Feed List for Hub Context) */}
-            <div className="flex-1 overflow-y-auto no-scrollbar w-full pb-48 pt-[116px]">
-              <div className="w-full pt-4 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
-                <div className="relative group min-w-0 w-full mb-5">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" size={15} />
-                  <input 
-                    type="text" 
-                    placeholder="Search institutions, people, groups..." 
-                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-transparent rounded-2xl outline-none text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400" 
-                    readOnly
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 mb-6 flex-wrap">
-                  {categories.slice(0, 4).map(c => (
-                    <div key={c.id} className="h-[26px] px-2.5 rounded-full text-[10.5px] font-black bg-slate-50 text-slate-500 flex items-center gap-1.5">
-                      {c.id === 'all' && <Home size={11} />}
-                      {c.id === 'chats' && <MessageSquare size={11} />}
-                      {c.id === 'groups' && <Users size={11} />}
-                      {c.id === 'school' && <GraduationCap size={11} />}
-                      <span>{c.label}</span>
-                    </div>
-                  ))}
-                  <div className="h-8 w-8 bg-slate-50 text-slate-500 rounded-full flex items-center justify-center"><Plus size={15} /></div>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Institutions</h4>
-                    <div className="space-y-4">
-                      {schools.slice(0, 2).map(s => (
-                        <div key={s.id} className="flex items-center gap-4 group cursor-pointer">
-                          <div className={`h-14 w-14 rounded-2xl bg-gradient-to-br ${getAvatarGradient(s.name)} flex items-center justify-center text-white text-xl font-black shadow-sm group-hover:scale-105 transition-transform`}>
-                            {s.logo ? <img src={s.logo} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" /> : s.name.charAt(0)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-black text-slate-900 truncate">{s.name}</h3>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">No announcements yet</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                {/* 1: Exona AI Assistant */}
+                <button 
+                  onClick={() => setIsExonaAiModalOpen(true)}
+                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-[#2481CC] transition-all group cursor-pointer text-left"
+                >
+                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-[#2481CC] to-[#2DA5FF] text-white flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-md shadow-[#2481CC]/25">
+                    <Sparkles size={26} />
                   </div>
-
-                  <div className="pt-4 flex items-center justify-between group cursor-pointer border-t border-gray-50 pt-6">
-                    <div className="flex items-center gap-3">
-                      <MessageSquare size={16} className="text-slate-400" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Chat</span>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-black text-slate-900 leading-snug flex items-center gap-2">
+                      Exona AI
+                      <span className="text-[9px] bg-[#2481CC]/10 text-[#2481CC] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">AI Assistant</span>
+                    </h3>
+                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Ask questions, search knowledge bases, and generate smart content</p>
                   </div>
-
-                  <div className="pt-4 flex items-center justify-between group cursor-pointer border-t border-gray-50 pt-6">
-                    <div className="flex items-center gap-3">
-                      <Users size={16} className="text-slate-400" />
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Group</span>
-                    </div>
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition-colors" />
+                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-[#2481CC] group-hover:bg-[#2481CC]/10 transition-all shrink-0">
+                    <ArrowRight size={18} />
                   </div>
-                </div>
-              </div>
-            </div>
+                </button>
 
-            {/* THE FLOATING CARD - CENTER BOTTOM */}
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 w-full max-w-[280px] px-4 z-50">
-              <motion.div 
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className="bg-white border-[1.5px] border-zinc-200/80 rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.08)] flex items-center justify-between p-1.5 h-[80px] backdrop-blur-md bg-white/95"
-              >
+                {/* 2: Create Institution */}
+                <button 
+                  onClick={() => setIsSchoolModalOpen(true)}
+                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-indigo-400 transition-all group cursor-pointer text-left"
+                >
+                  <div className="h-14 w-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
+                    <Building2 size={26} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-black text-slate-900 leading-snug flex items-center gap-2">
+                      Create Institution
+                      <span className="text-[9px] bg-indigo-50 text-indigo-600 font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Setup</span>
+                    </h3>
+                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Register and configure a new school or institutional workspace</p>
+                  </div>
+                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all shrink-0">
+                    <ArrowRight size={18} />
+                  </div>
+                </button>
+
+                {/* 3: Nexclass */}
                 <button 
                   onClick={() => setView('schools')}
-                  className="flex-1 h-full flex flex-col items-center justify-center group active:scale-95 transition-all"
+                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-sky-400 transition-all group cursor-pointer text-left"
                 >
-                  <div className="h-10 w-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                    <LayoutGrid size={22} strokeWidth={2} />
+                  <div className="h-14 w-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
+                    <GraduationCap size={28} />
                   </div>
-                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Nexclass</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-black text-slate-900 leading-snug">Nexclass</h3>
+                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Academic records and institution directory</p>
+                  </div>
+                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-sky-600 group-hover:bg-sky-50 transition-all shrink-0">
+                    <ArrowRight size={18} />
+                  </div>
                 </button>
-                
-                <div className="w-[1px] h-10 bg-zinc-100 mx-1" />
 
+                {/* 4: BrainB */}
                 <button 
                   onClick={() => setIsBrainBattleActive(true)}
-                  className="flex-1 h-full flex flex-col items-center justify-center group active:scale-95 transition-all"
+                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-purple-400 transition-all group cursor-pointer text-left"
                 >
-                  <div className="h-10 w-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
-                    <BrainCircuit size={22} strokeWidth={2} />
+                  <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
+                    <BrainCircuit size={28} />
                   </div>
-                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">BrainB</span>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-black text-slate-900 leading-snug">BrainB</h3>
+                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Challenge your mind with live assessments</p>
+                  </div>
+                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-purple-600 group-hover:bg-purple-50 transition-all shrink-0">
+                    <ArrowRight size={18} />
+                  </div>
                 </button>
-              </motion.div>
+
+                {/* 5: Wallet */}
+                <button 
+                  onClick={() => setView('finance')}
+                  className="col-span-1 sm:col-span-2 flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-emerald-400 transition-all group cursor-pointer text-left"
+                >
+                  <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
+                    <Wallet size={28} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-black text-slate-900 leading-snug">Exona Wallet</h3>
+                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Manage your Exona Wallet balance and financial transactions</p>
+                  </div>
+                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-all shrink-0">
+                    <ArrowRight size={18} />
+                  </div>
+                </button>
+              </div>
             </div>
           </div>
         );
@@ -30158,12 +30070,6 @@ function ExonaApp() {
                 )}
               </button>
               <button 
-                onClick={() => setView('search')}
-                className={`md:hidden p-2.5 hover:bg-gray-50 rounded-xl transition-colors ${view === 'search' ? 'text-accent bg-accent/5' : 'text-muted hover:text-ink'}`}
-              >
-                <Search size={20} />
-              </button>
-              <button 
                 onClick={() => setSidebarOpen(true)}
                 className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
               >
@@ -30512,34 +30418,35 @@ function ExonaApp() {
         ) : (
           <motion.div 
             key="regular-nav"
-            initial={{ y: 50, opacity: 0 }}
+            initial={{ y: 60, opacity: 0 }}
             animate={{ 
-              y: (hideBottomNavInShop && view === 'schools') ? 80 : 0, 
+              y: (hideBottomNavInShop && view === 'schools') ? 100 : 0, 
               opacity: (hideBottomNavInShop && view === 'schools') ? 0 : 1 
             }}
-            exit={{ y: 50, opacity: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className={`fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-zinc-200/60 h-[68px] flex items-center justify-center w-full no-print select-none shadow-lg ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
+            exit={{ y: 60, opacity: 0 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            className={`fixed bottom-3 left-0 right-0 z-50 flex items-center justify-center px-3.5 no-print select-none pointer-events-none ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
           >
-            <div className="w-full max-w-lg h-full flex items-center justify-around relative px-2">
+            <div className="flex items-center gap-2 max-w-md w-full pointer-events-auto">
+              <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex items-center justify-between flex-1 relative">
               
                {/* Floating Workspace & Tools submenu above Middle Button */}
               <AnimatePresence>
                 {isMiddleMenuOpen && (
                   <>
-                    {/* Tiny transparent clickaway overlay */}
+                    {/* Transparent clickaway overlay */}
                     <div 
-                      className="fixed inset-0 z-40 bg-transparent no-print cursor-default" 
+                      className="fixed inset-0 z-40 bg-slate-900/15 backdrop-blur-xs no-print cursor-default" 
                       onClick={() => setIsMiddleMenuOpen(false)}
                     />
                     
                     {/* Modern sub-icons popover container */}
                     <motion.div
-                      initial={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
+                      initial={{ opacity: 0, y: 12, scale: 0.92, x: '-50%' }}
                       animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
-                      exit={{ opacity: 0, y: 15, scale: 0.9, x: '-50%' }}
-                      transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-                      className="absolute bottom-[74px] left-1/2 z-50 bg-white border border-zinc-150 rounded-[1.5rem] p-3.5 shadow-xl flex items-center gap-4 no-print min-w-[210px] border-b-2 border-b-[#2481CC]"
+                      exit={{ opacity: 0, y: 12, scale: 0.92, x: '-50%' }}
+                      transition={{ type: 'spring', damping: 22, stiffness: 320 }}
+                      className="absolute bottom-[72px] left-1/2 z-50 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-3xl p-3 shadow-2xl flex items-center gap-3 no-print min-w-[230px] border-b-4 border-b-[#2481CC]"
                     >
                       {/* Sub-icon 1: Workspace */}
                       <button
@@ -30549,18 +30456,18 @@ function ExonaApp() {
                           setActiveWorkspaceTool('app-center');
                           setIsMiddleMenuOpen(false);
                         }}
-                        className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
-                          view === 'workspace' ? 'bg-blue-50/50 text-[#2481CC] font-bold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
+                        className={`flex-1 flex flex-col items-center justify-center p-2.5 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+                          view === 'workspace' ? 'bg-[#2481CC] text-white font-bold shadow-lg shadow-[#2481CC]/30' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                         }`}
                       >
-                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-xl mb-1 shadow-xs border border-blue-100">
-                          <LayoutGrid size={16} />
+                        <div className={`h-9 w-9 flex items-center justify-center rounded-xl mb-1 transition-colors ${view === 'workspace' ? 'bg-white/20 text-white' : 'bg-[#2481CC]/10 text-[#2481CC]'}`}>
+                          <LayoutGrid size={18} />
                         </div>
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Workspace</span>
+                        <span className="text-[10px] uppercase tracking-wider font-extrabold leading-none font-sans">Workspace</span>
                       </button>
                       
                       {/* Divider */}
-                      <div className="h-8 w-[1px] bg-zinc-200" />
+                      <div className="h-8 w-[1px] bg-slate-200" />
 
                       {/* Sub-icon 2: Tools */}
                       <button
@@ -30569,41 +30476,49 @@ function ExonaApp() {
                           setView('tools');
                           setIsMiddleMenuOpen(false);
                         }}
-                        className={`flex-1 flex flex-col items-center justify-center p-2 rounded-xl transition-all active:scale-95 ${
-                          view === 'tools' ? 'bg-blue-50/50 text-[#2481CC] font-bold' : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-950'
+                        className={`flex-1 flex flex-col items-center justify-center p-2.5 rounded-2xl transition-all active:scale-95 cursor-pointer ${
+                          view === 'tools' ? 'bg-[#2481CC] text-white font-bold shadow-lg shadow-[#2481CC]/30' : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                         }`}
                       >
-                        <div className="h-8.5 w-8.5 flex items-center justify-center bg-blue-50 text-[#2481CC] rounded-xl mb-1 shadow-xs border border-blue-100">
-                          <Cpu size={16} />
+                        <div className={`h-9 w-9 flex items-center justify-center rounded-xl mb-1 transition-colors ${view === 'tools' ? 'bg-white/20 text-white' : 'bg-[#2481CC]/10 text-[#2481CC]'}`}>
+                          <Cpu size={18} />
                         </div>
-                        <span className="text-[9px] uppercase tracking-wider font-extrabold leading-none font-sans">Tools</span>
+                        <span className="text-[10px] uppercase tracking-wider font-extrabold leading-none font-sans">Tools</span>
                       </button>
                     </motion.div>
                   </>
                 )}
               </AnimatePresence>
 
-              {/* Icon 1: HOME (Feed) */}
+              {/* Icon 1: WALLET */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
-                  setView('feed');
+                  handleWalletClick();
                 }}
-                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
+                className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                <div className={`transition-all duration-150 ${view === 'feed' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <Home 
-                    size={23} 
-                    fill={view === 'feed' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'feed' ? 0.15 : 0} 
-                    strokeWidth={view === 'feed' ? 2.4 : 2.0} 
+                {view === 'finance' && (
+                  <motion.div 
+                    layoutId="floating-nav-pill" 
+                    className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
+                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <Wallet 
+                    size={20} 
+                    className={`transition-colors duration-200 ${view === 'finance' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
+                    fill={view === 'finance' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'finance' ? 0.3 : 0} 
+                    strokeWidth={view === 'finance' ? 2.5 : 2.0} 
+                  />
+                  <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                    view === 'finance' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                  }`}>
+                    Wallet
+                  </span>
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'feed' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
-                  Feed
-                </span>
               </button>
 
               {/* Icon 2: MARKETPLACE */}
@@ -30612,102 +30527,158 @@ function ExonaApp() {
                   setActiveChat(null);
                   setView('schools');
                 }}
-                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
+                className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                <div className={`transition-all duration-150 ${view === 'schools' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <ShoppingBag 
-                    size={23} 
-                    fill={view === 'schools' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'schools' ? 0.15 : 0} 
-                    strokeWidth={view === 'schools' ? 2.4 : 2.0} 
+                {view === 'schools' && (
+                  <motion.div 
+                    layoutId="floating-nav-pill" 
+                    className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
+                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <ShoppingBag 
+                    size={20} 
+                    className={`transition-colors duration-200 ${view === 'schools' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
+                    fill={view === 'schools' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'schools' ? 0.3 : 0} 
+                    strokeWidth={view === 'schools' ? 2.5 : 2.0} 
+                  />
+                  <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                    view === 'schools' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                  }`}>
+                    Shop
+                  </span>
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'schools' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
-                  Shop
-                </span>
               </button>
 
-              {/* Icon 3: HUB */}
+              {/* Icon 3: CORE HUB BUTTON */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
                   setView('hub');
                 }}
-                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
+                className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                <div className={`transition-all duration-150 ${view === 'hub' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <LayoutGrid 
-                    size={23} 
-                    fill={view === 'hub' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'hub' ? 0.15 : 0} 
-                    strokeWidth={view === 'hub' ? 2.4 : 2.0} 
+                {view === 'hub' && (
+                  <motion.div 
+                    layoutId="floating-nav-pill" 
+                    className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
+                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <LayoutGrid 
+                    size={20} 
+                    className={`transition-colors duration-200 ${view === 'hub' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
+                    fill={view === 'hub' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'hub' ? 0.3 : 0} 
+                    strokeWidth={view === 'hub' ? 2.5 : 2.0} 
+                  />
+                  <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                    view === 'hub' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                  }`}>
+                    Hub
+                  </span>
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'hub' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
-                  Hub
-                </span>
               </button>
 
-              {/* Icon 4: REELS */}
+              {/* Icon 4: CHARTS */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
-                  setView('reels');
+                  setView('feed');
                 }}
-                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-90 relative font-sans cursor-pointer group"
+                className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                <div className={`transition-all duration-150 ${view === 'reels' ? 'text-[#2481CC] scale-105' : 'text-slate-400 group-hover:text-slate-800 group-active:text-[#2481CC] group-active:scale-105'}`}>
-                  <Clapperboard 
-                    size={23} 
-                    fill={view === 'reels' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'reels' ? 0.15 : 0} 
-                    strokeWidth={view === 'reels' ? 2.4 : 2.0} 
+                {view === 'feed' && (
+                  <motion.div 
+                    layoutId="floating-nav-pill" 
+                    className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
+                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <MessageSquare 
+                    size={20} 
+                    className={`transition-colors duration-200 ${view === 'feed' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
+                    fill={view === 'feed' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'feed' ? 0.3 : 0} 
+                    strokeWidth={view === 'feed' ? 2.5 : 2.0} 
+                  />
+                  <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                    view === 'feed' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                  }`}>
+                    Charts
+                  </span>
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'reels' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
-                  Reels
-                </span>
               </button>
 
-              {/* Icon 5: PROFILE */}
+              {/* Icon 5: SETTINGS */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
                   if (user) {
+                    setShowProfileSettings(true);
                     setView('profile');
                   } else {
                     setView('login');
                   }
                 }}
-                className="flex-1 h-full flex flex-col items-center justify-center transition-all duration-150 active:scale-95 relative font-sans cursor-pointer group"
+                className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                <div className={`relative h-[30px] w-[30px] rounded-full overflow-hidden transition-all duration-200 ${
-                  view === 'profile' || view === 'login'
-                    ? 'ring-2 ring-[#2481CC] ring-offset-2 scale-105' 
-                    : 'group-hover:scale-105 group-active:ring-2 group-active:ring-[#2481CC] group-active:ring-offset-2 group-active:scale-105'
-                }`}>
-                  <img 
-                    src={user?.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
-                    className="h-full w-full object-cover rounded-full" 
-                    referrerPolicy="no-referrer"
+                {(view === 'profile' || view === 'login') && (
+                  <motion.div 
+                    layoutId="floating-nav-pill" 
+                    className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
+                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
-                  {/* Small red target bounce dot on bottom right */}
-                  <span className="absolute bottom-0 right-0 h-1.5 w-1.5 bg-red-500 border border-white rounded-full" />
+                )}
+                <div className="relative z-10 flex flex-col items-center justify-center">
+                  <Settings 
+                    size={20} 
+                    className={`transition-colors duration-200 ${
+                      view === 'profile' || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
+                    }`}
+                    fill={view === 'profile' || view === 'login' ? 'currentColor' : 'none'} 
+                    fillOpacity={view === 'profile' || view === 'login' ? 0.3 : 0} 
+                    strokeWidth={view === 'profile' || view === 'login' ? 2.5 : 2.0} 
+                  />
+                  <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                    view === 'profile' || view === 'login' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                  }`}>
+                    Settings
+                  </span>
                 </div>
-                <span className={`text-[11px] font-bold mt-1 transition-all duration-150 ${
-                  view === 'profile' || view === 'login' ? 'text-[#2481CC] font-black' : 'text-slate-400 group-hover:text-slate-600 group-active:text-[#2481CC] group-active:font-black'
-                }`}>
-                  Profile
-                </span>
               </button>
             </div>
-          </motion.div>
+
+            {/* Independent Floating Search Button */}
+            <button
+              onClick={() => {
+                setActiveChat(null);
+                setView('search');
+              }}
+              className={`h-[60px] w-[60px] shrink-0 rounded-full flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-[0_12px_36px_rgba(0,0,0,0.12)] border ${
+                view === 'search'
+                  ? 'bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] text-white border-[#2481CC] shadow-md shadow-[#2481CC]/30 scale-105'
+                  : 'bg-white/95 backdrop-blur-2xl border-slate-200/90 text-slate-500 hover:text-slate-800 hover:bg-slate-50 active:scale-95'
+              }`}
+              title="Search"
+            >
+              <Search 
+                size={20} 
+                className={`transition-colors duration-200 ${view === 'search' ? 'text-white' : 'text-slate-500'}`}
+                strokeWidth={view === 'search' ? 2.5 : 2.0} 
+              />
+              <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                view === 'search' ? 'text-white font-black' : 'text-slate-500 font-medium'
+              }`}>
+                Search
+              </span>
+            </button>
+          </div>
+        </motion.div>
         )}
       </AnimatePresence>
 
@@ -31555,96 +31526,7 @@ function ExonaApp() {
           )}
         </AnimatePresence>
 
-      {/* Floating Action Buttons (WhatsApp Style - Floating Bottom Right) */}
-      <AnimatePresence>
-        {showFABs && view === 'feed' && (
-          <motion.div 
-            key="floating-action-buttons-container"
-            className="fixed bottom-24 sm:bottom-28 right-4 sm:right-6 md:right-8 z-[100] flex flex-col gap-3.5 no-print select-none"
-          >
-            {/* Exona AI FAB - Premium ChatGPT styled AI icon */}
-            <motion.button
-              key="exona-ai-fab"
-              initial={{ scale: 0, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.05 }}
-              onClick={() => setIsExonaAiModalOpen(true)}
-              className="h-12 w-12 rounded-[1.125rem] bg-gradient-to-tr from-[#2481CC] to-[#2DA5FF] border-0 flex items-center justify-center shadow-lg shadow-[#2481CC]/20 hover:scale-105 active:scale-95 transition-all outline-none group text-white font-bold cursor-pointer"
-              title="Exona AI"
-            >
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-white transform group-hover:rotate-12 transition-transform duration-300">
-                <path d="M21.36 10.13a4.7 4.7 0 0 0-.35-1.74 4.5 4.5 0 0 0-1.51-1.67 4.7 4.7 0 0 0-2.14-.83 4.7 4.7 0 0 0-.33-2.61 4.5 4.5 0 0 0-2-2.1A4.7 4.7 0 0 0 12.43 1c-.88 0-1.72.24-2.43.68a4.7 4.7 0 0 0-2 2.1 4.7 4.7 0 0 0-.33 2.6A4.5 4.5 0 0 0 5.5 7.21a4.7 4.7 0 0 0-1.41 1.49 4.7 4.7 0 0 0-.36 1.75c0 .1 0 .2 0 .3a4.5 4.5 0 0 0 1.6 3.53c-.35.32-.65.7-.87 1.13a4.7 4.7 0 0 0-.3 2.14 4.5 4.5 0 0 0 1.47 1.54 4.7 4.7 0 0 0 2.44.68c.75 0 1.47-.18 2.13-.51a4.7 4.7 0 0 0 1.4 2.5c.87.72 1.96 1.1 3.08 1.1h.16a4.6 4.6 0 0 0 3-.95 4.7 4.7 0 0 0 2.13-.83 4.5 4.5 0 0 0 1.51-1.67 4.7 4.7 0 0 0 .34-2.6c.1-.03.21-.07.31-.12a4.5 4.5 0 0 0 1.6-3.53 4.5 4.5 0 0 0-1.6-3.53zm-1.57 3.32a3.1 3.1 0 0 1-1.57.42c-.06-.04-.13-.08-.19-.13L15.31 18a1.59 1.59 0 0 0 .8-1.39V12.06L18.79 14a1.64 1.64 0 0 0 .76.19 1.59 1.59 0 0 0 1.38-.8 1.61 1.61 0 0 0 0-1.61L18.25 10.2l2.31-1.34A1.61 1.61 0 0 0 21.32 7a1.53 1.53 0 0 0-1.35-.85 1.68 1.68 0 0 0-.81.22L14.52 9l-2.09-3.62A1.56 1.56,0,0,0,11,4.55h-.16a1.58,1.58,0,0,0-1.33.88c-.06.1-.11.22-.16.33L11.41,12V16.6H6.77L4.46 15.27a1.61 1.61 0 0 0-2.14.73 1.58 1.58,0,0,0,.78 2.06l4.64 2.68c.07.04.14.07.21.1a3.11,3.11,0,0,1,1.5-.38l3,.17zm-6.57-7V9.75L10 7.39a1.6,1.6,0,0,0,.8-1.39V1.35A3.1,3.1,0,0,1,12.41 1a3.11,3.11,0,0,1,1.53.42c.07.03.14.07.21.11L10 5.17A1.59,1.59,0,0,0,9.22 6.56V11.1l-4.05-2.34a1.61 1.61,0,0,0-2.14.58A1.58,1.58,0,0,0,3.61,11.4l4.63,2.67c.07.04.14.07.21.1a3.09,3.09,0,0,1,1.13-.19A3.14,3.14,0,0,1,11.16,14zm6.56-4.59L8.28 7.39a1.64,1.64,0,0,0-.77-.19,1.59,1.59,0,0,0-1.38.8a1.61,1.61,0,0,0,6.13,9.6l2.67,1.55v4.18H4.16L2.68 14.46a3.1,3.1,0,0,1-.42-1.56,3.11,3.11,0,0,1,.42-1.6h.1l4.05 2.34c.07.04.14.07.21.1a3.13,3.13,0,0,1,1.5-.38,3.1,3.1,0,0,1,1.57.42Z" />
-              </svg>
-            </motion.button>
- 
-            {/* Create Institution & Groups Menu Button (Plus sign) */}
-            {user && (
-              <div className="relative">
-                {/* Expandable popup choices */}
-                <AnimatePresence>
-                  {isPlusMenuOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 15, scale: 0.9 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 15, scale: 0.9 }}
-                      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-                      className="absolute bottom-14 right-0 flex flex-col gap-2 items-end z-50 min-w-[210px]"
-                    >
-                      {/* Option 1: Create Institution */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsSchoolModalOpen(true);
-                          setIsPlusMenuOpen(false);
-                        }}
-                        className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl shadow-xl hover:bg-gray-50 transition-all text-[11px] font-black uppercase tracking-wider text-ink shrink-0 cursor-pointer text-right w-full justify-between"
-                      >
-                        <span className="text-slate-600">Institution</span>
-                        <span className="p-1.5 bg-[#2481CC]/10 text-[#2481CC] rounded-xl flex items-center justify-center shrink-0">
-                          <GraduationCap size={15} />
-                        </span>
-                      </button>
-                      {/* Option 2: Create Group */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsCreateGroupModalOpen(true);
-                          setIsPlusMenuOpen(false);
-                        }}
-                        className="flex items-center gap-2.5 px-4 py-2.5 bg-white border border-gray-100 rounded-2xl shadow-xl hover:bg-gray-50 transition-all text-[11px] font-black uppercase tracking-wider text-ink shrink-0 cursor-pointer text-right w-full justify-between"
-                      >
-                        <span className="text-slate-600">Group Chat</span>
-                        <span className="p-1.5 bg-[#2481CC]/10 text-[#2481CC] rounded-xl flex items-center justify-center shrink-0">
-                          <Users size={15} />
-                        </span>
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <motion.button
-                  key="create-institution-fab"
-                  initial={{ scale: 0, opacity: 0, y: 20 }}
-                  animate={{ scale: 1, opacity: 1, y: 0 }}
-                  exit={{ scale: 0, opacity: 0, y: 20 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                  onClick={() => setIsPlusMenuOpen(!isPlusMenuOpen)}
-                  className="h-12 w-12 rounded-full bg-gradient-to-tr from-[#2481CC] to-[#2DA5FF] text-white flex items-center justify-center shadow-lg shadow-blue-500/10 hover:scale-105 active:scale-95 transition-all outline-none cursor-pointer"
-                  title="Create Menu"
-                >
-                  <motion.div
-                    animate={{ rotate: isPlusMenuOpen ? 45 : 0 }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                  >
-                    <Plus size={22} />
-                  </motion.div>
-                </motion.button>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Floating Action Buttons moved to inside Exona Hub as requested */}
 
       {/* Create Home Screen Shortcut Modal */}
       <AnimatePresence>
