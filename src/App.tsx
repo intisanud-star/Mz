@@ -3581,7 +3581,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -3650,7 +3650,7 @@ function ExonaApp() {
 
     // Fast-track initial transitions so cold boots show instant menus
     // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
-    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels') {
+    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass') {
       setRenderedView(view);
       return;
     }
@@ -23615,21 +23615,38 @@ function ExonaApp() {
                 </button>
 
                 {/* 3: Nexclass */}
-                <button 
-                  onClick={() => setView('schools')}
-                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-sky-400 transition-all group cursor-pointer text-left"
+                <div 
+                  className="flex flex-col md:flex-row md:items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-sky-400 transition-all group text-left col-span-1 sm:col-span-2 md:col-span-1"
                 >
-                  <div className="h-14 w-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
-                    <GraduationCap size={28} />
+                  <div className="flex items-center gap-4.5 flex-1 min-w-0">
+                    <div className="h-14 w-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                      <GraduationCap size={28} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black text-slate-900 leading-snug">Nexclass</h3>
+                      <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Academic records and institution directory</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black text-slate-900 leading-snug">Nexclass</h3>
-                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Academic records and institution directory</p>
+                  
+                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                    <button 
+                      onClick={() => setView('nexclass')}
+                      className="flex-1 md:flex-initial h-10 px-4 bg-sky-50 hover:bg-sky-100 text-sky-700 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-sky-100/60"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Open</span>
+                    </button>
+                    <a 
+                      href="https://median.co/share/xlzeokm#apk"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 md:flex-initial h-10 px-4 bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Download size={14} />
+                      <span>Download</span>
+                    </a>
                   </div>
-                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-sky-600 group-hover:bg-sky-50 transition-all shrink-0">
-                    <ArrowRight size={18} />
-                  </div>
-                </button>
+                </div>
 
                 {/* 4: BrainB */}
                 <button 
@@ -23691,6 +23708,18 @@ function ExonaApp() {
               </div>
             </div>
           </div>
+        );
+      }
+      case 'nexclass': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <ShopIframeView 
+            onClose={() => setView('hub')} 
+            iframeUrl="https://nexclass.exonaapp.com" 
+            title="Nexclass"
+            bgColor="bg-white"
+            isDark={false}
+          />
         );
       }
       case 'reels': {
@@ -29941,7 +29970,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -30005,7 +30034,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass'].includes(view);
         return (
           <main 
             ref={!isFixedLayoutView ? scrollContainerRef : undefined}
