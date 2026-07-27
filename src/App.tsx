@@ -12990,7 +12990,7 @@ function ExonaApp() {
     const inst = [...schools, ...places].find(i => i.id === id);
     if (inst) {
       setSelectedInstitutionForProfile(inst);
-      setView('institution-profile');
+      setView('institution-channel');
     }
   };
 
@@ -14255,7 +14255,7 @@ function ExonaApp() {
                                       exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
                                       className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-                                      onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                                      onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                                     >
                                       <div className="flex-1 flex items-center gap-3.5 min-w-0">
                                         <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -14367,7 +14367,7 @@ function ExonaApp() {
                                 exit={{ opacity: 0, scale: 0.96 }}
                                 transition={{ duration: 0.2 }}
                                 className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-                                onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
+                                onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
                               >
                                 <div className="flex-1 flex items-center gap-3.5 min-w-0">
                                   <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -14611,19 +14611,6 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
                     </button>
-                    {(selectedSchool?.type === 'school' || selectedSchool?.type === 'place') && (
-                      <button 
-                        onClick={() => handleNavigateToData('classroom')}
-                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                      >
-                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                          <GraduationCap size={20} />
-                        </div>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                          {selectedSchool?.type === 'place' ? 'Exona Hub' : 'Exona Class Room'}
-                        </span>
-                      </button>
-                    )}
                     <button 
                       onClick={() => setView('daily-routine')}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
@@ -14632,23 +14619,6 @@ function ExonaApp() {
                         <Activity size={20} />
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
-                        if (!activeInst) {
-                          showNotification('Please select or follow an institution to play their premium game!', 'error');
-                          return;
-                        }
-                        setSelectedSchool(activeInst);
-                        setIsPremiumGameOpen(true);
-                      }}
-                      className="flex flex-col items-center gap-3 p-6 bg-amber-50 rounded-2xl border border-transparent hover:border-amber-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform">
-                        <Stars size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Premium Game</span>
                     </button>
                     {canManageInstitution(selectedSchool) && (
                       <button 
@@ -22050,27 +22020,6 @@ function ExonaApp() {
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
                     </button>
-                    {(inst.type === 'school' || inst.type === 'place') && (
-                      <button 
-                        onClick={() => { setSelectedSchool(inst as School); handleNavigateToData('classroom', inst as School); }}
-                        className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                      >
-                        <GraduationCap size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                        <span className="text-xs font-black uppercase tracking-widest">
-                          {inst.type === 'place' ? 'Exona Hub' : 'Exona Classroom'}
-                        </span>
-                      </button>
-                    )}
-                    <button 
-                      onClick={() => {
-                        setSelectedSchool(inst as School);
-                        setIsPremiumGameOpen(true);
-                      }}
-                      className="flex items-center gap-2 px-6 py-4 bg-amber-50 border border-transparent text-amber-900 hover:border-amber-200 rounded-2xl transition-all group"
-                    >
-                      <Stars size={18} className="text-amber-500 fill-amber-500 group-hover:scale-110 transition-transform" />
-                      <span className="text-xs font-black uppercase tracking-widest">Premium Game</span>
-                    </button>
                   </div>
                 </div>
               )}
@@ -22484,7 +22433,7 @@ function ExonaApp() {
                             key={inst.id}
                             onClick={() => {
                               setSelectedInstitutionForProfile(inst);
-                              setView('institution-profile');
+                              setView('institution-channel');
                             }}
                             className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
                           >
