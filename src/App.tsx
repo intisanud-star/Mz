@@ -2828,7 +2828,7 @@ const getLabels = (type?: 'school' | 'place') => {
     </button>
   );
 
-const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
+const SidebarItem = ({ icon: Icon, label, active, onClick, badge, action }: any) => (
   <motion.button 
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
@@ -2838,17 +2838,20 @@ const SidebarItem = ({ icon: Icon, label, active, onClick, badge }: any) => (
         : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 font-medium'
     }`}
   >
-    <div className="flex items-center gap-3.5 relative z-10">
+    <div className="flex items-center gap-3.5 relative z-10 flex-1 min-w-0">
       <div className={`p-1.5 rounded-xl transition-colors ${active ? 'bg-[#2481CC] text-white' : 'bg-slate-100 text-slate-500 group-hover:text-slate-800 group-hover:bg-slate-200/60'}`}>
         <Icon size={18} className="transition-colors duration-200" />
       </div>
-      <span className={`text-[13.5px] tracking-tight transition-colors duration-200 ${active ? 'text-[#2481CC] font-bold' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{label}</span>
+      <span className={`text-[13.5px] tracking-tight transition-colors duration-200 truncate ${active ? 'text-[#2481CC] font-bold' : 'text-slate-700 font-medium group-hover:text-slate-900'}`}>{label}</span>
     </div>
-    {badge && (
-      <span className="bg-[#2481CC] text-white text-[10px] font-bold px-2 py-0.5 rounded-full relative z-10 shadow-2xs">
-        {badge}
-      </span>
-    )}
+    <div className="flex items-center gap-2 relative z-10 shrink-0">
+      {action}
+      {badge && (
+        <span className="bg-[#2481CC] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-2xs">
+          {badge}
+        </span>
+      )}
+    </div>
     {active && (
       <motion.div 
         layoutId="sidebar-active"
@@ -3581,7 +3584,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -3650,7 +3653,7 @@ function ExonaApp() {
 
     // Fast-track initial transitions so cold boots show instant menus
     // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
-    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass') {
+    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass' || view === 'brainb') {
       setRenderedView(view);
       return;
     }
@@ -9407,7 +9410,7 @@ function ExonaApp() {
       educationalLevels: (school as School).educationalLevels || [],
       category: (school as Place).category || 'Other'
     });
-    setIsSchoolModalOpen(true);
+    setView('create-institution');
   };
 
   const checkReferralQualification = async (currentUserDoc: UserDoc) => {
@@ -9877,6 +9880,9 @@ function ExonaApp() {
       setCreateGroupChat(true);
       setGroupChatName('');
       setGroupChatDescription('');
+      if (editingSchool) {
+        setView('tools');
+      }
       setEditingSchool(null);
       setIsSchoolModalOpen(false);
       setSelectedFile(null);
@@ -14036,10 +14042,11 @@ function ExonaApp() {
                     )}
                   </button>
                   <button 
-                    onClick={() => setSidebarOpen(true)}
+                    onClick={() => setView('create-institution')}
                     className="p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
+                    title="Create Institution"
                   >
-                    <Menu size={20} />
+                    <Plus size={20} />
                   </button>
                 </div>
               </div>
@@ -14165,7 +14172,7 @@ function ExonaApp() {
                                   educationalLevels: []
                                 });
                                 setCreateGroupChat(false);
-                                setIsSchoolModalOpen(true);
+                                setView('create-institution');
                               }}
                               className="px-4 py-2.5 bg-ink text-white text-[10px] font-black uppercase tracking-wider rounded-xl hover:scale-105 active:scale-95 transition-all shadow-md shrink-0 select-none"
                             >
@@ -14875,7 +14882,8 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('feed')} 
-            iframeUrl="https://shopping-time-400371160094.europe-west2.run.app" 
+            iframeUrl="https://shoppingtime.exonaapp.com" 
+            title="Shop"
           />
         );
       }
@@ -18383,14 +18391,6 @@ function ExonaApp() {
                         <Users size={16} />
                         {selectedSchool?.type === 'place' ? 'Hub Members' : 'Class Members'}
                       </button>
-
-                      <button 
-                        onClick={() => { setClassroomActiveTab('ai-assistant'); setMobileClassroomMenuOpen(false); }}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${classroomActiveTab === 'ai-assistant' ? 'bg-indigo-50/70 text-indigo-700 border border-indigo-100' : 'text-muted hover:bg-slate-50'}`}
-                      >
-                        <Sparkles size={16} className="text-indigo-600 animate-pulse" />
-                        {selectedSchool?.type === 'place' ? 'AI Hub Assistant' : 'AI Moderator'}
-                      </button>
                     </>
                   ) : (
                     <>
@@ -20002,7 +20002,7 @@ function ExonaApp() {
                     </div>
                   )}
 
-                  {classroomActiveTab === 'ai-assistant' && isClassStaff && (
+                  {false && classroomActiveTab === 'ai-assistant' && isClassStaff && (
                     <div className="space-y-6">
                       {/* AI Assistant Banner */}
                       <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 border border-indigo-800 text-white rounded-[2.5rem] p-8 relative overflow-hidden shadow-xl shadow-indigo-900/10">
@@ -23523,46 +23523,6 @@ function ExonaApp() {
               </a>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                {/* 1: Exona AI Assistant */}
-                <button 
-                  onClick={() => setIsExonaAiModalOpen(true)}
-                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-[#2481CC] transition-all group cursor-pointer text-left"
-                >
-                  <div className="h-14 w-14 rounded-2xl bg-gradient-to-tr from-[#2481CC] to-[#2DA5FF] text-white flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-md shadow-[#2481CC]/25">
-                    <Sparkles size={26} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black text-slate-900 leading-snug flex items-center gap-2">
-                      Exona AI
-                      <span className="text-[9px] bg-[#2481CC]/10 text-[#2481CC] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">AI Assistant</span>
-                    </h3>
-                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Ask questions, search knowledge bases, and generate smart content</p>
-                  </div>
-                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-[#2481CC] group-hover:bg-[#2481CC]/10 transition-all shrink-0">
-                    <ArrowRight size={18} />
-                  </div>
-                </button>
-
-                {/* 2: Create Institution */}
-                <button 
-                  onClick={() => setIsSchoolModalOpen(true)}
-                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-indigo-400 transition-all group cursor-pointer text-left"
-                >
-                  <div className="h-14 w-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
-                    <Building2 size={26} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black text-slate-900 leading-snug flex items-center gap-2">
-                      Create Institution
-                      <span className="text-[9px] bg-indigo-50 text-indigo-600 font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider">Setup</span>
-                    </h3>
-                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Register and configure a new school or institutional workspace</p>
-                  </div>
-                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-indigo-600 group-hover:bg-indigo-50 transition-all shrink-0">
-                    <ArrowRight size={18} />
-                  </div>
-                </button>
-
                 {/* 3: Nexclass */}
                 <div 
                   className="flex flex-col md:flex-row md:items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-sky-400 transition-all group text-left col-span-1 sm:col-span-2 md:col-span-1"
@@ -23598,21 +23558,36 @@ function ExonaApp() {
                 </div>
 
                 {/* 4: BrainB */}
-                <button 
-                  onClick={() => setIsBrainBattleActive(true)}
-                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-purple-400 transition-all group cursor-pointer text-left"
+                <div 
+                  className="flex flex-col md:flex-row md:items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-purple-400 transition-all group text-left col-span-1 sm:col-span-2 md:col-span-1"
                 >
-                  <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
-                    <BrainCircuit size={28} />
+                  <div className="flex items-center gap-4.5 flex-1 min-w-0">
+                    <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
+                      <BrainCircuit size={28} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-black text-slate-900 leading-snug">BrainB</h3>
+                      <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Challenge your mind with live assessments</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black text-slate-900 leading-snug">BrainB</h3>
-                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Challenge your mind with live assessments</p>
+                  
+                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                    <button 
+                      onClick={() => setView('brainb')}
+                      className="flex-1 md:flex-initial h-10 px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-purple-100/60"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Open</span>
+                    </button>
+                    <button 
+                      onClick={() => showNotification('BrainB mobile app download starting shortly...', 'success')}
+                      className="flex-1 md:flex-initial h-10 px-4 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Download size={14} />
+                      <span>Download</span>
+                    </button>
                   </div>
-                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-purple-600 group-hover:bg-purple-50 transition-all shrink-0">
-                    <ArrowRight size={18} />
-                  </div>
-                </button>
+                </div>
 
                 {/* 5: Wallet */}
                 <button 
@@ -23666,6 +23641,18 @@ function ExonaApp() {
             onClose={() => setView('hub')} 
             iframeUrl="https://nexclass.exonaapp.com" 
             title="Nexclass"
+            bgColor="bg-white"
+            isDark={false}
+          />
+        );
+      }
+      case 'brainb': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <ShopIframeView 
+            onClose={() => setView('hub')} 
+            iframeUrl="https://brainb.ai.studio" 
+            title="BrainB"
             bgColor="bg-white"
             isDark={false}
           />
@@ -26487,16 +26474,7 @@ function ExonaApp() {
                         return;
                       }
                       if (tool.id === 'brain-battle') {
-                        if (!isBattleWindowOpen()) {
-                          fetchLeaderboard();
-                          setIsBrainBattleActive(true);
-                          setBattleStep('leaderboard');
-                          return;
-                        }
-                        const shuffled = [...BRAIN_BATTLE_QUESTIONS].sort(() => Math.random() - 0.5).slice(0, 20);
-                        setCurrentBattleQuestions(shuffled);
-                        setIsBrainBattleActive(true);
-                        setBattleStep('welcome');
+                        setView('brainb');
                       } else if (tool.id === 'exona-premium') {
                         const activeInst = selectedSchool || schools.find(s => s.creatorUid === user?.uid) || places.find(p => p.creatorUid === user?.uid) || schools[0] || places[0];
                         if (!activeInst) {
@@ -26561,6 +26539,436 @@ function ExonaApp() {
               currencySymbol={currencySymbol}
             />
           </WordLayout>
+        );
+      }
+      case 'create-institution': {
+        if (!user) { setView('login'); return null; }
+        return (
+          <div className="w-full max-w-3xl mx-auto py-10 px-4 sm:px-6 md:px-8 pb-32">
+            {/* Elegant Header with Back Button */}
+            <div className="flex items-center justify-between mb-10 pb-6 border-b border-gray-150">
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => {
+                    setEditingSchool(null);
+                    setNewSchool({ name: '', description: '', logo: '', type: 'school', category: 'School', educationalLevels: [] });
+                    setPreviewUrl(null);
+                    setSelectedFile(null);
+                    setView('tools');
+                  }}
+                  className="h-11 w-11 bg-white border border-gray-150 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-xs hover:border-gray-350 cursor-pointer active:scale-95"
+                  title="Return to Hub"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight font-display">
+                    {editingSchool ? 'Refine Workspace' : 'Institution Designer'}
+                  </h1>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mt-1">
+                    {editingSchool ? 'Modify your institutional profile & units' : 'Design and provision a new community workspace'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-10">
+              {/* Card 1: Purpose & Classification */}
+              <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 sm:p-8 shadow-xs">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-8 w-8 bg-[#2481CC]/10 text-[#2481CC] rounded-xl flex items-center justify-center">
+                    <Database size={16} />
+                  </div>
+                  <h2 className="text-base font-black text-ink uppercase tracking-wider">1. Space Classification</h2>
+                </div>
+                <p className="text-xs text-muted font-medium mb-6 leading-relaxed">Select the core operational architecture of your workspace. This determines the structural units and management controls available.</p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { id: 'school', label: 'Academy', icon: GraduationCap, desc: 'For schools, colleges, courses, or training units' },
+                    { id: 'place', label: 'Business & Spot', icon: Building2, desc: 'For retail shops, venues, or community assets' },
+                    { id: 'group', label: 'Discussion Group', icon: MessageSquare, desc: 'For study circles, group chats, or team spaces' }
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    const isSelected = newSchool.type === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setNewSchool({ ...newSchool, type: item.id as any })}
+                        className={`p-6 rounded-3xl border text-left transition-all relative cursor-pointer flex flex-col justify-between h-44 ${
+                          isSelected 
+                            ? 'border-[#2481CC] bg-[#2481CC]/5 text-ink ring-2 ring-[#2481CC]/20' 
+                            : 'border-gray-150 hover:border-gray-300 hover:bg-gray-50/50'
+                        }`}
+                      >
+                        <div className={`h-11 w-11 rounded-2xl flex items-center justify-center transition-all ${
+                          isSelected ? 'bg-[#2481CC] text-white' : 'bg-gray-100 text-slate-500'
+                        }`}>
+                          <Icon size={22} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black tracking-tight mb-1">{item.label}</p>
+                          <p className="text-[10px] font-bold text-muted uppercase tracking-wider leading-tight">{item.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Card 2: Identity (Name, Description, Logo) */}
+              <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-8 w-8 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                    <Sparkles size={16} />
+                  </div>
+                  <h2 className="text-base font-black text-ink uppercase tracking-wider">2. Visual Profile & Details</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {/* Left Column: Visual Picker */}
+                  <div className="flex flex-col items-center justify-center p-6 bg-slate-50/50 rounded-3xl border border-gray-100 text-center">
+                    <div className="h-24 w-24 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-gray-150 shadow-xs mb-4">
+                      {previewUrl || newSchool.logo ? (
+                        <img src={previewUrl || newSchool.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <ImageIcon size={32} className="text-muted/30" />
+                      )}
+                    </div>
+                    <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-white rounded-xl text-[9px] font-black uppercase tracking-widest text-ink transition-all cursor-pointer border border-gray-150 hover:bg-gray-50 active:scale-95 shadow-2xs">
+                      <Upload size={12} />
+                      {newSchool.type === 'group' ? 'Upload Picture' : 'Upload Logo'}
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        disabled={isUploading}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelectedFile(file);
+                            setPreviewUrl(URL.createObjectURL(file));
+                          }
+                        }}
+                      />
+                    </label>
+                    <p className="text-[8px] text-muted mt-2 font-bold uppercase tracking-wider">400x400 PNG/JPG</p>
+                  </div>
+
+                  {/* Right Column: Name & Description Inputs */}
+                  <div className="md:col-span-2 space-y-4">
+                    <div>
+                      <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-2 block ml-2">
+                        {newSchool.type === 'group' ? 'Group Chat Name' : 'Institution Name'}
+                      </label>
+                      <input 
+                        type="text" 
+                        value={newSchool.name}
+                        onChange={(e) => setNewSchool({...newSchool, name: e.target.value})}
+                        placeholder={newSchool.type === 'group' ? "e.g. Friends & Colleagues" : "e.g. Horizon International"}
+                        className="w-full px-6 py-4 bg-white border border-gray-150 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-250 transition-all text-xs font-bold text-ink"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-2 block ml-2">
+                        {newSchool.type === 'group' ? 'Group Description' : 'Brief Overview'}
+                      </label>
+                      <textarea 
+                        value={newSchool.description}
+                        onChange={(e) => setNewSchool({...newSchool, description: e.target.value})}
+                        placeholder={newSchool.type === 'group' ? "Brief group chat overview..." : "Brief institutional overview..."}
+                        className="w-full px-6 py-4 bg-white border border-gray-150 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-250 transition-all text-xs font-bold text-ink resize-none h-24 leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Custom Setup / Members */}
+              <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 sm:p-8 shadow-xs">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="h-8 w-8 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
+                    <SlidersHorizontal size={16} />
+                  </div>
+                  <h2 className="text-base font-black text-ink uppercase tracking-wider">3. Structural Customization</h2>
+                </div>
+
+                {newSchool.type === 'school' && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-3 block ml-2">Operational Departments / Units</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['Admin', 'Operations', 'Finance', 'Logistics', 'Resources', 'Equipment'].map((level) => {
+                          const isSelected = (newSchool.educationalLevels || []).includes(level);
+                          return (
+                            <button
+                              key={level}
+                              type="button"
+                              onClick={() => {
+                                const levels = newSchool.educationalLevels || [];
+                                if (levels.includes(level)) {
+                                  setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
+                                } else {
+                                  setNewSchool({ ...newSchool, educationalLevels: [...levels, level] });
+                                }
+                              }}
+                              className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
+                                isSelected
+                                  ? 'bg-ink text-white border-ink shadow-sm'
+                                  : 'bg-white text-muted border-gray-150 hover:bg-gray-50 hover:text-ink'
+                              }`}
+                            >
+                              {level}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100">
+                      <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-3 block ml-2">Add Custom Department</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text"
+                          value={customCategoryInput}
+                          onChange={(e) => setCustomCategoryInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomCategory())}
+                          placeholder="e.g. Science Lab"
+                          className="flex-1 px-6 py-4 bg-white border border-gray-150 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-255 transition-all text-xs font-bold text-ink"
+                        />
+                        <button 
+                          onClick={handleAddCustomCategory}
+                          type="button"
+                          className="px-6 bg-slate-100 hover:bg-slate-200 text-ink rounded-2xl font-black text-[9px] uppercase tracking-wider transition-all active:scale-95"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      {/* Render custom categories tagged */}
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {(newSchool.educationalLevels || []).filter(l => !['Admin', 'Operations', 'Finance', 'Logistics', 'Resources', 'Equipment'].includes(l)).map((level) => (
+                          <span
+                            key={level}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100"
+                          >
+                            {level}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const levels = newSchool.educationalLevels || [];
+                                setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
+                              }}
+                              className="text-indigo-400 hover:text-indigo-700 transition-colors"
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {newSchool.type === 'place' && (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-3 block ml-2">Select Space Category</label>
+                      <div className="flex flex-wrap gap-2">
+                        {['School', 'Business', 'Community', 'Personal', 'Books', 'Uniforms', 'Other'].map((c) => {
+                          const isSelected = newSchool.category === c;
+                          return (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setNewSchool({ ...newSchool, category: c as any })}
+                              className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
+                                isSelected
+                                  ? 'bg-ink text-white border-ink shadow-sm'
+                                  : 'bg-white text-muted border-gray-150 hover:bg-gray-50 hover:text-ink'
+                              }`}
+                            >
+                              {c}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100">
+                      <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-3 block ml-2">Add Custom Tag</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="text"
+                          value={customCategoryInput}
+                          onChange={(e) => setCustomCategoryInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddCustomCategory())}
+                          placeholder="e.g. Library"
+                          className="flex-1 px-6 py-4 bg-white border border-gray-150 rounded-2xl outline-none focus:ring-2 focus:ring-ink/5 focus:border-gray-255 transition-all text-xs font-bold text-ink"
+                        />
+                        <button 
+                          onClick={handleAddCustomCategory}
+                          type="button"
+                          className="px-6 bg-slate-100 hover:bg-slate-200 text-ink rounded-2xl font-black text-[9px] uppercase tracking-wider transition-all active:scale-95"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      {/* Render custom categories tagged */}
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {(newSchool.educationalLevels || []).filter(l => !['School', 'Business', 'Community', 'Personal', 'Other'].includes(l)).map((level) => (
+                          <span
+                            key={level}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100"
+                          >
+                            {level}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const levels = newSchool.educationalLevels || [];
+                                setNewSchool({ ...newSchool, educationalLevels: levels.filter(l => l !== level) });
+                              }}
+                              className="text-indigo-400 hover:text-indigo-700 transition-colors"
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {newSchool.type === 'group' && (
+                  <div>
+                    <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-3 block ml-2">
+                      Invite Group Contacts ({groupCandidates.length})
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto pr-2 p-4 bg-slate-50/50 rounded-3xl border border-gray-100">
+                      {groupCandidates.length === 0 ? (
+                        <p className="p-4 text-center text-xs text-muted italic col-span-2 font-bold select-none">No contacts found to invite</p>
+                      ) : (
+                        groupCandidates.map(follower => {
+                          const isSelected = (newSchool.educationalLevels || []).includes(follower.uid);
+                          return (
+                            <button
+                              key={follower.uid}
+                              type="button"
+                              onClick={() => {
+                                const levels = newSchool.educationalLevels || [];
+                                if (isSelected) {
+                                  setNewSchool({ ...newSchool, educationalLevels: levels.filter(id => id !== follower.uid) });
+                                } else {
+                                  setNewSchool({ ...newSchool, educationalLevels: [...levels, follower.uid] });
+                                }
+                              }}
+                              className={`flex items-center gap-3 p-3 rounded-2xl border transition-all text-left relative cursor-pointer ${
+                                isSelected 
+                                  ? 'bg-ink text-white border-ink' 
+                                  : 'bg-white border-gray-150 hover:border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <div className="h-10 w-10 rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100">
+                                {follower.photoURL ? (
+                                  <img src={follower.photoURL} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span className="font-bold text-xs">{follower.displayName?.charAt(0)}</span>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-bold truncate leading-tight">{follower.displayName}</p>
+                                <p className={`text-[8px] font-bold tracking-widest uppercase mt-0.5 ${isSelected ? 'text-white/80' : 'text-muted'}`}>Contact</p>
+                              </div>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Card 4: Discussion Hub Setup */}
+              {!editingSchool && newSchool.type !== 'group' && (
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-6 sm:p-8 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-ink uppercase tracking-wider flex items-center gap-2">
+                        <MessageSquare size={16} className="text-indigo-600" />
+                        Community Group Chat Setup
+                      </h4>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Deploy an instant communication channel for this space</p>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setCreateGroupChat(!createGroupChat)}
+                      className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none shrink-0 relative ${createGroupChat ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                    >
+                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${createGroupChat ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+
+                  {createGroupChat && (
+                    <div className="space-y-4 pt-4 border-t border-gray-100/70 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="group col-span-1">
+                        <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-2 block ml-2">Chat Room Name</label>
+                        <input 
+                          type="text"
+                          value={groupChatName}
+                          onChange={(e) => setGroupChatName(e.target.value)}
+                          placeholder="e.g. Horizon Students & Staff"
+                          className="w-full px-6 py-4 bg-white border border-gray-150 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 transition-all text-xs font-bold text-ink"
+                        />
+                      </div>
+                      <div className="group col-span-1">
+                        <label className="text-[9px] font-black text-muted uppercase tracking-[0.25em] mb-2 block ml-2">Room Mission / Rules</label>
+                        <input 
+                          type="text"
+                          value={groupChatDescription}
+                          onChange={(e) => setGroupChatDescription(e.target.value)}
+                          placeholder="Connect, collaborate, and share updates..."
+                          className="w-full px-6 py-4 bg-white border border-gray-150 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600/10 focus:border-indigo-500 transition-all text-xs font-bold text-ink"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Submissions Section */}
+              <div className="flex flex-col sm:flex-row gap-4 mt-8">
+                <button 
+                  onClick={handleCreateSchool}
+                  disabled={!newSchool.name.trim() || isUploading}
+                  className="flex-1 py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      {editingSchool ? 'Synchronizing...' : 'Designing...'}
+                    </>
+                  ) : (
+                    editingSchool ? 'Synchronize Updates' : (newSchool.type === 'group' ? '+ Deploy Group Chat' : '+ Launch Workspace')
+                  )}
+                </button>
+
+                {editingSchool && editingSchool.creatorUid === user?.uid && (
+                  <button 
+                    onClick={() => {
+                      setSchoolToDelete(editingSchool.id);
+                      setIsDeleteSchoolModalOpen(true);
+                    }}
+                    className="px-10 py-5 bg-red-50 text-red-600 rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-red-100 transition-all active:scale-[0.98] flex items-center justify-center gap-3 cursor-pointer"
+                  >
+                    <Trash2 size={18} />
+                    Erase Workspace
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         );
       }
       case 'profile': {
@@ -26737,6 +27145,32 @@ function ExonaApp() {
                     ))}
                   </div>
                 </section>
+
+                {/* Administrator Section */}
+                {userDoc?.role === 'admin' && (
+                  <section>
+                    <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">System Administration</h3>
+                    <div className="grid grid-cols-1 gap-3">
+                      <button 
+                        onClick={() => setView('admin')}
+                        className="w-full flex items-center justify-between p-5 rounded-[2rem] border border-gray-50 bg-white hover:border-gray-200 hover:bg-neutral-55 transition-all group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-5 text-left">
+                          <div className="h-12 w-12 rounded-2xl bg-red-55 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
+                            <ShieldCheck size={20} />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-[15px] font-bold text-ink tracking-tight">Admin Console</p>
+                            <p className="text-[11px] text-muted font-medium">Access master system dashboard and database statistics</p>
+                          </div>
+                        </div>
+                        <div className="h-8 w-8 rounded-full bg-gray-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                          <ChevronRight size={14} className="text-ink" />
+                        </div>
+                      </button>
+                    </div>
+                  </section>
+                )}
 
                 <div className="pt-8 border-t border-gray-100">
                   <button 
@@ -28638,7 +29072,7 @@ function ExonaApp() {
           </motion.div>
         )}
 
-        {isSchoolModalOpen && (
+        {false && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
@@ -29825,6 +30259,19 @@ function ExonaApp() {
                   label="Institutional Hub" 
                   active={view === 'tools'} 
                   onClick={() => { setView('tools'); setSidebarOpen(false); }} 
+                  action={
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setView('create-institution');
+                        setSidebarOpen(false);
+                      }}
+                      className="h-8 w-8 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-all cursor-pointer border border-indigo-100/30"
+                      title="Create Institution"
+                    >
+                      <Plus size={16} />
+                    </button>
+                  }
                 />
                 
                 {(schools.some(s => canAccessInstitutionData(s)) || 
@@ -29893,14 +30340,6 @@ function ExonaApp() {
                   active={view === 'profile'} 
                   onClick={() => { setView(user ? 'profile' : 'login'); setSidebarOpen(false); }} 
                 />
-                {userDoc?.role === 'admin' && (
-                  <SidebarItem 
-                    icon={ShieldCheck} 
-                    label="Admin Console" 
-                    active={view === 'admin'} 
-                    onClick={() => { setView('admin'); setSidebarOpen(false); }} 
-                  />
-                )}
 
               </div>
 
@@ -29919,7 +30358,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -29946,10 +30385,11 @@ function ExonaApp() {
                 )}
               </button>
               <button 
-                onClick={() => setSidebarOpen(true)}
-                className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink"
+                onClick={() => setView('create-institution')}
+                className="p-2.5 hover:bg-gray-50 rounded-xl transition-colors text-muted hover:text-ink cursor-pointer"
+                title="Create Institution"
               >
-                <MoreVertical size={20} />
+                <Plus size={20} />
               </button>
             </div>
           </div>
@@ -29983,7 +30423,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass', 'brainb'].includes(view);
         return (
           <main 
             ref={!isFixedLayoutView ? scrollContainerRef : undefined}
@@ -31314,7 +31754,7 @@ function ExonaApp() {
 
         {/* Exona AI Chatbot Modal */}
         <AnimatePresence>
-          {isExonaAiModalOpen && (
+          {false && (
             <motion.div 
               key="exona-ai-modal"
               initial={{ opacity: 0, y: 15 }}

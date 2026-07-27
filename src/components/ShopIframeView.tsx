@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, ArrowUp, ArrowDown, Download, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ShopIframeViewProps {
@@ -8,6 +8,7 @@ interface ShopIframeViewProps {
   title?: string;
   bgColor?: string;
   isDark?: boolean;
+  onDownload?: () => void;
 }
 
 export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ 
@@ -15,13 +16,20 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
   iframeUrl, 
   title = "Shop View", 
   bgColor = "bg-white", 
-  isDark = false 
+  isDark = false,
+  onDownload
 }) => {
   const [dragState, setDragState] = useState<'top' | 'bottom' | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
+  const [showToast, setShowToast] = useState(false);
   const startYRef = useRef<number>(0);
   const currentYRef = useRef<number>(0);
   const threshold = 75; // Pull distance threshold in pixels to trigger close
+
+  const handleLocalDownload = () => {
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
+  };
 
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
@@ -197,8 +205,44 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
         )}
       </AnimatePresence>
 
+      {/* Top Header Bar */}
+      <div className={`h-14 border-b flex items-center justify-between px-4 z-[100001] relative ${
+        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
+      }`}>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={onClose}
+            className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+              isDark ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-sm font-black tracking-tight leading-none truncate max-w-[150px] sm:max-w-xs">{title}</h2>
+            <p className="text-[10px] font-medium opacity-60 mt-0.5 select-all truncate max-w-[150px] sm:max-w-xs">{iframeUrl}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => {
+              if (onDownload) {
+                onDownload();
+              } else {
+                handleLocalDownload();
+              }
+            }}
+            className="h-9 px-3.5 bg-[#2481CC] hover:bg-[#1D6FA3] text-white font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
+          >
+            <Download size={13} />
+            <span>Download</span>
+          </button>
+        </div>
+      </div>
+
       {/* Full screen Shop Iframe container */}
-      <div className={`w-full h-full relative overflow-hidden ${bgColor} select-none`}>
+      <div className={`w-full h-[calc(100%-3.5rem)] relative overflow-hidden ${bgColor} select-none`}>
         <iframe 
           src={iframeUrl} 
           style={{
@@ -213,6 +257,21 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
           allowFullScreen
         />
       </div>
+
+      {/* Local Toast Notification */}
+      <AnimatePresence>
+        {showToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 20, x: '-50%' }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100002] px-4 py-2.5 bg-zinc-900/95 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-2.5 border border-zinc-800/80 backdrop-blur-md"
+          >
+            <Download size={14} className="text-green-400 animate-bounce" />
+            <span>Downloading official {title} mobile application...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
