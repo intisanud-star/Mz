@@ -12990,7 +12990,7 @@ function ExonaApp() {
     const inst = [...schools, ...places].find(i => i.id === id);
     if (inst) {
       setSelectedInstitutionForProfile(inst);
-      setView('institution-channel');
+      setView('institution-profile');
     }
   };
 
@@ -14255,7 +14255,7 @@ function ExonaApp() {
                                       exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
                                       className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-                                      onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
+                                      onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
                                     >
                                       <div className="flex-1 flex items-center gap-3.5 min-w-0">
                                         <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -14367,7 +14367,7 @@ function ExonaApp() {
                                 exit={{ opacity: 0, scale: 0.96 }}
                                 transition={{ duration: 0.2 }}
                                 className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-                                onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
+                                onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-profile'); }}
                               >
                                 <div className="flex-1 flex items-center gap-3.5 min-w-0">
                                   <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -22484,7 +22484,7 @@ function ExonaApp() {
                             key={inst.id}
                             onClick={() => {
                               setSelectedInstitutionForProfile(inst);
-                              setView('institution-channel');
+                              setView('institution-profile');
                             }}
                             className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
                           >
