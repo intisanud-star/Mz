@@ -5198,6 +5198,7 @@ function ExonaApp() {
   const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [isAddRoutineModalOpen, setIsAddRoutineModalOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [isManageSettingsOpen, setIsManageSettingsOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newAttendance, setNewAttendance] = useState({ 
     teacherName: '', 
@@ -5475,8 +5476,8 @@ function ExonaApp() {
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.ready();
       window.Telegram.WebApp.expand();
-      // Set initial color based on user preference or default to black
-      const initialColor = (userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC') ? userDoc.telegramHeaderColor : '#000000';
+      // Set initial color based on view (black for satellite/videos, white for everywhere else)
+      const initialColor = view === 'videos' ? '#000000' : '#ffffff';
       if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
         window.Telegram.WebApp.setHeaderColor(initialColor);
         window.Telegram.WebApp.setBackgroundColor(initialColor);
@@ -7491,7 +7492,6 @@ function ExonaApp() {
   const [editingRecord, setEditingRecord] = useState<StudentRecord | null>(null);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [selectedPostInGrid, setSelectedPostInGrid] = useState<Post | null>(null);
-  const [activeInstagramTab, setActiveInstagramTab] = useState<'posts' | 'reels' | 'tagged'>('posts');
   const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
   const [commentText, setCommentText] = useState('');
   const [postComments, setPostComments] = useState<any[]>([]);
@@ -8243,17 +8243,38 @@ function ExonaApp() {
   const [userProfileTab, setUserProfileTab] = useState<'broadcasts' | 'shop'>('broadcasts');
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
-  const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#000000');
+  const [telegramHeaderColor, setTelegramHeaderColor] = useState<string>('#ffffff');
 
   useEffect(() => {
+    const isSatellite = view === 'videos';
+    const activeColor = isSatellite 
+      ? '#000000' 
+      : ((userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC' && userDoc.telegramHeaderColor !== '#000000') ? userDoc.telegramHeaderColor : '#ffffff');
+
     if (window.Telegram?.WebApp) {
-      const activeColor = (userDoc?.telegramHeaderColor && userDoc.telegramHeaderColor !== '#2481CC') ? userDoc.telegramHeaderColor : '#000000';
       if (window.Telegram.WebApp.isVersionAtLeast?.('6.1')) {
         window.Telegram.WebApp.setHeaderColor(activeColor);
         window.Telegram.WebApp.setBackgroundColor(activeColor);
       }
     }
-  }, [userDoc?.telegramHeaderColor]);
+
+    // Dynamic browser meta theme-color update
+    let metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (!metaTheme) {
+      metaTheme = document.createElement('meta');
+      metaTheme.setAttribute('name', 'theme-color');
+      document.head.appendChild(metaTheme);
+    }
+    metaTheme.setAttribute('content', activeColor);
+
+    let metaStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (!metaStatusBar) {
+      metaStatusBar = document.createElement('meta');
+      metaStatusBar.setAttribute('name', 'apple-mobile-web-app-status-bar-style');
+      document.head.appendChild(metaStatusBar);
+    }
+    metaStatusBar.setAttribute('content', isSatellite ? 'black-translucent' : 'default');
+  }, [view, userDoc?.telegramHeaderColor]);
   const [connectedUsers, setConnectedUsers] = useState<UserDoc[]>([]);
   const [chatUsers, setChatUsers] = useState<UserDoc[]>([]);
   const [institutionFollowerDocs, setInstitutionFollowerDocs] = useState<UserDoc[]>([]);
@@ -14567,101 +14588,6 @@ function ExonaApp() {
                     </div>
                   </div>
                 )}
-
-                {(isManager || isAdmin) && (
-                  <>
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
-                      <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-xl font-extrabold text-ink">Pending Approvals</h3>
-                        <span className="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px] font-bold uppercase tracking-widest">
-                          {selectedSchool.pendingFollowers?.length || 0} Requests
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        {(!selectedSchool.pendingFollowers || selectedSchool.pendingFollowers.length === 0) ? (
-                          <div className="py-10 text-center opacity-30">
-                            <Users size={48} className="mx-auto mb-4" />
-                            <p className="text-sm font-bold">No pending requests</p>
-                          </div>
-                        ) : (
-                          selectedSchool.pendingFollowers.map(uid => (
-                            <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
-                                  {pendingFollowerProfilesMap[uid]?.photoURL ? (
-                                    <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
-                                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Wants to follow</p>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <button 
-                                  onClick={() => handleRejectFollower(selectedSchool, uid)}
-                                  className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
-                                >
-                                  <X size={18} />
-                                </button>
-                                <button 
-                                  onClick={() => handleApproveFollower(selectedSchool, uid)}
-                                  className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:bg-ink/90 transition-colors"
-                                >
-                                  <Check size={18} />
-                                </button>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
-                      <div className="flex items-center justify-between mb-8">
-                        <h3 className="text-xl font-extrabold text-ink">Approved Members</h3>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        {(!selectedSchool.followers || selectedSchool.followers.length === 0) ? (
-                          <div className="py-10 text-center opacity-30">
-                            <Users size={48} className="mx-auto mb-4" />
-                            <p className="text-sm font-bold">No members yet</p>
-                          </div>
-                        ) : (
-                          selectedSchool.followers.map(uid => (
-                            <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
-                                  {pendingFollowerProfilesMap[uid]?.photoURL ? (
-                                    <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
-                                  )}
-                                </div>
-                                <div>
-                                  <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
-                                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Member</p>
-                                </div>
-                              </div>
-                              <button 
-                                onClick={() => handleUnfollowInstitution(selectedSchool, uid)}
-                                className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
-                                title="Remove Member"
-                              >
-                                <UserMinus size={18} />
-                              </button>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-
                 <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100">
                   <h3 className="text-xl font-extrabold text-ink mb-8">
                     {isManager || isAdmin ? 'Quick Management' : 'Workspace & Devices'}
@@ -14733,6 +14659,22 @@ function ExonaApp() {
                           <List size={20} />
                         </div>
                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Categories</span>
+                      </button>
+                    )}
+                    {canManageInstitution(selectedSchool) && (
+                      <button 
+                        onClick={() => setIsManageSettingsOpen(true)}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group relative"
+                      >
+                        {(selectedSchool?.pendingFollowers?.length || 0) > 0 && (
+                          <div className="absolute top-4 right-4 h-5 w-5 bg-red-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white border-2 border-white shadow-sm z-10">
+                            {selectedSchool.pendingFollowers!.length}
+                          </div>
+                        )}
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <Settings size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Settings</span>
                       </button>
                     )}
                   </div>
@@ -21771,6 +21713,7 @@ function ExonaApp() {
                     <button 
                       onClick={() => {
                         setSelectedSchool(latestInst);
+                        setSchoolFeedTab('manage');
                         setView('school-feed');
                         showNotification("Entered School Portal Console", "success");
                       }} 
@@ -22132,84 +22075,33 @@ function ExonaApp() {
                 </div>
               )}
 
-              {/* Instagram Style Posts Section */}
-              <div className="border-t border-gray-150 mt-10">
-                {/* Instagram Tabs Selector */}
-                <div className="flex justify-center border-t border-gray-200 mt-[-1px] mb-6">
-                  <div className="flex gap-16 select-none">
-                    <button
-                      onClick={() => setActiveInstagramTab('posts')}
-                      className={`flex items-center gap-2 py-4 text-[12px] font-black uppercase tracking-wider border-t-2 transition-all outline-none ${
-                        activeInstagramTab === 'posts'
-                          ? 'border-ink text-ink font-black'
-                          : 'border-transparent text-muted hover:text-ink'
-                      }`}
-                    >
-                      <Grid size={16} />
-                      <span>Posts</span>
-                    </button>
-                    <button
-                      onClick={() => setActiveInstagramTab('reels')}
-                      className={`flex items-center gap-2 py-4 text-[12px] font-black uppercase tracking-wider border-t-2 transition-all outline-none ${
-                        activeInstagramTab === 'reels'
-                          ? 'border-ink text-ink font-black'
-                          : 'border-transparent text-muted hover:text-ink'
-                      }`}
-                    >
-                      <Play size={16} className="fill-current" />
-                      <span>Reels</span>
-                    </button>
-                    <button
-                      onClick={() => setActiveInstagramTab('tagged')}
-                      className={`flex items-center gap-2 py-4 text-[12px] font-black uppercase tracking-wider border-t-2 transition-all outline-none ${
-                        activeInstagramTab === 'tagged'
-                          ? 'border-ink text-ink font-black'
-                          : 'border-transparent text-muted hover:text-ink'
-                      }`}
-                    >
-                      <Tag size={16} />
-                      <span>Tagged</span>
-                    </button>
+              {/* Shared Media Section */}
+              <div className="border-t border-gray-150 mt-10 pt-6">
+                <div className="flex items-center justify-between mb-6 px-1">
+                  <div className="flex items-center gap-2">
+                    <Grid size={18} className="text-accent" />
+                    <h3 className="text-sm font-extrabold uppercase tracking-wider text-ink">Shared Media</h3>
                   </div>
+                  <span className="text-[11px] font-bold text-muted bg-gray-100 px-3 py-1 rounded-full">
+                    {institutionPosts.length} {institutionPosts.length === 1 ? 'item' : 'items'}
+                  </span>
                 </div>
 
-                {/* Filtered Posts based on Tab selection */}
-                {(() => {
-                  const filteredPosts = institutionPosts.filter(post => {
-                    if (activeInstagramTab === 'reels') {
-                      return post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
-                    }
-                    if (activeInstagramTab === 'tagged') {
-                      return post.isPinned || post.authorRole === 'admin' || post.authorUid === inst!.creatorUid;
-                    }
-                    return true; // posts tab defaults to all
-                  });
-
-                  if (filteredPosts.length === 0) {
-                    return (
-                      <div className="py-20 text-center flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
-                        <div className="h-16 w-16 bg-white rounded-full border border-gray-150 flex items-center justify-center text-muted mb-4 shadow-sm">
-                          {activeInstagramTab === 'posts' ? (
-                            <Grid size={24} className="opacity-40" />
-                          ) : activeInstagramTab === 'reels' ? (
-                            <Play size={24} className="opacity-40" />
-                          ) : (
-                            <Tag size={24} className="opacity-40" />
-                          )}
-                        </div>
-                        <h4 className="text-base font-bold text-ink mb-1">
-                          No {activeInstagramTab === 'posts' ? 'Posts' : activeInstagramTab === 'reels' ? 'Reels' : 'Tagged Photos'} Yet
-                        </h4>
-                        <p className="text-[12px] text-muted max-w-xs leading-normal">
-                          When broadcasts are shared by this institution, they will appear right here as visual highlights.
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
-                      {filteredPosts.map(post => {
+                {institutionPosts.length === 0 ? (
+                  <div className="py-20 text-center flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                    <div className="h-16 w-16 bg-white rounded-full border border-gray-150 flex items-center justify-center text-muted mb-4 shadow-sm">
+                      <Grid size={24} className="opacity-40" />
+                    </div>
+                    <h4 className="text-base font-bold text-ink mb-1">
+                      No Media Yet
+                    </h4>
+                    <p className="text-[12px] text-muted max-w-xs leading-normal">
+                      When broadcasts or media are shared by this institution, they will appear right here.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
+                    {institutionPosts.map(post => {
                         const hasImage = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
                         const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
                         const isMulti = post.mediaUrls && post.mediaUrls.length > 1;
@@ -22279,8 +22171,7 @@ function ExonaApp() {
                         );
                       })}
                     </div>
-                  );
-                })()}
+                )}
               </div>
 
               {/* Detailed Post Viewer Modal */}
@@ -27458,10 +27349,6 @@ function ExonaApp() {
               </button>
             </p>
           </div>
-          
-          <div className="mt-8 text-center">
-            <p className="text-xs text-muted">Exona from Antigravity</p>
-          </div>
         </motion.div>
         {renderBrainBattle()}
       </div>
@@ -30187,6 +30074,134 @@ function ExonaApp() {
       {LegalModal()}
       {DataStorageModal()}
       {InsufficientStarsAlert()}
+
+      {/* Category Manager Modal */}
+      <AnimatePresence>
+        {isManageSettingsOpen && selectedSchool && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[400] flex items-center justify-center p-6 no-print"
+            onClick={(e) => e.target === e.currentTarget && setIsManageSettingsOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.9, y: 20 }}
+              className="w-full max-w-xl bg-white rounded-[2.5rem] p-8 relative overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-accent/20" />
+              <div className="flex items-center justify-between mb-8 shrink-0">
+                <div>
+                  <h3 className="text-2xl font-black text-ink mb-1">Institution Settings</h3>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">{selectedSchool.name}</p>
+                </div>
+                <button 
+                  onClick={() => setIsManageSettingsOpen(false)} 
+                  className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-8">
+                {/* Pending Approvals Block */}
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-extrabold text-ink">Pending Approvals</h3>
+                    <span className="px-3 py-1 bg-accent/10 text-accent rounded-full text-[10px] font-bold uppercase tracking-widest">
+                      {selectedSchool.pendingFollowers?.length || 0} Requests
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {(!selectedSchool.pendingFollowers || selectedSchool.pendingFollowers.length === 0) ? (
+                      <div className="py-10 text-center opacity-30">
+                        <Users size={48} className="mx-auto mb-4" />
+                        <p className="text-sm font-bold">No pending requests</p>
+                      </div>
+                    ) : (
+                      selectedSchool.pendingFollowers.map(uid => (
+                        <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
+                              {pendingFollowerProfilesMap[uid]?.photoURL ? (
+                                <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
+                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Wants to follow</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleRejectFollower(selectedSchool, uid)}
+                              className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
+                            >
+                              <X size={18} />
+                            </button>
+                            <button 
+                              onClick={() => handleApproveFollower(selectedSchool, uid)}
+                              className="h-10 w-10 bg-ink text-white rounded-xl flex items-center justify-center hover:bg-ink/90 transition-colors"
+                            >
+                              <Check size={18} />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Approved Members Block */}
+                <div className="border-t border-gray-100 pt-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-extrabold text-ink">Approved Members</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {(!selectedSchool.followers || selectedSchool.followers.length === 0) ? (
+                      <div className="py-10 text-center opacity-30">
+                        <Users size={48} className="mx-auto mb-4" />
+                        <p className="text-sm font-bold">No members yet</p>
+                      </div>
+                    ) : (
+                      selectedSchool.followers.map(uid => (
+                        <div key={uid} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center text-accent font-bold border border-gray-100 overflow-hidden">
+                              {pendingFollowerProfilesMap[uid]?.photoURL ? (
+                                <img src={pendingFollowerProfilesMap[uid].photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                              ) : (
+                                pendingFollowerProfilesMap[uid]?.displayName?.charAt(0) || '?'
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-ink">{pendingFollowerProfilesMap[uid]?.displayName || 'Loading...'}</p>
+                              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Member</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleUnfollowInstitution(selectedSchool, uid)}
+                            className="h-10 w-10 bg-white text-red-600 rounded-xl flex items-center justify-center border border-gray-100 hover:bg-red-50 transition-colors"
+                            title="Remove Member"
+                          >
+                            <UserMinus size={18} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Category Manager Modal */}
       <AnimatePresence>
