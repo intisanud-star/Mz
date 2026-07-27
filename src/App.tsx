@@ -22649,7 +22649,7 @@ function ExonaApp() {
         if (!user) { setView('login'); return null; }
         if (!activeChat) {
           setTimeout(() => {
-            setSchoolFilter('chats');
+            setSchoolFilter('all');
             setView('feed');
           }, 0);
           return null;
