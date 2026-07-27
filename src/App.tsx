@@ -23546,6 +23546,33 @@ function ExonaApp() {
                 </button>
               </div>
 
+              {/* Top Download ExonaApp Hero Banner */}
+              <a 
+                href="https://median.co/share/yexkojn#apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-[2.2rem] shadow-xl hover:shadow-2xl hover:scale-[1.005] transition-all border border-indigo-700/50 group relative overflow-hidden"
+              >
+                <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
+                <div className="flex items-center gap-4.5 relative z-10">
+                  <div className="h-16 w-16 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-400/20 shrink-0 group-hover:scale-105 transition-transform">
+                    <Smartphone size={32} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-xl font-black text-white tracking-tight">Download ExonaApp</h2>
+                      <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2.5 py-0.5 rounded-md uppercase tracking-widest shadow-xs">Official APK</span>
+                    </div>
+                    <p className="text-xs text-slate-300 font-medium">Download and install the official Exona mobile application for Android</p>
+                  </div>
+                </div>
+                <div className="h-12 px-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-2 shrink-0 shadow-lg shadow-amber-400/20 transition-all relative z-10 w-full sm:w-auto justify-center cursor-pointer">
+                  <Download size={18} />
+                  <span>Download ExonaApp</span>
+                  <ExternalLink size={14} className="ml-1" />
+                </div>
+              </a>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                 {/* 1: Exona AI Assistant */}
                 <button 
@@ -23624,7 +23651,7 @@ function ExonaApp() {
                 {/* 5: Wallet */}
                 <button 
                   onClick={() => setView('finance')}
-                  className="col-span-1 sm:col-span-2 flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-emerald-400 transition-all group cursor-pointer text-left"
+                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-emerald-400 transition-all group cursor-pointer text-left"
                 >
                   <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
                     <Wallet size={28} />
@@ -23637,6 +23664,30 @@ function ExonaApp() {
                     <ArrowRight size={18} />
                   </div>
                 </button>
+
+                {/* 6: Download ExonaApp */}
+                <a 
+                  href="https://median.co/share/yexkojn#apk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="col-span-1 sm:col-span-2 flex items-center gap-5 p-5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-[2rem] shadow-md hover:shadow-lg hover:scale-[1.005] transition-all group cursor-pointer text-left relative overflow-hidden"
+                >
+                  <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-white/10 shadow-inner">
+                    <Smartphone size={28} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="text-lg font-black text-white leading-snug">Download ExonaApp</h3>
+                      <span className="text-[9px] bg-amber-400/20 text-amber-300 font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider border border-amber-400/30">APK</span>
+                    </div>
+                    <p className="text-xs font-medium text-slate-300 line-clamp-2">Download and install the official Exona mobile application for Android</p>
+                  </div>
+                  <div className="h-10 px-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-md">
+                    <Download size={16} />
+                    <span className="hidden sm:inline uppercase tracking-wider">Download APK</span>
+                    <ExternalLink size={14} className="sm:hidden" />
+                  </div>
+                </a>
               </div>
             </div>
           </div>
