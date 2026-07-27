@@ -14077,10 +14077,10 @@ function ExonaApp() {
                       const val = e.target.value;
                       setGlobalSearch(val);
                       handleSearchUsers(val);
-                      if (val.trim()) setView('search');
+                      setView('search');
                     }}
                     onFocus={() => {
-                      if (globalSearch) setView('search');
+                      setView('search');
                     }}
                     className="w-full text-center placeholder:text-center pl-10 pr-10 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-sm" 
                   />
@@ -14884,6 +14884,7 @@ function ExonaApp() {
             onClose={() => setView('feed')} 
             iframeUrl="https://shoppingtime.exonaapp.com" 
             title="Shop"
+            hideHeader={true}
           />
         );
       }
@@ -22293,16 +22294,16 @@ function ExonaApp() {
 
         return (
           <div className="w-full max-w-xl mx-auto py-6 px-4">
-            {/* Search Input for Mobile only */}
-            <div className="md:hidden flex items-center gap-4 mb-6">
+            {/* Search Input */}
+            <div className="flex items-center gap-4 mb-6">
               <button 
                 onClick={() => { setView('feed'); setGlobalSearch(''); }}
-                className="h-11 w-11 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm shrink-0"
+                className="h-[50px] w-[50px] bg-white border border-gray-100 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-800 transition-all shadow-sm shrink-0"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={20} strokeWidth={2.5} />
               </button>
               <div className="flex-1 relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-accent transition-colors" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#2481CC]" size={18} strokeWidth={2.5} />
                 <input 
                   type="text" 
                   placeholder="Search space..." 
@@ -22311,7 +22312,7 @@ function ExonaApp() {
                     setGlobalSearch(e.target.value);
                     handleSearchUsers(e.target.value);
                   }}
-                  className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-transparent rounded-2xl focus:bg-white focus:border-accent/20 outline-none transition-all text-sm font-semibold shadow-inner" 
+                  className="w-full pl-12 pr-4 h-[50px] bg-white border border-gray-200 rounded-full focus:border-accent/40 outline-none transition-all text-sm font-semibold shadow-sm placeholder:text-gray-400" 
                   autoFocus
                 />
               </div>
@@ -22348,22 +22349,22 @@ function ExonaApp() {
 
             <div className="space-y-6">
               {query.trim().length === 0 ? (
-                <div className="py-20 text-center px-8">
-                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted border border-gray-100/50">
-                    <Search size={32} />
+                <div className="py-24 text-center px-8">
+                  <div className="h-28 w-28 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-600 border border-transparent">
+                    <Search size={40} strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">Search anything on Exona</h3>
-                  <p className="text-sm text-muted">
+                  <h3 className="text-xl font-bold text-black mb-3">Search anything on Exona</h3>
+                  <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">
                     Search for institutions, classrooms, groups, users, and broadcast feeds.
                   </p>
                 </div>
               ) : !hasAnyResults && !isSearchingUsers ? (
-                <div className="py-20 text-center px-8">
-                  <div className="h-20 w-20 bg-gray-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-6 text-muted">
-                    <Search size={32} />
+                <div className="py-24 text-center px-8">
+                  <div className="h-28 w-28 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-600">
+                    <Search size={40} strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-lg font-bold text-ink mb-2">{`No results for "${globalSearch}"`}</h3>
-                  <p className="text-sm text-muted">Try a different keyword or explore other categories.</p>
+                  <h3 className="text-xl font-bold text-black mb-3">{`No results for "${globalSearch}"`}</h3>
+                  <p className="text-sm text-gray-500 max-w-sm mx-auto leading-relaxed">Try a different keyword or explore other categories.</p>
                 </div>
               ) : (
                 <>
@@ -23473,6 +23474,7 @@ function ExonaApp() {
             iframeUrl="https://remix-exona-8054.ai.studio" 
             bgColor="bg-black"
             isDark={true}
+            hideHeader={true}
           />
         );
       }
@@ -23643,6 +23645,7 @@ function ExonaApp() {
             title="Nexclass"
             bgColor="bg-white"
             isDark={false}
+            hideHeader={true}
           />
         );
       }
@@ -23655,6 +23658,7 @@ function ExonaApp() {
             title="BrainB"
             bgColor="bg-white"
             isDark={false}
+            hideHeader={true}
           />
         );
       }
@@ -23667,6 +23671,7 @@ function ExonaApp() {
             title="Reels"
             bgColor="bg-white"
             isDark={false}
+            hideHeader={true}
           />
         );
       }
@@ -30358,7 +30363,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'search'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -30409,10 +30414,10 @@ function ExonaApp() {
                   const val = e.target.value;
                   setGlobalSearch(val);
                   handleSearchUsers(val);
-                  if (val.trim()) setView('search');
+                  setView('search');
                 }}
                 onFocus={() => {
-                  if (globalSearch) setView('search');
+                  setView('search');
                 }}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-transparent rounded-xl focus:bg-white focus:border-accent/20 outline-none transition-all text-xs font-medium" 
               />

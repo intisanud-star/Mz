@@ -9,6 +9,7 @@ interface ShopIframeViewProps {
   bgColor?: string;
   isDark?: boolean;
   onDownload?: () => void;
+  hideHeader?: boolean;
 }
 
 export const ShopIframeView: React.FC<ShopIframeViewProps> = ({ 
@@ -17,7 +18,8 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
   title = "Shop View", 
   bgColor = "bg-white", 
   isDark = false,
-  onDownload
+  onDownload,
+  hideHeader = false
 }) => {
   const [dragState, setDragState] = useState<'top' | 'bottom' | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
@@ -206,43 +208,44 @@ export const ShopIframeView: React.FC<ShopIframeViewProps> = ({
       </AnimatePresence>
 
       {/* Top Header Bar */}
-      <div className={`h-14 border-b flex items-center justify-between px-4 z-[100001] relative ${
-        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
-      }`}>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={onClose}
-            className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
-              isDark ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
-            }`}
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div className="min-w-0">
-            <h2 className="text-sm font-black tracking-tight leading-none truncate max-w-[150px] sm:max-w-xs">{title}</h2>
-            <p className="text-[10px] font-medium opacity-60 mt-0.5 select-all truncate max-w-[150px] sm:max-w-xs">{iframeUrl}</p>
+      {!hideHeader && (
+        <div className={`h-14 border-b flex items-center justify-between px-4 z-[100001] relative ${
+          isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-800'
+        }`}>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onClose}
+              className={`h-9 w-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                isDark ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200' : 'hover:bg-zinc-100 text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <div className="min-w-0">
+              <h2 className="text-sm font-black tracking-tight leading-none truncate max-w-[150px] sm:max-w-xs">{title}</h2>
+              <p className="text-[10px] font-medium opacity-60 mt-0.5 select-all truncate max-w-[150px] sm:max-w-xs">{iframeUrl}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                if (onDownload) {
+                  onDownload();
+                } else {
+                  handleLocalDownload();
+                }
+              }}
+              className="h-9 px-3.5 bg-[#2481CC] hover:bg-[#1D6FA3] text-white font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
+            >
+              <Download size={13} />
+              <span>Download</span>
+            </button>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={() => {
-              if (onDownload) {
-                onDownload();
-              } else {
-                handleLocalDownload();
-              }
-            }}
-            className="h-9 px-3.5 bg-[#2481CC] hover:bg-[#1D6FA3] text-white font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
-          >
-            <Download size={13} />
-            <span>Download</span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Full screen Shop Iframe container */}
-      <div className={`w-full h-[calc(100%-3.5rem)] relative overflow-hidden ${bgColor} select-none`}>
+      <div className={`w-full ${hideHeader ? 'h-full' : 'h-[calc(100%-3.5rem)]'} relative overflow-hidden ${bgColor} select-none`}>
         <iframe 
           src={iframeUrl} 
           style={{
