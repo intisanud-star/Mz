@@ -23484,153 +23484,145 @@ function ExonaApp() {
           <div className="flex-1 flex flex-col bg-slate-50 min-h-full pb-28">
             <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2.5xl sm:text-3xl font-black text-slate-900 tracking-tight">Exona Hub</h1>
-                  <p className="text-xs sm:text-sm font-bold text-slate-500 mt-1">Select a destination or tool to launch</p>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className="h-[46px] w-[46px] bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
+                    title="Back to Feed"
+                  >
+                    <ArrowLeft size={20} strokeWidth={2} />
+                  </button>
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Exona Hub</h1>
+                    <p className="text-[13px] sm:text-sm font-medium text-slate-500 mt-0.5">Select a destination or tool to launch</p>
+                  </div>
                 </div>
-                <button 
-                  onClick={() => setView('feed')}
-                  className="h-10 w-10 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                  title="Back to Feed"
-                >
-                  <ArrowLeft size={18} />
-                </button>
               </div>
 
-              {/* Top Download ExonaApp Hero Banner */}
-              <a 
-                href="https://median.co/share/yexkojn#apk"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-[2.2rem] shadow-xl hover:shadow-2xl hover:scale-[1.005] transition-all border border-indigo-700/50 group relative overflow-hidden"
-              >
-                <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-                <div className="flex items-center gap-4.5 relative z-10">
-                  <div className="h-16 w-16 rounded-2xl bg-amber-400 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-400/20 shrink-0 group-hover:scale-105 transition-transform">
-                    <Smartphone size={32} />
+              {/* Top Download ExonaApp Banner (Play Store Style) */}
+              <div className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm transition-all group col-span-1 sm:col-span-2">
+                <div className="flex items-start gap-4 mb-5">
+                  <div className="h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center shrink-0 overflow-hidden relative">
+                    <Smartphone size={36} className="text-[#0B57D0]" />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-xl font-black text-white tracking-tight">Download ExonaApp</h2>
-                      <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2.5 py-0.5 rounded-md uppercase tracking-widest shadow-xs">Official APK</span>
-                    </div>
-                    <p className="text-xs text-slate-300 font-medium">Download and install the official Exona mobile application for Android</p>
+                  <div className="flex-1 pt-1 min-w-0">
+                    <h2 className="text-[19px] sm:text-[22px] font-medium text-slate-900 leading-tight tracking-tight">ExonaApp: Official Mobile App</h2>
+                    <p className="text-[14px] font-medium text-[#0B57D0] mt-1 hover:underline cursor-pointer">Exona</p>
+                    <p className="text-[12px] text-slate-500 mt-0.5">Official APK</p>
                   </div>
                 </div>
-                <div className="h-12 px-6 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-2 shrink-0 shadow-lg shadow-amber-400/20 transition-all relative z-10 w-full sm:w-auto justify-center cursor-pointer">
-                  <Download size={18} />
-                  <span>Download ExonaApp</span>
-                  <ExternalLink size={14} className="ml-1" />
+
+                <div className="flex items-center gap-3 w-full">
+                  <a 
+                    href="https://exonaapp.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-10 border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    Open Web
+                  </a>
+                  <a 
+                    href="https://median.co/share/yexkojn#apk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    Download
+                  </a>
                 </div>
-              </a>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
                 {/* 3: Nexclass */}
                 <div 
-                  className="flex flex-col md:flex-row md:items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-sky-400 transition-all group text-left col-span-1 sm:col-span-2 md:col-span-1"
+                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
-                  <div className="flex items-center gap-4.5 flex-1 min-w-0">
-                    <div className="h-14 w-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                      <GraduationCap size={28} />
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
+                      <GraduationCap size={36} className="text-[#0B57D0]" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-black text-slate-900 leading-snug">Nexclass</h3>
-                      <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Academic records and institution directory</p>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Nexclass</h3>
+                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Academic records and institution directory</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                  <div className="flex items-center gap-3 w-full">
                     <button 
                       onClick={() => setView('nexclass')}
-                      className="flex-1 md:flex-initial h-10 px-4 bg-sky-50 hover:bg-sky-100 text-sky-700 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-sky-100/60"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
                     >
-                      <ExternalLink size={14} />
-                      <span>Open</span>
+                      Open
                     </button>
                     <a 
                       href="https://median.co/share/xlzeokm#apk"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 md:flex-initial h-10 px-4 bg-sky-600 hover:bg-sky-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
                     >
-                      <Download size={14} />
-                      <span>Download</span>
+                      Download
                     </a>
                   </div>
                 </div>
 
                 {/* 4: BrainB */}
                 <div 
-                  className="flex flex-col md:flex-row md:items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-purple-400 transition-all group text-left col-span-1 sm:col-span-2 md:col-span-1"
+                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
-                  <div className="flex items-center gap-4.5 flex-1 min-w-0">
-                    <div className="h-14 w-14 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition-transform duration-300">
-                      <BrainCircuit size={28} />
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
+                      <BrainCircuit size={36} className="text-[#0B57D0]" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-black text-slate-900 leading-snug">BrainB</h3>
-                      <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Challenge your mind with live assessments</p>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">BrainB</h3>
+                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Challenge your mind with live assessments</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
+                  <div className="flex items-center gap-3 w-full">
                     <button 
                       onClick={() => setView('brainb')}
-                      className="flex-1 md:flex-initial h-10 px-4 bg-purple-50 hover:bg-purple-100 text-purple-700 font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-purple-100/60"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
                     >
-                      <ExternalLink size={14} />
-                      <span>Open</span>
+                      Open
                     </button>
-                    <button 
-                      onClick={() => showNotification('BrainB mobile app download starting shortly...', 'success')}
-                      className="flex-1 md:flex-initial h-10 px-4 bg-purple-600 hover:bg-purple-500 text-white font-black text-xs uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    <a 
+                      href="https://median.co/share/yexkpyw#apk"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
                     >
-                      <Download size={14} />
-                      <span>Download</span>
-                    </button>
+                      Download
+                    </a>
                   </div>
                 </div>
 
                 {/* 5: Wallet */}
-                <button 
-                  onClick={() => setView('finance')}
-                  className="flex items-center gap-5 p-5 bg-white border border-slate-200/80 rounded-[2rem] shadow-xs hover:shadow-md hover:border-emerald-400 transition-all group cursor-pointer text-left"
+                <div 
+                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
-                  <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform duration-300 shrink-0 shadow-xs">
-                    <Wallet size={28} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black text-slate-900 leading-snug">Exona Wallet</h3>
-                    <p className="text-xs font-medium text-slate-500 mt-1 line-clamp-2">Manage your Exona Wallet balance and financial transactions</p>
-                  </div>
-                  <div className="h-9 w-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 group-hover:text-emerald-600 group-hover:bg-emerald-50 transition-all shrink-0">
-                    <ArrowRight size={18} />
-                  </div>
-                </button>
-
-                {/* 6: Download ExonaApp */}
-                <a 
-                  href="https://median.co/share/yexkojn#apk"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="col-span-1 sm:col-span-2 flex items-center gap-5 p-5 bg-gradient-to-r from-indigo-900 via-indigo-800 to-slate-900 text-white rounded-[2rem] shadow-md hover:shadow-lg hover:scale-[1.005] transition-all group cursor-pointer text-left relative overflow-hidden"
-                >
-                  <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md text-amber-400 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0 border border-white/10 shadow-inner">
-                    <Smartphone size={28} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="text-lg font-black text-white leading-snug">Download ExonaApp</h3>
-                      <span className="text-[9px] bg-amber-400/20 text-amber-300 font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider border border-amber-400/30">APK</span>
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
+                      <Wallet size={36} className="text-[#0B57D0]" />
                     </div>
-                    <p className="text-xs font-medium text-slate-300 line-clamp-2">Download and install the official Exona mobile application for Android</p>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Wallet</h3>
+                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Manage your Exona Wallet balance and financial transactions</p>
+                    </div>
                   </div>
-                  <div className="h-10 px-4 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all shrink-0 shadow-md">
-                    <Download size={16} />
-                    <span className="hidden sm:inline uppercase tracking-wider">Download APK</span>
-                    <ExternalLink size={14} className="sm:hidden" />
+                  
+                  <div className="flex items-center gap-3 w-full">
+                    <button 
+                      onClick={() => setView('finance')}
+                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
+                    >
+                      Open
+                    </button>
                   </div>
-                </a>
+                </div>
               </div>
             </div>
           </div>
