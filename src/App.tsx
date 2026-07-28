@@ -23599,27 +23599,33 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                {/* 5: Wallet */}
+                {/* 5: Cinema */}
                 <div 
                   className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
                   <div className="flex items-start gap-4 mb-4">
                     <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-                      <Wallet size={36} className="text-[#0B57D0]" />
+                      <Film size={36} className="text-[#0B57D0]" />
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
-                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Wallet</h3>
+                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Cinema</h3>
                       <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Manage your Exona Wallet balance and financial transactions</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Watch your favorite movies and shows</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3 w-full">
                     <button 
-                      onClick={() => setView('finance')}
-                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
+                      onClick={() => showNotification('Opening Exona Cinema...', 'success')}
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
                     >
                       Open
+                    </button>
+                    <button 
+                      onClick={() => showNotification('Downloading Exona Cinema...', 'success')}
+                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
+                    >
+                      Download
                     </button>
                   </div>
                 </div>
@@ -23654,6 +23660,37 @@ function ExonaApp() {
                     >
                       Download
                     </a>
+                  </div>
+                </div>
+
+                {/* 7: Satellite */}
+                <div 
+                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
+                >
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
+                      <Globe size={36} className="text-[#0B57D0]" />
+                    </div>
+                    <div className="flex-1 min-w-0 pt-1">
+                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Satellite</h3>
+                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
+                      <p className="text-[11px] text-slate-500 mt-1">Connect globally with Exona Satellite network</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 w-full">
+                    <button 
+                      onClick={() => showNotification('Opening Exona Satellite...', 'success')}
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
+                    >
+                      Open
+                    </button>
+                    <button 
+                      onClick={() => showNotification('Downloading Exona Satellite...', 'success')}
+                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
+                    >
+                      Download
+                    </button>
                   </div>
                 </div>
               </div>
