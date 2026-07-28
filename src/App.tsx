@@ -23481,7 +23481,7 @@ function ExonaApp() {
       case 'hub': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="flex-1 flex flex-col bg-slate-50 min-h-full pb-28">
+          <div className="flex-1 flex flex-col bg-slate-50 h-full overflow-y-auto pb-28">
             <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
