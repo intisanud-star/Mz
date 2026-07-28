@@ -23479,7 +23479,6 @@ function ExonaApp() {
         );
       }
       case 'hub': {
-        if (!user) { setView('login'); return null; }
         return (
           <div className="flex-1 flex flex-col bg-slate-50 h-full overflow-y-auto pb-28">
             <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
@@ -23513,13 +23512,19 @@ function ExonaApp() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full">
+                  <button 
+                    onClick={() => setView('feed')}
+                    className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
+                  >
+                    Open
+                  </button>
                   <a 
                     href="https://exonaapp.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 h-10 border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                    className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
                   >
-                    Open Web
+                    Web
                   </a>
                   <a 
                     href="https://median.co/share/yexkojn#apk"
@@ -23556,6 +23561,14 @@ function ExonaApp() {
                       Open
                     </button>
                     <a 
+                      href="https://nexclass.exonaapp.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      Web
+                    </a>
+                    <a 
                       href="https://median.co/share/xlzeokm#apk"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -23589,6 +23602,14 @@ function ExonaApp() {
                       Open
                     </button>
                     <a 
+                      href="https://brainb.ai.studio"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      Web
+                    </a>
+                    <a 
                       href="https://median.co/share/yexkpyw#apk"
                       target="_blank"
                       rel="noopener noreferrer"
@@ -23621,6 +23642,14 @@ function ExonaApp() {
                     >
                       Open
                     </button>
+                    <a 
+                      href="https://cinema.exonaapp.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      Web
+                    </a>
                     <button 
                       onClick={() => showNotification('Downloading Exona Cinema...', 'success')}
                       className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
@@ -23652,6 +23681,14 @@ function ExonaApp() {
                     >
                       Open
                     </button>
+                    <a 
+                      href="https://shoppingtime.exonaapp.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      Web
+                    </a>
                     <a 
                       href="https://median.co/share/dyzwnoe#apk"
                       target="_blank"
@@ -23685,6 +23722,14 @@ function ExonaApp() {
                     >
                       Open
                     </button>
+                    <a 
+                      href="https://satellite.exonaapp.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      Web
+                    </a>
                     <button 
                       onClick={() => showNotification('Downloading Exona Satellite...', 'success')}
                       className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
@@ -23699,7 +23744,6 @@ function ExonaApp() {
         );
       }
       case 'nexclass': {
-        if (!user) { setView('login'); return null; }
         return (
           <ShopIframeView 
             onClose={() => setView('hub')} 
@@ -23712,7 +23756,6 @@ function ExonaApp() {
         );
       }
       case 'brainb': {
-        if (!user) { setView('login'); return null; }
         return (
           <ShopIframeView 
             onClose={() => setView('hub')} 

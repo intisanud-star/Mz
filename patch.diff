@@ -1,42 +1,77 @@
 --- src/App.tsx
 +++ src/App.tsx
-@@ -23616,6 +23616,33 @@
+@@ -23555,6 +23555,13 @@
+                       Open
                      </button>
-                   </div>
-                 </div>
-+
-+                {/* 6: Shop */}
-+                <div 
-+                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
-+                >
-+                  <div className="flex items-start gap-4 mb-4">
-+                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-+                      <ShoppingBag size={36} className="text-[#0B57D0]" />
-+                    </div>
-+                    <div className="flex-1 min-w-0 pt-1">
-+                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Shop</h3>
-+                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-+                      <p className="text-[11px] text-slate-500 mt-1">Shop and explore a wide range of physical items</p>
-+                    </div>
-+                  </div>
-+                  
-+                  <div className="flex items-center gap-3 w-full">
-+                    <button 
-+                      onClick={() => setView('schools')}
-+                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-+                    >
-+                      Open
-+                    </button>
-+                    <a 
-+                      href="https://median.co/share/dyzwnoe#apk"
+                     <a 
++                      href="https://nexclass.exonaapp.com"
 +                      target="_blank"
 +                      rel="noopener noreferrer"
-+                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
++                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
 +                    >
-+                      Download
++                      Web
 +                    </a>
-+                  </div>
-+                </div>
-               </div>
-             </div>
-           </div>
++                    <a 
+                       href="https://median.co/share/xlzeokm#apk"
+                       target="_blank"
+                       rel="noopener noreferrer"
+@@ -23583,6 +23590,13 @@
+                       Open
+                     </button>
+                     <a 
++                      href="https://brainb.ai.studio"
++                      target="_blank"
++                      rel="noopener noreferrer"
++                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
++                    >
++                      Web
++                    </a>
++                    <a 
+                       href="https://median.co/share/yexkpyw#apk"
+                       target="_blank"
+                       rel="noopener noreferrer"
+@@ -23610,6 +23624,13 @@
+                     >
+                       Open
+                     </button>
++                    <a 
++                      href="https://cinema.exonaapp.com"
++                      target="_blank"
++                      rel="noopener noreferrer"
++                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
++                    >
++                      Web
++                    </a>
+                     <button 
+                       onClick={() => showNotification('Downloading Exona Cinema...', 'success')}
+                       className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
+@@ -23637,6 +23658,13 @@
+                     >
+                       Open
+                     </button>
++                    <a 
++                      href="https://shoppingtime.exonaapp.com"
++                      target="_blank"
++                      rel="noopener noreferrer"
++                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
++                    >
++                      Web
++                    </a>
+                     <a 
+                       href="https://median.co/share/dyzwnoe#apk"
+                       target="_blank"
+@@ -23665,6 +23693,13 @@
+                     >
+                       Open
+                     </button>
++                    <a 
++                      href="https://satellite.exonaapp.com"
++                      target="_blank"
++                      rel="noopener noreferrer"
++                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
++                    >
++                      Web
++                    </a>
+                     <button 
+                       onClick={() => showNotification('Downloading Exona Satellite...', 'success')}
+                       className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
