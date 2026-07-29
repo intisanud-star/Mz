@@ -3580,6 +3580,8 @@ function getDynamicSvgIcon(appId: string): string {
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+  const [hubAppCustomIcons, setHubAppCustomIcons] = useState<{[key: string]: string}>({});
+  const [uploadingHubAppId, setUploadingHubAppId] = useState<string | null>(null);
   const [helpSearchQuery, setHelpSearchQuery] = useState('');
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
@@ -8412,6 +8414,34 @@ function ExonaApp() {
 
   const [isUploadingGroupPhoto, setIsUploadingGroupPhoto] = useState(false);
 
+  const handleUploadHubAppIcon = async (appId: string, file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please select a valid image file', 'error');
+      return;
+    }
+
+    try {
+      setUploadingHubAppId(appId);
+      showNotification('Uploading app image...', 'info');
+
+      // Compress and convert to base64 to avoid storage CORS issues
+      const compressed = await compressImage(file, 400, 0.7);
+
+      await setDoc(doc(db, 'hubAppCustomizations', appId), {
+        iconUrl: compressed,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+
+      showNotification('App image updated successfully!', 'success');
+    } catch (error: any) {
+      console.error('Hub app icon upload failure:', error);
+      showNotification(error.message || 'Failed to upload app image.', 'error');
+    } finally {
+      setUploadingHubAppId(null);
+    }
+  };
+
   const handleGroupPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, isNewGroup: boolean) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -12509,6 +12539,27 @@ function ExonaApp() {
     });
 
     return () => unsubApps();
+  }, [user?.uid, isQuotaExceeded]);
+
+  // 3.6 Hub App Customizations Listener
+  useEffect(() => {
+    if (isQuotaExceeded) return;
+
+    const qHub = query(collection(db, 'hubAppCustomizations'));
+    const unsubHub = onSnapshot(qHub, (snap) => {
+      const customs: {[key: string]: string} = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.iconUrl) {
+          customs[d.id] = data.iconUrl;
+        }
+      });
+      setHubAppCustomIcons(customs);
+    }, (error) => {
+      console.error('Hub app customizations listener error:', error);
+    });
+
+    return () => unsubHub();
   }, [user?.uid, isQuotaExceeded]);
 
   // 4. Stories Listener
@@ -23479,6 +23530,7 @@ function ExonaApp() {
         );
       }
       case 'hub': {
+        const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
         return (
           <div className="flex-1 flex flex-col bg-slate-50 h-full overflow-y-auto pb-28">
             <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
@@ -23501,8 +23553,32 @@ function ExonaApp() {
               {/* Top Download ExonaApp Banner (Play Store Style) */}
               <div className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm transition-all group col-span-1 sm:col-span-2">
                 <div className="flex items-start gap-4 mb-5">
-                  <div className="h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center shrink-0 overflow-hidden relative">
-                    <Smartphone size={36} className="text-[#0B57D0]" />
+                  <div className="relative shrink-0">
+                    <div className="h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
+                      {hubAppCustomIcons['exona_app'] ? (
+                        <img src={hubAppCustomIcons['exona_app']} className="h-full w-full object-cover rounded-2xl" alt="ExonaApp Icon" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Smartphone size={36} className="text-[#0B57D0]" />
+                      )}
+                    </div>
+                    {isAdmin && (
+                      <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
+                        {uploadingHubAppId === 'exona_app' ? (
+                          <RefreshCw size={12} className="animate-spin" />
+                        ) : (
+                          <Camera size={12} />
+                        )}
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleUploadHubAppIcon('exona_app', file);
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                   <div className="flex-1 pt-1 min-w-0">
                     <h2 className="text-[19px] sm:text-[22px] font-medium text-slate-900 leading-tight tracking-tight">ExonaApp: Official Mobile App</h2>
@@ -23543,8 +23619,32 @@ function ExonaApp() {
                   className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-                      <GraduationCap size={36} className="text-[#0B57D0]" />
+                    <div className="relative shrink-0">
+                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
+                        {hubAppCustomIcons['nexclass'] ? (
+                          <img src={hubAppCustomIcons['nexclass']} className="h-full w-full object-cover rounded-2xl" alt="Nexclass Icon" referrerPolicy="no-referrer" />
+                        ) : (
+                          <GraduationCap size={36} className="text-[#0B57D0]" />
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
+                          {uploadingHubAppId === 'nexclass' ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <Camera size={12} />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadHubAppIcon('nexclass', file);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Nexclass</h3>
@@ -23584,8 +23684,32 @@ function ExonaApp() {
                   className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-                      <BrainCircuit size={36} className="text-[#0B57D0]" />
+                    <div className="relative shrink-0">
+                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
+                        {hubAppCustomIcons['brainb'] ? (
+                          <img src={hubAppCustomIcons['brainb']} className="h-full w-full object-cover rounded-2xl" alt="BrainB Icon" referrerPolicy="no-referrer" />
+                        ) : (
+                          <BrainCircuit size={36} className="text-[#0B57D0]" />
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
+                          {uploadingHubAppId === 'brainb' ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <Camera size={12} />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadHubAppIcon('brainb', file);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="text-[17px] font-medium text-slate-900 leading-tight">BrainB</h3>
@@ -23625,8 +23749,32 @@ function ExonaApp() {
                   className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-                      <Film size={36} className="text-[#0B57D0]" />
+                    <div className="relative shrink-0">
+                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
+                        {hubAppCustomIcons['exona_cinema'] ? (
+                          <img src={hubAppCustomIcons['exona_cinema']} className="h-full w-full object-cover rounded-2xl" alt="Cinema Icon" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Film size={36} className="text-[#0B57D0]" />
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
+                          {uploadingHubAppId === 'exona_cinema' ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <Camera size={12} />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadHubAppIcon('exona_cinema', file);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Cinema</h3>
@@ -23664,8 +23812,32 @@ function ExonaApp() {
                   className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-                      <ShoppingBag size={36} className="text-[#0B57D0]" />
+                    <div className="relative shrink-0">
+                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
+                        {hubAppCustomIcons['exona_shop'] ? (
+                          <img src={hubAppCustomIcons['exona_shop']} className="h-full w-full object-cover rounded-2xl" alt="Shop Icon" referrerPolicy="no-referrer" />
+                        ) : (
+                          <ShoppingBag size={36} className="text-[#0B57D0]" />
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
+                          {uploadingHubAppId === 'exona_shop' ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <Camera size={12} />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadHubAppIcon('exona_shop', file);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Shop</h3>
@@ -23705,8 +23877,32 @@ function ExonaApp() {
                   className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
                 >
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center shrink-0">
-                      <Globe size={36} className="text-[#0B57D0]" />
+                    <div className="relative shrink-0">
+                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
+                        {hubAppCustomIcons['exona_satellite'] ? (
+                          <img src={hubAppCustomIcons['exona_satellite']} className="h-full w-full object-cover rounded-2xl" alt="Satellite Icon" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Globe size={36} className="text-[#0B57D0]" />
+                        )}
+                      </div>
+                      {isAdmin && (
+                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
+                          {uploadingHubAppId === 'exona_satellite' ? (
+                            <RefreshCw size={12} className="animate-spin" />
+                          ) : (
+                            <Camera size={12} />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadHubAppIcon('exona_satellite', file);
+                            }}
+                          />
+                        </label>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0 pt-1">
                       <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Satellite</h3>
@@ -24031,6 +24227,7 @@ function ExonaApp() {
               setEnabledAppIds={setEnabledAppIds}
               customApps={customApps}
               setCustomApps={setCustomApps}
+              userDoc={userDoc}
               onLaunchApp={(id) => {
                 if (id === 'finance') {
                   handleWalletClick();

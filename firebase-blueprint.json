@@ -586,9 +586,20 @@
         "timestamp": { "type": "string" }
       },
       "required": ["productId", "userId"]
+    },
+    "HubAppCustomization": {
+      "title": "HubAppCustomization",
+      "description": "Customized icons and graphics for the Exona Hub applications",
+      "type": "object",
+      "properties": {
+        "iconUrl": { "type": "string", "format": "uri" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["iconUrl"]
     }
   },
   "firestore": {
+    "/hubAppCustomizations/{appId}": { "schema": "HubAppCustomization", "description": "Hub application customization records" },
     "/users/{userId}": { "schema": "User", "description": "User profiles" },
     "/schools/{schoolId}": { "schema": "School", "description": "School institutions" },
     "/places/{placeId}": { "schema": "Place", "description": "Other institutions" },

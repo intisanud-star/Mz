@@ -626,6 +626,11 @@ service cloud.firestore {
       allow create, update, delete: if isAuthenticated();
     }
 
+    match /hubAppCustomizations/{appId} {
+      allow read, list: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
     match /marketplace_products/{productId} {
       allow read, write: if true;
     }

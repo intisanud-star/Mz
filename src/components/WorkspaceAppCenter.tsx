@@ -7,7 +7,7 @@ import {
   Upload, Image as ImageIcon, User, Gamepad2
 } from 'lucide-react';
 import { db, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
-import { collection, addDoc, serverTimestamp, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 
 // Help map icon string to actual Lucide component dynamically
 export const getAppIcon = (iconName: string) => {
@@ -59,6 +59,7 @@ interface WorkspaceAppCenterProps {
   customApps: AppCenterItem[];
   setCustomApps: (apps: AppCenterItem[]) => void;
   onLaunchApp: (id: string) => void;
+  userDoc?: any;
 }
 
 export default function WorkspaceAppCenter({
@@ -68,7 +69,8 @@ export default function WorkspaceAppCenter({
   setEnabledAppIds,
   customApps,
   setCustomApps,
-  onLaunchApp
+  onLaunchApp,
+  userDoc
 }: WorkspaceAppCenterProps) {
   // We use active tabs matching the exact Google Play UI:
   // - games: Battle assessments & interactive quiz apps
@@ -90,6 +92,44 @@ export default function WorkspaceAppCenter({
   const [newAppIcon, setNewAppIcon] = useState('Code');
   const [newAppColor, setNewAppColor] = useState('blue-600');
   const [isUploadingIcon, setIsUploadingIcon] = useState(false);
+  const [isUploadingProfilePic, setIsUploadingProfilePic] = useState(false);
+
+  const handleProfilePicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please select a valid image file', 'error');
+      return;
+    }
+    
+    if (!userDoc?.id) {
+      showNotification('User not authenticated.', 'error');
+      return;
+    }
+
+    try {
+      setIsUploadingProfilePic(true);
+      showNotification('Uploading profile picture...', 'info');
+      
+      const fileId = `profile_pic_${userDoc.id}_${Date.now()}`;
+      const fileRef = ref(storage, `workspace_profiles/${fileId}.jpg`);
+      
+      const snapshot = await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      await updateDoc(doc(db, 'users', userDoc.id), {
+        photoURL: downloadURL
+      });
+      
+      showNotification('Profile picture updated successfully!', 'success');
+    } catch (error: any) {
+      console.error('Profile picture upload failure:', error);
+      showNotification(error.message || 'Failed to upload profile picture.', 'error');
+    } finally {
+      setIsUploadingProfilePic(false);
+    }
+  };
 
   const handleIconFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -214,8 +254,64 @@ export default function WorkspaceAppCenter({
     }
   ];
 
-  // Combine defaults and custom apps
-  const allAvailableApps = [...defaultCatalogApps, ...customApps];
+  // Combine defaults and custom apps, overriding default apps if custom override document exists with same ID
+  const isAdmin = userDoc?.role === 'admin' || userDoc?.email === 'musstaphamusa@gmail.com';
+
+  const [uploadingAppId, setUploadingAppId] = useState<string | null>(null);
+
+  const handleUploadAppIconForApp = async (appId: string, file: File) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('Please select a valid image file', 'error');
+      return;
+    }
+
+    try {
+      setUploadingAppId(appId);
+      showNotification('Uploading app image...', 'info');
+
+      const fileId = `app_img_${appId}_${Date.now()}`;
+      const fileRef = ref(storage, `workspace_custom_apps_icons/${fileId}.jpg`);
+      
+      const snapshot = await uploadBytes(fileRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      const isDefault = defaultCatalogApps.some(d => d.id === appId);
+      const existingCustom = customApps.find(c => c.id === appId);
+
+      if (isDefault) {
+        await setDoc(doc(db, 'workspaceCustomApps', appId), {
+          id: appId,
+          iconUrl: downloadURL,
+          ...(existingCustom || {}),
+          createdAt: (existingCustom as any)?.createdAt || new Date().toISOString()
+        }, { merge: true });
+      } else {
+        await updateDoc(doc(db, 'workspaceCustomApps', appId), {
+          iconUrl: downloadURL
+        });
+      }
+
+      showNotification('App image updated successfully!', 'success');
+      
+      if (selectedApp && selectedApp.id === appId) {
+        setSelectedApp(prev => prev ? { ...prev, iconUrl: downloadURL } : null);
+      }
+    } catch (error: any) {
+      console.error('App image upload failure:', error);
+      showNotification(error.message || 'Failed to upload app image.', 'error');
+    } finally {
+      setUploadingAppId(null);
+    }
+  };
+
+  const allAvailableApps = defaultCatalogApps.map(defaultApp => {
+    const override = customApps.find(c => c.id === defaultApp.id);
+    if (override) {
+      return { ...defaultApp, ...override };
+    }
+    return defaultApp;
+  }).concat(customApps.filter(c => !defaultCatalogApps.some(d => d.id === c.id)));
 
   // Filter apps based on active tabs, search and subTabs criteria
   const getCategorizedApps = () => {
@@ -413,7 +509,7 @@ export default function WorkspaceAppCenter({
               title="Open Publisher Console"
             >
               <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" 
+                src={userDoc?.photoURL || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"}
                 className="h-full w-full object-cover" 
                 alt="Developer Avatar"
                 referrerPolicy="no-referrer"
@@ -553,8 +649,30 @@ export default function WorkspaceAppCenter({
                           
                           {/* Active state overlay badge */}
                           {isAdded && (
-                            <div className="absolute top-2.5 right-2.5 bg-emerald-500 text-white rounded-full p-1 border-2 border-white shadow-xs">
+                            <div className="absolute top-2.5 right-2.5 bg-emerald-500 text-white rounded-full p-1 border-2 border-white shadow-xs z-10">
                               <Check size={8} strokeWidth={4} />
+                            </div>
+                          )}
+
+                          {isAdmin && (
+                            <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-20 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                              {uploadingAppId === app.id ? (
+                                <RefreshCw size={18} className="text-white animate-spin" />
+                              ) : (
+                                <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                                  <Upload size={20} className="text-white" />
+                                  <span className="text-[9px] text-white font-black uppercase mt-1 tracking-wider">Change Icon</span>
+                                  <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleUploadAppIconForApp(app.id, file);
+                                    }}
+                                  />
+                                </label>
+                              )}
                             </div>
                           )}
                         </div>
@@ -595,12 +713,33 @@ export default function WorkspaceAppCenter({
                           className="bg-white border border-gray-150 p-4 rounded-3xl flex justify-between items-center hover:border-blue-400 hover:shadow-2xs transition-all text-left cursor-pointer group"
                         >
                           <div className="flex items-center gap-4 truncate">
-                            <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 border bg-zinc-50">
+                            <div className="h-14 w-14 rounded-2xl overflow-hidden shrink-0 border bg-zinc-50 relative">
                               {app.iconUrl ? (
                                 <img src={app.iconUrl} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
                               ) : (
                                 <div className="h-full w-full flex items-center justify-center text-blue-600 bg-blue-50">
                                   {React.createElement(getAppIcon(app.iconName), { size: 24 })}
+                                </div>
+                              )}
+
+                              {isAdmin && (
+                                <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                                  {uploadingAppId === app.id ? (
+                                    <RefreshCw size={14} className="text-white animate-spin" />
+                                  ) : (
+                                    <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                                      <Upload size={14} className="text-white" />
+                                      <input 
+                                        type="file" 
+                                        accept="image/*" 
+                                        className="hidden" 
+                                        onChange={(e) => {
+                                          const file = e.target.files?.[0];
+                                          if (file) handleUploadAppIconForApp(app.id, file);
+                                        }}
+                                      />
+                                    </label>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -648,7 +787,7 @@ export default function WorkspaceAppCenter({
                 </div>
 
                 <div className="bg-gray-50/50 border border-gray-150 rounded-[2.5rem] divide-y divide-gray-100 overflow-hidden shadow-2xs">
-                  {defaultCatalogApps.map(app => {
+                  {allAvailableApps.filter(app => app.isDefault).map(app => {
                     const AppIcon = getAppIcon(app.iconName);
                     const isAdded = enabledAppIds.includes(app.id);
 
@@ -659,8 +798,33 @@ export default function WorkspaceAppCenter({
                         className="p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:bg-gray-100/50 transition-colors text-left cursor-pointer"
                       >
                         <div className="flex items-center gap-4">
-                          <div className={`h-12 w-12 bg-white text-${app.color} rounded-2xl flex items-center justify-center border shadow-3xs shrink-0`}>
-                            <AppIcon size={22} strokeWidth={2.2} />
+                          <div className={`h-12 w-12 bg-white text-${app.color} rounded-2xl flex items-center justify-center border shadow-3xs shrink-0 relative overflow-hidden`}>
+                            {app.iconUrl ? (
+                              <img src={app.iconUrl} className="h-full w-full object-cover rounded-2xl" alt={app.name} referrerPolicy="no-referrer" />
+                            ) : (
+                              <AppIcon size={22} strokeWidth={2.2} />
+                            )}
+
+                            {isAdmin && (
+                              <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10 cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                                {uploadingAppId === app.id ? (
+                                  <RefreshCw size={14} className="text-white animate-spin" />
+                                ) : (
+                                  <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                                    <Upload size={14} className="text-white" />
+                                    <input 
+                                      type="file" 
+                                      accept="image/*" 
+                                      className="hidden" 
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadAppIconForApp(app.id, file);
+                                      }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <h4 className="font-extrabold text-zinc-1000 text-sm flex items-center gap-1.5">
@@ -1021,13 +1185,25 @@ export default function WorkspaceAppCenter({
                 <div className="absolute right-0 top-0 w-80 h-80 bg-blue-500/15 rounded-full blur-3xl -mr-24 pointer-events-none" />
                 
                 <div className="flex items-center gap-5">
-                  <div className="h-16 w-16 rounded-3xl overflow-hidden shadow-lg border-2 border-white/10 shrink-0">
-                    <img 
-                      src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" 
-                      className="h-full w-full object-cover" 
-                      alt="Developer profile"
-                      referrerPolicy="no-referrer"
-                    />
+                  <div className="relative group">
+                    <div className="h-16 w-16 rounded-3xl overflow-hidden shadow-lg border-2 border-white/10 shrink-0">
+                      <img 
+                        src={userDoc?.photoURL || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80"}
+                        className="h-full w-full object-cover" 
+                        alt="Developer profile"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    {isUploadingProfilePic ? (
+                      <div className="absolute inset-0 bg-black/60 rounded-3xl flex items-center justify-center">
+                        <RefreshCw size={18} className="text-white animate-spin" />
+                      </div>
+                    ) : (
+                      <label className="absolute inset-0 bg-black/50 rounded-3xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <Upload size={18} className="text-white" />
+                        <input type="file" className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
+                      </label>
+                    )}
                   </div>
                   <div>
                     <h2 className="text-xl font-black tracking-tight flex items-center gap-1.5">
@@ -1339,11 +1515,33 @@ export default function WorkspaceAppCenter({
               
               {/* Top Row with icon image */}
               <div className="flex items-start gap-4 mb-6">
-                <div className={`h-22 w-22 bg-gradient-to-tr from-${selectedApp.color.split('-')[0] || 'blue'}-100 to-white text-${selectedApp.color} rounded-[2rem] flex items-center justify-center border shadow-xs shrink-0 overflow-hidden`}>
+                <div className={`h-22 w-22 bg-gradient-to-tr from-${selectedApp.color.split('-')[0] || 'blue'}-100 to-white text-${selectedApp.color} rounded-[2rem] flex items-center justify-center border shadow-xs shrink-0 overflow-hidden relative`}>
                   {selectedApp.iconUrl ? (
                     <img src={selectedApp.iconUrl} className="h-full w-full object-cover rounded-[2rem]" alt={selectedApp.name} referrerPolicy="no-referrer" />
                   ) : (
                     React.createElement(getAppIcon(selectedApp.iconName), { size: 36, strokeWidth: 2.2 })
+                  )}
+
+                  {isAdmin && (
+                    <div className="absolute inset-0 bg-black/45 flex flex-col items-center justify-center opacity-0 hover:opacity-100 transition-opacity z-10 cursor-pointer">
+                      {uploadingAppId === selectedApp.id ? (
+                        <RefreshCw size={20} className="text-white animate-spin" />
+                      ) : (
+                        <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                          <Upload size={20} className="text-white" />
+                          <span className="text-[8px] text-white font-black uppercase mt-1 tracking-wider text-center">Change</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadAppIconForApp(selectedApp.id, file);
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
                   )}
                 </div>
                 <div>
