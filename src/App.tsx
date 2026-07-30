@@ -14886,10 +14886,10 @@ function ExonaApp() {
 
             {/* Profile Stats Row */}
             <div className="flex items-center gap-8 mb-6">
-              <div className="flex flex-col items-center">
-                <p className="text-sm font-black text-ink">{selectedUserShopItemsCount}</p>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
-              </div>
+                <div className="flex flex-col items-center">
+                  <p className="text-sm font-black text-ink">{profilePosts.length}</p>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
+                </div>
               <div className="flex flex-col items-center cursor-pointer">
                 <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.followers?.length ?? selectedUserProfileDoc?.followersCount ?? 0}</p>
                 <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Followers</p>
@@ -14933,8 +14933,29 @@ function ExonaApp() {
             </div>
 
             <div className="flex flex-col mt-4">
-              <h3 className="text-sm font-black text-ink mb-4">Shop Items</h3>
-              <UserShopItemsTab userId={selectedUserProfile.uid} onCountUpdate={setSelectedUserShopItemsCount} />
+              <h3 className="text-sm font-black text-ink mb-4">Posts</h3>
+              {profilePosts.map(post => (
+                <FeedPost 
+                  key={post.id} 
+                  post={post} 
+                  onUserClick={handleUserClick}
+                  onInstitutionClick={handleInstitutionClick}
+                  onLike={handleLikePost}
+                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                  onMessage={handleMessageAuthor}
+                  onReshare={handleResharePost}
+                  onForward={handleForwardPost}
+                  onEdit={handleEditPost}
+                  onDelete={onDeletePostClick}
+                  currentUserId={user?.uid}
+                  canManage={userDoc?.role === 'admin'}
+                />
+              ))}
+              {profilePosts.length === 0 && (
+                <div className="py-20 text-center text-muted">
+                  No posts to display.
+                </div>
+              )}
             </div>
           </div>
         );
@@ -27539,7 +27560,7 @@ function ExonaApp() {
                 {/* Profile Stats Row */}
                 <div className="flex items-center gap-8 mb-6">
                   <div className="flex flex-col items-center">
-                    <p className="text-sm font-black text-ink">{myShopItemsCount}</p>
+                    <p className="text-sm font-black text-ink">{posts.filter(p => p.authorUid === user.uid).length}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
                   </div>
                   <div className="flex flex-col items-center cursor-pointer">
@@ -27692,9 +27713,30 @@ function ExonaApp() {
                   </div>
                 </div>
 
-                <div className="min-h-[200px] mt-6">
-                  <h3 className="text-sm font-black text-ink mb-4">Shop Items</h3>
-                  <UserShopItemsTab userId={user.uid} onCountUpdate={setMyShopItemsCount} />
+                <div className="flex flex-col mt-4">
+                  <h3 className="text-sm font-black text-ink mb-4">Posts</h3>
+                  {posts.filter(p => p.authorUid === user.uid).map(post => (
+                    <FeedPost 
+                      key={post.id} 
+                      post={post} 
+                      onUserClick={handleUserClick}
+                      onInstitutionClick={handleInstitutionClick}
+                      onLike={handleLikePost}
+                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
+                      onMessage={handleMessageAuthor}
+                      onReshare={handleResharePost}
+                      onForward={handleForwardPost}
+                      onEdit={handleEditPost}
+                      onDelete={onDeletePostClick}
+                      currentUserId={user?.uid}
+                      canManage={true}
+                    />
+                  ))}
+                  {posts.filter(p => p.authorUid === user.uid).length === 0 && (
+                    <div className="py-20 text-center text-muted">
+                      No posts to display.
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -31271,15 +31313,20 @@ function ExonaApp() {
                 )}
               </AnimatePresence>
 
-              {/* Icon 1: WALLET */}
+              {/* Icon 1: PROFILE */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
-                  handleWalletClick();
+                  if (user) {
+                    setShowProfileSettings(false);
+                    setView('profile');
+                  } else {
+                    setView('login');
+                  }
                 }}
                 className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                {view === 'finance' && (
+                {(view === 'profile' && !showProfileSettings) && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
                     className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
@@ -31287,17 +31334,17 @@ function ExonaApp() {
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
-                  <Wallet 
+                  <UserIcon 
                     size={20} 
-                    className={`transition-colors duration-200 ${view === 'finance' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
-                    fill={view === 'finance' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'finance' ? 0.3 : 0} 
-                    strokeWidth={view === 'finance' ? 2.5 : 2.0} 
+                    className={`transition-colors duration-200 ${(view === 'profile' && !showProfileSettings) ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
+                    fill={(view === 'profile' && !showProfileSettings) ? 'currentColor' : 'none'} 
+                    fillOpacity={(view === 'profile' && !showProfileSettings) ? 0.3 : 0} 
+                    strokeWidth={(view === 'profile' && !showProfileSettings) ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    view === 'finance' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                    (view === 'profile' && !showProfileSettings) ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
                   }`}>
-                    Wallet
+                    Profile
                   </span>
                 </div>
               </button>
@@ -31408,7 +31455,7 @@ function ExonaApp() {
                 }}
                 className="flex-1 h-12 flex flex-col items-center justify-center relative font-sans cursor-pointer group rounded-full transition-all"
               >
-                {(view === 'profile' || view === 'login') && (
+                {((view === 'profile' && showProfileSettings) || view === 'login') && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
                     className="absolute inset-0 bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] rounded-full shadow-md shadow-[#2481CC]/30 z-0"
@@ -31419,14 +31466,14 @@ function ExonaApp() {
                   <Settings 
                     size={20} 
                     className={`transition-colors duration-200 ${
-                      view === 'profile' || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
+                      (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
                     }`}
-                    fill={view === 'profile' || view === 'login' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'profile' || view === 'login' ? 0.3 : 0} 
-                    strokeWidth={view === 'profile' || view === 'login' ? 2.5 : 2.0} 
+                    fill={(view === 'profile' && showProfileSettings) || view === 'login' ? 'currentColor' : 'none'} 
+                    fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.3 : 0} 
+                    strokeWidth={(view === 'profile' && showProfileSettings) || view === 'login' ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    view === 'profile' || view === 'login' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
+                    (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
                   }`}>
                     Settings
                   </span>
