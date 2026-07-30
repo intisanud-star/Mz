@@ -3586,7 +3586,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -12093,6 +12093,16 @@ function ExonaApp() {
           handleWalletClick();
         } else if (appParam === 'videos') {
           setActiveChat(null); setView('videos');
+        } else if (appParam === 'hub') {
+          setActiveChat(null); setView('hub');
+        } else if (appParam === 'cinema') {
+          setActiveChat(null); setView('cinema');
+        } else if (appParam === 'brainb') {
+          setActiveChat(null); setView('brainb');
+        } else if (appParam === 'nexclass') {
+          setActiveChat(null); setView('nexclass');
+        } else if (appParam === 'reels') {
+          setActiveChat(null); setView('reels');
         } else {
           setView('workspace');
           setActiveWorkspaceTool(appParam);
@@ -23726,7 +23736,7 @@ function ExonaApp() {
                       Open
                     </button>
                     <a 
-                      href="https://brainb.ai.studio"
+                      href="https://brainb.exonaapp.com"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
@@ -23785,7 +23795,7 @@ function ExonaApp() {
                   
                   <div className="flex items-center gap-3 w-full">
                     <button 
-                      onClick={() => showNotification('Opening Exona Cinema...', 'success')}
+                      onClick={() => setView('cinema')}
                       className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
                     >
                       Open
@@ -23955,8 +23965,20 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('hub')} 
-            iframeUrl="https://brainb.ai.studio" 
+            iframeUrl="https://brainb.exonaapp.com" 
             title="BrainB"
+            bgColor="bg-white"
+            isDark={false}
+            hideHeader={true}
+          />
+        );
+      }
+      case 'cinema': {
+        return (
+          <ShopIframeView 
+            onClose={() => setView('hub')} 
+            iframeUrl="https://cinema.exonaapp.com" 
+            title="Exona Cinema"
             bgColor="bg-white"
             isDark={false}
             hideHeader={true}
@@ -24168,7 +24190,7 @@ function ExonaApp() {
         if (isStandalone && !activeWorkspaceTool) {
           const urlParams = new URLSearchParams(window.location.search);
           const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
-          if (appParam && appParam !== 'finance' && appParam !== 'videos') {
+          if (appParam && !['finance', 'videos', 'hub', 'cinema', 'brainb', 'nexclass', 'reels'].includes(appParam)) {
             setActiveWorkspaceTool(appParam);
           }
         }
@@ -28119,6 +28141,14 @@ function ExonaApp() {
               </button>
             </p>
           </div>
+          
+          <button
+            onClick={() => setView('hub')}
+            className="flex items-center gap-2 px-6 py-3 rounded-full bg-slate-100 text-slate-700 font-bold hover:bg-slate-200 transition-colors mx-auto cursor-pointer"
+          >
+            <LayoutGrid size={18} />
+            Explore Exona Hub
+          </button>
         </motion.div>
         {renderBrainBattle()}
       </div>
@@ -30665,7 +30695,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'search'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'search'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -30730,7 +30760,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass', 'brainb'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass', 'brainb', 'cinema'].includes(view);
         return (
           <main 
             ref={!isFixedLayoutView ? scrollContainerRef : undefined}
