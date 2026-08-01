@@ -8353,6 +8353,7 @@ function ExonaApp() {
     const activeAtt = recordStorageEngine === 'sqlite_offline' 
       ? (selectedSchool ? localSqliteAttendance.filter(a => a.schoolId === selectedSchool.id) : localSqliteAttendance)
       : attendance;
+    console.log('[DEBUG] staffCandidates re-running. activeAtt length:', activeAtt?.length, 'selectedSchool:', selectedSchool?.id);
     const recordedNames = Array.from(new Set((activeAtt || []).map(a => a.teacherName).filter(Boolean)));
     const allKnown = [...myFollowers, ...institutionFollowerDocs, ...chatUsers, ...connectedUsers, ...auditorResults];
     
@@ -8362,6 +8363,7 @@ function ExonaApp() {
       : [];
     
     const combinedNames = Array.from(new Set([...recordedNames, ...followerNames]));
+    console.log('[DEBUG] staffCandidates combinedNames:', combinedNames);
     
     return combinedNames.map(name => {
       const matchedUser = allKnown.find(u => u.displayName === name);
@@ -10161,7 +10163,15 @@ function ExonaApp() {
         });
         showNotification('Record updated successfully', 'success');
       } else {
-        console.log('Adding attendance record to:', path);
+        console.log('[DEBUG] Adding attendance record to:', path, {
+          schoolId: selectedSchool.id,
+          teacherName: newAttendance.teacherName.trim(),
+          category: newAttendance.category.trim() || '',
+          phoneNumber: newAttendance.phoneNumber.trim() || '',
+          status: newAttendance.status,
+          date: newAttendance.date || new Date().toISOString().split('T')[0],
+          time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
         await addDoc(collection(db, path), {
           schoolId: selectedSchool.id,
           teacherName: newAttendance.teacherName.trim(),
@@ -12773,6 +12783,7 @@ function ExonaApp() {
       if (recordStorageEngine !== 'sqlite_offline') {
         const unsubAttendance = onSnapshot(query(collection(db, 'teacherAttendance'), where('schoolId', '==', selectedSchool.id)), (snap) => {
           const fetched = snap.docs.map(d => ({ id: d.id, ...d.data() } as TeacherAttendance));
+          console.log('[DEBUG] teacherAttendance snapshot fired. Fetched count:', fetched.length);
           fetched.sort((a, b) => {
             const getMs = (item: any) => {
               if (!item || !item.timestamp) return 0;
@@ -12785,6 +12796,7 @@ function ExonaApp() {
           });
           setAttendance(fetched);
         }, (error) => {
+          console.error('[DEBUG] teacherAttendance onSnapshot error:', error);
           if (!error.message.includes('insufficient permissions')) {
             handleFirestoreError(error, OperationType.LIST, 'teacherAttendance');
           }
@@ -12844,7 +12856,7 @@ function ExonaApp() {
     return () => {
       unsubs.forEach(unsub => unsub());
     };
-  }, [selectedLatestSchoolTracker, user?.uid, userDoc?.role, isQuotaExceeded]);
+  }, [selectedLatestSchoolTracker, user?.uid, userDoc?.role, isQuotaExceeded, view, recordStorageEngine]);
 
   const renderIconForNotification = (type: Notification['type']) => {
     switch (type) {
