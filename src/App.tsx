@@ -3603,6 +3603,7 @@ function ExonaApp() {
   const [exonaAiLoading, setExonaAiLoading] = useState(false);
   const [exonaAiError, setExonaAiError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  const [selectedHubAppId, setSelectedHubAppId] = useState<string | null>(null);
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
   const [email, setEmail] = useState('');
@@ -23562,10 +23563,70 @@ function ExonaApp() {
       }
       case 'hub': {
         const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
+        
+        const hubAppsList = [
+          {
+            id: 'exona_app',
+            name: 'ExonaApp',
+            description: 'Official APK',
+            icon: Smartphone,
+            onOpen: () => setView('feed'),
+            webUrl: 'https://exonaapp.com',
+            downloadUrl: 'https://median.co/share/yexkojn#apk'
+          },
+          {
+            id: 'nexclass',
+            name: 'Nexclass',
+            description: 'Academic records',
+            icon: GraduationCap,
+            onOpen: () => setView('nexclass'),
+            webUrl: 'https://nexclass.exonaapp.com',
+            downloadUrl: 'https://median.co/share/xlzeokm#apk'
+          },
+          {
+            id: 'brainb',
+            name: 'BrainB',
+            description: 'Live assessments',
+            icon: BrainCircuit,
+            onOpen: () => setView('brainb'),
+            webUrl: 'https://brainb.exonaapp.com',
+            downloadUrl: 'https://median.co/share/pbqqoyr#apk'
+          },
+          {
+            id: 'exona_cinema',
+            name: 'Cinema',
+            description: 'Movies and shows',
+            icon: Film,
+            onOpen: () => setView('cinema'),
+            webUrl: 'https://cinema.exonaapp.com',
+            onDownload: () => showNotification('Downloading Exona Cinema...', 'success')
+          },
+          {
+            id: 'exona_shop',
+            name: 'Shop',
+            description: 'Premium items',
+            icon: ShoppingBag,
+            onOpen: () => setView('schools'),
+            webUrl: 'https://shoppingtime.exonaapp.com',
+            downloadUrl: 'https://median.co/share/dyzwnoe#apk'
+          },
+          {
+            id: 'exona_satellite',
+            name: 'Satellite',
+            description: 'Connect globally',
+            icon: Globe,
+            onOpen: () => showNotification('Opening Exona Satellite...', 'success'),
+            webUrl: 'https://satellite.exonaapp.com',
+            onDownload: () => showNotification('Downloading Exona Satellite...', 'success')
+          }
+        ];
+
+        const selectedApp = hubAppsList.find(app => app.id === selectedHubAppId);
+
         return (
-          <div className="flex-1 flex flex-col bg-slate-50 h-full overflow-y-auto pb-28">
+          <div className="flex-1 flex flex-col bg-slate-50 h-full overflow-y-auto pb-28 relative">
             <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={() => setView('feed')}
@@ -23576,400 +23637,138 @@ function ExonaApp() {
                   </button>
                   <div>
                     <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Exona Hub</h1>
-                    <p className="text-[13px] sm:text-sm font-medium text-slate-500 mt-0.5">Select a destination or tool to launch</p>
+                    <p className="text-[13px] sm:text-sm font-medium text-slate-500 mt-0.5">Select an app to launch</p>
                   </div>
                 </div>
               </div>
 
-              {/* Top Download ExonaApp Banner (Play Store Style) */}
-              <div className="w-full bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-sm transition-all group col-span-1 sm:col-span-2">
-                <div className="flex items-start gap-4 mb-5">
-                  <div className="relative shrink-0">
-                    <div className="h-[72px] w-[72px] sm:h-[84px] sm:w-[84px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
-                      {hubAppCustomIcons['exona_app'] ? (
-                        <img src={hubAppCustomIcons['exona_app']} className="h-full w-full object-cover rounded-2xl" alt="ExonaApp Icon" referrerPolicy="no-referrer" />
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4">
+                {hubAppsList.map((app) => (
+                  <button
+                    key={app.id}
+                    onClick={() => setSelectedHubAppId(app.id)}
+                    className="flex flex-col items-center gap-3 p-4 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-all active:scale-95 group cursor-pointer"
+                  >
+                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center relative overflow-hidden group-hover:bg-[#0B57D0]/5 transition-colors">
+                      {hubAppCustomIcons[app.id] ? (
+                        <img src={hubAppCustomIcons[app.id]} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
                       ) : (
-                        <Smartphone size={36} className="text-[#0B57D0]" />
+                        <app.icon size={28} className="text-[#0B57D0]" />
+                      )}
+                      
+                      {isAdmin && (
+                        <label 
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity z-10"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {uploadingHubAppId === app.id ? (
+                            <RefreshCw size={16} className="text-white animate-spin" />
+                          ) : (
+                            <Camera size={16} className="text-white" />
+                          )}
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadHubAppIcon(app.id, file);
+                            }}
+                          />
+                        </label>
                       )}
                     </div>
-                    {isAdmin && (
-                      <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
-                        {uploadingHubAppId === 'exona_app' ? (
-                          <RefreshCw size={12} className="animate-spin" />
-                        ) : (
-                          <Camera size={12} />
-                        )}
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleUploadHubAppIcon('exona_app', file);
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-                  <div className="flex-1 pt-1 min-w-0">
-                    <h2 className="text-[19px] sm:text-[22px] font-medium text-slate-900 leading-tight tracking-tight">ExonaApp: Official Mobile App</h2>
-                    <p className="text-[14px] font-medium text-[#0B57D0] mt-1 hover:underline cursor-pointer">Exona</p>
-                    <p className="text-[12px] text-slate-500 mt-0.5">Official APK</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full">
-                  <button 
-                    onClick={() => setView('feed')}
-                    className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-                  >
-                    Open
+                    <span className="text-xs sm:text-[13px] font-bold text-slate-800 text-center leading-tight">{app.name}</span>
                   </button>
-                  <a 
-                    href="https://exonaapp.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                  >
-                    Web
-                  </a>
-                  <a 
-                    href="https://median.co/share/yexkojn#apk"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                  >
-                    Download
-                  </a>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                {/* 3: Nexclass */}
-                <div 
-                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative shrink-0">
-                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
-                        {hubAppCustomIcons['nexclass'] ? (
-                          <img src={hubAppCustomIcons['nexclass']} className="h-full w-full object-cover rounded-2xl" alt="Nexclass Icon" referrerPolicy="no-referrer" />
-                        ) : (
-                          <GraduationCap size={36} className="text-[#0B57D0]" />
-                        )}
-                      </div>
-                      {isAdmin && (
-                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
-                          {uploadingHubAppId === 'nexclass' ? (
-                            <RefreshCw size={12} className="animate-spin" />
-                          ) : (
-                            <Camera size={12} />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadHubAppIcon('nexclass', file);
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Nexclass</h3>
-                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Academic records and institution directory</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 w-full">
-                    <button 
-                      onClick={() => setView('nexclass')}
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Open
-                    </button>
-                    <a 
-                      href="https://nexclass.exonaapp.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Web
-                    </a>
-                    <a 
-                      href="https://median.co/share/xlzeokm#apk"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Download
-                    </a>
-                  </div>
-                </div>
-
-                {/* 4: BrainB */}
-                <div 
-                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative shrink-0">
-                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
-                        {hubAppCustomIcons['brainb'] ? (
-                          <img src={hubAppCustomIcons['brainb']} className="h-full w-full object-cover rounded-2xl" alt="BrainB Icon" referrerPolicy="no-referrer" />
-                        ) : (
-                          <BrainCircuit size={36} className="text-[#0B57D0]" />
-                        )}
-                      </div>
-                      {isAdmin && (
-                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
-                          {uploadingHubAppId === 'brainb' ? (
-                            <RefreshCw size={12} className="animate-spin" />
-                          ) : (
-                            <Camera size={12} />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadHubAppIcon('brainb', file);
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">BrainB</h3>
-                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Challenge your mind with live assessments</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 w-full">
-                    <button 
-                      onClick={() => setView('brainb')}
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Open
-                    </button>
-                    <a 
-                      href="https://brainb.exonaapp.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Web
-                    </a>
-                    <a 
-                      href="https://median.co/share/yexkpyw#apk"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Download
-                    </a>
-                  </div>
-                </div>
-
-                {/* 5: Cinema */}
-                <div 
-                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative shrink-0">
-                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
-                        {hubAppCustomIcons['exona_cinema'] ? (
-                          <img src={hubAppCustomIcons['exona_cinema']} className="h-full w-full object-cover rounded-2xl" alt="Cinema Icon" referrerPolicy="no-referrer" />
-                        ) : (
-                          <Film size={36} className="text-[#0B57D0]" />
-                        )}
-                      </div>
-                      {isAdmin && (
-                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
-                          {uploadingHubAppId === 'exona_cinema' ? (
-                            <RefreshCw size={12} className="animate-spin" />
-                          ) : (
-                            <Camera size={12} />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadHubAppIcon('exona_cinema', file);
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Cinema</h3>
-                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Watch your favorite movies and shows</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 w-full">
-                    <button 
-                      onClick={() => setView('cinema')}
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Open
-                    </button>
-                    <a 
-                      href="https://cinema.exonaapp.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Web
-                    </a>
-                    <button 
-                      onClick={() => showNotification('Downloading Exona Cinema...', 'success')}
-                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Download
-                    </button>
-                  </div>
-                </div>
-
-                {/* 6: Shop */}
-                <div 
-                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative shrink-0">
-                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
-                        {hubAppCustomIcons['exona_shop'] ? (
-                          <img src={hubAppCustomIcons['exona_shop']} className="h-full w-full object-cover rounded-2xl" alt="Shop Icon" referrerPolicy="no-referrer" />
-                        ) : (
-                          <ShoppingBag size={36} className="text-[#0B57D0]" />
-                        )}
-                      </div>
-                      {isAdmin && (
-                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
-                          {uploadingHubAppId === 'exona_shop' ? (
-                            <RefreshCw size={12} className="animate-spin" />
-                          ) : (
-                            <Camera size={12} />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadHubAppIcon('exona_shop', file);
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Shop</h3>
-                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Shop and explore a wide range of items</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 w-full">
-                    <button 
-                      onClick={() => setView('schools')}
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Open
-                    </button>
-                    <a 
-                      href="https://shoppingtime.exonaapp.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Web
-                    </a>
-                    <a 
-                      href="https://median.co/share/dyzwnoe#apk"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Download
-                    </a>
-                  </div>
-                </div>
-
-                {/* 7: Satellite */}
-                <div 
-                  className="flex flex-col p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow transition-all group col-span-1 sm:col-span-2 md:col-span-1"
-                >
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="relative shrink-0">
-                      <div className="h-[72px] w-[72px] rounded-2xl bg-white border border-slate-100 shadow-sm flex flex-col items-center justify-center overflow-hidden relative">
-                        {hubAppCustomIcons['exona_satellite'] ? (
-                          <img src={hubAppCustomIcons['exona_satellite']} className="h-full w-full object-cover rounded-2xl" alt="Satellite Icon" referrerPolicy="no-referrer" />
-                        ) : (
-                          <Globe size={36} className="text-[#0B57D0]" />
-                        )}
-                      </div>
-                      {isAdmin && (
-                        <label className="absolute -bottom-1 -right-1 bg-[#0B57D0] hover:bg-[#0842A0] text-white p-2 rounded-full border-2 border-white shadow-md cursor-pointer z-20 flex items-center justify-center active:scale-90 transition-transform">
-                          {uploadingHubAppId === 'exona_satellite' ? (
-                            <RefreshCw size={12} className="animate-spin" />
-                          ) : (
-                            <Camera size={12} />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadHubAppIcon('exona_satellite', file);
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pt-1">
-                      <h3 className="text-[17px] font-medium text-slate-900 leading-tight">Exona Satellite</h3>
-                      <p className="text-[13px] text-[#0B57D0] font-medium mt-1">Exona</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Connect globally with Exona Satellite network</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 w-full">
-                    <button 
-                      onClick={() => showNotification('Opening Exona Satellite...', 'success')}
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Open
-                    </button>
-                    <a 
-                      href="https://satellite.exonaapp.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 h-10 bg-white border border-slate-300 hover:bg-slate-50 text-[#0B57D0] font-medium text-sm rounded-full flex items-center justify-center transition-colors cursor-pointer"
-                    >
-                      Web
-                    </a>
-                    <button 
-                      onClick={() => showNotification('Downloading Exona Satellite...', 'success')}
-                      className="flex-1 h-10 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-medium text-sm rounded-full transition-colors cursor-pointer"
-                    >
-                      Download
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
+
+            {/* Selected App Modal */}
+            <AnimatePresence>
+              {selectedHubAppId && selectedApp && (
+                <>
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setSelectedHubAppId(null)}
+                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100]"
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, y: 100, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 100, scale: 0.95 }}
+                    className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:max-w-md bg-white rounded-t-[2rem] sm:rounded-[2.5rem] p-6 shadow-2xl z-[110] border border-slate-100"
+                  >
+                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden" />
+                    
+                    <div className="flex items-center gap-5 mb-8">
+                      <div className="h-20 w-20 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                        {hubAppCustomIcons[selectedApp.id] ? (
+                          <img src={hubAppCustomIcons[selectedApp.id]} className="h-full w-full object-cover" alt={selectedApp.name} referrerPolicy="no-referrer" />
+                        ) : (
+                          <selectedApp.icon size={36} className="text-[#0B57D0]" />
+                        )}
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 mb-1">{selectedApp.name}</h2>
+                        <p className="text-sm font-medium text-slate-500 leading-tight">{selectedApp.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <button 
+                        onClick={() => {
+                          setSelectedHubAppId(null);
+                          selectedApp.onOpen();
+                        }}
+                        className="w-full h-14 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-bold text-[15px] rounded-2xl transition-colors cursor-pointer active:scale-[0.98]"
+                      >
+                        Open App
+                      </button>
+                      <div className="flex gap-3">
+                        <a 
+                          href={selectedApp.webUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => setSelectedHubAppId(null)}
+                          className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
+                        >
+                          Web Version
+                        </a>
+                        {selectedApp.downloadUrl ? (
+                          <a 
+                            href={selectedApp.downloadUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => setSelectedHubAppId(null)}
+                            className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
+                          >
+                            Download
+                          </a>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                                if (selectedApp.onDownload) selectedApp.onDownload();
+                                setSelectedHubAppId(null);
+                            }}
+                            className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
+                          >
+                            Download
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
           </div>
         );
       }
+
+
       case 'nexclass': {
         return (
           <ShopIframeView 
