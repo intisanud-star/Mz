@@ -6505,16 +6505,12 @@ function ExonaApp() {
                         </button>
                         <button 
                           onClick={() => {
-                            if (excoinBalance < 100) {
-                              showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before activating Cloud Sync Attendance. Switch to Excoin P2P Center to swap stars.', 'error');
-                              return;
-                            }
                             setRecordStorageEngine('firebase');
                             showNotification('Records & Attendance connected to Firestore Cloud Sync.', 'success');
                           }}
                           className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${recordStorageEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
                         >
-                          Cloud Sync (100 EX Req)
+                          Cloud Sync
                         </button>
                       </div>
                     </div>
@@ -6537,16 +6533,12 @@ function ExonaApp() {
                         </button>
                         <button 
                           onClick={() => {
-                            if (excoinBalance < 100) {
-                              showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before starting real-time Cloud Classrooms.', 'error');
-                              return;
-                            }
                             setClassroomEngine('firebase');
                             showNotification('Classroom registry synchronized with cloud ledger database.', 'success');
                           }}
                           className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${classroomEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
                         >
-                          Cloud Sync (100 EX Req)
+                          Cloud Sync
                         </button>
                       </div>
                     </div>
@@ -6569,16 +6561,12 @@ function ExonaApp() {
                         </button>
                         <button 
                           onClick={() => {
-                            if (excoinBalance < 100) {
-                              showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before enabling Cloud Broadcast synchronization.', 'error');
-                              return;
-                            }
                             setBroadcastEngine('firebase');
                             showNotification('Community feeds synchronized globally via Cloud servers.', 'success');
                           }}
                           className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${broadcastEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 text-muted hover:bg-gray-200'}`}
                         >
-                          Cloud Sync (100 EX Req)
+                          Cloud Sync
                         </button>
                       </div>
                     </div>
@@ -20483,7 +20471,9 @@ function ExonaApp() {
           );
         }
 
-        const activeAttendanceSrc = attendance.filter(a => a.schoolId === selectedSchool.id);
+        const activeAttendanceSrc = recordStorageEngine === 'sqlite_offline' 
+          ? localSqliteAttendance.filter(a => a.schoolId === selectedSchool.id)
+          : attendance.filter(a => a.schoolId === selectedSchool.id);
         const categories = Array.from(new Set(activeAttendanceSrc.map(a => a.category || '').filter(Boolean)));
         const filteredAttendance = activeAttendanceSrc.filter(r => {
           const nameMatches = r.teacherName.toLowerCase().includes(attendanceSearch.toLowerCase());
@@ -20585,16 +20575,12 @@ function ExonaApp() {
                     </button>
                     <button 
                       onClick={() => {
-                        if (excoinBalance < 100) {
-                          showNotification('Premium Guard: A high reserve of at least 100 Excoins (EX) is required in your wallet before activating Cloud Sync Attendance. Switch to Excoin P2P block to convert Stars!', 'error');
-                          return;
-                        }
                         setRecordStorageEngine('firebase');
                         showNotification('Switched register sector to real-time Firebase cloud ledger mode. Everyone will see the lists!', 'success');
                       }}
                       className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${recordStorageEngine === 'firebase' ? 'bg-accent text-white font-black' : 'bg-gray-100 hover:bg-gray-200 text-muted'}`}
                     >
-                      Cloud Sync (100 EX Req)
+                      Cloud Sync
                     </button>
                   </div>
                 </div>
@@ -23635,7 +23621,7 @@ function ExonaApp() {
             description: 'Workout & fitness platform',
             icon: Dumbbell,
             onOpen: () => setView('workout'),
-            webUrl: 'https://workout.exonaaapp.com',
+            webUrl: 'https://workout.exonaapp.com',
             onDownload: () => showNotification('Downloading Mr A club...', 'success')
           }
         ];
@@ -23828,7 +23814,7 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('hub')} 
-            iframeUrl="https://workout.exonaaapp.com" 
+            iframeUrl="https://workout.exonaapp.com" 
             title="Mr A club"
             bgColor="bg-white"
             isDark={false}
@@ -25832,7 +25818,8 @@ function ExonaApp() {
             );
           }
 
-          const baseAttendance = (allAttendance.length > 0 ? allAttendance : attendance).filter(a => a.schoolId === selectedSchool.id);
+          const baseSource = recordStorageEngine === 'sqlite_offline' ? localSqliteAttendance : (allAttendance.length > 0 ? allAttendance : attendance);
+          const baseAttendance = baseSource.filter(a => a.schoolId === selectedSchool.id);
           const filteredAttendance = baseAttendance.filter(a => {
             if (!exportStartDate && !exportEndDate) return true;
             const recordDate = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.date);
