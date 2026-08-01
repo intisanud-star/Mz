@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit, Dumbbell
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -3586,7 +3586,7 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema' | 'workout'>('splash');
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -3656,7 +3656,7 @@ function ExonaApp() {
 
     // Fast-track initial transitions so cold boots show instant menus
     // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
-    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass' || view === 'brainb') {
+    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass' || view === 'brainb' || view === 'cinema' || view === 'workout') {
       setRenderedView(view);
       return;
     }
@@ -12104,6 +12104,8 @@ function ExonaApp() {
           setActiveChat(null); setView('nexclass');
         } else if (appParam === 'reels') {
           setActiveChat(null); setView('reels');
+        } else if (appParam === 'workout') {
+          setActiveChat(null); setView('workout');
         } else {
           setView('workspace');
           setActiveWorkspaceTool(appParam);
@@ -23626,6 +23628,15 @@ function ExonaApp() {
             onOpen: () => showNotification('Opening Exona Satellite...', 'success'),
             webUrl: 'https://satellite.exonaapp.com',
             onDownload: () => showNotification('Downloading Exona Satellite...', 'success')
+          },
+          {
+            id: 'workout',
+            name: 'Mr A club',
+            description: 'Workout & fitness platform',
+            icon: Dumbbell,
+            onOpen: () => setView('workout'),
+            webUrl: 'https://workout.exonaaapp.com',
+            onDownload: () => showNotification('Downloading Mr A club...', 'success')
           }
         ];
 
@@ -23807,6 +23818,18 @@ function ExonaApp() {
             onClose={() => setView('hub')} 
             iframeUrl="https://cinema.exonaapp.com" 
             title="Exona Cinema"
+            bgColor="bg-white"
+            isDark={false}
+            hideHeader={true}
+          />
+        );
+      }
+      case 'workout': {
+        return (
+          <ShopIframeView 
+            onClose={() => setView('hub')} 
+            iframeUrl="https://workout.exonaaapp.com" 
+            title="Mr A club"
             bgColor="bg-white"
             isDark={false}
             hideHeader={true}
@@ -24018,7 +24041,7 @@ function ExonaApp() {
         if (isStandalone && !activeWorkspaceTool) {
           const urlParams = new URLSearchParams(window.location.search);
           const appParam = urlParams.get('app') || urlParams.get('workspaceApp');
-          if (appParam && !['finance', 'videos', 'hub', 'cinema', 'brainb', 'nexclass', 'reels'].includes(appParam)) {
+          if (appParam && !['finance', 'videos', 'hub', 'cinema', 'brainb', 'nexclass', 'reels', 'workout'].includes(appParam)) {
             setActiveWorkspaceTool(appParam);
           }
         }
@@ -30544,7 +30567,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'search'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -30609,7 +30632,7 @@ function ExonaApp() {
 
       {/* Main Area */}
       {(() => {
-        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass', 'brainb', 'cinema'].includes(view);
+        const isFixedLayoutView = ['feed', 'institution-channel', 'chat', 'records', 'school-feed', 'classroom', 'finance', 'daily-routine', 'attendance', 'penalty', 'tools', 'workspace', 'videos', 'schools', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout'].includes(view);
         return (
           <main 
             ref={!isFixedLayoutView ? scrollContainerRef : undefined}
