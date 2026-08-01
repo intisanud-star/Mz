@@ -20498,20 +20498,28 @@ function ExonaApp() {
           
           const features = isPlace ? [
             {
-              id: 'log',
-              title: 'Activity Register',
-              description: `View and print the complete listing of all ${labels.attendance.toLowerCase()} activity and names.`,
-              icon: ClipboardList,
-              color: 'text-indigo-600',
-              bg: 'bg-indigo-50/50'
-            },
-            {
               id: 'manage',
               title: 'Log Entries',
               description: `Add or update participation records for ${labels.teachers.toLowerCase()} and members.`,
               icon: UserCheck,
               color: 'text-emerald-600',
               bg: 'bg-emerald-50/50'
+            },
+            {
+              id: 'summary',
+              title: 'Individual Stats',
+              description: 'View total participation counts and performance metrics for each individual.',
+              icon: BarChart3,
+              color: 'text-orange-600',
+              bg: 'bg-orange-50/50'
+            },
+            {
+              id: 'log',
+              title: 'History Log',
+              description: 'Filter and search through historical register entries and activity patterns.',
+              icon: SearchCheck,
+              color: 'text-blue-600',
+              bg: 'bg-blue-50/50'
             }
           ] : [
             {
