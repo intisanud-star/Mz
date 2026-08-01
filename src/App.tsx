@@ -23754,20 +23754,32 @@ function ExonaApp() {
                         >
                           Web Version
                         </a>
-                        {selectedApp.downloadUrl ? (
-                          <a 
-                            href={selectedApp.downloadUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={() => setSelectedHubAppId(null)}
-                            className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
-                          >
-                            Download
-                          </a>
+                        {selectedApp.id === 'exona_app' ? (
+                          selectedApp.downloadUrl ? (
+                            <a 
+                              href={selectedApp.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setSelectedHubAppId(null)}
+                              className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
+                            >
+                              Download
+                            </a>
+                          ) : (
+                            <button 
+                              onClick={() => {
+                                  if (selectedApp.onDownload) selectedApp.onDownload();
+                                  setSelectedHubAppId(null);
+                              }}
+                              className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
+                            >
+                              Download
+                            </button>
+                          )
                         ) : (
                           <button 
                             onClick={() => {
-                                if (selectedApp.onDownload) selectedApp.onDownload();
+                                showNotification(`${selectedApp.name} download is coming soon!`, 'success');
                                 setSelectedHubAppId(null);
                             }}
                             className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
