@@ -3604,6 +3604,9 @@ function ExonaApp() {
   const [exonaAiError, setExonaAiError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedHubAppId, setSelectedHubAppId] = useState<string | null>(null);
+  const [hubSelectedCategory, setHubSelectedCategory] = useState<string>('All');
+  const [hubSearchQuery, setHubSearchQuery] = useState<string>('');
+  const [hubViewMode, setHubViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedSignupCountry, setSelectedSignupCountry] = useState(COUNTRIES[0]);
   const [onboardingCountry, setOnboardingCountry] = useState(COUNTRIES[0]);
   const [email, setEmail] = useState('');
@@ -23572,227 +23575,1086 @@ function ExonaApp() {
       case 'hub': {
         const isAdmin = userDoc?.role === 'admin' || user?.email === 'musstaphamusa@gmail.com';
         
+        // Define full structured data for the App Store applications
         const hubAppsList = [
           {
             id: 'exona_app',
             name: 'ExonaApp',
-            description: 'Official APK',
+            subtitle: 'Ecosystem Core',
+            description: 'The primary gateway and social connection hub.',
+            category: 'Utility',
             icon: Smartphone,
             onOpen: () => setView('feed'),
             webUrl: 'https://exonaapp.com',
-            downloadUrl: 'https://median.co/share/yexkojn#apk'
+            downloadUrl: 'https://median.co/share/yexkojn#apk',
+            rating: '4.9',
+            reviews: '24,801',
+            downloads: '500K+',
+            size: '18.4 MB',
+            ageRating: 'Everyone 3+',
+            developer: 'Exona Corporation',
+            promoImage: '/src/assets/images/exona_hub_hero_1785782064429.jpg',
+            longDescription: 'ExonaApp is your central mobile gateway to the Exona ecosystem. Experience supercharged performance, seamless local notifications, offline-first data, and smooth navigation. Designed to keep you connected, informed, and productive on the go.',
+            highlights: [
+              { icon: Share2, text: 'Dynamic Social Stream & Feed' },
+              { icon: Zap, text: 'Fast Offline-Ready Engine' },
+              { icon: MessageSquare, text: 'Built-In Private & Group Chat' },
+              { icon: Grid, text: 'Interactive Portal Widgets' }
+            ],
+            changelog: 'Version 3.1.2\n- Improved feed loading times\n- Smoother offline syncing protocols\n- Corrected back-stack navigation bugs',
+            screenshots: [
+              { title: 'Dynamic Feed', desc: 'Interact with members globally' },
+              { title: 'Secure Chats', desc: 'Send messages instantly in real-time' },
+              { title: 'Workspace Widgets', desc: 'Custom workspace panel layouts' }
+            ]
           },
           {
             id: 'nexclass',
             name: 'Nexclass',
-            description: 'Academic records',
+            subtitle: 'Academic Portal',
+            description: 'Track academic performance, grades, and student attendance.',
+            category: 'Academics',
             icon: GraduationCap,
             onOpen: () => setView('nexclass'),
             webUrl: 'https://nexclass.exonaapp.com',
-            downloadUrl: 'https://median.co/share/xlzeokm#apk'
+            downloadUrl: 'https://median.co/share/xlzeokm#apk',
+            rating: '4.8',
+            reviews: '8,452',
+            downloads: '100K+',
+            size: '12.1 MB',
+            ageRating: 'Everyone 3+',
+            developer: 'Exona Academics Group',
+            promoImage: '/src/assets/images/nexclass_promo_1785782078542.jpg',
+            longDescription: 'Nexclass is the ultimate academic portal. View academic records, track attendance in real time, examine term report cards, communicate with teachers, and coordinate class materials all from a clean, intuitive layout.',
+            highlights: [
+              { icon: ClipboardList, text: 'Real-Time Attendance Logs' },
+              { icon: BarChart3, text: 'Interactive Academic Charts' },
+              { icon: MessageSquare, text: 'Direct Teacher Communications' },
+              { icon: FileText, text: 'Digital Homework Submissions' }
+            ],
+            changelog: 'Version 2.4.0\n- Added visual attendance progress bars\n- Integrated PDF report summaries\n- Streamlined parent/teacher notifications',
+            screenshots: [
+              { title: 'Academic Reports', desc: 'Interactive grade progress bars' },
+              { title: 'Attendance logs', desc: 'Daily logs and analytics visualizer' },
+              { title: 'Teacher Hub', desc: 'Direct communications channels' }
+            ]
           },
           {
             id: 'brainb',
             name: 'BrainB',
-            description: 'Live assessments',
+            subtitle: 'Live Assessment Arena',
+            description: 'Live interactive assessments, quizzes, and scorecards.',
+            category: 'Academics',
             icon: BrainCircuit,
             onOpen: () => setView('brainb'),
             webUrl: 'https://brainb.exonaapp.com',
-            downloadUrl: 'https://median.co/share/pbqqoyr#apk'
+            downloadUrl: 'https://median.co/share/pbqqoyr#apk',
+            rating: '4.9',
+            reviews: '12,194',
+            downloads: '150K+',
+            size: '15.7 MB',
+            ageRating: 'Everyone 3+',
+            developer: 'Exona Gamified Learning',
+            promoImage: '/src/assets/images/brainb_promo_1785782091969.jpg',
+            longDescription: 'BrainB is a high-octane live assessment and gamified battle system. Test your cognitive skills, join active multiplayer quiz matches, score points, climb the global school leaderboard, and earn rare champion badges!',
+            highlights: [
+              { icon: Gamepad2, text: 'Live Multiplayer Quiz Battles' },
+              { icon: Trophy, text: 'Global & School-Level Leaderboards' },
+              { icon: Award, text: 'Custom Reward Badges & Medals' },
+              { icon: Activity, text: 'Daily Analytical Cognitive Drills' }
+            ],
+            changelog: 'Version 1.8.5\n- Introduced brand new Battle Arena mode\n- Revamped scorecard design and social share\n- Stabilized real-time quiz websocket queues',
+            screenshots: [
+              { title: 'Battle Arena', desc: 'Compete live with school classmates' },
+              { title: 'Leaderboards', desc: 'Compare your scores with top players' },
+              { title: 'Reward Chest', desc: 'Unlock rare achievement credentials' }
+            ]
           },
           {
             id: 'exona_cinema',
             name: 'Cinema',
-            description: 'Movies and shows',
+            subtitle: 'Streaming & Video Hub',
+            description: 'Stream movies, shows, and video feeds seamlessly.',
+            category: 'Entertainment',
             icon: Film,
             onOpen: () => setView('cinema'),
             webUrl: 'https://cinema.exonaapp.com',
-            onDownload: () => showNotification('Downloading Exona Cinema...', 'success')
+            onDownload: () => showNotification('Downloading Exona Cinema...', 'success'),
+            rating: '4.7',
+            reviews: '31,042',
+            downloads: '400K+',
+            size: '22.5 MB',
+            ageRating: 'Teen 13+',
+            developer: 'Exona Media Ltd',
+            promoImage: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=1200',
+            longDescription: 'Step into Exona Cinema, your ultimate entertainment companion. Stream official media, high-definition videos, user broadcast feeds, and cinematic educational courses curated specifically for Exona members.',
+            highlights: [
+              { icon: Clapperboard, text: 'Stunning HD Video Streaming' },
+              { icon: Radio, text: 'User-Led Broadcast & Live Streams' },
+              { icon: Play, text: 'Fluid Media Player Controls' },
+              { icon: Download, text: 'Offline Video Saving' }
+            ],
+            changelog: 'Version 4.0.1\n- Added floating picture-in-picture player\n- Optimized download buffering on low bandwidth\n- Launched custom member streaming channels',
+            screenshots: [
+              { title: 'Cinema Streams', desc: 'Browse trending educational video series' },
+              { title: 'Live Feeds', desc: 'Stream community video broadcasts' },
+              { title: 'Video Vault', desc: 'Save content offline to view anywhere' }
+            ]
           },
           {
             id: 'exona_shop',
             name: 'Shop',
-            description: 'Premium items',
+            subtitle: 'Digital Marketplace',
+            description: 'Browse and request premium merchandise items.',
+            category: 'Utility',
             icon: ShoppingBag,
             onOpen: () => setView('schools'),
             webUrl: 'https://shoppingtime.exonaapp.com',
-            downloadUrl: 'https://median.co/share/dyzwnoe#apk'
+            downloadUrl: 'https://median.co/share/dyzwnoe#apk',
+            rating: '4.6',
+            reviews: '5,310',
+            downloads: '80K+',
+            size: '10.2 MB',
+            ageRating: 'Everyone 3+',
+            developer: 'Exona Commerce Group',
+            promoImage: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?auto=format&fit=crop&q=80&w=1200',
+            longDescription: 'Browse, buy, and sell premium goods in the Exona Shop. Discover items posted by fellow members, verify merchant trust scores, message sellers directly, and unlock exclusive digital items within our integrated marketplace.',
+            highlights: [
+              { icon: Award, text: 'Verified Merchant Trust Scores' },
+              { icon: ShoppingBag, text: 'Dynamic Product Categorization' },
+              { icon: MessageSquare, text: 'Direct Secure In-App Chat' },
+              { icon: Coins, text: 'Exona Coin Bidding' }
+            ],
+            changelog: 'Version 2.1.0\n- Refined merchant rating graphs\n- Introduced instant bidding options for rare items\n- Streamlined chat messages delivery logs',
+            screenshots: [
+              { title: 'Store Catalog', desc: 'Discover unique member items' },
+              { title: 'Trust Ratings', desc: 'Secure shop seller reviews' },
+              { title: 'Quick Bidding', desc: 'Engage in fast product auctions' }
+            ]
           },
           {
             id: 'exona_satellite',
             name: 'Satellite',
-            description: 'Connect globally',
+            subtitle: 'Secure Global Connect',
+            description: 'Decentralized message and connection network dashboard.',
+            category: 'Communication',
             icon: Globe,
             onOpen: () => showNotification('Opening Exona Satellite...', 'success'),
             webUrl: 'https://satellite.exonaapp.com',
-            onDownload: () => showNotification('Downloading Exona Satellite...', 'success')
+            onDownload: () => showNotification('Downloading Exona Satellite...', 'success'),
+            rating: '4.5',
+            reviews: '3,124',
+            downloads: '50K+',
+            size: '8.1 MB',
+            ageRating: 'Everyone 3+',
+            developer: 'Exona Networks Corp',
+            promoImage: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=1200',
+            longDescription: 'Exona Satellite lets you connect and communicate globally. It serves as our secure network hub, offering decentralized message delivery, satellite-link status updates, and peer-to-peer data replication diagnostics.',
+            highlights: [
+              { icon: Globe, text: 'Decentralized Network Infrastructure' },
+              { icon: Activity, text: 'Real-Time Connection Signal Graphs' },
+              { icon: Lock, text: 'Peer-to-Peer Message Encryption' },
+              { icon: HardDrive, text: 'Offline-First Message Queue Logs' }
+            ],
+            changelog: 'Version 1.2.0\n- Added live visual network node pings\n- Improved client-side key rotation security\n- Polished connection signals monitoring logs',
+            screenshots: [
+              { title: 'Node Diagnostics', desc: 'Inspect routing path signals' },
+              { title: 'Secure Comms', desc: 'Encrypted message delivery logs' },
+              { title: 'Signal Heatmap', desc: 'Global bandwidth speed charts' }
+            ]
           },
           {
             id: 'workout',
             name: 'Mr A club',
-            description: 'Workout & fitness platform',
+            subtitle: 'Elite Workout & Fitness',
+            description: 'Interactive workouts, routines, and physical fitness tracking.',
+            category: 'Utility',
             icon: Dumbbell,
             onOpen: () => setView('workout'),
             webUrl: 'https://workout.exonaapp.com',
-            onDownload: () => showNotification('Downloading Mr A club...', 'success')
+            onDownload: () => showNotification('Downloading Mr A club...', 'success'),
+            rating: '4.8',
+            reviews: '9,642',
+            downloads: '120K+',
+            size: '16.3 MB',
+            ageRating: 'Everyone 3+',
+            developer: 'Mr A Elite Fitness',
+            promoImage: 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?auto=format&fit=crop&q=80&w=1200',
+            longDescription: 'Join the elite Mr A club, a premier workout, fitness, and health tracking platform. Access structured workout routines, log gym sessions, track calorie goals, and compete with friends in monthly fitness streaks.',
+            highlights: [
+              { icon: ClipboardList, text: 'Custom Routine Builders' },
+              { icon: Activity, text: 'Muscle Target Warmup Hotmaps' },
+              { icon: Sparkles, text: 'Comprehensive Calorie Metrics' },
+              { icon: Trophy, text: 'Leaderboards for Monthly Streaks' }
+            ],
+            changelog: 'Version 1.5.2\n- Introduced muscle heatmaps\n- Added hydration quick-loggers\n- Polished dark-mode workout guides',
+            screenshots: [
+              { title: 'Workout Logs', desc: 'Record weight and rep metrics' },
+              { title: 'Calorie Metrics', desc: 'Daily protein and water metrics' },
+              { title: 'Gym Streaks', desc: 'Join global challenges with peers' }
+            ]
           }
         ];
+
+        // Filter search logic
+        const filteredApps = hubAppsList.filter(app => {
+          const matchesCategory = hubSelectedCategory === 'All' || app.category === hubSelectedCategory;
+          const matchesSearch = app.name.toLowerCase().includes(hubSearchQuery.toLowerCase()) || 
+                                app.subtitle.toLowerCase().includes(hubSearchQuery.toLowerCase()) ||
+                                app.description.toLowerCase().includes(hubSearchQuery.toLowerCase());
+          return matchesCategory && matchesSearch;
+        });
 
         const selectedApp = hubAppsList.find(app => app.id === selectedHubAppId);
 
         return (
-          <div className="flex-1 flex flex-col bg-slate-50 h-full overflow-y-auto pb-28 relative">
-            <div className="p-5 sm:p-8 md:p-10 max-w-4xl mx-auto w-full space-y-6">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => setView('feed')}
-                    className="h-[46px] w-[46px] bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95 cursor-pointer shrink-0"
-                    title="Back to Feed"
-                  >
-                    <ArrowLeft size={20} strokeWidth={2} />
-                  </button>
-                  <div>
-                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Exona Hub</h1>
-                    <p className="text-[13px] sm:text-sm font-medium text-slate-500 mt-0.5">Select an app to launch</p>
+          <div className="flex-1 flex flex-col md:flex-row bg-slate-50 h-full overflow-hidden text-slate-800 relative font-sans">
+            
+            {/* Play Store Left Sidebar - Desktop only */}
+            <div className="hidden md:flex flex-col w-[280px] border-r border-slate-200 bg-white p-6 shrink-0 justify-between h-full">
+              <div className="space-y-7">
+                {/* Branding Logo */}
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-tr from-[#0B57D0] to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-100">
+                    <Gamepad2 size={22} className="animate-pulse" />
                   </div>
+                  <div>
+                    <h2 className="text-lg font-black tracking-tight text-slate-900 leading-none">Exona Play</h2>
+                    <span className="text-[10px] uppercase tracking-widest text-[#0B57D0] font-black">App Center</span>
+                  </div>
+                </div>
+
+                {/* Categories Navigation */}
+                <div className="space-y-1.5">
+                  <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">Categories</h3>
+                  {['All', 'Academics', 'Utility', 'Entertainment', 'Communication'].map((cat) => {
+                    const count = cat === 'All' ? hubAppsList.length : hubAppsList.filter(a => a.category === cat).length;
+                    const isActive = hubSelectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setHubSelectedCategory(cat);
+                          setSelectedHubAppId(null); // Return to grid when switching categories
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-[13px] font-bold transition-all cursor-pointer ${
+                          isActive 
+                            ? 'bg-[#0B57D0]/5 text-[#0B57D0]' 
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <span className={`h-2 w-2 rounded-full ${isActive ? 'bg-[#0B57D0]' : 'bg-slate-300'}`} />
+                          <span>{cat === 'All' ? 'All Applications' : cat}</span>
+                        </div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${isActive ? 'bg-[#0B57D0] text-white' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4">
-                {hubAppsList.map((app) => (
-                  <button
-                    key={app.id}
-                    onClick={() => setSelectedHubAppId(app.id)}
-                    className="flex flex-col items-center gap-3 p-4 bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-all active:scale-95 group cursor-pointer"
-                  >
-                    <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center relative overflow-hidden group-hover:bg-[#0B57D0]/5 transition-colors">
-                      {hubAppCustomIcons[app.id] ? (
-                        <img src={hubAppCustomIcons[app.id]} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
-                      ) : (
-                        <app.icon size={28} className="text-[#0B57D0]" />
-                      )}
-                      
-                      {isAdmin && (
-                        <label 
-                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity z-10"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {uploadingHubAppId === app.id ? (
-                            <RefreshCw size={16} className="text-white animate-spin" />
-                          ) : (
-                            <Camera size={16} className="text-white" />
-                          )}
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) handleUploadHubAppIcon(app.id, file);
-                            }}
-                          />
-                        </label>
-                      )}
-                    </div>
-                    <span className="text-xs sm:text-[13px] font-bold text-slate-800 text-center leading-tight">{app.name}</span>
-                  </button>
-                ))}
+              {/* Developer stats info box */}
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} className="text-green-600" />
+                  <span className="text-xs font-bold text-slate-700">Verified Platform</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-slate-500 font-medium">All applications are verified secure with built-in sandbox permissions and telemetry filters.</p>
               </div>
             </div>
 
-            {/* Selected App Modal */}
-            <AnimatePresence>
-              {selectedHubAppId && selectedApp && (
-                <>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    onClick={() => setSelectedHubAppId(null)}
-                    className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100]"
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, y: 100, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 100, scale: 0.95 }}
-                    className="fixed bottom-0 left-0 right-0 sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:max-w-md bg-white rounded-t-[2rem] sm:rounded-[2.5rem] p-6 shadow-2xl z-[110] border border-slate-100"
+            {/* Play Store Main Content Area */}
+            <div className="flex-1 flex flex-col h-full overflow-y-auto min-w-0">
+              
+              {/* Universal Premium Search & Navigation Bar */}
+              <div className="bg-white border-b border-slate-100 px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sticky top-0 z-40 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => {
+                      if (selectedHubAppId) {
+                        setSelectedHubAppId(null);
+                      } else {
+                        setView('feed');
+                      }
+                    }}
+                    className="h-10 w-10 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full flex items-center justify-center text-slate-600 transition-all active:scale-95 cursor-pointer shrink-0"
+                    title={selectedHubAppId ? "Back to Store" : "Back to Feed"}
                   >
-                    <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden" />
-                    
-                    <div className="flex items-center gap-5 mb-8">
-                      <div className="h-20 w-20 rounded-[1.5rem] bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
-                        {hubAppCustomIcons[selectedApp.id] ? (
-                          <img src={hubAppCustomIcons[selectedApp.id]} className="h-full w-full object-cover" alt={selectedApp.name} referrerPolicy="no-referrer" />
-                        ) : (
-                          <selectedApp.icon size={36} className="text-[#0B57D0]" />
-                        )}
+                    <ArrowLeft size={18} strokeWidth={2.5} />
+                  </button>
+                  <div>
+                    <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-none">
+                      {selectedHubAppId ? selectedApp?.name : 'Exona Play Store'}
+                    </h1>
+                    <p className="text-[11px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">
+                      {selectedHubAppId ? 'Product Information' : `${hubSelectedCategory} Applications`}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Live Search Bar */}
+                {!selectedHubAppId && (
+                  <div className="relative w-full sm:max-w-xs shrink-0">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Search apps or features..."
+                      value={hubSearchQuery}
+                      onChange={(e) => setHubSearchQuery(e.target.value)}
+                      className="w-full h-10 pl-10 pr-8 bg-slate-50 hover:bg-slate-100 focus:bg-white border border-slate-200 focus:border-[#0B57D0]/30 rounded-full text-xs font-bold transition-all focus:outline-none placeholder-slate-400"
+                    />
+                    {hubSearchQuery && (
+                      <button 
+                        onClick={() => setHubSearchQuery('')} 
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Only Category Pills Slider */}
+              {!selectedHubAppId && (
+                <div className="flex md:hidden items-center gap-2 overflow-x-auto no-scrollbar px-5 py-3 bg-white border-b border-slate-100 shrink-0">
+                  {['All', 'Academics', 'Utility', 'Entertainment', 'Communication'].map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setHubSelectedCategory(cat)}
+                      className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                        hubSelectedCategory === cat 
+                          ? 'bg-[#0B57D0] text-white' 
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Dynamic View Rendering */}
+              {!selectedHubAppId ? (
+                /* VIEW A: REDESIGNED APP STORE HOME PAGE (Full width, playstore-like) */
+                <div className="p-5 sm:p-7 md:p-9 space-y-8 max-w-6xl mx-auto w-full pb-32">
+                  
+                  {/* Spotlight App Store Hero Banner */}
+                  {hubSearchQuery === '' && hubSelectedCategory === 'All' && (
+                    <div className="relative rounded-3xl overflow-hidden bg-slate-900 shadow-xl border border-slate-800/20 aspect-[16/7] md:aspect-[21/8] min-h-[190px] group">
+                      {/* Generated Premium 3D Background */}
+                      <img 
+                        src="/src/assets/images/exona_hub_hero_1785782064429.jpg" 
+                        alt="Exona Hub Banner" 
+                        className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-[1.01] transition-transform duration-700" 
+                        referrerPolicy="no-referrer"
+                      />
+                      {/* Dark Themed Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/40 to-transparent flex flex-col justify-center p-6 sm:p-8 md:p-12 space-y-2 sm:space-y-4">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0B57D0] text-white text-[10px] font-black rounded-full uppercase tracking-wider max-w-fit">
+                          <Stars size={10} /> App Spotlight
+                        </span>
+                        <h2 className="text-xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight max-w-md sm:max-w-xl">
+                          Explore the Next-Gen Exona Ecosystem
+                        </h2>
+                        <p className="text-slate-300 text-xs sm:text-sm font-medium max-w-xs sm:max-w-md leading-relaxed hidden sm:block">
+                          Fully integrated academics, live quiz arenas, workouts, and global encrypted satellite tools built with elegant client-side synchronization.
+                        </p>
+                        <div className="flex items-center gap-3 pt-1">
+                          <button 
+                            onClick={() => setSelectedHubAppId('nexclass')}
+                            className="h-10 px-5 bg-white text-slate-950 font-black text-xs rounded-full hover:bg-slate-100 active:scale-95 transition-all cursor-pointer shadow-lg"
+                          >
+                            Explore Nexclass
+                          </button>
+                          <button 
+                            onClick={() => setSelectedHubAppId('brainb')}
+                            className="h-10 px-5 bg-slate-900/80 hover:bg-slate-900 text-white font-black text-xs rounded-full border border-white/20 active:scale-95 transition-all cursor-pointer backdrop-blur-sm"
+                          >
+                            Fight Live Quiz
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <h2 className="text-xl font-black text-slate-900 mb-1">{selectedApp.name}</h2>
-                        <p className="text-sm font-medium text-slate-500 leading-tight">{selectedApp.description}</p>
+                    </div>
+                  )}
+
+                  {/* 3D App Cards / Play Store Main Row */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={18} className="text-[#0B57D0]" />
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                          {hubSelectedCategory === 'All' ? 'Trending Applications' : `${hubSelectedCategory} Apps`}
+                        </h3>
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest hidden sm:inline">{filteredApps.length} products found</span>
+                        {/* View Switcher Segmented Control */}
+                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                          <button
+                            onClick={() => setHubViewMode('grid')}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${hubViewMode === 'grid' ? 'bg-white text-[#0B57D0] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                            title="Grid View"
+                          >
+                            <LayoutGrid size={15} />
+                          </button>
+                          <button
+                            onClick={() => setHubViewMode('list')}
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${hubViewMode === 'list' ? 'bg-white text-[#0B57D0] shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                            title="List View"
+                          >
+                            <LayoutList size={15} />
+                          </button>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-3">
-                      <button 
-                        onClick={() => {
-                          setSelectedHubAppId(null);
-                          selectedApp.onOpen();
-                        }}
-                        className="w-full h-14 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-bold text-[15px] rounded-2xl transition-colors cursor-pointer active:scale-[0.98]"
-                      >
-                        Open App
-                      </button>
-                      <div className="flex gap-3">
-                        <a 
-                          href={selectedApp.webUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => setSelectedHubAppId(null)}
-                          className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
+                    {filteredApps.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-12 bg-white border border-slate-100 rounded-3xl space-y-4 text-center">
+                        <div className="h-14 w-14 bg-slate-50 border border-slate-100 rounded-full flex items-center justify-center text-slate-400">
+                          <Search size={22} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-black text-slate-800">No applications match your search</h4>
+                          <p className="text-xs text-slate-500 font-medium mt-1">Try adjusting your keyword filter or browse other categories.</p>
+                        </div>
+                        <button 
+                          onClick={() => { setHubSearchQuery(''); setHubSelectedCategory('All'); }}
+                          className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-full transition-all"
                         >
-                          Web Version
-                        </a>
+                          Clear Filters
+                        </button>
+                      </div>
+                    ) : hubViewMode === 'grid' ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {filteredApps.map((app) => (
+                          <div
+                            key={app.id}
+                            onClick={() => setSelectedHubAppId(app.id)}
+                            className="flex flex-col bg-white border border-slate-100 hover:border-slate-200/80 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer relative overflow-hidden"
+                          >
+                            {/* Accent indicator bar on hover */}
+                            <div className="absolute top-0 left-0 right-0 h-1.5 bg-[#0B57D0] scale-x-0 group-hover:scale-x-100 origin-left transition-transform duration-300" />
+                            
+                            <div className="flex gap-4">
+                              {/* 3D Soft Shadow App Icon Frame */}
+                              <div className="h-16 w-16 sm:h-[72px] sm:w-[72px] rounded-[1.25rem] bg-slate-50 border border-slate-100/80 flex items-center justify-center relative overflow-hidden shrink-0 shadow-inner group-hover:bg-[#0B57D0]/5 transition-colors">
+                                {hubAppCustomIcons[app.id] ? (
+                                  <img src={hubAppCustomIcons[app.id]} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
+                                ) : (
+                                  <app.icon size={28} className="text-[#0B57D0] group-hover:scale-105 transition-transform" />
+                                )}
+
+                                {/* Admin upload overlay */}
+                                {isAdmin && (
+                                  <label 
+                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity z-10"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {uploadingHubAppId === app.id ? (
+                                      <RefreshCw size={14} className="text-white animate-spin" />
+                                    ) : (
+                                      <Camera size={14} className="text-white" />
+                                    )}
+                                    <input 
+                                      type="file" 
+                                      accept="image/*" 
+                                      className="hidden" 
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadHubAppIcon(app.id, file);
+                                      }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+
+                              <div className="space-y-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <h4 className="text-[15px] font-black text-slate-900 group-hover:text-[#0B57D0] transition-colors truncate leading-tight">
+                                    {app.name}
+                                  </h4>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-500 font-extrabold rounded-md uppercase">
+                                    {app.category}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase leading-none">{app.subtitle}</p>
+                                <p className="text-xs text-slate-500 font-medium leading-relaxed line-clamp-2 pt-0.5">
+                                  {app.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-slate-100 my-4" />
+
+                            {/* Store Metadata footer row - ratings/downloads removed */}
+                            <div className="flex items-center justify-between mt-auto">
+                              <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                                <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px]">{app.size}</span>
+                                <span>•</span>
+                                <span>{app.ageRating}</span>
+                              </div>
+                              <span className="text-xs font-black text-[#0B57D0] group-hover:translate-x-1 transition-transform flex items-center gap-0.5">
+                                View Details <ChevronRight size={14} />
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="space-y-3.5">
+                        {filteredApps.map((app) => (
+                          <div
+                            key={app.id}
+                            onClick={() => setSelectedHubAppId(app.id)}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between bg-white border border-slate-100 hover:border-slate-200/80 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-300 group cursor-pointer gap-4 relative overflow-hidden"
+                          >
+                            {/* Accent indicator bar on hover */}
+                            <div className="absolute top-0 bottom-0 left-0 w-1.5 bg-[#0B57D0] scale-y-0 group-hover:scale-y-100 origin-top transition-transform duration-300" />
+                            
+                            <div className="flex items-center gap-4 flex-1 min-w-0 pl-1.5">
+                              {/* App Icon Frame */}
+                              <div className="h-14 w-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center relative overflow-hidden shrink-0 shadow-inner group-hover:bg-[#0B57D0]/5 transition-colors">
+                                {hubAppCustomIcons[app.id] ? (
+                                  <img src={hubAppCustomIcons[app.id]} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
+                                ) : (
+                                  <app.icon size={24} className="text-[#0B57D0] group-hover:scale-105 transition-transform" />
+                                )}
+
+                                {/* Admin upload overlay */}
+                                {isAdmin && (
+                                  <label 
+                                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity z-10"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {uploadingHubAppId === app.id ? (
+                                      <RefreshCw size={12} className="text-white animate-spin" />
+                                    ) : (
+                                      <Camera size={12} className="text-white" />
+                                    )}
+                                    <input 
+                                      type="file" 
+                                      accept="image/*" 
+                                      className="hidden" 
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadHubAppIcon(app.id, file);
+                                      }}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+
+                              <div className="space-y-0.5 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="text-[14px] font-black text-slate-900 group-hover:text-[#0B57D0] transition-colors truncate leading-tight">
+                                    {app.name}
+                                  </h4>
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-500 font-extrabold rounded-md uppercase">
+                                    {app.category}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">{app.subtitle}</p>
+                                <p className="text-xs text-slate-500 font-medium leading-relaxed truncate pt-0.5 hidden sm:block">
+                                  {app.description}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between sm:justify-end gap-5 shrink-0 border-t sm:border-t-0 border-slate-50 pt-2 sm:pt-0">
+                              <div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+                                <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px]">{app.size}</span>
+                                <span>•</span>
+                                <span>{app.ageRating}</span>
+                              </div>
+                              <span className="text-xs font-black text-[#0B57D0] group-hover:translate-x-1 transition-transform flex items-center gap-0.5">
+                                View Details <ChevronRight size={14} />
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* App Store Side Charts (Top Free List / recommended bento layout) */}
+                  {hubSearchQuery === '' && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                      {/* Top Free Apps Rank List */}
+                      <div className="p-6 bg-white border border-slate-100 rounded-3xl space-y-4 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Trophy size={18} className="text-[#0B57D0]" />
+                            <h3 className="text-base font-black text-slate-900 tracking-tight">Top Free Charts</h3>
+                          </div>
+                          <span className="text-[10px] px-2.5 py-1 bg-[#0B57D0]/5 text-[#0B57D0] font-black rounded-full uppercase tracking-wider">Weekly Rank</span>
+                        </div>
+
+                        <div className="divide-y divide-slate-50">
+                          {hubAppsList.slice(0, 4).map((app, index) => (
+                            <div 
+                              key={app.id}
+                              onClick={() => setSelectedHubAppId(app.id)}
+                              className="flex items-center justify-between py-3 hover:bg-slate-50/50 px-2 rounded-2xl transition-all cursor-pointer group"
+                            >
+                              <div className="flex items-center gap-4">
+                                <span className="text-base font-black text-slate-400 w-5 text-center group-hover:text-[#0B57D0] transition-colors">{index + 1}</span>
+                                <div className="h-12 w-12 bg-slate-50 border border-slate-100/50 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
+                                  {hubAppCustomIcons[app.id] ? (
+                                    <img src={hubAppCustomIcons[app.id]} className="h-full w-full object-cover" alt={app.name} referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <app.icon size={22} className="text-[#0B57D0]" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="text-xs font-black text-slate-800 leading-tight group-hover:text-[#0B57D0] transition-colors">{app.name}</h4>
+                                  <p className="text-[10px] font-bold text-slate-400">{app.category} • {app.size}</p>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  app.onOpen();
+                                }}
+                                className="h-7 px-3 bg-slate-100 hover:bg-[#0B57D0] hover:text-white text-slate-700 font-extrabold text-[10px] rounded-full transition-colors cursor-pointer"
+                              >
+                                OPEN
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Store Highlights Promotional Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="p-5 bg-gradient-to-tr from-[#0B57D0]/5 to-cyan-500/5 border border-blue-50/50 rounded-3xl flex flex-col justify-between">
+                          <div className="space-y-2">
+                            <div className="h-9 w-9 bg-white text-[#0B57D0] rounded-xl flex items-center justify-center shadow-sm">
+                              <ShieldCheck size={18} />
+                            </div>
+                            <h4 className="text-[14px] font-black text-slate-800 leading-snug">Developer Verified Credentials</h4>
+                            <p className="text-[11px] leading-relaxed text-slate-500 font-medium">All applications undergo real integrity checks to enforce safety controls before listing.</p>
+                          </div>
+                          <span className="text-[10px] font-black text-[#0B57D0] tracking-wider uppercase mt-4">Security Center →</span>
+                        </div>
+
+                        <div className="p-5 bg-gradient-to-tr from-purple-500/5 to-pink-500/5 border border-purple-50/50 rounded-3xl flex flex-col justify-between">
+                          <div className="space-y-2">
+                            <div className="h-9 w-9 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                              <Award size={18} />
+                            </div>
+                            <h4 className="text-[14px] font-black text-slate-800 leading-snug">Gamified School Leaderboards</h4>
+                            <p className="text-[11px] leading-relaxed text-slate-500 font-medium">Earn scores on BrainB Battles to secure badges and ranks on the active scoreboard.</p>
+                          </div>
+                          <span className="text-[10px] font-black text-purple-600 tracking-wider uppercase mt-4">Join Battles →</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              ) : (
+                /* VIEW B: PROFESSIONAL APP DETAILS PRODUCT PAGE (Replacing Store grid full-screen style) */
+                <div className="p-5 sm:p-7 md:p-9 max-w-5xl mx-auto w-full pb-32">
+                  
+                  {/* Promo image banner */}
+                  <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/50 shadow-xl aspect-[16/7] md:aspect-[21/8] mb-8">
+                    {/* Check if we have generated visual asset or default */}
+                    {selectedApp.promoImage ? (
+                      <img 
+                        src={selectedApp.promoImage} 
+                        alt={`${selectedApp.name} promo`} 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-tr from-[#0B57D0] via-blue-600 to-indigo-800 flex items-center justify-center p-8">
+                        <selectedApp.icon size={80} className="text-white/20 animate-pulse" />
+                      </div>
+                    )}
+                    {/* Glowing effect inside top corners */}
+                    <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/20 to-transparent" />
+                  </div>
+
+                  {/* Main Header Specs Card */}
+                  <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                      
+                      {/* Left: Icon and Name Details */}
+                      <div className="flex items-center gap-5">
+                        <div className="h-[88px] w-[88px] sm:h-24 sm:w-24 rounded-3xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0 shadow-md relative group">
+                          {hubAppCustomIcons[selectedApp.id] ? (
+                            <img src={hubAppCustomIcons[selectedApp.id]} className="h-full w-full object-cover" alt={selectedApp.name} referrerPolicy="no-referrer" />
+                          ) : (
+                            <selectedApp.icon size={42} className="text-[#0B57D0]" />
+                          )}
+
+                          {isAdmin && (
+                            <label 
+                              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity z-10"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {uploadingHubAppId === selectedApp.id ? (
+                                <RefreshCw size={16} className="text-white animate-spin" />
+                              ) : (
+                                <Camera size={16} className="text-white" />
+                              )}
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadHubAppIcon(selectedApp.id, file);
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">{selectedApp.name}</h2>
+                            <span className="text-[10px] px-2 py-0.5 bg-[#0B57D0]/5 text-[#0B57D0] font-black rounded-full uppercase">{selectedApp.category}</span>
+                          </div>
+                          <p className="text-xs sm:text-sm font-bold text-slate-400 mt-1 uppercase tracking-wider">{selectedApp.subtitle}</p>
+                          <p className="text-[11px] font-bold text-slate-500 mt-1 leading-none">Developer: {selectedApp.developer}</p>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex flex-row sm:flex-col gap-2.5 sm:w-48 shrink-0">
+                        <button 
+                          onClick={() => selectedApp.onOpen()}
+                          className="flex-1 h-12 bg-[#0B57D0] hover:bg-[#0842A0] text-white font-black text-[13px] rounded-2xl flex items-center justify-center transition-all cursor-pointer shadow-lg shadow-blue-100 active:scale-[0.98]"
+                        >
+                          Launch Web Version
+                        </button>
+                        
                         {selectedApp.id === 'exona_app' ? (
                           selectedApp.downloadUrl ? (
                             <a 
                               href={selectedApp.downloadUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={() => setSelectedHubAppId(null)}
                               className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
                             >
-                              Download
+                              Download APK
                             </a>
                           ) : (
                             <button 
                               onClick={() => {
                                   if (selectedApp.onDownload) selectedApp.onDownload();
-                                  setSelectedHubAppId(null);
                               }}
                               className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
                             >
-                              Download
+                              Download APK
                             </button>
                           )
                         ) : (
                           <button 
                             onClick={() => {
-                                showNotification(`${selectedApp.name} download is coming soon!`, 'success');
-                                setSelectedHubAppId(null);
+                              if (selectedApp.onDownload) {
+                                selectedApp.onDownload();
+                              } else {
+                                showNotification(`${selectedApp.name} mobile package download is coming soon!`, 'success');
+                              }
                             }}
                             className="flex-1 h-12 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold text-[13px] rounded-2xl flex items-center justify-center transition-colors cursor-pointer active:scale-[0.98]"
                           >
-                            Download
+                            Download APK
                           </button>
                         )}
                       </div>
                     </div>
-                  </motion.div>
-                </>
+
+                    {/* Divider */}
+                    <div className="border-t border-slate-100" />
+
+                    {/* Play Store style 4-column Stats Row */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center divide-x-none md:divide-x divide-slate-100">
+                      
+                      {/* Metric 1 */}
+                      <div className="space-y-1 py-1 px-2">
+                        <div className="text-slate-900 font-black text-sm">
+                          {selectedApp.category}
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Category</p>
+                      </div>
+
+                      {/* Metric 2 */}
+                      <div className="space-y-1 py-1 px-2">
+                        <div className="text-slate-900 font-black text-sm">
+                          {selectedApp.size}
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">File Size</p>
+                      </div>
+
+                      {/* Metric 3 */}
+                      <div className="space-y-1 py-1 px-2">
+                        <div className="text-slate-900 font-black text-sm">
+                          {selectedApp.ageRating}
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Classification</p>
+                      </div>
+
+                      {/* Metric 4 */}
+                      <div className="space-y-1 py-1 px-2">
+                        <div className="text-slate-900 font-black text-sm text-emerald-600 flex items-center justify-center gap-1">
+                          <ShieldCheck size={14} /> Active
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Platform Security</p>
+                      </div>
+                      
+                    </div>
+                  </div>
+
+                  {/* Screenshots Showcase Row */}
+                  {selectedApp.screenshots && (
+                    <div className="space-y-3 mt-8">
+                      <div className="flex items-center gap-2">
+                        <Smartphone size={16} className="text-[#0B57D0]" />
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">Application Previews</h3>
+                      </div>
+                      
+                      {/* Horizontal Scrolling Screenshot Mockups */}
+                      <div className="flex items-center gap-4 overflow-x-auto pb-4 pt-1 no-scrollbar scroll-smooth">
+                        {selectedApp.screenshots.map((screen, i) => (
+                          <div 
+                            key={i}
+                            className="w-[185px] h-[325px] rounded-[1.75rem] border-4 border-slate-800 shadow-lg bg-slate-950 overflow-hidden relative font-sans text-[11px] select-none shrink-0 flex flex-col justify-between"
+                          >
+                            {/* Device Notch */}
+                            <div className="absolute top-1 left-1/2 -translate-x-1/2 w-16 h-3 bg-slate-800 rounded-full z-20 flex items-center justify-center">
+                              <span className="h-1 w-1 bg-slate-900 rounded-full mr-2" />
+                              <span className="h-0.5 w-4 bg-slate-900 rounded-full" />
+                            </div>
+
+                            {/* Device StatusBar */}
+                            <div className="h-6 flex items-center justify-between px-4 pt-1.5 text-white text-[8px] font-bold select-none shrink-0 z-10">
+                              <span>09:41</span>
+                              <div className="flex items-center gap-1 text-[8px]">
+                                <span>LTE</span>
+                                <span className="h-2 w-3.5 bg-white/20 border border-white/40 rounded-sm relative inline-block"><span className="absolute left-0 top-0 bottom-0 right-0.5 bg-white rounded-xs" /></span>
+                              </div>
+                            </div>
+
+                            {/* Live CSS Simulated App Interface mockup based on selection */}
+                            <div className="flex-1 bg-white flex flex-col justify-between p-2.5 overflow-hidden text-slate-800 relative">
+                              {/* Background pattern */}
+                              <div className="absolute inset-0 bg-slate-50/50 -z-10" />
+
+                              {/* Mock Header */}
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 shrink-0">
+                                <span className="font-black text-[9px] text-[#0B57D0]">{selectedApp.name}</span>
+                                <span className="text-[7px] text-slate-400 font-bold">● ONLINE</span>
+                              </div>
+
+                              {/* Interactive simulated screen core content */}
+                              <div className="flex-1 flex flex-col justify-center py-2 space-y-2">
+                                
+                                {selectedApp.id === 'nexclass' ? (
+                                  <>
+                                    <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg">
+                                      <div className="text-[7px] text-slate-400 font-bold uppercase leading-none">Class Attendance</div>
+                                      <div className="text-[11px] font-black text-slate-800 mt-0.5">Grade: 98.4%</div>
+                                      <div className="w-full bg-slate-200 h-1.5 rounded-full mt-1.5 overflow-hidden"><div className="bg-emerald-500 h-full w-[95%]" /></div>
+                                    </div>
+                                    <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg space-y-1">
+                                      <div className="text-[7px] text-slate-400 font-bold uppercase leading-none">Latest Report Cards</div>
+                                      <div className="flex justify-between text-[7px] font-bold"><span className="text-slate-600">Calculus II</span> <span className="text-emerald-600">A+</span></div>
+                                      <div className="flex justify-between text-[7px] font-bold"><span className="text-slate-600">Mechanics</span> <span className="text-[#0B57D0]">A</span></div>
+                                    </div>
+                                  </>
+                                ) : selectedApp.id === 'brainb' ? (
+                                  <>
+                                    <div className="p-1.5 bg-gradient-to-tr from-indigo-900 to-[#0B57D0] text-white rounded-lg text-center shadow-inner relative overflow-hidden">
+                                      <div className="text-[6px] text-blue-200 font-black uppercase tracking-wider">QUIZ BATTLE ARENA</div>
+                                      <div className="text-[8px] font-bold mt-1">Live Match Started!</div>
+                                      <div className="text-[6px] text-blue-200 mt-1">Timer: 12 seconds remaining</div>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-100 rounded-lg p-1.5 space-y-1">
+                                      <div className="text-[6px] text-slate-400 font-black uppercase">Battle Lobby</div>
+                                      <div className="flex items-center justify-between text-[7px] font-bold border-b border-slate-100 pb-0.5">
+                                        <span className="text-slate-700">1. Musstapha</span>
+                                        <span className="text-[#0B57D0]">9,850 pts</span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-[7px] font-bold">
+                                        <span className="text-slate-700">2. Guest_User</span>
+                                        <span className="text-slate-400">8,400 pts</span>
+                                      </div>
+                                    </div>
+                                  </>
+                                ) : selectedApp.id === 'exona_cinema' ? (
+                                  <>
+                                    <div className="aspect-[16/10] bg-slate-900 rounded-lg flex items-center justify-center relative overflow-hidden">
+                                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                      <Play size={14} className="text-white relative z-10" />
+                                      <span className="absolute bottom-1 right-1 bg-black/70 text-[6px] text-white px-1 font-bold rounded-sm">1:45:00</span>
+                                    </div>
+                                    <div className="text-[8px] font-bold text-slate-800 leading-tight">Episode 3: Building in AI Studio Platform</div>
+                                    <p className="text-[7px] text-slate-400 font-semibold leading-relaxed">Exona Media Channel 1</p>
+                                  </>
+                                ) : selectedApp.id === 'workout' ? (
+                                  <>
+                                    <div className="p-1.5 bg-[#0B57D0]/5 border border-[#0B57D0]/10 rounded-lg text-center">
+                                      <div className="text-[7px] text-[#0B57D0] font-black uppercase">Gym Logger</div>
+                                      <div className="text-[12px] font-black text-slate-800 mt-0.5">450 Calories</div>
+                                      <div className="text-[6px] text-slate-400">Active workout streak: 12 Days!</div>
+                                    </div>
+                                    <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg">
+                                      <div className="text-[6px] text-slate-400 font-black uppercase mb-1">Routines</div>
+                                      <div className="flex justify-between text-[7px] font-bold text-slate-700"><span>1. Bench Press</span> <span>4 x 12 reps</span></div>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg text-center">
+                                      <div className="text-[7px] text-slate-400 font-bold uppercase">System Statistics</div>
+                                      <div className="text-[10px] font-black text-slate-800 mt-0.5">Secure Link 100%</div>
+                                    </div>
+                                    <div className="p-1.5 bg-slate-50 border border-slate-100 rounded-lg">
+                                      <div className="text-[6px] text-slate-400 font-bold uppercase mb-0.5">Data Sync Status</div>
+                                      <div className="text-[7px] font-bold text-emerald-600 flex items-center gap-1"><span>● All records synchronized</span></div>
+                                    </div>
+                                  </>
+                                )}
+
+                              </div>
+
+                              {/* Simulated Phone Navigation Bar */}
+                              <div className="h-6 flex items-center justify-around border-t border-slate-100 pt-1 shrink-0">
+                                <span className="h-2 w-2 rounded-full bg-[#0B57D0]" />
+                                <span className="h-2 w-2 rounded-full bg-slate-300" />
+                                <span className="h-2 w-2 rounded-full bg-slate-300" />
+                              </div>
+                            </div>
+
+                            {/* Device Bottom Line indicator */}
+                            <div className="h-3 shrink-0 flex items-center justify-center bg-slate-950 pb-1 z-10">
+                              <span className="w-12 h-0.5 bg-white/40 rounded-full" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* App Details / description grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+                    
+                    {/* Left: About, Features, Changelog (2 Cols) */}
+                    <div className="lg:col-span-2 space-y-8">
+                      
+                      {/* Product Long Description */}
+                      <div className="space-y-3">
+                        <h3 className="text-base font-black text-slate-900 tracking-tight uppercase">About this Application</h3>
+                        <p className="text-sm text-slate-600 leading-relaxed font-medium">
+                          {selectedApp.longDescription}
+                        </p>
+                      </div>
+
+                      {/* Highlights Bullet List */}
+                      <div className="space-y-3">
+                        <h4 className="text-[13px] font-bold text-slate-400 uppercase tracking-wider">Key Highlights & Features</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          {selectedApp.highlights.map((hl, i) => (
+                            <div key={i} className="flex items-start gap-3 p-3 bg-white border border-slate-100 rounded-2xl">
+                              <div className="h-8 w-8 bg-[#0B57D0]/5 text-[#0B57D0] rounded-xl flex items-center justify-center shrink-0">
+                                <hl.icon size={16} />
+                              </div>
+                              <div>
+                                <h5 className="text-[13px] font-black text-slate-800 leading-tight">{hl.text.split(' ')[0]} {hl.text.split(' ')[1] || ''}</h5>
+                                <p className="text-[11px] text-slate-500 font-medium leading-normal mt-0.5">{hl.text}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* What's New section */}
+                      <div className="p-5 bg-white border border-slate-100 rounded-3xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">What's New</h3>
+                          <span className="text-[10px] px-2 py-0.5 bg-green-50 text-green-600 font-extrabold rounded-md">Latest Release</span>
+                        </div>
+                        <pre className="text-xs text-slate-500 leading-relaxed font-mono whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          {selectedApp.changelog}
+                        </pre>
+                      </div>
+                    </div>
+
+                    {/* Right: Technical specifications & specs */}
+                    <div className="space-y-8">
+                      
+                      {/* Security & Sandbox Audit Panel */}
+                      <div className="p-5 bg-white border border-slate-100 rounded-3xl space-y-4 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck size={18} className="text-[#0B57D0]" />
+                          <h3 className="text-[13px] font-black text-slate-900 uppercase tracking-tight">Security & Privacy</h3>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                          This application is built under the Exona Platform security requirements. It is certified sandboxed and fully compliant with privacy filters.
+                        </p>
+                        
+                        <div className="border-t border-slate-100 pt-3.5 space-y-3">
+                          <div className="flex items-start gap-2.5">
+                            <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-[11px] font-black text-slate-800 leading-none">Sandbox Enforced</h5>
+                              <p className="text-[10px] text-slate-500 font-medium mt-0.5">Isolated runtime environment prevents unauthorized filesystem modifications.</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-[11px] font-black text-slate-800 leading-none">Offline Caching</h5>
+                              <p className="text-[10px] text-slate-500 font-medium mt-0.5">Local synchronized database ensures data persists safely across sessions offline.</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                            <div>
+                              <h5 className="text-[11px] font-black text-slate-800 leading-none">Encrypted Connection</h5>
+                              <p className="text-[10px] text-slate-500 font-medium mt-0.5">End-to-end telemetry filtering with secure HTTPS and client-side credential verification.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Technical specifications info panel */}
+                      <div className="p-5 bg-white border border-slate-100 rounded-3xl space-y-3.5">
+                        <h4 className="text-[13px] font-black text-slate-900 uppercase tracking-tight">Product Specifications</h4>
+                        
+                        <div className="text-xs space-y-2.5 font-semibold text-slate-500">
+                          <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                            <span>Last Updated</span>
+                            <span className="text-slate-800">August 2026</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                            <span>Compatibility</span>
+                            <span className="text-slate-800">Android 9.0+, Web SPA</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-50 pb-1.5">
+                            <span>Available Language</span>
+                            <span className="text-slate-800">English</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Permissions</span>
+                            <span className="text-slate-800">Sandbox, Telemetry</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
               )}
-            </AnimatePresence>
+
+            </div>
           </div>
         );
       }
