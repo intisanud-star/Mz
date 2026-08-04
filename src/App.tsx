@@ -343,7 +343,7 @@ const BrainBattleModal = ({
   const saveAsImage = async () => {
     if (!resultRef.current) return;
     try {
-      const { toPng } = await import('html-to-image');
+      
       const dataUrl = await toPng(resultRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
