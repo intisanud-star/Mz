@@ -31181,6 +31181,25 @@ function ExonaApp() {
                     </div>
                   </div>
 
+                  {(() => {
+                    const inst = schools.find(s => s.id === recordForReceipt?.schoolId) || places.find(p => p.id === recordForReceipt?.schoolId) || selectedSchool;
+                    if (inst?.bankAccounts && inst.bankAccounts.length > 0) {
+                      return (
+                        <div className="mb-10 space-y-4">
+                          <h4 className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Payment Details</h4>
+                          {inst.bankAccounts.map((account, idx) => (
+                            <div key={idx} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1">
+                              <p className="text-xs font-bold text-ink">{account.bankName}</p>
+                              <p className="text-sm font-mono font-bold tracking-widest text-indigo-600">{account.accountNumber}</p>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{account.accountName}</p>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   <div className="flex flex-col items-center gap-4 pt-6 border-t border-dashed border-gray-200">
                     <div className="flex items-center gap-2">
                        <CheckCircle2 size={16} className="text-green-500" />
@@ -31833,6 +31852,96 @@ function ExonaApp() {
                             title="Remove Member"
                           >
                             <UserMinus size={18} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Bank Accounts Block */}
+                <div className="border-t border-gray-100 pt-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-extrabold text-ink">Bank Accounts</h3>
+                    {!isAddingBank && (
+                      <button
+                        onClick={() => setIsAddingBank(true)}
+                        className="px-3 py-1 bg-ink text-white rounded-full text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-ink/80 transition-colors"
+                      >
+                        <Plus size={12} /> Add Bank
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {isAddingBank && (
+                      <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                        <input
+                          type="text"
+                          placeholder="Bank Name"
+                          value={newBankName}
+                          onChange={(e) => setNewBankName(e.target.value)}
+                          className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-accent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Account Name"
+                          value={newAccountName}
+                          onChange={(e) => setNewAccountName(e.target.value)}
+                          className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-accent"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Account Number"
+                          value={newAccountNumber}
+                          onChange={(e) => setNewAccountNumber(e.target.value)}
+                          className="w-full h-10 px-3 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-accent"
+                        />
+                        <div className="flex gap-2 justify-end pt-2">
+                          <button
+                            onClick={() => setIsAddingBank(false)}
+                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl text-xs font-bold"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleAddBankAccount}
+                            disabled={!newBankName || !newAccountName || !newAccountNumber}
+                            className="px-4 py-2 bg-ink text-white rounded-xl text-xs font-bold disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {(!selectedSchool.bankAccounts || selectedSchool.bankAccounts.length === 0) ? (
+                      !isAddingBank && (
+                        <div className="py-6 text-center opacity-40">
+                          <Wallet size={32} className="mx-auto mb-2" />
+                          <p className="text-xs font-bold">No bank accounts added</p>
+                        </div>
+                      )
+                    ) : (
+                      selectedSchool.bankAccounts.map((account, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold">
+                              <Wallet size={18} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-ink">{account.bankName}</p>
+                              <p className="text-xs text-muted">{account.accountNumber} • {account.accountName}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const ref = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
+                              await updateDoc(ref, { bankAccounts: arrayRemove(account) });
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       ))
