@@ -343,7 +343,7 @@ const BrainBattleModal = ({
   const saveAsImage = async () => {
     if (!resultRef.current) return;
     try {
-      
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(resultRef.current, {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
@@ -8535,6 +8535,7 @@ function ExonaApp() {
     if (!receiptRef.current) return;
     setIsExporting(true);
     try {
+      const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(receiptRef.current, {
         cacheBust: true,
         backgroundColor: '#ffffff',
@@ -31087,7 +31088,7 @@ function ExonaApp() {
           >
             <motion.div 
               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-sm flex flex-col gap-6"
+              className="w-full max-w-xs flex flex-col gap-6 mx-auto"
             >
               <div className="flex justify-between items-center px-4">
                 <h3 className="text-white font-bold text-sm uppercase tracking-[0.2em]">Preview Receipt</h3>
@@ -31100,95 +31101,128 @@ function ExonaApp() {
               </div>
 
               {/* The Receipt Captured Area */}
-              <div ref={receiptRef} className="bg-white p-8 rounded-3xl relative overflow-hidden print-content">
+              <div ref={receiptRef} className="bg-white p-5 sm:p-6 rounded-2xl relative overflow-hidden print-content border border-gray-100 shadow-lg select-none">
                 {/* Background Decor */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16" />
-                <div className="absolute bottom-0 left-0 w-48 h-48 bg-ink/5 rounded-full -ml-24 -mb-24" />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-full -mr-12 -mt-12" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-ink/5 rounded-full -ml-16 -mb-16" />
                 
                 <div className="relative z-10">
-                  <div className="flex flex-col items-center mb-10 text-center">
+                  <div className="flex flex-col items-center mb-6 text-center border-b border-dashed border-gray-200 pb-5">
                     {(() => {
                       const recordInstitution = schools.find(s => s.id === recordForReceipt?.schoolId) || 
-                                              places.find(p => p.id === recordForReceipt?.schoolId);
-                      const displayTitle = recordInstitution?.name || selectedSchool?.name || 'Institutional Record';
+                                              places.find(p => p.id === recordForReceipt?.schoolId) ||
+                                              selectedSchool;
+                      const displayTitle = recordInstitution?.name || 'Institutional Record';
                       return (
                         <>
-                          {(recordInstitution?.logo || selectedSchool?.logo) ? (
+                          {recordInstitution?.logo ? (
                             <img 
-                              src={recordInstitution?.logo || selectedSchool?.logo} 
-                              className="h-14 w-14 rounded-2xl object-cover mb-4" 
+                              src={recordInstitution?.logo} 
+                              className="h-12 w-12 rounded-xl object-cover mb-3" 
                               referrerPolicy="no-referrer" 
                               crossOrigin="anonymous" 
                             />
                           ) : (
-                            <div className="h-14 w-14 bg-ink text-white rounded-2xl flex items-center justify-center font-black text-2xl mb-4">
+                            <div className="h-12 w-12 bg-ink text-white rounded-xl flex items-center justify-center font-black text-xl mb-3">
                               {displayTitle.charAt(0)}
                             </div>
                           )}
-                          <h2 className="text-xl font-black text-ink tracking-tighter uppercase">{displayTitle}</h2>
-                          <p className="text-[8px] font-bold text-muted uppercase tracking-[0.5em] mt-1">Official Transaction Receipt</p>
+                          <h2 className="text-lg font-black text-ink tracking-tight uppercase leading-snug">{displayTitle}</h2>
+                          <p className="text-[8px] font-bold text-muted uppercase tracking-[0.3em] mt-1">Official Transaction Receipt</p>
                         </>
                       );
                     })()}
                   </div>
 
-                  <div className="flex justify-between items-end mb-8 pb-8 border-b border-gray-100">
+                  <div className="flex justify-between items-end mb-5 pb-5 border-b border-dashed border-gray-200">
                     <div>
-                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Receipt Number</p>
-                      <p className="text-sm font-mono font-bold text-ink">{getRecordAccountNumber(recordForReceipt.id)}</p>
+                      <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Receipt No</p>
+                      <p className="text-xs font-mono font-bold text-ink">{getRecordAccountNumber(recordForReceipt.id)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Date Issued</p>
-                      <p className="text-[11px] font-bold text-ink">{new Date().toLocaleDateString()}</p>
+                      <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Issued</p>
+                      <p className="text-[10px] font-bold text-ink">{new Date().toLocaleDateString()}</p>
                     </div>
                   </div>
 
-                  <div className="space-y-6 mb-12">
-                    <div>
-                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Institution</p>
-                      <p className="text-sm font-bold text-ink">
-                      {(schools.find(s => s.id === recordForReceipt?.schoolId) || 
-                        places.find(p => p.id === recordForReceipt?.schoolId))?.name || 
-                        selectedSchool?.name || 
-                        'Institutional Record'}
-                    </p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Student' : 'Subject'} Name</p>
-                      <p className="text-sm font-bold text-ink underline decoration-ink/10 underline-offset-4">{recordForReceipt.studentName}</p>
-                    </div>
+                  {(() => {
+                    const currentInst = schools.find(s => s.id === recordForReceipt?.schoolId) || 
+                                         places.find(p => p.id === recordForReceipt?.schoolId) || 
+                                         selectedSchool;
+                    const isSchoolType = currentInst?.type === 'school';
+                    const labels = getLabels(currentInst?.type);
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Student Class</p>
-                        <p className="text-xs font-bold text-accent uppercase tracking-wider">{recordForReceipt.studentClass || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Parent Contact</p>
-                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{recordForReceipt.parentNumber || 'N/A'}</p>
-                      </div>
-                    </div>
+                    return (
+                      <div className="space-y-4 mb-6 text-left">
+                        <div>
+                          <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Institution</p>
+                          <p className="text-xs font-bold text-ink leading-tight">
+                            {currentInst?.name || 'Institutional Record'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">
+                            {isSchoolType ? 'Student Name' : 'Member Name'}
+                          </p>
+                          <p className="text-xs font-bold text-ink underline decoration-ink/10 underline-offset-2">
+                            {recordForReceipt.studentName}
+                          </p>
+                        </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">{selectedSchool?.type === 'school' ? 'Class/Level' : 'Category'}</p>
-                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{recordForReceipt.category}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Payment For</p>
-                        <p className="text-xs font-bold text-ink uppercase tracking-wider">{(recordForReceipt as any).type || 'Main'}</p>
-                      </div>
-                    </div>
-                  </div>
+                        {isSchoolType ? (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Student Class</p>
+                              <p className="text-xs font-bold text-accent uppercase tracking-wider">
+                                {recordForReceipt.studentClass || 'N/A'}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Parent Contact</p>
+                              <p className="text-xs font-bold text-ink uppercase tracking-wider">
+                                {recordForReceipt.parentNumber || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          recordForReceipt.parentNumber && recordForReceipt.parentNumber !== 'N/A' && (
+                            <div>
+                              <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Contact Number</p>
+                              <p className="text-xs font-bold text-ink uppercase tracking-wider">
+                                {recordForReceipt.parentNumber}
+                              </p>
+                            </div>
+                          )
+                        )}
 
-                  <div className="bg-gray-50 rounded-2xl p-6 space-y-4 mb-10 border border-gray-100">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">
+                              {isSchoolType ? 'Class/Level' : 'Category'}
+                            </p>
+                            <p className="text-xs font-bold text-ink uppercase tracking-wider">
+                              {recordForReceipt.category}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-bold text-muted uppercase tracking-wider mb-0.5">Payment For</p>
+                            <p className="text-xs font-bold text-ink uppercase tracking-wider">
+                              {(recordForReceipt as any).type || 'Main'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  <div className="bg-gray-50 rounded-xl p-4 space-y-3 mb-6 border border-gray-100">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Amount Paid</span>
-                      <span className="text-lg font-mono font-bold text-green-600">{currencySymbol}{recordForReceipt.paid.toLocaleString()}</span>
+                      <span className="text-[9px] font-bold text-muted uppercase tracking-wider">Amount Paid</span>
+                      <span className="text-base font-mono font-bold text-green-600">{currencySymbol}{recordForReceipt.paid.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">Balance</span>
-                      <span className="text-sm font-mono font-bold text-red-600">{currencySymbol}{recordForReceipt.balance.toLocaleString()}</span>
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-200">
+                      <span className="text-[9px] font-bold text-muted uppercase tracking-wider">Balance</span>
+                      <span className="text-xs font-mono font-bold text-red-600">{currencySymbol}{recordForReceipt.balance.toLocaleString()}</span>
                     </div>
                   </div>
 
@@ -31196,13 +31230,13 @@ function ExonaApp() {
                     const inst = schools.find(s => s.id === recordForReceipt?.schoolId) || places.find(p => p.id === recordForReceipt?.schoolId) || selectedSchool;
                     if (inst?.bankAccounts && inst.bankAccounts.length > 0) {
                       return (
-                        <div className="mb-10 space-y-4">
-                          <h4 className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mb-2">Payment Details</h4>
+                        <div className="mb-6 space-y-3">
+                          <h4 className="text-[8px] font-bold text-muted uppercase tracking-[0.15em] mb-1.5">Payment Details</h4>
                           {inst.bankAccounts.map((account, idx) => (
-                            <div key={idx} className="bg-white border border-gray-100 rounded-xl p-4 flex flex-col gap-1">
-                              <p className="text-xs font-bold text-ink">{account.bankName}</p>
-                              <p className="text-sm font-mono font-bold tracking-widest text-indigo-600">{account.accountNumber}</p>
-                              <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{account.accountName}</p>
+                            <div key={idx} className="bg-white border border-gray-100 rounded-lg p-3 flex flex-col gap-0.5">
+                              <p className="text-[10px] font-bold text-ink">{account.bankName}</p>
+                              <p className="text-xs font-mono font-bold tracking-wider text-indigo-600">{account.accountNumber}</p>
+                              <p className="text-[8px] font-bold text-muted uppercase tracking-wider">{account.accountName}</p>
                             </div>
                           ))}
                         </div>
@@ -31211,15 +31245,15 @@ function ExonaApp() {
                     return null;
                   })()}
 
-                  <div className="flex flex-col items-center gap-4 pt-6 border-t border-dashed border-gray-200">
-                    <div className="flex items-center gap-2">
-                       <CheckCircle2 size={16} className="text-green-500" />
-                       <span className="text-[10px] font-bold text-ink uppercase tracking-widest">Verified Payment</span>
+                  <div className="flex flex-col items-center gap-3 pt-5 border-t border-dashed border-gray-200">
+                    <div className="flex items-center gap-1.5">
+                       <CheckCircle2 size={14} className="text-green-500" />
+                       <span className="text-[8px] font-bold text-ink uppercase tracking-widest">Verified Payment</span>
                     </div>
-                    <div className="h-10 w-full flex items-center justify-center opacity-30">
-                       <ShieldCheck size={24} />
+                    <div className="h-6 w-full flex items-center justify-center opacity-30">
+                       <ShieldCheck size={20} />
                     </div>
-                    <p className="text-[7px] text-center text-muted uppercase tracking-[0.2em] leading-relaxed">
+                    <p className="text-[7px] text-center text-muted uppercase tracking-[0.15em] leading-relaxed">
                       This receipt is electronically generated and verified. <br />
                       Valid for institutional records authentication.
                     </p>
