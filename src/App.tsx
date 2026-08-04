@@ -3583,6 +3583,15 @@ function getDynamicSvgIcon(appId: string): string {
   `.trim();
 }
 
+const getRecordAccountNumber = (recordId: string | undefined): string => {
+  if (!recordId) return '0000000000';
+  let result = '';
+  for(let i = 0; i < recordId.length; i++) {
+     result += recordId.charCodeAt(i).toString();
+  }
+  return result.substring(0, 10).padEnd(10, '0');
+};
+
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
@@ -15010,7 +15019,7 @@ function ExonaApp() {
         const filteredRecords = activeRecordsForSource
           .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
           .filter(r => !selectedSubFolder || r.subFolder === selectedSubFolder)
-          .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()))
+          .filter(r => r.studentName.toLowerCase().includes(recordSearch.toLowerCase()) || getRecordAccountNumber(r.id).includes(recordSearch.trim()))
           .sort((a, b) => {
             if (recordSort === 'alphabet') {
               return a.studentName.localeCompare(b.studentName);
@@ -15123,7 +15132,7 @@ function ExonaApp() {
                   <Search className="absolute left-2.5 text-muted pointer-events-none" size={12} />
                   <input 
                     type="text" 
-                    placeholder="Search..." 
+                    placeholder="Search by name or receipt number..." 
                     value={recordSearch}
                     onChange={(e) => setRecordSearch(e.target.value)}
                     className="pl-7 pr-3 py-1 bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 focus:border-accent rounded-lg focus:bg-white outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-24 sm:w-36 focus:w-32 sm:focus:w-44" 
@@ -31115,7 +31124,7 @@ function ExonaApp() {
                   <div className="flex justify-between items-end mb-8 pb-8 border-b border-gray-100">
                     <div>
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Receipt Number</p>
-                      <p className="text-sm font-mono font-bold text-ink">#REC-{Math.random().toString(36).substring(2, 9).toUpperCase()}</p>
+                      <p className="text-sm font-mono font-bold text-ink">{getRecordAccountNumber(recordForReceipt.id)}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1">Date Issued</p>
