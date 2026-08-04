@@ -4485,6 +4485,8 @@ function ExonaApp() {
   const [editingAttendance, setEditingAttendance] = useState<TeacherAttendance | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [recordForReceipt, setRecordForReceipt] = useState<Record | StudentRecord | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [recordForPayment, setRecordForPayment] = useState<Record | StudentRecord | null>(null);
   const [isAiScanning, setIsAiScanning] = useState(false);
   const [isScanReviewOpen, setIsScanReviewOpen] = useState(false);
   const [scannedData, setScannedData] = useState<any[]>([]);
@@ -15585,6 +15587,13 @@ function ExonaApp() {
                                 {(record.creatorUid === user?.uid || canManageInstitution(selectedSchool)) && (
                                   <>
                                     <button 
+                                      onClick={() => { setRecordForPayment(record); setIsPaymentModalOpen(true); }}
+                                      className="p-2 text-muted hover:text-green-600 transition-all"
+                                      title="Make Payment"
+                                    >
+                                      <CreditCard size={14} />
+                                    </button>
+                                    <button 
                                       onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
                                       className="p-2 text-muted hover:text-accent transition-all"
                                       title="Export Receipt"
@@ -15674,6 +15683,13 @@ function ExonaApp() {
                             </div>
                           </div>
                           <div className="flex gap-1">
+                            <button 
+                              onClick={() => { setRecordForPayment(record); setIsPaymentModalOpen(true); }}
+                              className="p-2 text-muted hover:text-green-600 transition-all"
+                              title="Make Payment"
+                            >
+                              <CreditCard size={14} />
+                            </button>
                             <button 
                               onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
                               className="p-2 text-muted hover:text-accent transition-all"
@@ -15877,13 +15893,22 @@ function ExonaApp() {
                             </div>
                             <span className="text-[10px] font-bold text-muted truncate max-w-[80px]">{record.addedBy || 'System'}</span>
                           </div>
-                          <button 
-                            onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent rounded-full text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
-                          >
-                            <FileText size={12} />
-                            Receipt
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => { setRecordForPayment(record); setIsPaymentModalOpen(true); }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-full text-[9px] font-black uppercase tracking-wider hover:bg-green-600 hover:text-white transition-all"
+                            >
+                              <CreditCard size={12} />
+                              Pay
+                            </button>
+                            <button 
+                              onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 text-accent rounded-full text-[9px] font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all"
+                            >
+                              <FileText size={12} />
+                              Receipt
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -31193,6 +31218,57 @@ function ExonaApp() {
                     <X size={18} />
                     Close
                   </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {isPaymentModalOpen && recordForPayment && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/60 backdrop-blur-md z-[300] flex items-center justify-center p-4 overflow-y-auto"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-sm rounded-3xl overflow-hidden shadow-2xl relative"
+            >
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-black text-ink text-lg">Make Payment</h3>
+                  <button 
+                    onClick={() => { setIsPaymentModalOpen(false); setRecordForPayment(null); }}
+                    className="p-2 text-muted hover:text-ink transition-colors rounded-full hover:bg-gray-100"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Total Debt</p>
+                  <p className="text-3xl font-black text-red-600 font-mono">{currencySymbol}{(recordForPayment.balance || 0).toLocaleString()}</p>
+                </div>
+
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest text-center mb-4">Select Payment Method</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button className="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                      <CreditCard size={24} className="text-blue-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-ink">PayPal</span>
+                    </button>
+                    <button className="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:border-cyan-500 hover:bg-cyan-50 transition-all group">
+                      <CreditCard size={24} className="text-cyan-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-ink">Paystack</span>
+                    </button>
+                    <button className="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:border-purple-500 hover:bg-purple-50 transition-all group">
+                      <CreditCard size={24} className="text-purple-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-ink">Monnify</span>
+                    </button>
+                    <button className="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-gray-200 rounded-2xl hover:border-emerald-500 hover:bg-emerald-50 transition-all group">
+                      <CreditCard size={24} className="text-emerald-500 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-bold text-ink">Opay</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>

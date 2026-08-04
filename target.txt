@@ -1,0 +1,7 @@
+                          </div>
+                          <div className="flex gap-1">
+                            <button 
+                              onClick={() => { setRecordForReceipt(record); setIsReceiptModalOpen(true); }}
+                              className="p-2 text-muted hover:text-accent transition-all"
+                            >
+                              <FileText size={14} />
