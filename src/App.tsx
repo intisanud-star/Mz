@@ -12779,20 +12779,20 @@ function ExonaApp() {
                           userDoc?.role === 'admin' || 
                           (latestSchool.administrativeViewers && latestSchool.administrativeViewers.includes(user?.uid || ''));
 
-    if (canAccessAdmin) {
-      if (recordStorageEngine !== 'sqlite_offline') {
-        const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
-        const unsubRecords = onSnapshot(q, (snap) => {
-          setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
-        }, (error) => {
-          console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
-          if (!error.message.includes('insufficient permissions')) {
-            handleFirestoreError(error, OperationType.LIST, 'studentRecords');
-          }
-        });
-        unsubs.push(unsubRecords);
-      }
+    if (recordStorageEngine !== 'sqlite_offline') {
+      const q = query(collection(db, 'studentRecords'), where('schoolId', '==', selectedSchool.id));
+      const unsubRecords = onSnapshot(q, (snap) => {
+        setRecords(snap.docs.map(d => ({ id: d.id, ...d.data() } as StudentRecord)));
+      }, (error) => {
+        console.error(`Error fetching ${labels.student.toLowerCase()} records:`, error);
+        if (!error.message.includes('insufficient permissions')) {
+          handleFirestoreError(error, OperationType.LIST, 'studentRecords');
+        }
+      });
+      unsubs.push(unsubRecords);
+    }
 
+    if (canAccessAdmin) {
       const unsubFinance = onSnapshot(doc(db, 'finance', selectedSchool.id), (snap) => {
         if (snap.exists()) setFinance(snap.data() as SchoolFinance);
       }, (error) => {
@@ -15015,11 +15015,22 @@ function ExonaApp() {
           );
         }
         const labels = getLabels(selectedSchool?.type);
+        const isManager = canManageInstitution(selectedSchool);
         const activeRecordsForSource = records.filter(r => r.schoolId === selectedSchool.id);
         const filteredRecords = activeRecordsForSource
           .filter(r => recordTab === 'all' ? (r.type === 'all' || r.type === 'general' || !r.type) : r.type === recordTab)
           .filter(r => !selectedSubFolder || r.subFolder === selectedSubFolder)
-          .filter(r => recordSearch.trim() === '' ? true : getRecordAccountNumber(r.id).includes(recordSearch.trim()))
+          .filter(r => {
+             const searchTrimmed = recordSearch.trim();
+             if (isManager) {
+               if (searchTrimmed === '') return true;
+               return r.studentName.toLowerCase().includes(searchTrimmed.toLowerCase()) || getRecordAccountNumber(r.id).includes(searchTrimmed);
+             } else {
+               if (searchTrimmed === '') return false;
+               // Non-managers MUST use exact 10-digit match for privacy
+               return getRecordAccountNumber(r.id) === searchTrimmed;
+             }
+          })
           .sort((a, b) => {
             if (recordSort === 'alphabet') {
               return a.studentName.localeCompare(b.studentName);
@@ -15132,7 +15143,7 @@ function ExonaApp() {
                   <Search className="absolute left-2.5 text-muted pointer-events-none" size={12} />
                   <input 
                     type="text" 
-                    placeholder="Search by receipt number..." 
+                    placeholder={canManageInstitution(selectedSchool) ? "Search name or receipt..." : "Enter 10-digit receipt number..."} 
                     value={recordSearch}
                     onChange={(e) => setRecordSearch(e.target.value)}
                     className="pl-7 pr-3 py-1 bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200 focus:border-accent rounded-lg focus:bg-white outline-none transition-all text-[11px] font-medium placeholder:text-gray-400 w-24 sm:w-36 focus:w-32 sm:focus:w-44" 
@@ -31217,7 +31228,7 @@ function ExonaApp() {
               </div>
 
               <div className="flex flex-col gap-3">
-                {/* <button 
+                <button 
                   onClick={handleDownloadReceipt}
                   disabled={isExporting}
                   className="w-full py-5 bg-ink text-white rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:scale-[1.02] transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
@@ -31228,7 +31239,7 @@ function ExonaApp() {
                     <Download size={18} />
                   )}
                   {isExporting ? 'Generating...' : 'Save as Image'}
-                </button> */}
+                </button>
                 <div className="grid grid-cols-2 gap-3">
                   <button 
                     onClick={handlePrint}
