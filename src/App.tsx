@@ -43,6 +43,12 @@ import { UserShopItemsTab } from './components/UserShopItemsTab';
 import { ShopIframeView } from './components/ShopIframeView';
 import { UserPostsTab } from './components/UserPostsTab';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts';
+// @ts-ignore
+import exonaHubHero from './assets/images/exona_hub_hero_1785782064429.jpg';
+// @ts-ignore
+import nexclassPromo from './assets/images/nexclass_promo_1785782078542.jpg';
+// @ts-ignore
+import brainbPromo from './assets/images/brainb_promo_1785782091969.jpg';
 
 declare global {
   interface Window {
@@ -23593,7 +23599,7 @@ function ExonaApp() {
             size: '18.4 MB',
             ageRating: 'Everyone 3+',
             developer: 'Exona Corporation',
-            promoImage: '/src/assets/images/exona_hub_hero_1785782064429.jpg',
+            promoImage: exonaHubHero,
             longDescription: 'ExonaApp is your central mobile gateway to the Exona ecosystem. Experience supercharged performance, seamless local notifications, offline-first data, and smooth navigation. Designed to keep you connected, informed, and productive on the go.',
             highlights: [
               { icon: Share2, text: 'Dynamic Social Stream & Feed' },
@@ -23624,7 +23630,7 @@ function ExonaApp() {
             size: '12.1 MB',
             ageRating: 'Everyone 3+',
             developer: 'Exona Academics Group',
-            promoImage: '/src/assets/images/nexclass_promo_1785782078542.jpg',
+            promoImage: nexclassPromo,
             longDescription: 'Nexclass is the ultimate academic portal. View academic records, track attendance in real time, examine term report cards, communicate with teachers, and coordinate class materials all from a clean, intuitive layout.',
             highlights: [
               { icon: ClipboardList, text: 'Real-Time Attendance Logs' },
@@ -23655,7 +23661,7 @@ function ExonaApp() {
             size: '15.7 MB',
             ageRating: 'Everyone 3+',
             developer: 'Exona Gamified Learning',
-            promoImage: '/src/assets/images/brainb_promo_1785782091969.jpg',
+            promoImage: brainbPromo,
             longDescription: 'BrainB is a high-octane live assessment and gamified battle system. Test your cognitive skills, join active multiplayer quiz matches, score points, climb the global school leaderboard, and earn rare champion badges!',
             highlights: [
               { icon: Gamepad2, text: 'Live Multiplayer Quiz Battles' },
@@ -23942,10 +23948,10 @@ function ExonaApp() {
                   
                   {/* Spotlight App Store Hero Banner */}
                   {hubSearchQuery === '' && hubSelectedCategory === 'All' && (
-                    <div className="relative rounded-3xl overflow-hidden bg-slate-900 shadow-xl border border-slate-800/20 aspect-[16/7] md:aspect-[21/8] min-h-[190px] group">
+                    <div className="relative rounded-3xl overflow-hidden bg-slate-900 shadow-xl border border-slate-800/20 w-full h-48 sm:h-56 md:h-64 lg:h-72 group">
                       {/* Generated Premium 3D Background */}
                       <img 
-                        src="/src/assets/images/exona_hub_hero_1785782064429.jpg" 
+                        src={exonaHubHero} 
                         alt="Exona Hub Banner" 
                         className="absolute inset-0 w-full h-full object-cover opacity-85 group-hover:scale-[1.01] transition-transform duration-700" 
                         referrerPolicy="no-referrer"
@@ -24261,7 +24267,7 @@ function ExonaApp() {
                 <div className="p-5 sm:p-7 md:p-9 max-w-5xl mx-auto w-full pb-32">
                   
                   {/* Promo image banner */}
-                  <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/50 shadow-xl aspect-[16/7] md:aspect-[21/8] mb-8">
+                  <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-200/50 shadow-xl w-full h-48 sm:h-56 md:h-64 lg:h-72 mb-8">
                     {/* Check if we have generated visual asset or default */}
                     {selectedApp.promoImage ? (
                       <img 
