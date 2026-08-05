@@ -15532,6 +15532,9 @@ function ExonaApp() {
                             This receipt is electronically generated and verified. <br />
                             Valid for institutional records authentication.
                           </p>
+                          <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col items-center">
+                            <span className="text-[9px] font-black text-ink uppercase tracking-[0.3em]">ExonaApp.com</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -31504,6 +31507,9 @@ function ExonaApp() {
                       This receipt is electronically generated and verified. <br />
                       Valid for institutional records authentication.
                     </p>
+                    <div className="mt-4 pt-3 border-t border-gray-100 flex flex-col items-center">
+                      <span className="text-[9px] font-black text-ink uppercase tracking-[0.3em]">ExonaApp.com</span>
+                    </div>
                   </div>
                 </div>
               </div>
