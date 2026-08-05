@@ -347,8 +347,8 @@ service cloud.firestore {
       allow create: if isOwner(userId) || userId.matches('^tg_.*');
       allow update: if isOwner(userId) || (
         isAuthenticated() && 
-        request.resource.data.diff(resource.data).affectedKeys().hasAny(['following', 'followers', 'pendingFollowers']) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'followers', 'pendingFollowers'])
+        request.resource.data.diff(resource.data).affectedKeys().hasAny(['following', 'followers', 'pendingFollowers', 'followingCount', 'followersCount']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['following', 'followers', 'pendingFollowers', 'followingCount', 'followersCount'])
       );
       allow delete: if isAdmin();
 
