@@ -3585,11 +3585,16 @@ function getDynamicSvgIcon(appId: string): string {
 
 const getRecordAccountNumber = (recordId: string | undefined): string => {
   if (!recordId) return '0000000000';
-  let result = '';
-  for(let i = 0; i < recordId.length; i++) {
-     result += recordId.charCodeAt(i).toString();
+  let hash1 = 5381;
+  let hash2 = 52711;
+  for (let i = 0; i < recordId.length; i++) {
+    const char = recordId.charCodeAt(i);
+    hash1 = ((hash1 << 5) + hash1) ^ char;
+    hash2 = ((hash2 << 5) + hash2) ^ (char * 31);
   }
-  return result.substring(0, 10).padEnd(10, '0');
+  const part1 = Math.abs(hash1 % 100000).toString().padStart(5, '0');
+  const part2 = Math.abs(hash2 % 100000).toString().padStart(5, '0');
+  return part1 + part2;
 };
 
 // --- MAIN DASHBOARD ---
@@ -15069,8 +15074,8 @@ function ExonaApp() {
         const totalBalance = filteredRecords.reduce((acc, r) => acc + (r.balance || 0), 0);
 
         const isSearchingReceipt = recordSearch.trim() !== '' && (
-          /^\d+$/.test(recordSearch.trim()) || 
-          filteredRecords.some(r => getRecordAccountNumber(r.id) === recordSearch.trim())
+          (!isManager && /^\d+$/.test(recordSearch.trim())) || 
+          (isManager && activeRecordsForSource.some(r => getRecordAccountNumber(r.id) === recordSearch.trim()))
         );
 
         if (!hasChosenView && filteredRecords.length > 0) {
