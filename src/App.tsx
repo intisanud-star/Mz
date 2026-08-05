@@ -22277,6 +22277,7 @@ function ExonaApp() {
         if (latestInst) inst = latestInst;
 
         const institutionPosts = posts.filter(p => p.schoolId === inst.id);
+        const institutionMedia = institutionPosts.filter(post => post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0) || post.mediaType === 'video' || post.mediaType === 'document');
         const isFollowing = userDoc?.following?.includes(inst.id);
         const canManage = canManageInstitution(inst);
         const instLabels = getLabels(inst.type);
@@ -22429,11 +22430,11 @@ function ExonaApp() {
                     <h3 className="text-sm font-extrabold uppercase tracking-wider text-ink">Shared Media</h3>
                   </div>
                   <span className="text-[11px] font-bold text-muted bg-gray-100 px-3 py-1 rounded-full">
-                    {institutionPosts.length} {institutionPosts.length === 1 ? 'item' : 'items'}
+                    {institutionMedia.length} {institutionMedia.length === 1 ? 'item' : 'items'}
                   </span>
                 </div>
 
-                {institutionPosts.length === 0 ? (
+                {institutionMedia.length === 0 ? (
                   <div className="py-20 text-center flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
                     <div className="h-16 w-16 bg-white rounded-full border border-gray-150 flex items-center justify-center text-muted mb-4 shadow-sm">
                       <Grid size={24} className="opacity-40" />
@@ -22447,7 +22448,7 @@ function ExonaApp() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
-                    {institutionPosts.map(post => {
+                    {institutionMedia.map(post => {
                         const hasImage = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
                         const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
                         const isMulti = post.mediaUrls && post.mediaUrls.length > 1;
