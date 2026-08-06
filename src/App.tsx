@@ -23119,13 +23119,6 @@ function ExonaApp() {
       }
       case 'chat': {
         if (!user) { setView('login'); return null; }
-        if (!activeChat) {
-          setTimeout(() => {
-            setSchoolFilter('all');
-            setView('feed');
-          }, 0);
-          return null;
-        }
         
         if (activeChat) {
           const currentChatId = activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_');
@@ -23871,6 +23864,7 @@ function ExonaApp() {
                 ) : (
                   recentChats.map(chat => {
                     const group = chat.isGroup ? chatGroups.find(g => g.id === chat.otherUid) : null;
+                    const inst = [...schools, ...places].find(i => i.id === chat.otherUid);
                     const otherUser = !chat.isGroup ? (connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null }) : null;
                     const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === (chat.isGroup ? chat.otherUid : user.uid) && m.status !== 'read').length;
 
@@ -23879,8 +23873,8 @@ function ExonaApp() {
                         key={chat.lastMessage.chatId}
                         onClick={() => setActiveChat({
                           uid: chat.otherUid,
-                          displayName: chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name),
-                          photoURL: chat.isGroup ? group?.photoURL : (otherUser?.photoURL || (otherUser as any)?.photo),
+                          displayName: chat.isGroup ? group?.name : (inst ? inst.name : (otherUser?.displayName || (otherUser as any)?.name)),
+                          photoURL: chat.isGroup ? group?.photoURL : (inst ? inst.photoURL : (otherUser?.photoURL || (otherUser as any)?.photo)),
                           isGroup: chat.isGroup
                         })}
                         className="w-full p-4 hover:bg-gray-50 transition-all text-left flex items-center gap-4 group"
@@ -23895,17 +23889,20 @@ function ExonaApp() {
                                </div>
                             )
                           ) : (
-                            (otherUser?.photoURL || (otherUser as any)?.photo) ? (
-                              <img src={otherUser?.photoURL || (otherUser as any)?.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                            (inst?.photoURL || otherUser?.photoURL || (otherUser as any)?.photo) ? (
+                              <img src={inst?.photoURL || otherUser?.photoURL || (otherUser as any)?.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                             ) : (
-                              <span className="text-muted text-xs font-bold">{(otherUser?.displayName || (otherUser as any)?.name)?.charAt(0)}</span>
+                              <span className="text-muted text-xs font-bold">{(inst ? inst.name : (otherUser?.displayName || (otherUser as any)?.name))?.charAt(0)}</span>
                             )
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-center mb-1">
-                            <h3 className="font-bold text-ink text-[15px] truncate">{chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name)}</h3>
-                            <span className="text-[10px] text-muted font-medium ml-2">
+                            <h3 className="font-bold text-ink text-[15px] truncate">
+                              {chat.isGroup ? group?.name : (inst ? inst.name : (otherUser?.displayName || (otherUser as any)?.name))}
+                              {inst && <Check size={14} className="inline-block ml-1 text-green-500" />}
+                            </h3>
+                            <span className="text-[10px] text-muted font-medium ml-2 shrink-0">
                               {formatTime(chat.lastMessage.timestamp)}
                             </span>
                           </div>
@@ -23921,8 +23918,18 @@ function ExonaApp() {
                                 {chat.lastMessage.text}
                               </p>
                             </div>
-                            {unreadCount > 0 && (
-                              <span className="h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-accent text-white text-[10px] font-bold rounded-full ml-2">
+                            {inst ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInstitutionClick(inst.id);
+                                }}
+                                className="ml-2 px-3.5 py-1 bg-[#2481CC] text-white text-[12px] font-bold rounded-full hover:bg-[#1E71B3] transition-colors shrink-0 active:scale-95"
+                              >
+                                Open
+                              </button>
+                            ) : unreadCount > 0 && (
+                              <span className="h-5 min-w-[20px] px-1.5 flex items-center justify-center bg-[#2481CC] text-white text-[10px] font-bold rounded-full ml-2 shrink-0">
                                 {unreadCount}
                               </span>
                             )}
