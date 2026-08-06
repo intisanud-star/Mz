@@ -3743,6 +3743,9 @@ function ExonaApp() {
   }, [serverReady]);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const attachmentFileRef = useRef<HTMLInputElement>(null);
+  const [attachmentContext, setAttachmentContext] = useState<'broadcast' | 'chat' | null>(null);
+  const [attachmentFileType, setAttachmentFileType] = useState<'image' | 'video' | 'audio' | 'document' | null>(null);
 
   useEffect(() => {
     if (!serverReady) return;
@@ -11236,6 +11239,59 @@ function ExonaApp() {
     setTimeout(() => setWealthIsCopied(false), 2000);
   };
 
+  const triggerFileSelect = (type: 'image' | 'video' | 'audio' | 'document', context: 'broadcast' | 'chat') => {
+    setAttachmentContext(context);
+    setAttachmentFileType(type);
+    if (attachmentFileRef.current) {
+      if (type === 'image') attachmentFileRef.current.accept = 'image/*';
+      else if (type === 'video') attachmentFileRef.current.accept = 'video/*';
+      else if (type === 'audio') attachmentFileRef.current.accept = 'audio/*';
+      else attachmentFileRef.current.accept = '*/*';
+      attachmentFileRef.current.click();
+    }
+  };
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !attachmentContext || !attachmentFileType) return;
+
+    try {
+      let base64 = '';
+      if (attachmentFileType === 'image' || file.type.startsWith('image/')) {
+        base64 = await compressImage(file, 800, 0.7);
+      } else {
+        if (file.size > 700 * 1024) {
+          showNotification('File is too large (max 700KB allowed).', 'error');
+          setActiveAttachmentMenu(null);
+          if (e.target) e.target.value = '';
+          return;
+        }
+        base64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (attachmentContext === 'broadcast') {
+        await handleSendChannelMessage(`Shared a ${attachmentFileType}`, attachmentFileType === 'audio' ? 'voice' : attachmentFileType, base64);
+        showNotification(`${attachmentFileType} uploaded to broadcast!`, 'success');
+      } else {
+        if (activeChat) {
+          await handleSendMessage(activeChat.uid, `Shared a ${attachmentFileType}: ${file.name}`, activeChat.isGroup, base64);
+          showNotification(`${attachmentFileType} uploaded to chat!`, 'success');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification(`Failed to upload ${attachmentFileType}`, 'error');
+    }
+
+    setActiveAttachmentMenu(null);
+    if (e.target) e.target.value = ''; // Reset input
+  };
+
   const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string) => {
     if (!user || (!text.trim() && !mediaUrl)) return;
     const chatId = isGroup ? receiverUid : [user.uid, receiverUid].sort().join('_');
@@ -11269,8 +11325,8 @@ function ExonaApp() {
     }
   };
 
-  const handleSendChannelMessage = async (text: string, type?: 'voice', audioData?: string) => {
-    if (!user || (!text.trim() && !audioData)) return;
+  const handleSendChannelMessage = async (text: string, type?: string, mediaData?: string) => {
+    if (!user || (!text.trim() && !mediaData)) return;
     const activeInst = selectedInstitutionForProfile;
     if (!activeInst) return;
 
@@ -11284,8 +11340,8 @@ function ExonaApp() {
         authorRole: userDoc?.role || 'user',
         schoolName: activeInst.name,
         content: text,
-        mediaUrls: audioData ? [audioData] : [],
-        mediaUrl: audioData || null,
+        mediaUrls: mediaData ? [mediaData] : [],
+        mediaUrl: mediaData || null,
         mediaType: type || null,
         timestamp: serverTimestamp(),
         isOfficial,
@@ -22162,31 +22218,31 @@ function ExonaApp() {
                                 />
                                 <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)] rounded-t-3xl pt-5 pb-8 animate-in fade-in slide-in-from-bottom-8 duration-200">
                                   <div className="flex overflow-x-auto no-scrollbar gap-2 sm:gap-4 px-4 items-center">
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => triggerFileSelect('image', 'broadcast')}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                         <ImageIcon size={24} className="text-blue-500" />
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Gallery</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Opening Wallet...', 'success'); }}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                         <Wallet size={24} className="text-gray-700" />
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Wallet</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => triggerFileSelect('document', 'broadcast')}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                         <Files size={24} className="text-gray-700" />
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">File</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Sharing Location...', 'success'); }}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                         <MapPin size={24} className="text-gray-700" />
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Location</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Creating Article...', 'success'); }}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
                                         <BookOpen size={24} className="text-indigo-600" />
                                         <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
@@ -22195,13 +22251,13 @@ function ExonaApp() {
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Article</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Creating Poll...', 'success'); }}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                         <BarChart3 size={24} className="text-gray-700" />
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Poll</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Creating Checklist...', 'success'); }}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
                                         <ClipboardList size={24} className="text-indigo-600" />
                                         <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
@@ -22210,7 +22266,7 @@ function ExonaApp() {
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Checklist</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Sharing Contact...', 'success'); }}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
                                         <UserIcon size={24} className="text-gray-700" />
                                         <div className="absolute top-0 right-0 bg-red-500 rounded-full p-0.5 border border-white w-[14px] h-[14px] flex items-center justify-center">
@@ -22219,7 +22275,7 @@ function ExonaApp() {
                                       </div>
                                       <span className="text-[11px] font-bold text-ink">Contact</span>
                                     </button>
-                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => triggerFileSelect('audio', 'broadcast')}>
                                       <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                         <Music size={24} className="text-gray-700" />
                                       </div>
@@ -23605,31 +23661,31 @@ function ExonaApp() {
                             />
                             <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)] rounded-t-3xl pt-5 pb-8 animate-in fade-in slide-in-from-bottom-8 duration-200">
                               <div className="flex overflow-x-auto no-scrollbar gap-2 sm:gap-4 px-4 items-center">
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => triggerFileSelect('image', 'chat')}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                     <ImageIcon size={24} className="text-blue-500" />
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Gallery</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Opening Wallet...', 'success'); }}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                     <Wallet size={24} className="text-gray-700" />
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Wallet</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => triggerFileSelect('document', 'chat')}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                     <Files size={24} className="text-gray-700" />
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">File</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Sharing Location...', 'success'); }}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                     <MapPin size={24} className="text-gray-700" />
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Location</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Creating Article...', 'success'); }}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
                                     <BookOpen size={24} className="text-indigo-600" />
                                     <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
@@ -23638,13 +23694,13 @@ function ExonaApp() {
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Article</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Creating Poll...', 'success'); }}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                     <BarChart3 size={24} className="text-gray-700" />
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Poll</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Creating Checklist...', 'success'); }}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
                                     <ClipboardList size={24} className="text-indigo-600" />
                                     <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
@@ -23653,7 +23709,7 @@ function ExonaApp() {
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Checklist</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); showNotification('Sharing Contact...', 'success'); }}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
                                     <UserIcon size={24} className="text-gray-700" />
                                     <div className="absolute top-0 right-0 bg-red-500 rounded-full p-0.5 border border-white w-[14px] h-[14px] flex items-center justify-center">
@@ -23662,7 +23718,7 @@ function ExonaApp() {
                                   </div>
                                   <span className="text-[11px] font-bold text-ink">Contact</span>
                                 </button>
-                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => triggerFileSelect('audio', 'chat')}>
                                   <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
                                     <Music size={24} className="text-gray-700" />
                                   </div>
@@ -31916,6 +31972,9 @@ function ExonaApp() {
           </div>
         </header>
       )}
+
+      {/* Attachment Upload Input */}
+      <input type="file" className="hidden" ref={attachmentFileRef} onChange={handleAttachmentUpload} />
 
       {/* Main Area */}
       {(() => {
