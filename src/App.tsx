@@ -15108,6 +15108,9 @@ function ExonaApp() {
                             <div className="flex items-center gap-1.5 text-[11px] font-bold">
                               <MessageCircle size={14} className="fill-white" /> {post.commentsCount || 0}
                             </div>
+                            <div className="text-[9px] font-semibold mt-2 opacity-80">
+                              {post.timestamp ? new Date(post.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date'}
+                            </div>
                           </div>
                         </div>
                       );
@@ -22621,14 +22624,19 @@ function ExonaApp() {
                             </div>
 
                             {/* Instagram hover statistical detail overlay */}
-                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center gap-4 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20">
-                              <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
-                                <Heart size={14} className="fill-white text-white" />
-                                <span>{post.likes || 0}</span>
+                            <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 z-20">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
+                                  <Heart size={14} className="fill-white text-white" />
+                                  <span>{post.likes || 0}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
+                                  <MessageCircle size={14} className="fill-white text-white" />
+                                  <span>{post.commentsCount || 0}</span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1.5 text-white text-[12px] font-extrabold">
-                                <MessageCircle size={14} className="fill-white text-white" />
-                                <span>{post.commentsCount || 0}</span>
+                              <div className="text-[9px] font-semibold mt-2 text-white opacity-80">
+                                {post.timestamp ? new Date(post.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date'}
                               </div>
                             </div>
                           </div>
@@ -28910,6 +28918,9 @@ function ExonaApp() {
                                 </div>
                                 <div className="flex items-center gap-1.5 text-[11px] font-bold">
                                   <MessageCircle size={14} className="fill-white" /> {post.commentsCount || 0}
+                                </div>
+                                <div className="text-[9px] font-semibold mt-2 opacity-80">
+                                  {post.timestamp ? new Date(post.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown date'}
                                 </div>
                               </div>
                             </div>
