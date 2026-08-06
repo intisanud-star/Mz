@@ -22151,77 +22151,79 @@ function ExonaApp() {
                             >
                               <Paperclip size={18} />
                             </button>
-
                             {activeAttachmentMenu === 'broadcast' && (
                               <>
                                 <div 
-                                  className="fixed inset-0 z-40" 
+                                  className="fixed inset-0 z-40 bg-black/5" 
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setActiveAttachmentMenu(null);
                                   }}
                                 />
-                                <div className="absolute bottom-[40px] right-0 z-50 bg-white border border-gray-150 rounded-2xl shadow-xl p-3 w-[260px] animate-in fade-in slide-in-from-bottom-2 duration-150">
-                                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2.5 px-1 text-left">Attachment Tools</p>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {/* Option 1: Exona Air Drop */}
-                                    <button
-                                      onClick={() => {
-                                        setActiveAttachmentMenu(null);
-                                        launchWorkspaceTool('file-share');
-                                        showNotification("Launching Exona Drop...", "success");
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                    >
-                                      <div className="h-10 w-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                        <Radio size={18} />
+                                <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)] rounded-t-3xl pt-5 pb-8 animate-in fade-in slide-in-from-bottom-8 duration-200">
+                                  <div className="flex overflow-x-auto no-scrollbar gap-2 sm:gap-4 px-4 items-center">
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                        <ImageIcon size={24} className="text-blue-500" />
                                       </div>
-                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">Exona Air Drop</span>
+                                      <span className="text-[11px] font-bold text-ink">Gallery</span>
                                     </button>
-
-                                    {/* Option 2: PDF Studio */}
-                                    <button
-                                      onClick={() => {
-                                        setActiveAttachmentMenu(null);
-                                        launchWorkspaceTool('pdf');
-                                        showNotification("Launching PDF Studio...", "success");
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                    >
-                                      <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                        <FileJson size={18} />
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                        <Wallet size={24} className="text-gray-700" />
                                       </div>
-                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">PDF Studio</span>
+                                      <span className="text-[11px] font-bold text-ink">Wallet</span>
                                     </button>
-
-                                    {/* Option 3: Cloud Storage */}
-                                    <button
-                                      onClick={() => {
-                                        setActiveAttachmentMenu(null);
-                                        launchWorkspaceTool('storage');
-                                        showNotification("Launching Cloud Storage...", "success");
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                    >
-                                      <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                        <HardDrive size={18} />
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                        <Files size={24} className="text-gray-700" />
                                       </div>
-                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">Cloud Storage</span>
+                                      <span className="text-[11px] font-bold text-ink">File</span>
                                     </button>
-
-                                    {/* Option 4: E-Test Portal */}
-                                    <button
-                                      onClick={() => {
-                                        setActiveAttachmentMenu(null);
-                                        launchWorkspaceTool('e-test');
-                                        showNotification("Launching E-Test Portal...", "success");
-                                      }}
-                                      className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                    >
-                                      <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                        <BadgeCheck size={18} />
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                        <MapPin size={24} className="text-gray-700" />
                                       </div>
-                                      <span className="text-[10px] font-bold text-gray-700 leading-tight">e Test Portal</span>
+                                      <span className="text-[11px] font-bold text-ink">Location</span>
+                                    </button>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
+                                        <BookOpen size={24} className="text-indigo-600" />
+                                        <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
+                                          <Star size={10} className="fill-current" />
+                                        </div>
+                                      </div>
+                                      <span className="text-[11px] font-bold text-ink">Article</span>
+                                    </button>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                        <BarChart3 size={24} className="text-gray-700" />
+                                      </div>
+                                      <span className="text-[11px] font-bold text-ink">Poll</span>
+                                    </button>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
+                                        <ClipboardList size={24} className="text-indigo-600" />
+                                        <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
+                                          <Star size={10} className="fill-current" />
+                                        </div>
+                                      </div>
+                                      <span className="text-[11px] font-bold text-ink">Checklist</span>
+                                    </button>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
+                                        <UserIcon size={24} className="text-gray-700" />
+                                        <div className="absolute top-0 right-0 bg-red-500 rounded-full p-0.5 border border-white w-[14px] h-[14px] flex items-center justify-center">
+                                          <span className="text-[8px] font-bold text-white leading-none">!</span>
+                                        </div>
+                                      </div>
+                                      <span className="text-[11px] font-bold text-ink">Contact</span>
+                                    </button>
+                                    <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                      <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                        <Music size={24} className="text-gray-700" />
+                                      </div>
+                                      <span className="text-[11px] font-bold text-ink">Music</span>
                                     </button>
                                   </div>
                                 </div>
@@ -23595,73 +23597,76 @@ function ExonaApp() {
                         {activeAttachmentMenu === 'chat' && (
                           <>
                             <div 
-                              className="fixed inset-0 z-40" 
+                              className="fixed inset-0 z-40 bg-black/5" 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setActiveAttachmentMenu(null);
                               }}
                             />
-                            <div className="absolute bottom-[40px] right-0 z-50 bg-white border border-gray-150 rounded-2xl shadow-xl p-3 w-[260px] animate-in fade-in slide-in-from-bottom-2 duration-150">
-                              <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2.5 px-1 text-left">Attachment Tools</p>
-                              <div className="grid grid-cols-2 gap-2">
-                                {/* Option 1: Exona Air Drop */}
-                                <button
-                                  onClick={() => {
-                                    setActiveAttachmentMenu(null);
-                                    launchWorkspaceTool('file-share');
-                                    showNotification("Launching Exona Drop...", "success");
-                                  }}
-                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                >
-                                  <div className="h-10 w-10 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                    <Radio size={18} />
+                            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white shadow-[0_-10px_40px_rgba(0,0,0,0.05)] rounded-t-3xl pt-5 pb-8 animate-in fade-in slide-in-from-bottom-8 duration-200">
+                              <div className="flex overflow-x-auto no-scrollbar gap-2 sm:gap-4 px-4 items-center">
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                    <ImageIcon size={24} className="text-blue-500" />
                                   </div>
-                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">Exona Air Drop</span>
+                                  <span className="text-[11px] font-bold text-ink">Gallery</span>
                                 </button>
-
-                                {/* Option 2: PDF Studio */}
-                                <button
-                                  onClick={() => {
-                                    setActiveAttachmentMenu(null);
-                                    launchWorkspaceTool('pdf');
-                                    showNotification("Launching PDF Studio...", "success");
-                                  }}
-                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                >
-                                  <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                    <FileJson size={18} />
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                    <Wallet size={24} className="text-gray-700" />
                                   </div>
-                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">PDF Studio</span>
+                                  <span className="text-[11px] font-bold text-ink">Wallet</span>
                                 </button>
-
-                                {/* Option 3: Cloud Storage */}
-                                <button
-                                  onClick={() => {
-                                    setActiveAttachmentMenu(null);
-                                    launchWorkspaceTool('storage');
-                                    showNotification("Launching Cloud Storage...", "success");
-                                  }}
-                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                >
-                                  <div className="h-10 w-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                    <HardDrive size={18} />
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                    <Files size={24} className="text-gray-700" />
                                   </div>
-                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">Cloud Storage</span>
+                                  <span className="text-[11px] font-bold text-ink">File</span>
                                 </button>
-
-                                {/* Option 4: E-Test Portal */}
-                                <button
-                                  onClick={() => {
-                                    setActiveAttachmentMenu(null);
-                                    launchWorkspaceTool('e-test');
-                                    showNotification("Launching E-Test Portal...", "success");
-                                  }}
-                                  className="flex flex-col items-center justify-center p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all text-center group cursor-pointer"
-                                >
-                                  <div className="h-10 w-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-1 group-hover:scale-105 transition-transform shrink-0">
-                                    <BadgeCheck size={18} />
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                    <MapPin size={24} className="text-gray-700" />
                                   </div>
-                                  <span className="text-[10px] font-bold text-gray-700 leading-tight">e Test Portal</span>
+                                  <span className="text-[11px] font-bold text-ink">Location</span>
+                                </button>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
+                                    <BookOpen size={24} className="text-indigo-600" />
+                                    <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
+                                      <Star size={10} className="fill-current" />
+                                    </div>
+                                  </div>
+                                  <span className="text-[11px] font-bold text-ink">Article</span>
+                                </button>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                    <BarChart3 size={24} className="text-gray-700" />
+                                  </div>
+                                  <span className="text-[11px] font-bold text-ink">Poll</span>
+                                </button>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
+                                    <ClipboardList size={24} className="text-indigo-600" />
+                                    <div className="absolute top-0 right-0 bg-indigo-100 text-indigo-600 rounded-full p-0.5 border border-white">
+                                      <Star size={10} className="fill-current" />
+                                    </div>
+                                  </div>
+                                  <span className="text-[11px] font-bold text-ink">Checklist</span>
+                                </button>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors relative">
+                                    <UserIcon size={24} className="text-gray-700" />
+                                    <div className="absolute top-0 right-0 bg-red-500 rounded-full p-0.5 border border-white w-[14px] h-[14px] flex items-center justify-center">
+                                      <span className="text-[8px] font-bold text-white leading-none">!</span>
+                                    </div>
+                                  </div>
+                                  <span className="text-[11px] font-bold text-ink">Contact</span>
+                                </button>
+                                <button className="flex flex-col items-center justify-center min-w-[70px] group cursor-pointer" onClick={() => { setActiveAttachmentMenu(null); }}>
+                                  <div className="h-[52px] w-[52px] rounded-full border border-gray-150 bg-white flex items-center justify-center mb-2 group-hover:bg-slate-50 transition-colors">
+                                    <Music size={24} className="text-gray-700" />
+                                  </div>
+                                  <span className="text-[11px] font-bold text-ink">Music</span>
                                 </button>
                               </div>
                             </div>
