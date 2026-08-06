@@ -14959,7 +14959,8 @@ function ExonaApp() {
       }
       case 'user-profile': {
         if (!selectedUserProfile) { setView('feed'); return null; }
-        const profilePosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
+        const allUserPosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
+        const profilePosts = allUserPosts.filter(post => post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0) || post.mediaType === 'video' || post.mediaType === 'document' || post.mediaType === 'audio');
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
             {/* Top Bar with Back Button */}
@@ -22451,7 +22452,7 @@ function ExonaApp() {
                 </div>
                 <div className="p-4 bg-gray-50 rounded-2xl">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Posts</p>
-                  <p className="text-xl font-black text-ink">{institutionPosts.length.toLocaleString()}</p>
+                  <p className="text-xl font-black text-ink">{institutionMedia.length.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -28627,7 +28628,7 @@ function ExonaApp() {
                 {/* Profile Stats Row */}
                 <div className="flex items-center gap-8 mb-6">
                   <div className="flex flex-col items-center">
-                    <p className="text-sm font-black text-ink">{posts.filter(p => p.authorUid === user.uid).length}</p>
+                    <p className="text-sm font-black text-ink">{posts.filter(p => p.authorUid === user.uid && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'document' || p.mediaType === 'audio')).length}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
                   </div>
                   <div className="flex flex-col items-center cursor-pointer">
@@ -28782,7 +28783,7 @@ function ExonaApp() {
 
                 <div className="flex flex-col mt-4">
                   <h3 className="text-sm font-black text-ink mb-4">Posts</h3>
-                  {posts.filter(p => p.authorUid === user.uid).map(post => (
+                  {posts.filter(p => p.authorUid === user.uid && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'document' || p.mediaType === 'audio')).map(post => (
                     <FeedPost 
                       key={post.id} 
                       post={post} 
