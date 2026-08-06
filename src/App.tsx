@@ -14960,7 +14960,10 @@ function ExonaApp() {
       case 'user-profile': {
         if (!selectedUserProfile) { setView('feed'); return null; }
         const allUserPosts = posts.filter(p => p.authorUid === selectedUserProfile.uid);
-        const profilePosts = allUserPosts.filter(post => post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0) || post.mediaType === 'video' || post.mediaType === 'document' || post.mediaType === 'audio');
+        const profilePosts = allUserPosts.filter(post => {
+          if (post.mediaType === 'document' || post.mediaType === 'audio' || post.mediaType === 'voice') return false;
+          return post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0) || post.mediaType === 'video' || post.mediaType === 'image';
+        });
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
             {/* Top Bar with Back Button */}
@@ -15033,27 +15036,82 @@ function ExonaApp() {
             </div>
 
             <div className="flex flex-col mt-4">
-              <h3 className="text-sm font-black text-ink mb-4">Posts</h3>
-              {profilePosts.map(post => (
-                <FeedPost 
-                  key={post.id} 
-                  post={post} 
-                  onUserClick={handleUserClick}
-                  onInstitutionClick={handleInstitutionClick}
-                  onLike={handleLikePost}
-                  onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                  onMessage={handleMessageAuthor}
-                  onReshare={handleResharePost}
-                  onForward={handleForwardPost}
-                  onEdit={handleEditPost}
-                  onDelete={onDeletePostClick}
-                  currentUserId={user?.uid}
-                  canManage={userDoc?.role === 'admin'}
-                />
-              ))}
-              {profilePosts.length === 0 && (
-                <div className="py-20 text-center text-muted">
-                  No posts to display.
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-black text-ink">Posts</h3>
+                <span className="text-[11px] font-bold text-muted bg-gray-100 px-3 py-1 rounded-full">
+                  {profilePosts.length} {profilePosts.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+              
+              {profilePosts.length === 0 ? (
+                <div className="py-20 text-center flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                  <div className="h-16 w-16 bg-white rounded-full border border-gray-150 flex items-center justify-center text-muted mb-4 shadow-sm">
+                    <Grid size={24} className="opacity-40" />
+                  </div>
+                  <h4 className="text-base font-bold text-ink mb-1">
+                    No Media Yet
+                  </h4>
+                  <p className="text-[12px] text-muted max-w-xs leading-normal">
+                    When photos or videos are shared, they will appear right here.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
+                  {profilePosts.map(post => {
+                      const hasImage = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
+                      const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                      const isMulti = post.mediaUrls && post.mediaUrls.length > 1;
+                      return (
+                        <div 
+                          key={post.id} 
+                          className="relative aspect-square group cursor-pointer overflow-hidden bg-gray-100 rounded-lg md:rounded-2xl shadow-sm transition-transform active:scale-[0.98] select-none"
+                          onClick={() => setSelectedPostInGrid(post)}
+                        >
+                          {/* Grid Cell content */}
+                          {hasImage ? (
+                            isVideo ? (
+                              <video 
+                                src={post.mediaUrls?.[0] || post.mediaUrl}
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                muted
+                                playsInline
+                              />
+                            ) : (
+                              <img 
+                                src={post.mediaUrls?.[0] || post.mediaUrl}
+                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                referrerPolicy="no-referrer"
+                                alt="Post media"
+                              />
+                            )
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center bg-gray-200 text-muted">
+                              <ImageIcon size={24} />
+                            </div>
+                          )}
+                          {/* Badge Indicators for Multi-Images or Videos */}
+                          {isMulti && !isVideo && (
+                            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                              <Layers size={11} className="text-white" />
+                            </div>
+                          )}
+                          {isVideo && (
+                            <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                              <Play size={11} className="text-white fill-white" />
+                            </div>
+                          )}
+                          
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white z-10 gap-2">
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                              <Heart size={14} className="fill-white" /> {post.likes || 0}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                              <MessageCircle size={14} className="fill-white" /> {post.commentsCount || 0}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                  })}
                 </div>
               )}
             </div>
@@ -28628,7 +28686,7 @@ function ExonaApp() {
                 {/* Profile Stats Row */}
                 <div className="flex items-center gap-8 mb-6">
                   <div className="flex flex-col items-center">
-                    <p className="text-sm font-black text-ink">{posts.filter(p => p.authorUid === user.uid && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'document' || p.mediaType === 'audio')).length}</p>
+                    <p className="text-sm font-black text-ink">{posts.filter(p => p.authorUid === user.uid && (p.mediaType !== 'document' && p.mediaType !== 'audio' && p.mediaType !== 'voice') && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'image')).length}</p>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
                   </div>
                   <div className="flex flex-col items-center cursor-pointer">
@@ -28782,27 +28840,81 @@ function ExonaApp() {
                 </div>
 
                 <div className="flex flex-col mt-4">
-                  <h3 className="text-sm font-black text-ink mb-4">Posts</h3>
-                  {posts.filter(p => p.authorUid === user.uid && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'document' || p.mediaType === 'audio')).map(post => (
-                    <FeedPost 
-                      key={post.id} 
-                      post={post} 
-                      onUserClick={handleUserClick}
-                      onInstitutionClick={handleInstitutionClick}
-                      onLike={handleLikePost}
-                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
-                      onMessage={handleMessageAuthor}
-                      onReshare={handleResharePost}
-                      onForward={handleForwardPost}
-                      onEdit={handleEditPost}
-                      onDelete={onDeletePostClick}
-                      currentUserId={user?.uid}
-                      canManage={true}
-                    />
-                  ))}
-                  {posts.filter(p => p.authorUid === user.uid).length === 0 && (
-                    <div className="py-20 text-center text-muted">
-                      No posts to display.
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-black text-ink">Posts</h3>
+                    <span className="text-[11px] font-bold text-muted bg-gray-100 px-3 py-1 rounded-full">
+                      {posts.filter(p => p.authorUid === user.uid && (p.mediaType !== 'document' && p.mediaType !== 'audio' && p.mediaType !== 'voice') && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'image')).length} items
+                    </span>
+                  </div>
+                  
+                  {posts.filter(p => p.authorUid === user.uid && (p.mediaType !== 'document' && p.mediaType !== 'audio' && p.mediaType !== 'voice') && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'image')).length === 0 ? (
+                    <div className="py-20 text-center flex flex-col items-center justify-center bg-gray-50/50 rounded-3xl border border-dashed border-gray-200">
+                      <div className="h-16 w-16 bg-white rounded-full border border-gray-150 flex items-center justify-center text-muted mb-4 shadow-sm">
+                        <Grid size={24} className="opacity-40" />
+                      </div>
+                      <h4 className="text-base font-bold text-ink mb-1">
+                        No Media Yet
+                      </h4>
+                      <p className="text-[12px] text-muted max-w-xs leading-normal">
+                        When photos or videos are shared, they will appear right here.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5 md:gap-3 py-2">
+                      {posts.filter(p => p.authorUid === user.uid && (p.mediaType !== 'document' && p.mediaType !== 'audio' && p.mediaType !== 'voice') && (p.mediaUrl || (p.mediaUrls && p.mediaUrls.length > 0) || p.mediaType === 'video' || p.mediaType === 'image')).map(post => {
+                          const hasImage = post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0);
+                          const isVideo = post.mediaType === 'video' || post.mediaUrl?.includes('.mp4') || post.mediaUrls?.some((u: any) => u?.includes('.mp4'));
+                          const isMulti = post.mediaUrls && post.mediaUrls.length > 1;
+                          return (
+                            <div 
+                              key={post.id} 
+                              className="relative aspect-square group cursor-pointer overflow-hidden bg-gray-100 rounded-lg md:rounded-2xl shadow-sm transition-transform active:scale-[0.98] select-none"
+                              onClick={() => setSelectedPostInGrid(post)}
+                            >
+                              {hasImage ? (
+                                isVideo ? (
+                                  <video 
+                                    src={post.mediaUrls?.[0] || post.mediaUrl}
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                    muted
+                                    playsInline
+                                  />
+                                ) : (
+                                  <img 
+                                    src={post.mediaUrls?.[0] || post.mediaUrl}
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                                    referrerPolicy="no-referrer"
+                                    alt="Post media"
+                                  />
+                                )
+                              ) : (
+                                <div className="h-full w-full flex items-center justify-center bg-gray-200 text-muted">
+                                  <ImageIcon size={24} />
+                                </div>
+                              )}
+                              
+                              {isMulti && !isVideo && (
+                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                                  <Layers size={11} className="text-white" />
+                                </div>
+                              )}
+                              {isVideo && (
+                                <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-md shadow z-10 opacity-90">
+                                  <Play size={11} className="text-white fill-white" />
+                                </div>
+                              )}
+                              
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white z-10 gap-2">
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                                  <Heart size={14} className="fill-white" /> {post.likes || 0}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                                  <MessageCircle size={14} className="fill-white" /> {post.commentsCount || 0}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                      })}
                     </div>
                   )}
                 </div>
