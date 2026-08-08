@@ -23509,40 +23509,56 @@ function ExonaApp() {
                             )}
 
                             {msg.mediaType === 'voice' ? (
-                              <div className="flex items-center gap-3 min-w-[150px]">
-                                <button 
-                                  onClick={() => {
-                                    if (activeVoiceMessage === msg.id) {
-                                      setActiveVoiceMessage(null);
-                                      (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.pause();
-                                    } else {
-                                      setActiveVoiceMessage(msg.id);
-                                      const audioEl = document.getElementById(`audio-${msg.id}`) as HTMLAudioElement;
-                                      if (audioEl) {
-                                        audioEl.play().catch(e => console.warn('Audio play failed:', e));
+                              <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center gap-3 min-w-[150px]">
+                                  <button 
+                                    onClick={() => {
+                                      if (activeVoiceMessage === msg.id) {
+                                        setActiveVoiceMessage(null);
+                                        (document.getElementById(`audio-${msg.id}`) as HTMLAudioElement)?.pause();
+                                      } else {
+                                        setActiveVoiceMessage(msg.id);
+                                        const audioEl = document.getElementById(`audio-${msg.id}`) as HTMLAudioElement;
+                                        if (audioEl) {
+                                          audioEl.play().catch(e => console.warn('Audio play failed:', e));
+                                        }
                                       }
-                                    }
-                                  }}
-                                  className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${isSelf ? 'bg-green-600/10 hover:bg-green-600/20 text-green-700' : 'bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600'}`}
-                                >
-                                  {activeVoiceMessage === msg.id ? <Pause size={18} /> : <Play size={18} />}
-                                </button>
-                                <div className="flex-1">
-                                  <div className="h-1 w-full bg-current opacity-20 rounded-full overflow-hidden">
-                                     <motion.div 
-                                        animate={activeVoiceMessage === msg.id ? { x: ['0%', '100%'] } : { x: '0%' }}
-                                        transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
-                                        className="h-full w-1/3 bg-current opacity-60" 
-                                      />
+                                    }}
+                                    className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${isSelf ? 'bg-green-600/10 hover:bg-green-600/20 text-green-700' : 'bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600'}`}
+                                  >
+                                    {activeVoiceMessage === msg.id ? <Pause size={18} /> : <Play size={18} />}
+                                  </button>
+                                  <div className="flex-1">
+                                    <div className="h-1 w-full bg-current opacity-20 rounded-full overflow-hidden">
+                                       <motion.div 
+                                          animate={activeVoiceMessage === msg.id ? { x: ['0%', '100%'] } : { x: '0%' }}
+                                          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                                          className="h-full w-1/3 bg-current opacity-60" 
+                                        />
+                                    </div>
+                                    <p className="text-[9px] mt-1 opacity-60 font-black uppercase tracking-widest leading-none">Voice Memo</p>
                                   </div>
-                                  <p className="text-[9px] mt-1 opacity-60 font-black uppercase tracking-widest leading-none">Voice Memo</p>
+                                  <audio 
+                                    id={`audio-${msg.id}`} 
+                                    src={msg.mediaUrl} 
+                                    onEnded={() => setActiveVoiceMessage(null)}
+                                    className="hidden" 
+                                  />
                                 </div>
-                                <audio 
-                                  id={`audio-${msg.id}`} 
-                                  src={msg.mediaUrl} 
-                                  onEnded={() => setActiveVoiceMessage(null)}
-                                  className="hidden" 
-                                />
+                                <div className="flex items-center gap-1 opacity-70 justify-end text-[9px] font-bold text-muted/65">
+                                  <span className="font-mono">{formatTime(msg.timestamp)}</span>
+                                  {isSelf && (
+                                    <span className="flex items-center shrink-0">
+                                      {(!msg.status || msg.status === 'sent') ? (
+                                        <Check size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Server" />
+                                      ) : msg.status === 'delivered' ? (
+                                        <CheckCheck size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Recipient" />
+                                      ) : (
+                                        <CheckCheck size={12} strokeWidth={3.5} className="text-blue-500 filter drop-shadow-[0_0_1px_rgba(59,130,246,0.3)]" title="Opened" />
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             ) : editingMessageId === msg.id ? (
                               <div className="flex flex-col gap-2 min-w-[200px]">
@@ -23564,8 +23580,14 @@ function ExonaApp() {
                                   {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
                                   <span className="font-mono">{formatTime(msg.timestamp)}</span>
                                   {isSelf && (
-                                    <span className={msg.status === 'read' ? 'text-blue-500' : 'text-slate-400'}>
-                                      {msg.status === 'sent' ? <Check size={11} /> : <CheckCheck size={11} />}
+                                    <span className="flex items-center shrink-0">
+                                      {(!msg.status || msg.status === 'sent') ? (
+                                        <Check size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Server" />
+                                      ) : msg.status === 'delivered' ? (
+                                        <CheckCheck size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Recipient" />
+                                      ) : (
+                                        <CheckCheck size={12} strokeWidth={3.5} className="text-blue-500 filter drop-shadow-[0_0_1px_rgba(59,130,246,0.3)]" title="Opened" />
+                                      )}
                                     </span>
                                   )}
                                 </div>
