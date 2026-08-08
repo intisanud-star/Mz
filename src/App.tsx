@@ -19760,18 +19760,31 @@ function ExonaApp() {
                         {(!selectedClassroom.stream || selectedClassroom.stream.length === 0) ? (
                           <p className="text-xs text-muted font-bold py-10 text-center">No announcements published on stream yet.</p>
                         ) : (
-                          [...selectedClassroom.stream].reverse().map((msg) => (
-                            <div key={msg.id} className="bg-white border border-gray-100 rounded-[2rem] p-6">
-                              <div className="flex items-center gap-3 mb-3">
-                                <img src={msg.authorPhoto} className="h-9 w-9 rounded-full object-cover" referrerPolicy="no-referrer" />
-                                <div>
-                                  <h4 className="text-xs font-black text-ink">{msg.authorName}</h4>
-                                  <span className="text-[9px] text-muted font-mono">{msg.timestamp ? new Date(msg.timestamp).toLocaleString() : ""}</span>
+                          [...selectedClassroom.stream].reverse().map((msg) => {
+                            const isSelf = msg.authorUid === user?.uid;
+                            return (
+                              <div key={msg.id} className={`flex w-full ${isSelf ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`relative group max-w-[85%] flex items-end gap-2 ${isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
+                                  {!isSelf && (
+                                    <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-end mb-1">
+                                      <img src={msg.authorPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                    </div>
+                                  )}
+                                  <div className={`p-4 rounded-2xl shadow-sm text-sm border ${
+                                    isSelf 
+                                      ? 'bg-[#effdde] text-ink rounded-br-none border-green-200/40' 
+                                      : 'bg-white text-ink rounded-bl-none border-gray-100'
+                                  }`}>
+                                    {!isSelf && <h4 className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">{msg.authorName}</h4>}
+                                    <p className="text-xs text-ink whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                                    <span className={`text-[9px] text-muted font-mono block mt-1 ${isSelf ? 'text-right' : 'text-left'}`}>
+                                      {msg.timestamp ? new Date(msg.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit' }) : ""}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
-                              <p className="text-xs text-ink whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                            </div>
-                          ))
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -23512,7 +23525,7 @@ function ExonaApp() {
                   </div>
                 ) : (
                   chatMessages.map((msg) => {
-                    const isSelf = msg.senderUid === user.uid;
+                    const isSelf = msg.senderUid === user?.uid;
                     return (
                       <div key={msg.id} className={`flex w-full ${isSelf ? 'justify-end' : 'justify-start'}`}>
                         <div className="relative group max-w-[85%] flex items-end gap-2">
@@ -33640,7 +33653,7 @@ function ExonaApp() {
                           key={i}
                           initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className={`flex gap-4 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                          className={`flex w-full gap-4 ${msg.sender === 'user' ? 'justify-end flex-row-reverse' : 'justify-start flex-row'}`}
                         >
                           {/* Avatar icon */}
                           <div className="shrink-0">
