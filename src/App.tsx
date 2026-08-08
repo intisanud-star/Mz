@@ -11279,6 +11279,8 @@ function ExonaApp() {
     try {
       await addDoc(collection(db, 'messages'), {
         senderUid: user.uid,
+        senderName: user.displayName || 'User',
+        senderPhoto: user.photoURL || '',
         receiverUid: isGroup ? null : (receiverUid || null),
         participants: isGroup ? (groupData?.members || [user.uid]) : [user.uid, receiverUid].filter(u => u),
         text: (text || '').trim().slice(0, 5000),
@@ -11288,7 +11290,11 @@ function ExonaApp() {
         isGroup: !!isGroup,
         mediaUrl: mediaUrl || null,
         mediaType: mediaUrl ? 'voice' : null,
-        replyingTo: replyingTo || null
+        replyingTo: replyingTo ? {
+          senderUid: replyingTo.senderUid,
+          senderName: chatUsers.find(u => u.uid === replyingTo.senderUid)?.displayName || replyingTo.senderName || 'User',
+          text: replyingTo.text || ''
+        } : null
       });
       
       if (!isGroup && !mediaUrl && receiverUid) {
@@ -21972,6 +21978,19 @@ function ExonaApp() {
                             }}
                             className={`relative group max-w-[85%] w-full flex items-end gap-2 my-1 ${isSelf ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}
                           >
+                            {/* Avatar in Institution Channel */}
+                            {!isSelf && (
+                              <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-start mt-1">
+                                {post.authorPhoto ? (
+                                  <img src={post.authorPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Avatar" />
+                                ) : (
+                                  <span className="text-[10px] font-black text-indigo-600">
+                                    {(post.authorName || 'I').charAt(0)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+
                             {/* Speech Bubble */}
                             <div className={`w-full text-sm rounded-2xl shadow-sm border p-3.5 flex flex-col relative ${isSelf ? 'bg-[#effdde] text-ink rounded-br-sm border-green-200/40' : 'bg-white rounded-bl-sm border-gray-100/80 text-ink'}`}>
                               {post.replyingTo && (
@@ -21979,6 +21998,12 @@ function ExonaApp() {
                                   <div className="font-black text-indigo-700 uppercase tracking-widest">{post.replyingTo.authorName || 'Replying to'}</div>
                                   <div className="truncate text-ink/80 mt-0.5">{post.replyingTo.content || 'Media'}</div>
                                 </div>
+                              )}
+                              
+                              {!isSelf && (
+                                <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">
+                                  {post.authorName || 'Coordinator'}
+                                </p>
                               )}
                               {/* Voice player if present */}
                               {isVoice && post.mediaUrl && (
@@ -23455,11 +23480,11 @@ function ExonaApp() {
                           {/* Avatar in Group Chat */}
                           {activeChat.isGroup && !isSelf && (
                             <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-start mt-1">
-                              {chatUsers.find(u => u.uid === msg.senderUid)?.photoURL ? (
-                                <img src={chatUsers.find(u => u.uid === msg.senderUid)?.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Avatar" />
+                              {chatUsers.find(u => u.uid === msg.senderUid)?.photoURL || msg.senderPhoto ? (
+                                <img src={chatUsers.find(u => u.uid === msg.senderUid)?.photoURL || msg.senderPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Avatar" />
                               ) : (
                                 <span className="text-[10px] font-black text-indigo-600">
-                                  {(chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'U').charAt(0)}
+                                  {(chatUsers.find(u => u.uid === msg.senderUid)?.displayName || msg.senderName || 'U').charAt(0)}
                                 </span>
                               )}
                             </div>
@@ -23473,13 +23498,13 @@ function ExonaApp() {
                           }`}>
                             {msg.replyingTo && (
                               <div className="mb-2 w-full bg-black/5 border-l-4 border-indigo-500 rounded-lg p-2 text-[10px]">
-                                <div className="font-black text-indigo-700 uppercase tracking-widest">{chatUsers.find(u => u.uid === msg.replyingTo?.senderUid)?.displayName || 'Replying to'}</div>
-                                <div className="truncate text-ink/80 mt-0.5">{msg.replyingTo.text || 'Media'}</div>
+                                <div className="font-black text-indigo-700 uppercase tracking-widest">{chatUsers.find(u => u.uid === msg.replyingTo?.senderUid)?.displayName || msg.replyingTo?.senderName || 'Replying to'}</div>
+                                <div className="truncate text-ink/80 mt-0.5">{msg.replyingTo.text || msg.replyingTo.content || 'Media'}</div>
                               </div>
                             )}
                             {activeChat.isGroup && !isSelf && (
                               <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">
-                                {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'User'}
+                                {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || msg.senderName || 'User'}
                               </p>
                             )}
 
