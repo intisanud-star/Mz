@@ -15243,7 +15243,7 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('feed')} 
-            iframeUrl="https://shoppingtime.exonaapp.com" 
+            iframeUrl="https://shopping-time-400371160094.europe-west2.run.app" 
             title="Shop"
             hideHeader={true}
           />
@@ -24370,7 +24370,7 @@ function ExonaApp() {
             category: 'Utility',
             icon: ShoppingBag,
             onOpen: () => setView('schools'),
-            webUrl: 'https://shoppingtime.exonaapp.com',
+            webUrl: 'https://shopping-time-400371160094.europe-west2.run.app',
             downloadUrl: 'https://median.co/share/dyzwnoe#apk',
             rating: '4.6',
             reviews: '5,310',
