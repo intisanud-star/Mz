@@ -22111,8 +22111,20 @@ function ExonaApp() {
                 </button>
               ) : (
                 /* Telegram Input Bar Component */
-                <div className="flex items-center gap-2.5 w-full select-none">
-                  {/* Left Action Button (Exona Portal or Menu) */}
+                <div className="flex flex-col gap-2 w-full select-none">
+                  {channelReplyingTo && (
+                    <div className="w-full bg-indigo-50 border-l-4 border-indigo-600 p-2 rounded-lg flex items-center justify-between shadow-sm animate-in fade-in duration-200">
+                      <div className="flex flex-col truncate">
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{channelReplyingTo.authorName || 'Replying to'}</span>
+                        <span className="text-xs text-ink truncate">{channelReplyingTo.content || 'Media'}</span>
+                      </div>
+                      <button onClick={() => setChannelReplyingTo(null)} className="text-gray-500 hover:text-ink shrink-0 ml-2">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2.5 w-full">
+                    {/* Left Action Button (Exona Portal or Menu) */}
                   {!isRecording && (
                     <button 
                       onClick={() => {
@@ -22163,19 +22175,7 @@ function ExonaApp() {
                       }
                       
                       return (
-                        <div className="flex-1 flex flex-col w-full">
-                          {channelReplyingTo && (
-                            <div className="w-full bg-indigo-50 border-l-4 border-indigo-600 p-2 mb-2 rounded-lg flex items-center justify-between shadow-sm">
-                              <div className="flex flex-col truncate">
-                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{channelReplyingTo.authorName || 'Replying to'}</span>
-                                <span className="text-xs text-ink truncate">{channelReplyingTo.content || 'Media'}</span>
-                              </div>
-                              <button onClick={() => setChannelReplyingTo(null)} className="text-gray-500 hover:text-ink shrink-0 ml-2">
-                                <X size={14} />
-                              </button>
-                            </div>
-                          )}
-                          <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
+                        <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
                             <button className="text-gray-400 hover:text-indigo-600 transition-colors shrink-0">
                               <Smile size={18} />
                             </button>
@@ -22281,10 +22281,9 @@ function ExonaApp() {
                             )}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })()
-                )}
+                      );
+                    })()
+                  )}
 
                   {/* Send Action or Voice Note Mic */}
                   {(() => {
@@ -22317,6 +22316,7 @@ function ExonaApp() {
                       </button>
                     );
                   })()}
+                  </div>
                 </div>
               )}
             </div>
