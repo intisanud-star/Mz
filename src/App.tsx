@@ -24226,7 +24226,7 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('feed')} 
-            iframeUrl="https://remix-exona-8054.ai.studio" 
+            iframeUrl="https://remix-exona-9883.ai.studio" 
             bgColor="bg-black"
             isDark={true}
             hideHeader={true}
@@ -24333,31 +24333,31 @@ function ExonaApp() {
           },
           {
             id: 'exona_cinema',
-            name: 'Cinema',
+            name: 'Exona TV',
             subtitle: 'Streaming & Video Hub',
             description: 'Stream movies, shows, and video feeds seamlessly.',
             category: 'Entertainment',
             icon: Film,
             onOpen: () => setView('cinema'),
-            webUrl: 'https://cinema.exonaapp.com',
-            onDownload: () => showNotification('Downloading Exona Cinema...', 'success'),
-            rating: '4.7',
-            reviews: '31,042',
-            downloads: '400K+',
+            webUrl: 'https://remix-exona-9883.ai.studio',
+            onDownload: () => showNotification('Downloading Exona TV...', 'success'),
+            rating: '4.8',
+            reviews: '45,102',
+            downloads: '500K+',
             size: '22.5 MB',
             ageRating: 'Teen 13+',
             developer: 'Exona Media Ltd',
             promoImage: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&q=80&w=1200',
-            longDescription: 'Step into Exona Cinema, your ultimate entertainment companion. Stream official media, high-definition videos, user broadcast feeds, and cinematic educational courses curated specifically for Exona members.',
+            longDescription: 'Step into Exona TV, your ultimate entertainment companion. Stream official media, high-definition videos, user broadcast feeds, and cinematic educational courses curated specifically for Exona members.',
             highlights: [
               { icon: Clapperboard, text: 'Stunning HD Video Streaming' },
               { icon: Radio, text: 'User-Led Broadcast & Live Streams' },
               { icon: Play, text: 'Fluid Media Player Controls' },
               { icon: Download, text: 'Offline Video Saving' }
             ],
-            changelog: 'Version 4.0.1\n- Added floating picture-in-picture player\n- Optimized download buffering on low bandwidth\n- Launched custom member streaming channels',
+            changelog: 'Version 4.1.0\n- High-performance live translation integration\n- Added floating picture-in-picture player\n- Optimized download buffering on low bandwidth',
             screenshots: [
-              { title: 'Cinema Streams', desc: 'Browse trending educational video series' },
+              { title: 'TV Streams', desc: 'Browse trending educational video series' },
               { title: 'Live Feeds', desc: 'Stream community video broadcasts' },
               { title: 'Video Vault', desc: 'Save content offline to view anywhere' }
             ]
@@ -25349,8 +25349,8 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('hub')} 
-            iframeUrl="https://cinema.exonaapp.com" 
-            title="Exona Cinema"
+            iframeUrl="https://remix-exona-9883.ai.studio" 
+            title="Exona TV"
             bgColor="bg-white"
             isDark={false}
             hideHeader={true}
