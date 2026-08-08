@@ -3585,6 +3585,43 @@ const getRecordAccountNumber = (recordId: string | undefined): string => {
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
+  const [heldItems, setHeldItems] = useState<{[key: string]: boolean}>({});
+  const longPressTimers = useRef<{[key: string]: any}>({});
+  const isLongPressActive = useRef<{[key: string]: boolean}>({});
+
+  const startPress = useCallback((id: string) => {
+    isLongPressActive.current[id] = false;
+    if (longPressTimers.current[id]) {
+      clearTimeout(longPressTimers.current[id]);
+    }
+    longPressTimers.current[id] = setTimeout(() => {
+      setHeldItems(prev => ({ ...prev, [id]: !prev[id] }));
+      isLongPressActive.current[id] = true;
+    }, 600);
+  }, []);
+
+  const endPress = useCallback((id: string, clickCallback?: () => void) => {
+    if (longPressTimers.current[id]) {
+      clearTimeout(longPressTimers.current[id]);
+      longPressTimers.current[id] = null;
+    }
+    const wasLongPress = isLongPressActive.current[id];
+    setTimeout(() => {
+      isLongPressActive.current[id] = false;
+    }, 50);
+    
+    if (!wasLongPress && clickCallback) {
+      clickCallback();
+    }
+  }, []);
+
+  const cancelPress = useCallback((id: string) => {
+    if (longPressTimers.current[id]) {
+      clearTimeout(longPressTimers.current[id]);
+      longPressTimers.current[id] = null;
+    }
+  }, []);
+
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
   const [hubAppCustomIcons, setHubAppCustomIcons] = useState<{[key: string]: string}>({});
   const [uploadingHubAppId, setUploadingHubAppId] = useState<string | null>(null);
@@ -13511,6 +13548,7 @@ function ExonaApp() {
     const isOnline = isRecentlyActive(chat.otherUid);
     const lastMsgTxt = chat.lastMessage?.content || 'Sent a message';
     const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === (chat.isGroup ? chat.otherUid : user?.uid) && m.status !== 'read').length;
+    const isLastMessageSelf = chat.lastMessage?.senderUid === user?.uid || chat.lastMessage?.authorUid === user?.uid;
 
     const getAvatarGradient = (name: string) => {
       const colors = [
@@ -13574,7 +13612,8 @@ function ExonaApp() {
         exit={{ opacity: 0, scale: 0.96 }}
         transition={{ duration: 0.2 }}
         className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-        onClick={() => {
+        onMouseDown={() => startPress(chat.otherUid)}
+        onMouseUp={() => endPress(chat.otherUid, () => {
           setActiveChat({
             uid: chat.otherUid,
             displayName: displayName,
@@ -13582,7 +13621,19 @@ function ExonaApp() {
             isGroup: chat.isGroup
           });
           setView('chat');
-        }}
+        })}
+        onMouseLeave={() => cancelPress(chat.otherUid)}
+        onTouchStart={() => startPress(chat.otherUid)}
+        onTouchEnd={() => endPress(chat.otherUid, () => {
+          setActiveChat({
+            uid: chat.otherUid,
+            displayName: displayName,
+            photoURL: photoURL,
+            isGroup: chat.isGroup
+          });
+          setView('chat');
+        })}
+        onTouchMove={() => cancelPress(chat.otherUid)}
       >
         <div className="flex-1 flex items-center gap-3.5 min-w-0">
           <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -13612,8 +13663,19 @@ function ExonaApp() {
             </div>
             
             <div className="flex items-start justify-between gap-2">
-              <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
-                {lastMsgTxt}
+              <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans flex items-center gap-1.5 min-w-0">
+                {isLastMessageSelf && (
+                  <span className="flex items-center shrink-0">
+                    {(!chat.lastMessage.status || chat.lastMessage.status === 'sent') ? (
+                      <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                    ) : chat.lastMessage.status === 'delivered' ? (
+                      <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                    ) : (
+                      <CheckCheck size={14} strokeWidth={3} className="text-[#2481CC] font-black" title="Opened" />
+                    )}
+                  </span>
+                )}
+                <span className="truncate">{lastMsgTxt}</span>
               </span>
               {unreadCount > 0 && (
                 <span className="h-5 min-w-[20px] px-1.5 bg-[#2481CC] text-white text-[10.5px] font-bold rounded-full flex items-center justify-center shrink-0 shadow-sm">
@@ -13623,23 +13685,25 @@ function ExonaApp() {
             </div>
           </div>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            togglePinChat(chat.otherUid);
-          }}
-          className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
-          title={userDoc?.pinnedChatIds?.includes(chat.otherUid) ? "Unpin Chat" : "Pin Chat"}
-        >
-          <Pin 
-            size={16} 
-            className={`transition-all duration-200 ${
-              userDoc?.pinnedChatIds?.includes(chat.otherUid) 
-                ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
-                : "text-slate-300 hover:text-slate-500 opacity-60 group-hover:opacity-100"
-            }`} 
-          />
-        </button>
+        {(userDoc?.pinnedChatIds?.includes(chat.otherUid) || heldItems[chat.otherUid]) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePinChat(chat.otherUid);
+            }}
+            className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
+            title={userDoc?.pinnedChatIds?.includes(chat.otherUid) ? "Unpin Chat" : "Pin Chat"}
+          >
+            <Pin 
+              size={16} 
+              className={`transition-all duration-200 ${
+                userDoc?.pinnedChatIds?.includes(chat.otherUid) 
+                  ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
+                  : "text-slate-300 hover:text-slate-500 opacity-100"
+              }`} 
+            />
+          </button>
+        )}
       </motion.div>
     );
   };
@@ -14404,7 +14468,18 @@ function ExonaApp() {
                                       exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
                                       className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-                                      onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
+                                      onMouseDown={() => startPress(school.id)}
+                                      onMouseUp={() => endPress(school.id, () => {
+                                        setSelectedInstitutionForProfile(school);
+                                        setView('institution-channel');
+                                      })}
+                                      onMouseLeave={() => cancelPress(school.id)}
+                                      onTouchStart={() => startPress(school.id)}
+                                      onTouchEnd={() => endPress(school.id, () => {
+                                        setSelectedInstitutionForProfile(school);
+                                        setView('institution-channel');
+                                      })}
+                                      onTouchMove={() => cancelPress(school.id)}
                                     >
                                       <div className="flex-1 flex items-center gap-3.5 min-w-0">
                                         <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -14427,31 +14502,46 @@ function ExonaApp() {
                                             )}
                                           </div>
                                           <div className="flex items-start justify-between gap-2">
-                                            <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans">
-                                              {latestAnnouncement ? latestAnnouncement.content : (
-                                                <span className="text-slate-300 italic font-normal">No announcements yet</span>
+                                            <span className="text-[13.5px] text-slate-500 font-normal line-clamp-1 break-words flex-1 font-sans flex items-center gap-1.5 min-w-0">
+                                              {latestAnnouncement && latestAnnouncement.authorUid === user?.uid && (
+                                                <span className="flex items-center shrink-0">
+                                                  {(!latestAnnouncement.status || latestAnnouncement.status === 'sent') ? (
+                                                    <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                                                  ) : latestAnnouncement.status === 'delivered' ? (
+                                                    <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                                                  ) : (
+                                                    <CheckCheck size={14} strokeWidth={3} className="text-[#2481CC] font-black" title="Opened" />
+                                                  )}
+                                                </span>
                                               )}
+                                              <span className="truncate">
+                                                {latestAnnouncement ? latestAnnouncement.content : (
+                                                  <span className="text-slate-300 italic font-normal">No announcements yet</span>
+                                                )}
+                                              </span>
                                             </span>
                                           </div>
                                         </div>
                                       </div>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          togglePinInstitution(school.id);
-                                        }}
-                                        className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
-                                        title={userDoc?.pinnedInstitutions?.includes(school.id) ? "Unpin Institution" : "Pin Institution"}
-                                      >
-                                        <Pin 
-                                          size={16} 
-                                          className={`transition-all duration-200 ${
-                                            userDoc?.pinnedInstitutions?.includes(school.id) 
-                                              ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
-                                              : "text-slate-300 hover:text-slate-500 opacity-60 group-hover:opacity-100"
-                                          }`} 
-                                        />
-                                      </button>
+                                      {(userDoc?.pinnedInstitutions?.includes(school.id) || heldItems[school.id]) && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            togglePinInstitution(school.id);
+                                          }}
+                                          className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
+                                          title={userDoc?.pinnedInstitutions?.includes(school.id) ? "Unpin Institution" : "Pin Institution"}
+                                        >
+                                          <Pin 
+                                            size={16} 
+                                            className={`transition-all duration-200 ${
+                                              userDoc?.pinnedInstitutions?.includes(school.id) 
+                                                ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
+                                                : "text-slate-300 hover:text-slate-500 opacity-100"
+                                            }`} 
+                                          />
+                                        </button>
+                                      )}
                                     </motion.div>
                                   );
                                 })}
@@ -14533,7 +14623,18 @@ function ExonaApp() {
                                 exit={{ opacity: 0, scale: 0.96 }}
                                 transition={{ duration: 0.2 }}
                                 className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
-                                onClick={() => { setSelectedInstitutionForProfile(school); setView('institution-channel'); }}
+                                onMouseDown={() => startPress(school.id)}
+                                onMouseUp={() => endPress(school.id, () => {
+                                  setSelectedInstitutionForProfile(school);
+                                  setView('institution-channel');
+                                })}
+                                onMouseLeave={() => cancelPress(school.id)}
+                                onTouchStart={() => startPress(school.id)}
+                                onTouchEnd={() => endPress(school.id, () => {
+                                  setSelectedInstitutionForProfile(school);
+                                  setView('institution-channel');
+                                })}
+                                onTouchMove={() => cancelPress(school.id)}
                               >
                                 <div className="flex-1 flex items-center gap-3.5 min-w-0">
                                   <div className="h-12 w-12 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden bg-slate-50 shrink-0 relative select-none">
@@ -14564,23 +14665,25 @@ function ExonaApp() {
                                     </div>
                                   </div>
                                 </div>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    togglePinInstitution(school.id);
-                                  }}
-                                  className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
-                                  title={userDoc?.pinnedInstitutions?.includes(school.id) ? "Unpin Institution" : "Pin Institution"}
-                                >
-                                  <Pin 
-                                    size={16} 
-                                    className={`transition-all duration-200 ${
-                                      userDoc?.pinnedInstitutions?.includes(school.id) 
-                                        ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
-                                        : "text-slate-300 hover:text-slate-500 opacity-60 group-hover:opacity-100"
-                                    }`} 
-                                  />
-                                </button>
+                                {(userDoc?.pinnedInstitutions?.includes(school.id) || heldItems[school.id]) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      togglePinInstitution(school.id);
+                                    }}
+                                    className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
+                                    title={userDoc?.pinnedInstitutions?.includes(school.id) ? "Unpin Institution" : "Pin Institution"}
+                                  >
+                                    <Pin 
+                                      size={16} 
+                                      className={`transition-all duration-200 ${
+                                        userDoc?.pinnedInstitutions?.includes(school.id) 
+                                          ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
+                                          : "text-slate-300 hover:text-slate-500 opacity-100"
+                                      }`} 
+                                    />
+                                  </button>
+                                )}
                               </motion.div>
                             );
                           })
@@ -22206,8 +22309,19 @@ function ExonaApp() {
                                       <span>{((post.likes || 0) * 11 + 7).toLocaleString()}</span>
                                     </div>
                                   </div>
-                                  <span className="text-[9px] font-mono select-none text-slate-400/80">
-                                    {getFormattedTime(post.timestamp) || "10:58"}
+                                  <span className="text-[9px] font-mono select-none text-slate-400/80 flex items-center gap-1">
+                                    <span>{getFormattedTime(post.timestamp) || "10:58"}</span>
+                                    {isSelf && (
+                                      <span className="flex items-center shrink-0 ml-0.5">
+                                        {(!post.status || post.status === 'sent') ? (
+                                          <Check size={12} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                                        ) : post.status === 'delivered' ? (
+                                          <CheckCheck size={12} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                                        ) : (
+                                          <CheckCheck size={12} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
+                                        )}
+                                      </span>
+                                    )}
                                   </span>
                                 </div>
                               </div>
