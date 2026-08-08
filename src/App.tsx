@@ -4188,6 +4188,7 @@ function ExonaApp() {
   const [notificationReadFilter, setNotificationReadFilter] = useState<'all' | 'unread'>('all');
   const [chatTab, setChatTab] = useState<'chats' | 'requests'>('chats');
   const [chatInput, setChatInput] = useState('');
+  const [chatReplyingTo, setChatReplyingTo] = useState<any>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingMessageText, setEditingMessageText] = useState('');
   const [activeChat, setActiveChat] = useState<any>(null);
@@ -7568,6 +7569,7 @@ function ExonaApp() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [activeVoiceMessage, setActiveVoiceMessage] = useState<string | null>(null);
   const [channelInput, setChannelInput] = useState('');
+  const [channelReplyingTo, setChannelReplyingTo] = useState<any>(null);
   const [incomingCall, setIncomingCall] = useState<any>(null);
   const [outgoingCall, setOutgoingCall] = useState<any>(null);
   const [activeCallStream, setActiveCallStream] = useState<MediaStream | null>(null);
@@ -11292,7 +11294,7 @@ function ExonaApp() {
     if (e.target) e.target.value = ''; // Reset input
   };
 
-  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string) => {
+  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string, replyingTo?: any) => {
     if (!user || (!text.trim() && !mediaUrl)) return;
     const chatId = isGroup ? receiverUid : [user.uid, receiverUid].sort().join('_');
     const groupData = isGroup ? chatGroups.find(g => g.id === receiverUid) : null;
@@ -11307,7 +11309,8 @@ function ExonaApp() {
         status: 'sent',
         isGroup: !!isGroup,
         mediaUrl: mediaUrl || null,
-        mediaType: mediaUrl ? 'voice' : null
+        mediaType: mediaUrl ? 'voice' : null,
+        replyingTo: replyingTo || null
       });
       
       if (!isGroup && !mediaUrl && receiverUid) {
@@ -11325,7 +11328,7 @@ function ExonaApp() {
     }
   };
 
-  const handleSendChannelMessage = async (text: string, type?: string, mediaData?: string) => {
+  const handleSendChannelMessage = async (text: string, type?: string, mediaData?: string, replyingTo?: any) => {
     if (!user || (!text.trim() && !mediaData)) return;
     const activeInst = selectedInstitutionForProfile;
     if (!activeInst) return;
@@ -11349,7 +11352,8 @@ function ExonaApp() {
         likes: 0,
         likedBy: [],
         commentsCount: 0,
-        reshares: 0
+        reshares: 0,
+        replyingTo: replyingTo || null
       };
 
       await addDoc(collection(db, 'posts'), postData);
@@ -22062,9 +22066,25 @@ function ExonaApp() {
                           )}
 
                           {/* Message bubble Container in Normal Chat Writing Style */}
-                          <div className={`relative group max-w-[85%] w-full transition-all flex items-end gap-2 my-1 ${isSelf ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
+                          <motion.div 
+                            drag="x"
+                            dragConstraints={{ left: 0, right: 0 }}
+                            dragElastic={{ left: 0, right: 0.1 }}
+                            onDragEnd={(e, { offset }) => {
+                              if (offset.x > 50) {
+                                setChannelReplyingTo(post);
+                              }
+                            }}
+                            className={`relative group max-w-[85%] w-full flex items-end gap-2 my-1 ${isSelf ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}
+                          >
                             {/* Speech Bubble */}
                             <div className={`w-full text-sm rounded-2xl shadow-sm border p-3.5 flex flex-col relative ${isSelf ? 'bg-[#effdde] text-ink rounded-br-sm border-green-200/40' : 'bg-white rounded-bl-sm border-gray-100/80 text-ink'}`}>
+                              {post.replyingTo && (
+                                <div className="mb-2 w-full bg-black/5 border-l-4 border-indigo-500 rounded-lg p-2 text-[10px]">
+                                  <div className="font-black text-indigo-700 uppercase tracking-widest">{post.replyingTo.authorName || 'Replying to'}</div>
+                                  <div className="truncate text-ink/80 mt-0.5">{post.replyingTo.content || 'Media'}</div>
+                                </div>
+                              )}
                               {/* Voice player if present */}
                               {isVoice && post.mediaUrl && (
                                 <div className="flex items-center gap-3 min-w-[200px] bg-slate-50 p-2.5 rounded-xl border border-gray-100 mb-2.5 shrink-0">
@@ -22155,17 +22175,6 @@ function ExonaApp() {
                                       <Eye size={10} className="opacity-70" />
                                       <span>{((post.likes || 0) * 11 + 7).toLocaleString()}</span>
                                     </div>
-                                    <button 
-                                      onClick={() => {
-                                        setActivePostForComments(post);
-                                        setIsCommentModalOpen(true);
-                                      }}
-                                      className="flex items-center gap-0.5 hover:text-indigo-600 transition-colors text-slate-400"
-                                      title="Replies"
-                                    >
-                                      <MessageCircle size={10} />
-                                      <span>{post.commentsCount || 0}</span>
-                                    </button>
                                   </div>
                                   <span className="text-[9px] font-mono select-none text-slate-400/80">
                                     {getFormattedTime(post.timestamp) || "10:58"}
@@ -22182,7 +22191,7 @@ function ExonaApp() {
                             >
                               <ArrowUpRight size={13} />
                             </button>
-                          </div>
+                          </motion.div>
                         </div>
                       );
                     });
@@ -22259,31 +22268,44 @@ function ExonaApp() {
                       }
                       
                       return (
-                        <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
-                          <button className="text-gray-400 hover:text-indigo-600 transition-colors shrink-0">
-                            <Smile size={18} />
-                          </button>
-                          <input 
-                            type="text" 
-                            placeholder="Comment or broadcast..." 
-                            className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans"
-                            value={channelInput}
-                            onChange={(e) => setChannelInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && channelInput.trim()) {
-                                handleSendChannelMessage(channelInput.trim());
-                                setChannelInput('');
-                              }
-                            }}
-                          />
-                          <div className="relative flex items-center">
-                            <button 
-                              onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'broadcast' ? null : 'broadcast')}
-                              className={`transition-colors py-1 shrink-0 ${activeAttachmentMenu === 'broadcast' ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'}`}
-                              title="Attachment Features"
-                            >
-                              <Paperclip size={18} />
+                        <div className="flex-1 flex flex-col w-full">
+                          {channelReplyingTo && (
+                            <div className="w-full bg-indigo-50 border-l-4 border-indigo-600 p-2 mb-2 rounded-lg flex items-center justify-between shadow-sm">
+                              <div className="flex flex-col truncate">
+                                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{channelReplyingTo.authorName || 'Replying to'}</span>
+                                <span className="text-xs text-ink truncate">{channelReplyingTo.content || 'Media'}</span>
+                              </div>
+                              <button onClick={() => setChannelReplyingTo(null)} className="text-gray-500 hover:text-ink shrink-0 ml-2">
+                                <X size={14} />
+                              </button>
+                            </div>
+                          )}
+                          <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
+                            <button className="text-gray-400 hover:text-indigo-600 transition-colors shrink-0">
+                              <Smile size={18} />
                             </button>
+                            <input 
+                              type="text" 
+                              placeholder="Message..." 
+                              className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans min-w-0"
+                              value={channelInput}
+                              onChange={(e) => setChannelInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && channelInput.trim()) {
+                                  handleSendChannelMessage(channelInput.trim(), undefined, undefined, channelReplyingTo);
+                                  setChannelInput('');
+                                  setChannelReplyingTo(null);
+                                }
+                              }}
+                            />
+                            <div className="relative flex items-center shrink-0">
+                              <button 
+                                onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'broadcast' ? null : 'broadcast')}
+                                className={`transition-colors py-1 shrink-0 ${activeAttachmentMenu === 'broadcast' ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-600'}`}
+                                title="Attachment Features"
+                              >
+                                <Paperclip size={18} />
+                              </button>
                             {activeAttachmentMenu === 'broadcast' && (
                               <>
                                 <div 
@@ -22364,9 +22386,10 @@ function ExonaApp() {
                             )}
                           </div>
                         </div>
-                      );
-                    })()
-                  )}
+                      </div>
+                    );
+                  })()
+                )}
 
                   {/* Send Action or Voice Note Mic */}
                   {(() => {
@@ -22377,8 +22400,9 @@ function ExonaApp() {
                       return (
                         <button 
                           onClick={() => {
-                            handleSendChannelMessage(channelInput.trim());
+                            handleSendChannelMessage(channelInput.trim(), undefined, undefined, channelReplyingTo);
                             setChannelInput('');
+                            setChannelReplyingTo(null);
                           }}
                           className="h-10 w-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shrink-0 shadow-md shadow-indigo-600/15"
                           title="Send Message"
@@ -23530,7 +23554,17 @@ function ExonaApp() {
                     const isSelf = msg.senderUid === user?.uid;
                     return (
                       <div key={msg.id} className={`flex w-full ${isSelf ? 'justify-end' : 'justify-start'}`}>
-                        <div className="relative group max-w-[85%] flex items-end gap-2">
+                        <motion.div 
+                          drag="x"
+                          dragConstraints={{ left: 0, right: 0 }}
+                          dragElastic={{ left: 0, right: 0.1 }}
+                          onDragEnd={(e, { offset }) => {
+                            if (offset.x > 50) {
+                              setChatReplyingTo(msg);
+                            }
+                          }}
+                          className="relative group max-w-[85%] flex items-end gap-2"
+                        >
                           {/* Avatar in Group Chat */}
                           {activeChat.isGroup && !isSelf && (
                             <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-start mt-1">
@@ -23550,6 +23584,12 @@ function ExonaApp() {
                               ? 'bg-[#effdde] text-ink rounded-tr-none border-green-200/40' 
                               : 'bg-white text-ink rounded-tl-none border-gray-150'
                           }`}>
+                            {msg.replyingTo && (
+                              <div className="mb-2 w-full bg-black/5 border-l-4 border-indigo-500 rounded-lg p-2 text-[10px]">
+                                <div className="font-black text-indigo-700 uppercase tracking-widest">{chatUsers.find(u => u.uid === msg.replyingTo?.senderUid)?.displayName || 'Replying to'}</div>
+                                <div className="truncate text-ink/80 mt-0.5">{msg.replyingTo.text || 'Media'}</div>
+                              </div>
+                            )}
                             {activeChat.isGroup && !isSelf && (
                               <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">
                                 {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || 'User'}
@@ -23661,7 +23701,7 @@ function ExonaApp() {
                               )}
                             </div>
                           )}
-                        </div>
+                        </motion.div>
                       </div>
                     );
                   })
@@ -23706,23 +23746,38 @@ function ExonaApp() {
                       </button>
                     </div>
                   ) : (
-                    <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
-                      <button className="text-slate-400 hover:text-indigo-600 transition-colors shrink-0">
-                        <Smile size={18} />
-                      </button>
-                      <input 
-                        type="text" 
-                        placeholder="Message or command..." 
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && chatInput.trim()) {
-                            handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup);
-                            setChatInput('');
-                          }
-                        }}
-                        className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans"
-                      />
+                    <div className="flex-1 flex flex-col w-full">
+                      {chatReplyingTo && (
+                        <div className="w-full bg-indigo-50 border-l-4 border-indigo-600 p-2 mb-2 rounded-lg flex items-center justify-between shadow-sm">
+                          <div className="flex flex-col truncate">
+                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                              {chatUsers.find(u => u.uid === chatReplyingTo.senderUid)?.displayName || 'Replying to'}
+                            </span>
+                            <span className="text-xs text-ink truncate">{chatReplyingTo.text || 'Media'}</span>
+                          </div>
+                          <button onClick={() => setChatReplyingTo(null)} className="text-gray-500 hover:text-ink shrink-0 ml-2">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      )}
+                      <div className="flex-1 bg-gray-50 border border-gray-150 rounded-2xl px-3 py-2 flex items-center gap-2">
+                        <button className="text-slate-400 hover:text-indigo-600 transition-colors shrink-0">
+                          <Smile size={18} />
+                        </button>
+                        <input 
+                          type="text" 
+                          placeholder="Message or command..." 
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && chatInput.trim()) {
+                              handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup, undefined, chatReplyingTo);
+                              setChatInput('');
+                              setChatReplyingTo(null);
+                            }
+                          }}
+                          className="flex-1 bg-transparent text-xs text-ink outline-none border-none font-bold placeholder-gray-400 font-sans min-w-0"
+                        />
                       <div className="relative flex items-center">
                         <button 
                           onClick={() => setActiveAttachmentMenu(activeAttachmentMenu === 'chat' ? null : 'chat')}
@@ -23812,6 +23867,7 @@ function ExonaApp() {
                         )}
                       </div>
                     </div>
+                  </div>
                   )}
 
                   {/* Right side Audio mic vs Send Action */}
@@ -23827,8 +23883,9 @@ function ExonaApp() {
                     <button 
                       onClick={() => {
                         if (chatInput.trim()) {
-                          handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup);
+                          handleSendMessage(activeChat.uid, chatInput, activeChat.isGroup, undefined, chatReplyingTo);
                           setChatInput('');
+                          setChatReplyingTo(null);
                         }
                       }}
                       className="h-10 w-10 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shrink-0 shadow-md shadow-indigo-600/15"
