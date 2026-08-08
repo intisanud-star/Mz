@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit, Dumbbell
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit, Dumbbell, Pin
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -2684,6 +2684,8 @@ interface UserDoc {
   country?: string;
   currency?: string;
   username?: string;
+  pinnedInstitutions?: string[];
+  pinnedChatIds?: string[];
 }
 
 interface ExonWallet {
@@ -13331,6 +13333,50 @@ function ExonaApp() {
     }
   };
 
+  const togglePinInstitution = async (schoolId: string) => {
+    if (!user || !userDoc) return;
+    try {
+      const isPinned = userDoc.pinnedInstitutions?.includes(schoolId);
+      const userRef = doc(db, 'users', user.uid);
+      const updatedPinned = isPinned
+        ? (userDoc.pinnedInstitutions || []).filter(id => id !== schoolId)
+        : [...(userDoc.pinnedInstitutions || []), schoolId];
+      
+      setUserDoc({ ...userDoc, pinnedInstitutions: updatedPinned });
+
+      await setDoc(userRef, {
+        pinnedInstitutions: isPinned ? arrayRemove(schoolId) : arrayUnion(schoolId)
+      }, { merge: true });
+
+      showNotification(isPinned ? 'Institution unpinned' : 'Institution pinned 📌', 'success');
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      showNotification('Failed to toggle pin', 'error');
+    }
+  };
+
+  const togglePinChat = async (chatUid: string) => {
+    if (!user || !userDoc) return;
+    try {
+      const isPinned = userDoc.pinnedChatIds?.includes(chatUid);
+      const userRef = doc(db, 'users', user.uid);
+      const updatedPinned = isPinned
+        ? (userDoc.pinnedChatIds || []).filter(id => id !== chatUid)
+        : [...(userDoc.pinnedChatIds || []), chatUid];
+
+      setUserDoc({ ...userDoc, pinnedChatIds: updatedPinned });
+
+      await setDoc(userRef, {
+        pinnedChatIds: isPinned ? arrayRemove(chatUid) : arrayUnion(chatUid)
+      }, { merge: true });
+
+      showNotification(isPinned ? 'Chat unpinned' : 'Chat pinned 📌', 'success');
+    } catch (error) {
+      console.error('Error toggling pin:', error);
+      showNotification('Failed to toggle pin', 'error');
+    }
+  };
+
   const handleApproveFollower = async (school: School | Place, followerUid: string) => {
     if (!user || !canManageInstitution(school)) return;
     try {
@@ -13577,6 +13623,23 @@ function ExonaApp() {
             </div>
           </div>
         </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            togglePinChat(chat.otherUid);
+          }}
+          className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
+          title={userDoc?.pinnedChatIds?.includes(chat.otherUid) ? "Unpin Chat" : "Pin Chat"}
+        >
+          <Pin 
+            size={16} 
+            className={`transition-all duration-200 ${
+              userDoc?.pinnedChatIds?.includes(chat.otherUid) 
+                ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
+                : "text-slate-300 hover:text-slate-500 opacity-60 group-hover:opacity-100"
+            }`} 
+          />
+        </button>
       </motion.div>
     );
   };
@@ -14193,6 +14256,11 @@ function ExonaApp() {
                                s.administrativeViewers?.includes(user?.uid || '') ||
                                s.followers?.includes(user?.uid || '') ||
                                userDoc?.following?.includes(s.id);
+                      })
+                      .sort((a, b) => {
+                        const aPinned = userDoc?.pinnedInstitutions?.includes(a.id) ? 1 : 0;
+                        const bPinned = userDoc?.pinnedInstitutions?.includes(b.id) ? 1 : 0;
+                        return bPinned - aPinned;
                       });
 
                     const filteredDirectChats = recentChats.filter(chat => {
@@ -14200,6 +14268,10 @@ function ExonaApp() {
                       const otherUser = connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid);
                       const displayName = otherUser?.displayName || (otherUser as any)?.name || 'User';
                       return displayName.toLowerCase().includes(globalSearch.toLowerCase());
+                    }).sort((a, b) => {
+                      const aPinned = userDoc?.pinnedChatIds?.includes(a.otherUid) ? 1 : 0;
+                      const bPinned = userDoc?.pinnedChatIds?.includes(b.otherUid) ? 1 : 0;
+                      return bPinned - aPinned;
                     });
 
                     const filteredGroupChats = recentChats.filter(chat => {
@@ -14207,6 +14279,10 @@ function ExonaApp() {
                       const group = chatGroups.find(g => g.id === chat.otherUid);
                       const displayName = group?.name || 'Group';
                       return displayName.toLowerCase().includes(globalSearch.toLowerCase());
+                    }).sort((a, b) => {
+                      const aPinned = userDoc?.pinnedChatIds?.includes(a.otherUid) ? 1 : 0;
+                      const bPinned = userDoc?.pinnedChatIds?.includes(b.otherUid) ? 1 : 0;
+                      return bPinned - aPinned;
                     });
 
                     if (schoolFilter === 'chats') {
@@ -14359,6 +14435,23 @@ function ExonaApp() {
                                           </div>
                                         </div>
                                       </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          togglePinInstitution(school.id);
+                                        }}
+                                        className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
+                                        title={userDoc?.pinnedInstitutions?.includes(school.id) ? "Unpin Institution" : "Pin Institution"}
+                                      >
+                                        <Pin 
+                                          size={16} 
+                                          className={`transition-all duration-200 ${
+                                            userDoc?.pinnedInstitutions?.includes(school.id) 
+                                              ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
+                                              : "text-slate-300 hover:text-slate-500 opacity-60 group-hover:opacity-100"
+                                          }`} 
+                                        />
+                                      </button>
                                     </motion.div>
                                   );
                                 })}
@@ -14471,6 +14564,23 @@ function ExonaApp() {
                                     </div>
                                   </div>
                                 </div>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    togglePinInstitution(school.id);
+                                  }}
+                                  className="ml-2 p-1.5 rounded-lg hover:bg-slate-100 transition-all shrink-0 select-none cursor-pointer"
+                                  title={userDoc?.pinnedInstitutions?.includes(school.id) ? "Unpin Institution" : "Pin Institution"}
+                                >
+                                  <Pin 
+                                    size={16} 
+                                    className={`transition-all duration-200 ${
+                                      userDoc?.pinnedInstitutions?.includes(school.id) 
+                                        ? "text-amber-500 fill-amber-500 rotate-45 scale-110" 
+                                        : "text-slate-300 hover:text-slate-500 opacity-60 group-hover:opacity-100"
+                                    }`} 
+                                  />
+                                </button>
                               </motion.div>
                             );
                           })
@@ -23545,16 +23655,16 @@ function ExonaApp() {
                                     className="hidden" 
                                   />
                                 </div>
-                                <div className="flex items-center gap-1 opacity-70 justify-end text-[9px] font-bold text-muted/65">
-                                  <span className="font-mono">{formatTime(msg.timestamp)}</span>
+                                <div className="flex items-center gap-1.5 justify-end text-[10px] font-semibold text-slate-500 mt-1">
+                                  <span className="font-mono text-[9.5px] opacity-75">{formatTime(msg.timestamp)}</span>
                                   {isSelf && (
-                                    <span className="flex items-center shrink-0">
+                                    <span className="flex items-center shrink-0 ml-0.5">
                                       {(!msg.status || msg.status === 'sent') ? (
-                                        <Check size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Server" />
+                                        <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
                                       ) : msg.status === 'delivered' ? (
-                                        <CheckCheck size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Recipient" />
+                                        <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
                                       ) : (
-                                        <CheckCheck size={12} strokeWidth={3.5} className="text-blue-500 filter drop-shadow-[0_0_1px_rgba(59,130,246,0.3)]" title="Opened" />
+                                        <CheckCheck size={14} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
                                       )}
                                     </span>
                                   )}
@@ -23576,17 +23686,17 @@ function ExonaApp() {
                             ) : (
                               <>
                                 <p className="whitespace-pre-wrap leading-relaxed font-sans text-[13px]">{msg.text}</p>
-                                <div className={`flex items-center gap-1 mt-1.5 opacity-70 justify-end text-[9px] font-bold text-muted/65`}>
+                                <div className="flex items-center gap-1.5 mt-1.5 justify-end text-[10px] font-semibold text-slate-500">
                                   {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
-                                  <span className="font-mono">{formatTime(msg.timestamp)}</span>
+                                  <span className="font-mono text-[9.5px] opacity-75">{formatTime(msg.timestamp)}</span>
                                   {isSelf && (
-                                    <span className="flex items-center shrink-0">
+                                    <span className="flex items-center shrink-0 ml-0.5">
                                       {(!msg.status || msg.status === 'sent') ? (
-                                        <Check size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Server" />
+                                        <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
                                       ) : msg.status === 'delivered' ? (
-                                        <CheckCheck size={12} strokeWidth={3.5} className="text-gray-400" title="Delivered to Recipient" />
+                                        <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
                                       ) : (
-                                        <CheckCheck size={12} strokeWidth={3.5} className="text-blue-500 filter drop-shadow-[0_0_1px_rgba(59,130,246,0.3)]" title="Opened" />
+                                        <CheckCheck size={14} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
                                       )}
                                     </span>
                                   )}

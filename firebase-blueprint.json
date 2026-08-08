@@ -30,6 +30,8 @@
         "role": { "type": "string", "enum": ["admin", "user"] },
         "schoolId": { "type": "string" },
         "following": { "type": "array", "items": { "type": "string" } },
+        "pinnedInstitutions": { "type": "array", "items": { "type": "string" }, "description": "Pinned institution IDs" },
+        "pinnedChatIds": { "type": "array", "items": { "type": "string" }, "description": "Pinned chat or group IDs" },
         "chat_id": { "type": "string", "description": "Telegram chat ID" },
         "username": { "type": "string", "description": "Telegram username" },
         "join_date": { "type": "string", "format": "date-time" },
