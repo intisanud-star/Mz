@@ -22050,6 +22050,8 @@ function ExonaApp() {
                       const isLiked = user && fallbackPostLikes[post.id]?.likedBy?.includes(user.uid);
                       const likesCount = (post.likes || 0) + (fallbackPostLikes[post.id]?.likes || 0);
 
+                      const isSelf = post.authorUid === user?.uid;
+
                       return (
                         <div key={post.id || idx} className="flex flex-col items-center w-full">
                           {/* Floating Date Indicator */}
@@ -22060,9 +22062,9 @@ function ExonaApp() {
                           )}
 
                           {/* Message bubble Container in Normal Chat Writing Style */}
-                          <div className="relative group max-w-[85%] self-start w-full transition-all flex items-end gap-2 my-1">
+                          <div className={`relative group max-w-[85%] w-full transition-all flex items-end gap-2 my-1 ${isSelf ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}>
                             {/* Speech Bubble */}
-                            <div className="w-full bg-white rounded-2xl rounded-tl-sm shadow-sm border border-gray-100/80 p-3.5 flex flex-col relative">
+                            <div className={`w-full text-sm rounded-2xl shadow-sm border p-3.5 flex flex-col relative ${isSelf ? 'bg-[#effdde] text-ink rounded-br-sm border-green-200/40' : 'bg-white rounded-bl-sm border-gray-100/80 text-ink'}`}>
                               {/* Voice player if present */}
                               {isVoice && post.mediaUrl && (
                                 <div className="flex items-center gap-3 min-w-[200px] bg-slate-50 p-2.5 rounded-xl border border-gray-100 mb-2.5 shrink-0">
