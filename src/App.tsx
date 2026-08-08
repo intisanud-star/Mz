@@ -3148,7 +3148,6 @@ const FeedPost = ({
   onUserClick, 
   onInstitutionClick,
   onLike, 
-  onComment, 
   onMessage, 
   onReshare, 
   onForward, 
@@ -3379,13 +3378,6 @@ const FeedPost = ({
             {displayLikes > 0 ? displayLikes : displayLikes === 0 ? 0 : 128}
           </span>
         </div>
-        
-        <button 
-          onClick={() => canReply && onComment?.(post)}
-          className="text-[13px] font-bold text-zinc-500 hover:text-blue-600 transition-colors hover:underline"
-        >
-          {post.commentsCount > 0 ? `${post.commentsCount} Comments` : isFallback ? `${post.commentsCount || 45} Comments` : 'Add Comment'}
-        </button>
       </div>
 
       {/* Interactive Activity Control Bar */}
@@ -3398,14 +3390,6 @@ const FeedPost = ({
         >
           <ThumbsUp size={17} className={isLiked ? 'fill-blue-600 text-blue-600' : 'text-zinc-400 group-hover:text-zinc-600'} />
           <span>Like</span>
-        </button>
-
-        <button 
-          onClick={() => canReply && onComment?.(post)}
-          className="flex items-center justify-center gap-2 py-2 px-6 rounded-xl transition-all text-[13px] font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 active:scale-95 group"
-        >
-          <MessageCircle size={17} className="text-zinc-400 group-hover:text-zinc-600" />
-          <span>Comment</span>
         </button>
 
         <button 
@@ -7513,13 +7497,7 @@ function ExonaApp() {
     }
   };
   const [editingRecord, setEditingRecord] = useState<StudentRecord | null>(null);
-  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [selectedPostInGrid, setSelectedPostInGrid] = useState<Post | null>(null);
-  const [activePostForComments, setActivePostForComments] = useState<Post | null>(null);
-  const [commentText, setCommentText] = useState('');
-  const [postComments, setPostComments] = useState<any[]>([]);
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editingCommentText, setEditingCommentText] = useState('');
   useEffect(() => {
     if (!user?.uid || isQuotaExceeded || (view !== 'workspace' && view !== 'tools')) return;
     const q = query(
@@ -11973,88 +11951,6 @@ function ExonaApp() {
     }
   };
 
-  const handleAddComment = async () => {
-    if (!user || !activePostForComments || !commentText.trim()) return;
-    try {
-      await addDoc(collection(db, `posts/${activePostForComments.id}/comments`), {
-        authorUid: user.uid,
-        authorName: user.displayName,
-        authorPhoto: user.photoURL,
-        text: commentText.trim(),
-        timestamp: serverTimestamp()
-      });
-      // Increment comment count on post
-      await updateDoc(doc(db, 'posts', activePostForComments.id), { 
-        commentsCount: increment(1)
-      });
-      showNotification('Comment added');
-      setCommentText('');
-
-      // Create notification for post author
-      if (activePostForComments.authorUid !== user.uid) {
-        await handleCreateNotification(activePostForComments.authorUid, {
-          type: 'comment',
-          title: 'New Comment',
-          text: `${user.displayName} commented on your broadcast`,
-          senderUid: user.uid,
-          targetId: activePostForComments.id
-        });
-      }
-    } catch (error) {
-      showNotification('Failed to add comment', 'error');
-      handleFirestoreError(error, OperationType.CREATE, `posts/${activePostForComments.id}/comments`);
-    }
-  };
-
-  const handleUpdateComment = async (postId: string, commentId: string, newText: string) => {
-    if (!user || !newText.trim()) return;
-    try {
-      await updateDoc(doc(db, `posts/${postId}/comments`, commentId), {
-        text: newText.trim(),
-        isEdited: true,
-        updatedAt: serverTimestamp()
-      });
-      showNotification('Comment updated');
-      setEditingCommentId(null);
-      setEditingCommentText('');
-    } catch (error) {
-      showNotification('Failed to update comment', 'error');
-      handleFirestoreError(error, OperationType.UPDATE, `posts/${postId}/comments/${commentId}`);
-    }
-  };
-
-  const handleDeleteComment = async (postId: string, commentId: string) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, `posts/${postId}/comments`, commentId));
-      // Optionally decrement comment count on post
-      if (activePostForComments) {
-        await setDoc(doc(db, 'posts', activePostForComments.id), { 
-          commentsCount: Math.max(0, (activePostForComments.commentsCount || 0) - 1) 
-        }, { merge: true });
-      }
-      showNotification('Comment deleted');
-    } catch (error) {
-      showNotification('Failed to delete comment', 'error');
-      handleFirestoreError(error, OperationType.DELETE, `posts/${postId}/comments/${commentId}`);
-    }
-  };
-
-  useEffect(() => {
-    if (!activePostForComments?.id || isQuotaExceeded) {
-      setPostComments([]);
-      return;
-    }
-    const q = query(collection(db, `posts/${activePostForComments.id}/comments`), orderBy('timestamp', 'desc'));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setPostComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    }, (error) => {
-      console.error('Comments fetching error:', error);
-    });
-    return unsub;
-  }, [activePostForComments?.id, isQuotaExceeded]);
-
-
   useEffect(() => {
     if (!splashDone) return;
     let userUnsubscribe: (() => void) | null = null;
@@ -14938,7 +14834,6 @@ function ExonaApp() {
                       onUserClick={handleUserClick}
                       onInstitutionClick={handleInstitutionClick}
                       onLike={handleLikePost}
-                      onComment={(p: Post) => { setActivePostForComments(p); setIsCommentModalOpen(true); }}
                       onMessage={handleMessageAuthor}
                       onReshare={handleResharePost}
                       onForward={handleForwardPost}
@@ -22719,10 +22614,6 @@ function ExonaApp() {
                             handleInstitutionClick(instId); 
                           }}
                           onLike={handleLikePost}
-                          onComment={(p: Post) => { 
-                            setActivePostForComments(p); 
-                            setIsCommentModalOpen(true); 
-                          }}
                           onMessage={handleMessageAuthor}
                           onReshare={handleResharePost}
                           onForward={handleForwardPost}
@@ -23130,10 +23021,6 @@ function ExonaApp() {
                                 onUserClick={handleUserClick}
                                 onInstitutionClick={handleInstitutionClick}
                                 onLike={handleLikePost}
-                                onComment={(p: Post) => { 
-                                  setActivePostForComments(p); 
-                                  setIsCommentModalOpen(true); 
-                                }}
                                 onMessage={handleMessageAuthor}
                                 onReshare={handleResharePost}
                                 onForward={handleForwardPost}
@@ -31436,158 +31323,7 @@ function ExonaApp() {
           </motion.div>
         )}
 
-        {isCommentModalOpen && activePostForComments && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/40 backdrop-blur-md z-[200] flex items-center justify-center p-6"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-4xl bg-white rounded-[3.5rem] flex flex-col max-h-[85vh] border border-gray-100"
-            >
-              <div className="p-10 border-b border-gray-50 flex items-center justify-between">
-                <div>
-                  <h3 className="text-3xl font-extrabold text-ink mb-1">Broadcast Replies</h3>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">Community Interactions</p>
-                </div>
-                <button onClick={() => setIsCommentModalOpen(false)} className="h-12 w-12 bg-white text-muted rounded-2xl flex items-center justify-center hover:bg-gray-50 transition-all border border-gray-100 active:scale-90">
-                  <X size={20} />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-10 space-y-10">
-                {postComments.length === 0 ? (
-                  <div className="text-center py-20 opacity-20">
-                    <MessageCircle size={64} strokeWidth={1} className="mx-auto mb-6" />
-                    <p className="font-bold text-xl">No replies yet. Start the conversation.</p>
-                  </div>
-                ) : (
-                  postComments.map(comment => (
-                    <div key={comment.id} className="flex gap-6 group">
-                      <div className="relative">
-                        {comment.authorPhoto ? (
-                          <img src={comment.authorPhoto} className="h-14 w-14 rounded-2xl object-cover border border-gray-100" referrerPolicy="no-referrer" />
-                        ) : (
-                          <div className="h-14 w-14 rounded-2xl bg-accent/5 flex items-center justify-center text-accent font-extrabold text-2xl border border-accent/10">
-                            {comment.authorName?.charAt(0)}
-                          </div>
-                        )}
-                        <div className="absolute -bottom-1 -right-1 h-4 w-4 bg-white rounded-full flex items-center justify-center border border-gray-100">
-                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 group-hover:border-gray-200 transition-all duration-500">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <p className="text-[15px] font-bold text-ink tracking-tight">{comment.authorName}</p>
-                              {comment.isEdited && <span className="text-[9px] text-muted italic font-medium px-1.5 py-0.5 bg-gray-50 rounded-md ring-1 ring-gray-100">edited</span>}
-                            </div>
-                            <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
-                              {comment.timestamp ? new Date(comment.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
-                            </p>
-                          </div>
-                          {editingCommentId === comment.id ? (
-                            <div className="space-y-4">
-                              <textarea
-                                value={editingCommentText}
-                                onChange={(e) => setEditingCommentText(e.target.value)}
-                                className="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent/20 transition-all text-sm font-medium resize-none"
-                                rows={3}
-                                autoFocus
-                              />
-                              <div className="flex justify-end gap-3">
-                                <button 
-                                  onClick={() => { setEditingCommentId(null); setEditingCommentText(''); }}
-                                  className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                                <button 
-                                  onClick={() => handleUpdateComment(activePostForComments.id, comment.id, editingCommentText)}
-                                  className="px-6 py-2 bg-ink text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-ink/90 transition-all"
-                                >
-                                  Update
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-[14px] text-ink/70 leading-relaxed font-medium">{comment.text}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-6 mt-4 ml-6">
-                          {user && user.uid === comment.authorUid && !editingCommentId && (
-                            <>
-                              <button 
-                                onClick={() => { setEditingCommentId(comment.id); setEditingCommentText(comment.text); }}
-                                className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors flex items-center gap-1.5"
-                              >
-                                <Edit2 size={10} /> Edit
-                              </button>
-                              <button 
-                                onClick={() => handleDeleteComment(activePostForComments.id, comment.id)}
-                                className="text-[10px] font-bold text-red-400 uppercase tracking-[0.2em] hover:text-red-600 transition-colors flex items-center gap-1.5"
-                              >
-                                <Trash2 size={10} /> Delete
-                              </button>
-                            </>
-                          )}
-                          <button className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors">Approve</button>
-                          <button className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] hover:text-accent transition-colors">Reply</button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
 
-              {(() => {
-                const postSchool = [...schools, ...places].find(s => s.id === activePostForComments.schoolId);
-                const isManager = postSchool ? canManageInstitution(postSchool) : false;
-                const isFollowing = postSchool?.followers?.includes(user?.uid || '') || false;
-                const permission = postSchool?.replyPermission || 'everyone';
-                const canUserComment = !postSchool || isManager || userDoc?.role === 'admin' || permission === 'everyone' || (permission === 'followers' && isFollowing);
-                
-                if (!canUserComment) {
-                  return (
-                    <div className="p-10 border-t border-gray-100 bg-slate-50 text-center flex flex-col items-center justify-center gap-2 rounded-b-[3.5rem]">
-                      <Lock size={20} className="text-muted opacity-65 mb-1 text-slate-400" />
-                      <p className="text-xs font-black uppercase text-slate-800 tracking-wider">Replies are restricted by the administrator</p>
-                      <p className="text-[10px] text-zinc-405 font-bold max-w-lg leading-relaxed">Only authorized coordinators or managers can publish replies under this channel stream. If reply options are set to Followers or Everyone in the institution settings, other members can participate.</p>
-                    </div>
-                  );
-                }
-                
-                return (
-                  <div className="p-10 border-t border-gray-100 bg-white">
-                    <div className="flex gap-5 items-center">
-                      <div className="flex-1 relative group">
-                        <input 
-                          type="text" 
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          placeholder="Share your perspective live..."
-                          className="w-full pl-10 pr-20 py-6 bg-white rounded-[2rem] border border-gray-100 outline-none focus:ring-2 focus:ring-ink/5 focus:bg-white focus:border-gray-200 transition-all text-[15px] font-bold placeholder:text-gray-300"
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                        />
-                        <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-3">
-                          <button className="p-2 text-muted hover:text-accent transition-colors"><Smile size={20} /></button>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={handleAddComment}
-                        disabled={!commentText.trim()}
-                        className="h-16 w-16 bg-ink text-white rounded-2xl flex items-center justify-center hover:bg-ink/90 disabled:opacity-50 transition-all active:scale-90"
-                      >
-                        <Send size={24} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
-            </motion.div>
-          </motion.div>
-        )}
 
         {isReceiptModalOpen && recordForReceipt && (
           <motion.div 
