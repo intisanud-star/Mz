@@ -8466,6 +8466,7 @@ function ExonaApp() {
   }, [attendance, myFollowers, institutionFollowerDocs, chatUsers, connectedUsers, auditorResults, selectedSchool, attendancePhotos, recordStorageEngine, localSqliteAttendance]);
 
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
+  const [isInstSettingsOpen, setIsInstSettingsOpen] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editingGroupData, setEditingGroupData] = useState({ name: '', description: '', photoURL: '' });
   const activeGroup = activeChat?.isGroup ? chatGroups.find(g => g.id === activeChat.uid) : null;
@@ -22074,13 +22075,39 @@ function ExonaApp() {
           return null;
         };
 
-        const institutionPosts = posts
+        const rawInstitutionPosts = posts
           .filter(p => p.schoolId === latestInst.id)
           .sort((a, b) => {
             const timeA = parsePostDate(a.timestamp)?.getTime() || 0;
             const timeB = parsePostDate(b.timestamp)?.getTime() || 0;
             return timeA - timeB;
           });
+
+        let institutionPosts = rawInstitutionPosts;
+        if (latestInst?.disappearingDuration) {
+          const duration = latestInst.disappearingDuration; // in seconds
+          const now = Date.now();
+          
+          institutionPosts = rawInstitutionPosts.filter(p => {
+            const postTime = parsePostDate(p.timestamp)?.getTime() || Date.now();
+            return (now - postTime) < (duration * 1000);
+          });
+
+          // Background delete expired posts from firestore
+          const expired = rawInstitutionPosts.filter(p => {
+            const postTime = parsePostDate(p.timestamp)?.getTime() || Date.now();
+            return (now - postTime) >= (duration * 1000);
+          });
+          if (expired.length > 0) {
+            expired.forEach(async (p) => {
+              try {
+                await deleteDoc(doc(db, 'posts', p.id));
+              } catch (err) {
+                console.error("Error deleting expired post:", err);
+              }
+            });
+          }
+        }
 
         const isFollowing = userDoc?.following?.includes(latestInst.id);
         const canManage = canManageInstitution(latestInst);
@@ -22107,6 +22134,120 @@ function ExonaApp() {
 
         return (
           <div className="flex flex-col h-full w-full max-w-xl mx-auto bg-white relative select-none overflow-hidden pb-0">
+            {/* Institution Settings Modal */}
+            {isInstSettingsOpen && latestInst && (
+              <div className="fixed inset-0 z-[200] flex items-center justify-end p-0 md:p-4 bg-ink/60 backdrop-blur-md">
+                <motion.div 
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                  className="bg-white w-full max-w-md h-full md:h-[90vh] md:rounded-[3rem] overflow-hidden flex flex-col shadow-2xl"
+                >
+                  <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <div>
+                      <h3 className="text-lg font-black text-ink tracking-tight">Channel Info</h3>
+                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Settings & Broadcasters</p>
+                    </div>
+                    <button 
+                      onClick={() => setIsInstSettingsOpen(false)}
+                      className="h-10 w-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-muted hover:text-ink"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto">
+                    {/* Header Info */}
+                    <div className="p-8 flex flex-col items-center text-center border-b border-gray-50">
+                      <div className="w-24 h-24 rounded-[2rem] bg-ink/5 overflow-hidden flex items-center justify-center border-2 border-white mb-6 shadow-sm">
+                        {latestInst.logo ? (
+                          <img src={latestInst.logo} alt={latestInst.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <span className="text-3xl font-black text-indigo-600">{latestInst.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <h4 className="text-xl font-black text-ink tracking-tight mb-1">{latestInst.name}</h4>
+                      <p className="text-xs text-muted font-bold tracking-tight uppercase mb-6">
+                        {latestInst.followers?.length || 0} Subscribers • {latestInst.type}
+                      </p>
+
+                      <div className="px-6 w-full">
+                        <button 
+                          onClick={() => {
+                            setIsInstSettingsOpen(false);
+                            setSelectedInstitutionForProfile(latestInst);
+                            setView('institution-profile');
+                          }}
+                          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl text-xs font-black uppercase tracking-wider transition-colors border border-indigo-100"
+                        >
+                          <Compass size={14} />
+                          View Institution Profile
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Disappearing Messages Section */}
+                    <div className="p-8 border-b border-gray-50 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-8 w-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                          <Clock size={16} />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-ink tracking-wide uppercase">Disappearing Broadcasts</h4>
+                          <p className="text-[10px] text-muted font-bold tracking-tight uppercase">Automatically erase post history</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-5 gap-2">
+                        {[
+                          { label: 'Off', val: 0 },
+                          { label: '1m', val: 60 },
+                          { label: '1h', val: 3600 },
+                          { label: '24h', val: 86400 },
+                          { label: '7d', val: 604800 },
+                        ].map(option => {
+                          const isSelected = (latestInst.disappearingDuration || 0) === option.val;
+                          const isAdmin = canManage;
+
+                          return (
+                            <button
+                              key={option.val}
+                              disabled={!isAdmin}
+                              onClick={async () => {
+                                try {
+                                  const isSchool = schools.some(s => s.id === latestInst.id);
+                                  const collectionName = isSchool ? 'schools' : 'places';
+                                  const instRef = doc(db, collectionName, latestInst.id);
+                                  await updateDoc(instRef, {
+                                    disappearingDuration: option.val
+                                  });
+                                  showNotification(`Disappearing broadcasts set to ${option.label}`);
+                                } catch (err) {
+                                  handleFirestoreError(err, OperationType.UPDATE, latestInst.id);
+                                }
+                              }}
+                              className={`py-2.5 px-1 text-center rounded-xl text-[10px] font-black uppercase transition-all ${
+                                isSelected 
+                                  ? 'bg-indigo-600 text-white shadow-sm' 
+                                  : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-100'
+                              } ${!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            >
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!canManage && (
+                        <p className="text-[9px] text-amber-600 font-bold uppercase tracking-wider">
+                          Only institution administrators can adjust this setting.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+
             {/* Telegram Style Header */}
             <div className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 shadow-sm z-50">
               <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -22118,11 +22259,11 @@ function ExonaApp() {
                   <ChevronLeft size={24} />
                 </button>
                 
-                {/* Title and Avatar - Clicking opens the detailed Profile details! */}
+                {/* Title and Avatar - Clicking opens settings */}
                 <div 
                   onClick={() => {
                     setSelectedInstitutionForProfile(latestInst);
-                    setView('institution-profile');
+                    setIsInstSettingsOpen(true);
                   }}
                   className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 group"
                 >
@@ -22164,7 +22305,7 @@ function ExonaApp() {
                 <button 
                   onClick={() => {
                     setSelectedInstitutionForProfile(latestInst);
-                    setView('institution-profile');
+                    setIsInstSettingsOpen(true);
                   }}
                   className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                 >
@@ -23375,9 +23516,42 @@ function ExonaApp() {
         
         if (activeChat) {
           const currentChatId = activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_');
-          const chatMessages = allMessages
+          const rawChatMessages = allMessages
             .filter(m => m.chatId === currentChatId)
             .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
+
+          let chatMessages = rawChatMessages;
+          if (activeChat.isGroup && activeGroup?.disappearingDuration) {
+            const duration = activeGroup.disappearingDuration; // in seconds
+            const now = Date.now() / 1000;
+            
+            const getMessageSecs = (m: any) => {
+              if (!m.timestamp) return Date.now() / 1000;
+              if (m.timestamp.seconds) return m.timestamp.seconds;
+              if (typeof m.timestamp.toMillis === 'function') return m.timestamp.toMillis() / 1000;
+              if (m.timestamp instanceof Date) return m.timestamp.getTime() / 1000;
+              const parsed = new Date(m.timestamp);
+              return !isNaN(parsed.getTime()) ? parsed.getTime() / 1000 : Date.now() / 1000;
+            };
+
+            chatMessages = rawChatMessages.filter(m => {
+              return (now - getMessageSecs(m)) < duration;
+            });
+
+            // Perform background deletion for expired messages
+            const expired = rawChatMessages.filter(m => {
+              return (now - getMessageSecs(m)) >= duration;
+            });
+            if (expired.length > 0) {
+              expired.forEach(async (m) => {
+                try {
+                  await deleteDoc(doc(db, 'messages', m.id));
+                } catch (err) {
+                  console.error("Error deleting expired group message:", err);
+                }
+              });
+            }
+          }
 
           return (
             <div className="flex flex-col h-full w-full max-w-xl mx-auto bg-[#eef2f5] relative select-none overflow-hidden pb-0">
@@ -23504,6 +23678,62 @@ function ExonaApp() {
                               </button>
                             </div>
                           </>
+                        )}
+                      </div>
+
+                      {/* Disappearing Messages Section */}
+                      <div className="p-8 border-b border-gray-100 space-y-4 bg-gray-50/30">
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-8 w-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                            <Clock size={16} />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black text-ink tracking-wide uppercase">Disappearing Messages</h4>
+                            <p className="text-[10px] text-muted font-bold tracking-tight uppercase">Automatically erase conversation history</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2">
+                          {[
+                            { label: 'Off', val: 0 },
+                            { label: '1m', val: 60 },
+                            { label: '1h', val: 3600 },
+                            { label: '24h', val: 86400 },
+                            { label: '7d', val: 604800 },
+                          ].map(option => {
+                            const isSelected = (activeGroup.disappearingDuration || 0) === option.val;
+                            const isAdmin = activeGroup.admins?.includes(user?.uid);
+
+                            return (
+                              <button
+                                key={option.val}
+                                disabled={!isAdmin}
+                                onClick={async () => {
+                                  try {
+                                    const groupRef = doc(db, 'chatGroups', activeGroup.id);
+                                    await updateDoc(groupRef, {
+                                      disappearingDuration: option.val
+                                    });
+                                    showNotification(`Disappearing messages set to ${option.label}`);
+                                  } catch (err) {
+                                    handleFirestoreError(err, OperationType.UPDATE, 'chatGroups');
+                                  }
+                                }}
+                                className={`py-2.5 px-1 text-center rounded-xl text-[10px] font-black uppercase transition-all ${
+                                  isSelected 
+                                    ? 'bg-indigo-600 text-white shadow-sm' 
+                                    : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-100'
+                                } ${!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {!activeGroup.admins?.includes(user?.uid) && (
+                          <p className="text-[9px] text-amber-600 font-bold uppercase tracking-wider">
+                            Only group administrators can adjust this setting.
+                          </p>
                         )}
                       </div>
 

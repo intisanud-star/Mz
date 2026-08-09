@@ -378,7 +378,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (request.auth.uid in resource.data.get('members', []));
       allow create: if isValidGroup(request.resource.data);
       allow update: if isAuthenticated() && (
-        (request.auth.uid in resource.data.get('admins', []) && request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'description', 'photoURL', 'members', 'admins'])) ||
+        (request.auth.uid in resource.data.get('admins', []) && request.resource.data.diff(resource.data).affectedKeys().hasAny(['name', 'description', 'photoURL', 'members', 'admins', 'disappearingDuration'])) ||
         (request.auth.uid in resource.data.get('members', []) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']))
       );
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.get('creatorUid', '') || isAdmin());
