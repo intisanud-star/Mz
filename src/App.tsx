@@ -4361,6 +4361,61 @@ function ExonaApp() {
   const [activeChat, setActiveChat] = useState<any>(null);
   const [activeMessageMenuId, setActiveMessageMenuId] = useState<string | null>(null);
 
+  const [heldMessage, setHeldMessage] = useState<any | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [selectedShareTargets, setSelectedShareTargets] = useState<string[]>([]);
+  const [shareSearch, setShareSearch] = useState('');
+
+  const handleShareMessage = async () => {
+    if (!user || !heldMessage) return;
+    try {
+      const text = heldMessage.text || heldMessage.content || '';
+      const mediaUrl = heldMessage.mediaUrl || (heldMessage.mediaUrls && heldMessage.mediaUrls[0]) || null;
+      const mediaType = heldMessage.mediaType || null;
+
+      for (const targetStr of selectedShareTargets) {
+        const [type, id] = targetStr.split(':');
+        if (type === 'chat') {
+          await handleSendMessage(id, text, false, mediaUrl || undefined, null, mediaType || undefined);
+        } else if (type === 'group') {
+          await handleSendMessage(id, text, true, mediaUrl || undefined, null, mediaType || undefined);
+        } else if (type === 'institution') {
+          const inst = [...schools, ...places].find(i => i.id === id);
+          if (inst) {
+            const postData: any = {
+              authorUid: user.uid,
+              authorName: user.displayName || 'Anonymous',
+              authorPhoto: user.photoURL || '',
+              authorRole: userDoc?.role || 'user',
+              schoolName: inst.name,
+              content: text,
+              mediaUrls: mediaUrl ? [mediaUrl] : [],
+              mediaUrl: mediaUrl || null,
+              mediaType: mediaType || null,
+              timestamp: serverTimestamp(),
+              isOfficial: false,
+              schoolId: inst.id,
+              likes: 0,
+              likedBy: [],
+              commentsCount: 0,
+              reshares: 0,
+              replyingTo: null
+            };
+            await addDoc(collection(db, 'posts'), postData);
+            await setDoc(doc(db, 'users', user.uid), { postsCount: increment(1) }, { merge: true });
+          }
+        }
+      }
+      showNotification('Successfully shared across selected chats, groups, and institutions!', 'success');
+      setSelectedShareTargets([]);
+      setIsShareModalOpen(false);
+      setHeldMessage(null);
+    } catch (e) {
+      console.error('Error sharing message:', e);
+      showNotification('Failed to share message.', 'error');
+    }
+  };
+
   const handleAddBankAccount = async () => {
     if (!selectedSchool || !newBankName || !newAccountNumber || !newAccountName) return;
     try {
@@ -22566,7 +22621,7 @@ function ExonaApp() {
                 <div 
                   onClick={() => {
                     setSelectedInstitutionForProfile(latestInst);
-                    setIsInstSettingsOpen(true);
+                    setView('institution-profile');
                   }}
                   className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1 group"
                 >
@@ -22608,7 +22663,7 @@ function ExonaApp() {
                 <button 
                   onClick={() => {
                     setSelectedInstitutionForProfile(latestInst);
-                    setIsInstSettingsOpen(true);
+                    setView('institution-profile');
                   }}
                   className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                 >
@@ -22678,7 +22733,22 @@ function ExonaApp() {
                                 setChannelReplyingTo(post);
                               }
                             }}
-                            className={`relative group max-w-[85%] w-full flex items-end gap-2 my-1 ${isSelf ? 'self-end flex-row-reverse' : 'self-start flex-row'}`}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setHeldMessage({
+                                id: post.id,
+                                text: post.content || '',
+                                senderUid: post.authorUid,
+                                senderName: post.authorName || 'Coordinator',
+                                type: 'institution',
+                                fullMsgObj: post,
+                                isSelf: post.authorUid === user?.uid,
+                                mediaUrl: post.mediaUrl || null,
+                                mediaUrls: post.mediaUrls || null,
+                                mediaType: post.mediaType || null
+                              });
+                            }}
+                            className={`relative group max-w-[85%] w-full flex items-end gap-2 my-1 ${isSelf ? 'self-end flex-row-reverse' : 'self-start flex-row'} cursor-pointer select-none`}
                           >
                             {/* Avatar in Institution Channel */}
                             {!isSelf && (
@@ -24604,7 +24674,22 @@ function ExonaApp() {
                               setChatReplyingTo(msg);
                             }
                           }}
-                          className="relative group max-w-[85%] flex items-end gap-2"
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            setHeldMessage({
+                              id: msg.id,
+                              text: msg.text || '',
+                              senderUid: msg.senderUid,
+                              senderName: msg.senderName || 'User',
+                              type: 'chat',
+                              fullMsgObj: msg,
+                              isSelf: msg.senderUid === user?.uid,
+                              mediaUrl: msg.mediaUrl || null,
+                              mediaUrls: msg.mediaUrls || null,
+                              mediaType: msg.mediaType || null
+                            });
+                          }}
+                          className="relative group max-w-[85%] flex items-end gap-2 cursor-pointer select-none"
                         >
                           {/* Avatar in Group Chat */}
                           {activeChat.isGroup && !isSelf && (
@@ -30777,6 +30862,306 @@ function ExonaApp() {
                   className="w-full py-5 bg-white text-muted rounded-[2rem] font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-50 disabled:opacity-50 transition-all border border-gray-100"
                 >
                   Abort Protocol
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Held Message Action Options Sheet/Modal */}
+        {heldMessage && !isShareModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-fade-in"
+            onClick={() => setHeldMessage(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-sm rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-100 flex flex-col p-6 space-y-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="border-b border-gray-100 pb-3 flex justify-between items-start">
+                <div>
+                  <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest">Message Options</h3>
+                  <p className="text-xs text-ink/80 font-semibold truncate mt-1 max-w-[220px]">
+                    {heldMessage.text || (heldMessage.mediaType === 'voice' ? "🎙️ Voice broadcast" : "📎 Media attachment")}
+                  </p>
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                  {heldMessage.type}
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {/* Edit Message - only for self */}
+                {heldMessage.isSelf && (
+                  <button
+                    onClick={() => {
+                      if (heldMessage.type === 'chat') {
+                        setEditingMessageId(heldMessage.id);
+                        setEditingMessageText(heldMessage.text || '');
+                      } else {
+                        setEditingPost(heldMessage.fullMsgObj);
+                        setNewPostContent(heldMessage.text || '');
+                        setIsPostModalOpen(true);
+                      }
+                      setHeldMessage(null);
+                    }}
+                    className="w-full py-3.5 px-4 rounded-2xl hover:bg-indigo-50/50 transition-colors flex items-center gap-3 text-left border border-gray-100 bg-white shadow-sm"
+                  >
+                    <Edit2 size={16} className="text-indigo-600" />
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black text-ink uppercase tracking-wider">Edit Message</span>
+                      <span className="text-[9px] text-muted font-semibold uppercase">Refine content directly</span>
+                    </div>
+                  </button>
+                )}
+
+                {/* Share Message */}
+                <button
+                  onClick={() => {
+                    setIsShareModalOpen(true);
+                  }}
+                  className="w-full py-3.5 px-4 rounded-2xl hover:bg-indigo-50/50 transition-colors flex items-center gap-3 text-left border border-gray-100 bg-white shadow-sm"
+                >
+                  <Share2 size={16} className="text-indigo-600" />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-black text-ink uppercase tracking-wider">Share / Transmit</span>
+                    <span className="text-[9px] text-muted font-semibold uppercase">Send to other channels, groups, or chats</span>
+                  </div>
+                </button>
+
+                {/* Delete Message - only for self */}
+                {heldMessage.isSelf && (
+                  <button
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to delete this message? This action is permanent.")) {
+                        try {
+                          if (heldMessage.type === 'chat') {
+                            await deleteDoc(doc(db, 'messages', heldMessage.id));
+                          } else {
+                            await deleteDoc(doc(db, 'posts', heldMessage.id));
+                          }
+                          showNotification("Message successfully deleted", "success");
+                        } catch (e) {
+                          console.error("Error deleting message:", e);
+                          showNotification("Failed to delete message", "error");
+                        }
+                        setHeldMessage(null);
+                      }
+                    }}
+                    className="w-full py-3.5 px-4 rounded-2xl hover:bg-red-50/50 hover:border-red-100 transition-all flex items-center gap-3 text-left border border-gray-100 bg-white shadow-sm"
+                  >
+                    <Trash2 size={16} className="text-red-500" />
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-black text-red-500 uppercase tracking-wider">Delete Message</span>
+                      <span className="text-[9px] text-red-400 font-semibold uppercase">Purge from conversation</span>
+                    </div>
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => setHeldMessage(null)}
+                className="w-full py-3 bg-gray-50 hover:bg-gray-100 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-colors border border-gray-200"
+              >
+                Dismiss Actions
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Global Share Modal */}
+        {isShareModalOpen && heldMessage && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-ink/40 backdrop-blur-sm z-[120] flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl border border-gray-100 flex flex-col p-6 max-h-[85vh]"
+            >
+              <div className="flex justify-between items-start pb-4 border-b border-gray-100">
+                <div>
+                  <h3 className="text-sm font-black text-ink uppercase tracking-wider">Share Content</h3>
+                  <p className="text-[10px] text-muted font-bold uppercase tracking-widest mt-0.5">Select destinations across the system</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsShareModalOpen(false);
+                    setSelectedShareTargets([]);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  <X size={18} className="text-slate-500" />
+                </button>
+              </div>
+
+              {/* Message Preview */}
+              <div className="p-3 bg-indigo-50/20 border border-indigo-100/40 rounded-2xl my-3 text-xs text-ink/80 font-medium italic truncate">
+                " {heldMessage.text || (heldMessage.mediaType === 'voice' ? "Voice Broadcast" : "Media Attachment")} "
+              </div>
+
+              {/* Search input */}
+              <div className="relative mb-4">
+                <input 
+                  type="text"
+                  placeholder="Search chats, groups, channels..."
+                  value={shareSearch}
+                  onChange={(e) => setShareSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-ink placeholder:text-gray-400 outline-none focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                />
+                <Search size={14} className="absolute left-3 top-3.5 text-slate-400" />
+              </div>
+
+              {/* Scrollable list of targets */}
+              <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 py-1 min-h-[250px] max-h-[400px]">
+                {/* Institutions */}
+                {([...schools, ...places].filter(i => i.name?.toLowerCase().includes(shareSearch.toLowerCase())).length > 0) && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Institutions & Channels</h4>
+                    <div className="space-y-1">
+                      {[...schools, ...places].filter(i => i.name?.toLowerCase().includes(shareSearch.toLowerCase())).map(inst => {
+                        const valueStr = `institution:${inst.id}`;
+                        const isSelected = selectedShareTargets.includes(valueStr);
+                        return (
+                          <div 
+                            key={inst.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedShareTargets(selectedShareTargets.filter(t => t !== valueStr));
+                              } else {
+                                setSelectedShareTargets([...selectedShareTargets, valueStr]);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected ? 'border-indigo-200 bg-indigo-50/20' : 'border-transparent hover:bg-gray-50'}`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-8 w-8 rounded-lg overflow-hidden bg-indigo-50 flex items-center justify-center shrink-0">
+                                {inst.logo ? (
+                                  <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="" />
+                                ) : (
+                                  <span className="text-[10px] font-black text-indigo-600">{inst.name.charAt(0)}</span>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-ink truncate">{inst.name}</span>
+                            </div>
+                            <div className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 bg-white'}`}>
+                              {isSelected && <Check size={12} strokeWidth={3} />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Group Chats */}
+                {(chatGroups.filter(g => g.name?.toLowerCase().includes(shareSearch.toLowerCase())).length > 0) && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Group Chats</h4>
+                    <div className="space-y-1">
+                      {chatGroups.filter(g => g.name?.toLowerCase().includes(shareSearch.toLowerCase())).map(group => {
+                        const valueStr = `group:${group.id}`;
+                        const isSelected = selectedShareTargets.includes(valueStr);
+                        return (
+                          <div 
+                            key={group.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedShareTargets(selectedShareTargets.filter(t => t !== valueStr));
+                              } else {
+                                setSelectedShareTargets([...selectedShareTargets, valueStr]);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected ? 'border-indigo-200 bg-indigo-50/20' : 'border-transparent hover:bg-gray-50'}`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-8 w-8 rounded-lg overflow-hidden bg-emerald-50 flex items-center justify-center shrink-0">
+                                {group.photoURL ? (
+                                  <img src={group.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="" />
+                                ) : (
+                                  <span className="text-[10px] font-black text-emerald-600">{group.name.charAt(0)}</span>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-ink truncate">{group.name}</span>
+                            </div>
+                            <div className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 bg-white'}`}>
+                              {isSelected && <Check size={12} strokeWidth={3} />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Chats/Users */}
+                {(chatUsers.filter(u => u.displayName?.toLowerCase().includes(shareSearch.toLowerCase())).length > 0) && (
+                  <div className="space-y-1.5">
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Individual Contacts</h4>
+                    <div className="space-y-1">
+                      {chatUsers.filter(u => u.displayName?.toLowerCase().includes(shareSearch.toLowerCase())).map(contact => {
+                        const valueStr = `chat:${contact.uid}`;
+                        const isSelected = selectedShareTargets.includes(valueStr);
+                        return (
+                          <div 
+                            key={contact.uid}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedShareTargets(selectedShareTargets.filter(t => t !== valueStr));
+                              } else {
+                                setSelectedShareTargets([...selectedShareTargets, valueStr]);
+                              }
+                            }}
+                            className={`flex items-center justify-between p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected ? 'border-indigo-200 bg-indigo-50/20' : 'border-transparent hover:bg-gray-50'}`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-50 flex items-center justify-center shrink-0">
+                                {contact.photoURL ? (
+                                  <img src={contact.photoURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="" />
+                                ) : (
+                                  <span className="text-[10px] font-black text-indigo-600">{(contact.displayName || 'U').charAt(0)}</span>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-ink truncate">{contact.displayName}</span>
+                            </div>
+                            <div className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 bg-white'}`}>
+                              {isSelected && <Check size={12} strokeWidth={3} />}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="flex gap-2.5 pt-4 border-t border-gray-100 mt-4">
+                <button
+                  onClick={() => {
+                    setIsShareModalOpen(false);
+                    setSelectedShareTargets([]);
+                  }}
+                  className="flex-1 py-3 border border-gray-200 hover:bg-gray-50 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleShareMessage}
+                  disabled={selectedShareTargets.length === 0}
+                  className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md"
+                >
+                  Transmit ({selectedShareTargets.length})
                 </button>
               </div>
             </motion.div>
