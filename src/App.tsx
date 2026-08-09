@@ -3583,6 +3583,107 @@ const getRecordAccountNumber = (recordId: string | undefined): string => {
   return part1 + part2;
 };
 
+const THEME_PRESETS = [
+  {
+    id: 'default',
+    name: 'Teal Forest (Default)',
+    bgColor: '#f4f7f9',
+    dotColor: '#d5dde3',
+    bubbleColorSelf: '#effdde',
+    bubbleColorOther: '#ffffff',
+    bubbleTextSelf: '#0f172a',
+    bubbleTextOther: '#0f172a',
+    isDark: false,
+    previewBg: '#f4f7f9',
+    previewSelf: '#effdde',
+    previewOther: '#ffffff'
+  },
+  {
+    id: 'cool-indigo',
+    name: 'Cool Indigo',
+    bgColor: '#f0f3ff',
+    dotColor: '#c7d2fe',
+    bubbleColorSelf: '#4f46e5',
+    bubbleColorOther: '#ffffff',
+    bubbleTextSelf: '#ffffff',
+    bubbleTextOther: '#0f172a',
+    isDark: false,
+    previewBg: '#f0f3ff',
+    previewSelf: '#4f46e5',
+    previewOther: '#ffffff'
+  },
+  {
+    id: 'sunset-rose',
+    name: 'Sunset Rose',
+    bgColor: '#fdf2f8',
+    dotColor: '#fbcfe8',
+    bubbleColorSelf: '#db2777',
+    bubbleColorOther: '#ffffff',
+    bubbleTextSelf: '#ffffff',
+    bubbleTextOther: '#0f172a',
+    isDark: false,
+    previewBg: '#fdf2f8',
+    previewSelf: '#db2777',
+    previewOther: '#ffffff'
+  },
+  {
+    id: 'emerald-mint',
+    name: 'Emerald Mint',
+    bgColor: '#f0fdf4',
+    dotColor: '#bbf7d0',
+    bubbleColorSelf: '#059669',
+    bubbleColorOther: '#ffffff',
+    bubbleTextSelf: '#ffffff',
+    bubbleTextOther: '#0f172a',
+    isDark: false,
+    previewBg: '#f0fdf4',
+    previewSelf: '#059669',
+    previewOther: '#ffffff'
+  },
+  {
+    id: 'amber-gold',
+    name: 'Amber Gold',
+    bgColor: '#fffbeb',
+    dotColor: '#fde68a',
+    bubbleColorSelf: '#d97706',
+    bubbleColorOther: '#ffffff',
+    bubbleTextSelf: '#ffffff',
+    bubbleTextOther: '#0f172a',
+    isDark: false,
+    previewBg: '#fffbeb',
+    previewSelf: '#d97706',
+    previewOther: '#ffffff'
+  },
+  {
+    id: 'midnight-luxury',
+    name: 'Midnight Luxury',
+    bgColor: '#0f172a',
+    dotColor: '#334155',
+    bubbleColorSelf: '#0ea5e9',
+    bubbleColorOther: '#1e293b',
+    bubbleTextSelf: '#ffffff',
+    bubbleTextOther: '#f8fafc',
+    isDark: true,
+    previewBg: '#0f172a',
+    previewSelf: '#0ea5e9',
+    previewOther: '#1e293b'
+  },
+  {
+    id: 'cyber-neon',
+    name: 'Cyber Neon',
+    bgColor: '#090d16',
+    dotColor: '#1e293b',
+    bubbleColorSelf: '#a855f7',
+    bubbleColorOther: '#1e1b4b',
+    bubbleTextSelf: '#ffffff',
+    bubbleTextOther: '#f3e8ff',
+    isDark: true,
+    previewBg: '#090d16',
+    previewSelf: '#a855f7',
+    previewOther: '#1e1b4b'
+  }
+];
+
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [viewportHeight, setViewportHeight] = useState('100dvh');
@@ -8467,6 +8568,7 @@ function ExonaApp() {
 
   const [isGroupSettingsOpen, setIsGroupSettingsOpen] = useState(false);
   const [isInstSettingsOpen, setIsInstSettingsOpen] = useState(false);
+  const [isDirectSettingsOpen, setIsDirectSettingsOpen] = useState(false);
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   const [editingGroupData, setEditingGroupData] = useState({ name: '', description: '', photoURL: '' });
   const activeGroup = activeChat?.isGroup ? chatGroups.find(g => g.id === activeChat.uid) : null;
@@ -15128,6 +15230,18 @@ function ExonaApp() {
           if (post.mediaType === 'document' || post.mediaType === 'audio' || post.mediaType === 'voice') return false;
           return post.mediaUrl || (post.mediaUrls && post.mediaUrls.length > 0) || post.mediaType === 'video' || post.mediaType === 'image';
         });
+
+        const directChatId = [user?.uid, selectedUserProfile.uid].sort().join('_');
+        const customStyle = userDoc?.chatCustomizations?.[directChatId] || {};
+        const activeThemeId = customStyle.themeId || 'default';
+        const currentTheme = THEME_PRESETS.find(t => t.id === activeThemeId) || THEME_PRESETS[0];
+
+        const bgColor = customStyle.bgColor || currentTheme.bgColor;
+        const dotColor = customStyle.dotColor || currentTheme.dotColor;
+        const bubbleColorSelf = customStyle.bubbleColorSelf || currentTheme.bubbleColorSelf;
+        const bubbleColorOther = customStyle.bubbleColorOther || currentTheme.bubbleColorOther;
+        const directChatDisappearingDuration = customStyle.disappearingDuration || 0;
+
         return (
           <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
             {/* Top Bar with Back Button */}
@@ -15198,6 +15312,253 @@ function ExonaApp() {
                 )}
               </div>
             </div>
+
+            {/* Chat Settings & Customization Card inside Profile */}
+            {user && user.uid !== selectedUserProfile.uid && (
+              <div className="mb-8 p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-3xl space-y-6">
+                <div>
+                  <h3 className="text-xs font-black text-ink tracking-wide uppercase flex items-center gap-2">
+                    <Clock size={14} className="text-indigo-600" /> Chat Preferences
+                  </h3>
+                  <p className="text-[10px] text-muted font-bold tracking-tight uppercase mt-0.5">Personalize your 1-on-1 conversations</p>
+                </div>
+
+                {/* Disappearing Messages Section */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Disappearing Messages</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { label: 'Off', val: 0 },
+                      { label: '1m', val: 60 },
+                      { label: '1h', val: 3600 },
+                      { label: '24h', val: 86400 },
+                      { label: '7d', val: 604800 },
+                    ].map(option => {
+                      const isSelected = (directChatDisappearingDuration || 0) === option.val;
+
+                      return (
+                        <button
+                          key={option.val}
+                          onClick={async () => {
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${directChatId}.disappearingDuration`]: option.val
+                              });
+                              showNotification(`Disappearing messages set to ${option.label}`);
+                            } catch (err) {
+                              console.error("Error setting direct chat disappearing duration:", err);
+                            }
+                          }}
+                          className={`py-2.5 px-1 text-center rounded-xl text-[10px] font-black uppercase transition-all ${
+                            isSelected 
+                              ? 'bg-indigo-600 text-white shadow-sm' 
+                              : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Wallpaper Theme Presets */}
+                <div className="space-y-3 border-t border-indigo-100/40 pt-4">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wallpaper Themes</label>
+                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                    {THEME_PRESETS.map((preset) => {
+                      const isSelected = activeThemeId === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          onClick={async () => {
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${directChatId}.themeId`]: preset.id,
+                                [`chatCustomizations.${directChatId}.bgColor`]: preset.bgColor,
+                                [`chatCustomizations.${directChatId}.dotColor`]: preset.dotColor,
+                                [`chatCustomizations.${directChatId}.bubbleColorSelf`]: preset.bubbleColorSelf,
+                                [`chatCustomizations.${directChatId}.bubbleColorOther`]: preset.bubbleColorOther,
+                                [`chatCustomizations.${directChatId}.bubbleTextSelf`]: preset.bubbleTextSelf,
+                                [`chatCustomizations.${directChatId}.bubbleTextOther`]: preset.bubbleTextOther,
+                                [`chatCustomizations.${directChatId}.isDark`]: preset.isDark
+                              });
+                              showNotification(`Applied "${preset.name}" theme`);
+                            } catch (err) {
+                               console.error("Error setting preset theme:", err);
+                            }
+                          }}
+                          className={`flex-shrink-0 p-2 rounded-2xl border transition-all flex flex-col items-center gap-1 min-w-[70px] ${
+                            isSelected 
+                              ? 'border-indigo-600 bg-indigo-50/20' 
+                              : 'border-gray-150 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          <div 
+                            className="h-7 w-11 rounded-lg flex items-center justify-around p-0.5 relative border border-gray-100"
+                            style={{ backgroundColor: preset.previewBg }}
+                          >
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: preset.previewSelf }} />
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: preset.previewOther }} />
+                          </div>
+                          <span className="text-[8px] font-bold text-center text-ink/90 truncate max-w-[65px]">{preset.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Fine-Tuned Wallpaper Colors */}
+                <div className="space-y-4 border-t border-indigo-100/40 pt-4">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Paint Colors</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Background Color Picker */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500">Solid Wallpaper</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={bgColor} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${directChatId}.bgColor`]: color,
+                                [`chatCustomizations.${directChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom bg:", err);
+                            }
+                          }}
+                          className="h-6 w-6 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[9px] font-mono font-bold text-ink uppercase">{bgColor}</span>
+                      </div>
+                    </div>
+
+                    {/* Wallpaper Pattern Dot Color */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500">Wallpaper Dot</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={dotColor} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${directChatId}.dotColor`]: color,
+                                [`chatCustomizations.${directChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom dot:", err);
+                            }
+                          }}
+                          className="h-6 w-6 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[9px] font-mono font-bold text-ink uppercase">{dotColor}</span>
+                      </div>
+                    </div>
+
+                    {/* Self Speech Bubble Color */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500">My Bubble Color</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={bubbleColorSelf} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            const r = parseInt(color.slice(1, 3), 16);
+                            const g = parseInt(color.slice(3, 5), 16);
+                            const b = parseInt(color.slice(5, 7), 16);
+                            const yiq = ((r*299)+(g*587)+(b*114))/1000;
+                            const textColor = (yiq >= 128) ? '#0f172a' : '#ffffff';
+
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${directChatId}.bubbleColorSelf`]: color,
+                                [`chatCustomizations.${directChatId}.bubbleTextSelf`]: textColor,
+                                [`chatCustomizations.${directChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom self bubble:", err);
+                            }
+                          }}
+                          className="h-6 w-6 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[9px] font-mono font-bold text-ink uppercase">{bubbleColorSelf}</span>
+                      </div>
+                    </div>
+
+                    {/* Other Speech Bubble Color */}
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-slate-500">Other Bubble Color</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={bubbleColorOther} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            const r = parseInt(color.slice(1, 3), 16);
+                            const g = parseInt(color.slice(3, 5), 16);
+                            const b = parseInt(color.slice(5, 7), 16);
+                            const yiq = ((r*299)+(g*587)+(b*114))/1000;
+                            const textColor = (yiq >= 128) ? '#0f172a' : '#ffffff';
+
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${directChatId}.bubbleColorOther`]: color,
+                                [`chatCustomizations.${directChatId}.bubbleTextOther`]: textColor,
+                                [`chatCustomizations.${directChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom other bubble:", err);
+                            }
+                          }}
+                          className="h-6 w-6 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[9px] font-mono font-bold text-ink uppercase">{bubbleColorOther}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Reset to Default Button */}
+                  <button
+                    onClick={async () => {
+                      try {
+                        const userRef = doc(db, 'users', user.uid);
+                        await updateDoc(userRef, {
+                          [`chatCustomizations.${directChatId}`]: {
+                            themeId: 'default',
+                            bgColor: '#f4f7f9',
+                            dotColor: '#d5dde3',
+                            bubbleColorSelf: '#effdde',
+                            bubbleColorOther: '#ffffff',
+                            bubbleTextSelf: '#0f172a',
+                            bubbleTextOther: '#0f172a',
+                            isDark: false,
+                            disappearingDuration: 0
+                          }
+                        });
+                        showNotification("Reset chat style to default");
+                      } catch (err) {
+                        console.error("Error resetting custom style:", err);
+                      }
+                    }}
+                    className="w-full py-2 bg-gray-100/50 hover:bg-gray-100 text-slate-600 rounded-xl text-[8px] font-black uppercase tracking-wider transition-colors border border-gray-150 mt-2"
+                  >
+                    Reset Chat Style
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col mt-4">
               <div className="flex items-center justify-between mb-4">
@@ -22185,64 +22546,6 @@ function ExonaApp() {
                         </button>
                       </div>
                     </div>
-
-                    {/* Disappearing Messages Section */}
-                    <div className="p-8 border-b border-gray-50 space-y-4">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-8 w-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                          <Clock size={16} />
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-black text-ink tracking-wide uppercase">Disappearing Broadcasts</h4>
-                          <p className="text-[10px] text-muted font-bold tracking-tight uppercase">Automatically erase post history</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-5 gap-2">
-                        {[
-                          { label: 'Off', val: 0 },
-                          { label: '1m', val: 60 },
-                          { label: '1h', val: 3600 },
-                          { label: '24h', val: 86400 },
-                          { label: '7d', val: 604800 },
-                        ].map(option => {
-                          const isSelected = (latestInst.disappearingDuration || 0) === option.val;
-                          const isAdmin = canManage;
-
-                          return (
-                            <button
-                              key={option.val}
-                              disabled={!isAdmin}
-                              onClick={async () => {
-                                try {
-                                  const isSchool = schools.some(s => s.id === latestInst.id);
-                                  const collectionName = isSchool ? 'schools' : 'places';
-                                  const instRef = doc(db, collectionName, latestInst.id);
-                                  await updateDoc(instRef, {
-                                    disappearingDuration: option.val
-                                  });
-                                  showNotification(`Disappearing broadcasts set to ${option.label}`);
-                                } catch (err) {
-                                  handleFirestoreError(err, OperationType.UPDATE, latestInst.id);
-                                }
-                              }}
-                              className={`py-2.5 px-1 text-center rounded-xl text-[10px] font-black uppercase transition-all ${
-                                isSelected 
-                                  ? 'bg-indigo-600 text-white shadow-sm' 
-                                  : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-100'
-                              } ${!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {!canManage && (
-                        <p className="text-[9px] text-amber-600 font-bold uppercase tracking-wider">
-                          Only institution administrators can adjust this setting.
-                        </p>
-                      )}
-                    </div>
                   </div>
                 </motion.div>
               </div>
@@ -22937,6 +23240,74 @@ function ExonaApp() {
                 </div>
               )}
 
+              {/* Disappearing Messages / Broadcasts Section inside Profile */}
+              {(canManage || isFollowing || inst.followers?.includes(user?.uid || '')) && (
+                <div className="mb-10 p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-2xl space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                      <Clock size={16} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-ink tracking-wide uppercase">Disappearing Broadcasts</h4>
+                      <p className="text-[10px] text-muted font-bold tracking-tight uppercase">Automatically erase post history for followers</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-2">
+                    {[
+                      { label: 'Off', val: 0 },
+                      { label: '1m', val: 60 },
+                      { label: '1h', val: 3600 },
+                      { label: '24h', val: 86400 },
+                      { label: '7d', val: 604800 },
+                    ].map(option => {
+                      const isSelected = (inst.disappearingDuration || 0) === option.val;
+                      const isAdmin = canManage;
+
+                      return (
+                        <button
+                          key={option.val}
+                          disabled={!isAdmin}
+                          onClick={async () => {
+                            try {
+                              const isSchool = schools.some(s => s.id === inst.id);
+                              const collectionName = isSchool ? 'schools' : 'places';
+                              const instRef = doc(db, collectionName, inst.id);
+                              await updateDoc(instRef, {
+                                disappearingDuration: option.val
+                              });
+                              showNotification(`Disappearing broadcasts set to ${option.label}`);
+                            } catch (err) {
+                              handleFirestoreError(err, OperationType.UPDATE, inst.id);
+                            }
+                          }}
+                          className={`py-2.5 px-1 text-center rounded-xl text-[10px] font-black uppercase transition-all ${
+                            isSelected 
+                              ? 'bg-indigo-600 text-white shadow-sm' 
+                              : 'bg-white border border-gray-200 text-slate-500 hover:bg-gray-100'
+                          } ${!isAdmin ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!canManage && (
+                    <p className="text-[9px] text-indigo-600/70 font-semibold uppercase tracking-wider">
+                      Current disappearing duration: {
+                        [
+                          { label: 'Off', val: 0 },
+                          { label: '1 minute', val: 60 },
+                          { label: '1 hour', val: 3600 },
+                          { label: '24 hours', val: 86400 },
+                          { label: '7 days', val: 604800 },
+                        ].find(o => o.val === (inst.disappearingDuration || 0))?.label || 'Off'
+                      }
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Shared Media Section */}
               <div className="border-t border-gray-150 mt-10 pt-6">
                 <div className="flex items-center justify-between mb-6 px-1">
@@ -23516,6 +23887,224 @@ function ExonaApp() {
         
         if (activeChat) {
           const currentChatId = activeChat.isGroup ? activeChat.uid : [user.uid, activeChat.uid].sort().join('_');
+          const customStyle = userDoc?.chatCustomizations?.[currentChatId] || {};
+          const activeThemeId = customStyle.themeId || 'default';
+          const currentTheme = THEME_PRESETS.find(t => t.id === activeThemeId) || THEME_PRESETS[0];
+
+          const bgColor = customStyle.bgColor || currentTheme.bgColor;
+          const dotColor = customStyle.dotColor || currentTheme.dotColor;
+          const bubbleColorSelf = customStyle.bubbleColorSelf || currentTheme.bubbleColorSelf;
+          const bubbleColorOther = customStyle.bubbleColorOther || currentTheme.bubbleColorOther;
+          const bubbleTextSelf = customStyle.bubbleTextSelf || currentTheme.bubbleTextSelf;
+          const bubbleTextOther = customStyle.bubbleTextOther || currentTheme.bubbleTextOther;
+          const isDarkTheme = customStyle.isDark !== undefined ? customStyle.isDark : currentTheme.isDark;
+
+          const renderCustomizerSection = () => {
+            return (
+              <div className="p-8 border-b border-gray-100 space-y-6">
+                <div>
+                  <h4 className="text-xs font-black text-ink tracking-wide uppercase">Chat Style & Colors</h4>
+                  <p className="text-[10px] text-muted font-bold tracking-tight uppercase">Change chat background and bubble accent colors</p>
+                </div>
+
+                {/* Preset Row */}
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Theme Presets</label>
+                  <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+                    {THEME_PRESETS.map((preset) => {
+                      const isSelected = activeThemeId === preset.id;
+                      return (
+                        <button
+                          key={preset.id}
+                          onClick={async () => {
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${currentChatId}.themeId`]: preset.id,
+                                [`chatCustomizations.${currentChatId}.bgColor`]: preset.bgColor,
+                                [`chatCustomizations.${currentChatId}.dotColor`]: preset.dotColor,
+                                [`chatCustomizations.${currentChatId}.bubbleColorSelf`]: preset.bubbleColorSelf,
+                                [`chatCustomizations.${currentChatId}.bubbleColorOther`]: preset.bubbleColorOther,
+                                [`chatCustomizations.${currentChatId}.bubbleTextSelf`]: preset.bubbleTextSelf,
+                                [`chatCustomizations.${currentChatId}.bubbleTextOther`]: preset.bubbleTextOther,
+                                [`chatCustomizations.${currentChatId}.isDark`]: preset.isDark
+                              });
+                              showNotification(`Applied "${preset.name}" theme`);
+                            } catch (err) {
+                               console.error("Error setting preset theme:", err);
+                            }
+                          }}
+                          className={`flex-shrink-0 p-2.5 rounded-2xl border transition-all flex flex-col items-center gap-1.5 min-w-[76px] ${
+                            isSelected 
+                              ? 'border-indigo-600 bg-indigo-50/20' 
+                              : 'border-gray-100 bg-white hover:bg-gray-50'
+                          }`}
+                        >
+                          {/* Triple preview dot */}
+                          <div 
+                            className="h-8 w-12 rounded-xl flex items-center justify-around p-1 relative border border-gray-100"
+                            style={{ backgroundColor: preset.previewBg }}
+                          >
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: preset.previewSelf }} />
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: preset.previewOther }} />
+                          </div>
+                          <span className="text-[9px] font-bold text-center text-ink/90 truncate max-w-[70px]">{preset.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Paint Pickers */}
+                <div className="space-y-4 pt-1">
+                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Fine-Tuned Colors</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Background Color Picker */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-500">Wallpaper Solid</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={bgColor} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${currentChatId}.bgColor`]: color,
+                                [`chatCustomizations.${currentChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom bg:", err);
+                            }
+                          }}
+                          className="h-7 w-7 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[10px] font-mono font-bold text-ink uppercase">{bgColor}</span>
+                      </div>
+                    </div>
+
+                    {/* Wallpaper Pattern Dot Color */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-500">Grid Dot Accent</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={dotColor} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${currentChatId}.dotColor`]: color,
+                                [`chatCustomizations.${currentChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom dot:", err);
+                            }
+                          }}
+                          className="h-7 w-7 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[10px] font-mono font-bold text-ink uppercase">{dotColor}</span>
+                      </div>
+                    </div>
+
+                    {/* Self Speech Bubble Color */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-500">My Bubble Color</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={bubbleColorSelf} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            const r = parseInt(color.slice(1, 3), 16);
+                            const g = parseInt(color.slice(3, 5), 16);
+                            const b = parseInt(color.slice(5, 7), 16);
+                            const yiq = ((r*299)+(g*587)+(b*114))/1000;
+                            const textColor = (yiq >= 128) ? '#0f172a' : '#ffffff';
+
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${currentChatId}.bubbleColorSelf`]: color,
+                                [`chatCustomizations.${currentChatId}.bubbleTextSelf`]: textColor,
+                                [`chatCustomizations.${currentChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom self bubble:", err);
+                            }
+                          }}
+                          className="h-7 w-7 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[10px] font-mono font-bold text-ink uppercase">{bubbleColorSelf}</span>
+                      </div>
+                    </div>
+
+                    {/* Other Speech Bubble Color */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-500">Other Bubble Color</span>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="color" 
+                          value={bubbleColorOther} 
+                          onChange={async (e) => {
+                            const color = e.target.value;
+                            const r = parseInt(color.slice(1, 3), 16);
+                            const g = parseInt(color.slice(3, 5), 16);
+                            const b = parseInt(color.slice(5, 7), 16);
+                            const yiq = ((r*299)+(g*587)+(b*114))/1000;
+                            const textColor = (yiq >= 128) ? '#0f172a' : '#ffffff';
+
+                            try {
+                              const userRef = doc(db, 'users', user.uid);
+                              await updateDoc(userRef, {
+                                [`chatCustomizations.${currentChatId}.bubbleColorOther`]: color,
+                                [`chatCustomizations.${currentChatId}.bubbleTextOther`]: textColor,
+                                [`chatCustomizations.${currentChatId}.themeId`]: 'custom'
+                              });
+                            } catch (err) {
+                              console.error("Error setting custom other bubble:", err);
+                            }
+                          }}
+                          className="h-7 w-7 rounded-lg cursor-pointer border-none p-0 overflow-hidden" 
+                        />
+                        <span className="text-[10px] font-mono font-bold text-ink uppercase">{bubbleColorOther}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Reset to Default Button */}
+                  <button
+                    onClick={async () => {
+                      try {
+                        const userRef = doc(db, 'users', user.uid);
+                        await updateDoc(userRef, {
+                          [`chatCustomizations.${currentChatId}`]: {
+                            themeId: 'default',
+                            bgColor: '#f4f7f9',
+                            dotColor: '#d5dde3',
+                            bubbleColorSelf: '#effdde',
+                            bubbleColorOther: '#ffffff',
+                            bubbleTextSelf: '#0f172a',
+                            bubbleTextOther: '#0f172a',
+                            isDark: false
+                          }
+                        });
+                        showNotification("Reset chat style to default");
+                      } catch (err) {
+                        console.error("Error resetting custom style:", err);
+                      }
+                    }}
+                    className="w-full py-2 bg-gray-50 hover:bg-gray-100 text-slate-600 rounded-xl text-[9px] font-black uppercase tracking-wider transition-colors border border-gray-100 mt-2"
+                  >
+                    Reset to Default Style
+                  </button>
+                </div>
+              </div>
+            );
+          };
+
           const rawChatMessages = allMessages
             .filter(m => m.chatId === currentChatId)
             .sort((a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0));
@@ -23737,6 +24326,9 @@ function ExonaApp() {
                         )}
                       </div>
 
+                      {/* Dynamic Theme Customizer */}
+                      {renderCustomizerSection()}
+
                       {/* Member Management */}
                       <div className="p-8 space-y-6">
                         <div className="flex items-center justify-between">
@@ -23850,9 +24442,8 @@ function ExonaApp() {
                             setSelectedUserProfileDoc({});
                           }
                           setView('user-profile');
-                          showNotification(`Opened ${userMeta.displayName}'s profile`, 'info');
                         } catch (e) {
-                          console.error("Error displaying user profile from header click:", e);
+                          console.error("Error redirecting to profile:", e);
                         }
                       }
                     }}
@@ -23975,11 +24566,12 @@ function ExonaApp() {
                 </div>
               )}
 
-              {/* Scrollable Telegram Stream with Textured Background */}
+               {/* Scrollable Telegram Stream with Textured Background */}
               <div 
-                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 flex flex-col no-scrollbar bg-[#f4f7f9] min-h-0"
+                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 flex flex-col no-scrollbar min-h-0"
                 style={{
-                  backgroundImage: 'radial-gradient(#d5dde3 1.2px, transparent 1.2px)',
+                  backgroundColor: bgColor,
+                  backgroundImage: `radial-gradient(${dotColor} 1.2px, transparent 1.2px)`,
                   backgroundSize: '24px 24px',
                   backgroundPosition: '0 0'
                 }}
@@ -24039,11 +24631,18 @@ function ExonaApp() {
                           )}
 
                           {/* Speech bubble - Self has light green, other has pure white */}
-                          <div className={isMsgMedia ? "relative flex flex-col items-start" : `p-3 rounded-2xl shadow-sm text-sm relative border ${
-                            isSelf 
-                              ? 'bg-[#effdde] text-ink rounded-tr-none border-green-200/40' 
-                              : 'bg-white text-ink rounded-tl-none border-gray-150'
-                          }`}>
+                          <div 
+                            className={isMsgMedia ? "relative flex flex-col items-start" : `p-3 rounded-2xl shadow-sm text-sm relative border ${
+                              isSelf ? 'rounded-tr-none' : 'rounded-tl-none'
+                            }`}
+                            style={isMsgMedia ? {} : {
+                              backgroundColor: isSelf ? bubbleColorSelf : bubbleColorOther,
+                              color: isSelf ? bubbleTextSelf : bubbleTextOther,
+                              borderColor: isSelf 
+                                ? (isDarkTheme ? 'transparent' : 'rgba(34, 197, 94, 0.15)') 
+                                : (isDarkTheme ? 'transparent' : '#e2e8f0')
+                            }}
+                          >
                             {msg.replyingTo && !isMsgMedia && (
                               <div className="mb-2 w-full bg-black/5 border-l-4 border-indigo-500 rounded-lg p-2 text-[10px]">
                                 <div className="font-black text-indigo-700 uppercase tracking-widest">{chatUsers.find(u => u.uid === msg.replyingTo?.senderUid)?.displayName || msg.replyingTo?.senderName || 'Replying to'}</div>
@@ -24114,23 +24713,30 @@ function ExonaApp() {
 
                                 {/* Caption box if text is present */}
                                 {msg.text && !msg.text.startsWith('Shared a image') && !msg.text.startsWith('Shared a video') && (
-                                  <div className={`p-3 rounded-2xl shadow-sm text-sm border flex flex-col relative w-full ${
-                                    isSelf 
-                                      ? 'bg-[#effdde] text-ink border-green-200/40 rounded-tr-none' 
-                                      : 'bg-white text-ink border-gray-150 rounded-tl-none'
-                                  }`}>
+                                  <div 
+                                    className={`p-3 rounded-2xl shadow-sm text-sm border flex flex-col relative w-full ${
+                                      isSelf ? 'rounded-tr-none' : 'rounded-tl-none'
+                                    }`}
+                                    style={{
+                                      backgroundColor: isSelf ? bubbleColorSelf : bubbleColorOther,
+                                      color: isSelf ? bubbleTextSelf : bubbleTextOther,
+                                      borderColor: isSelf 
+                                        ? (isDarkTheme ? 'transparent' : 'rgba(34, 197, 94, 0.15)') 
+                                        : (isDarkTheme ? 'transparent' : '#e2e8f0')
+                                    }}
+                                  >
                                     <p className="whitespace-pre-wrap leading-relaxed font-sans text-[13px]">{msg.text}</p>
-                                    <div className="flex items-center gap-1.5 mt-1.5 justify-end text-[10px] font-semibold text-slate-500">
+                                    <div className={`flex items-center gap-1.5 mt-1.5 justify-end text-[10px] font-semibold ${(isSelf ? bubbleTextSelf : bubbleTextOther) === '#ffffff' ? 'text-white/70' : 'text-slate-500'}`}>
                                       {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
                                       <span className="font-mono text-[9.5px] opacity-75">{formatTime(msg.timestamp)}</span>
                                       {isSelf && (
                                         <span className="flex items-center shrink-0 ml-0.5">
                                           {(!msg.status || msg.status === 'sent') ? (
-                                            <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                                            <Check size={14} strokeWidth={3} className={bubbleTextSelf === '#ffffff' ? "text-white/60" : "text-emerald-700/60"} title="Delivered to Server" />
                                           ) : msg.status === 'delivered' ? (
-                                            <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                                            <CheckCheck size={14} strokeWidth={3} className={bubbleTextSelf === '#ffffff' ? "text-white/80" : "text-emerald-700/80"} title="Delivered to Recipient" />
                                           ) : (
-                                            <CheckCheck size={14} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
+                                            <CheckCheck size={14} strokeWidth={3} className="text-sky-400 font-black" title="Opened" />
                                           )}
                                         </span>
                                       )}
@@ -24175,16 +24781,16 @@ function ExonaApp() {
                                     className="hidden" 
                                   />
                                 </div>
-                                <div className="flex items-center gap-1.5 justify-end text-[10px] font-semibold text-slate-500 mt-1">
+                                <div className={`flex items-center gap-1.5 justify-end text-[10px] font-semibold mt-1 ${(isSelf ? bubbleTextSelf : bubbleTextOther) === '#ffffff' ? 'text-white/70' : 'text-slate-500'}`}>
                                   <span className="font-mono text-[9.5px] opacity-75">{formatTime(msg.timestamp)}</span>
                                   {isSelf && (
                                     <span className="flex items-center shrink-0 ml-0.5">
                                       {(!msg.status || msg.status === 'sent') ? (
-                                        <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                                        <Check size={14} strokeWidth={3} className={bubbleTextSelf === '#ffffff' ? "text-white/60" : "text-emerald-700/60"} title="Delivered to Server" />
                                       ) : msg.status === 'delivered' ? (
-                                        <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                                        <CheckCheck size={14} strokeWidth={3} className={bubbleTextSelf === '#ffffff' ? "text-white/80" : "text-emerald-700/80"} title="Delivered to Recipient" />
                                       ) : (
-                                        <CheckCheck size={14} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
+                                        <CheckCheck size={14} strokeWidth={3} className="text-sky-400 font-black" title="Opened" />
                                       )}
                                     </span>
                                   )}
@@ -24206,17 +24812,17 @@ function ExonaApp() {
                             ) : (
                               <>
                                 <p className="whitespace-pre-wrap leading-relaxed font-sans text-[13px]">{msg.text}</p>
-                                <div className="flex items-center gap-1.5 mt-1.5 justify-end text-[10px] font-semibold text-slate-500">
+                                <div className={`flex items-center gap-1.5 mt-1.5 justify-end text-[10px] font-semibold ${(isSelf ? bubbleTextSelf : bubbleTextOther) === '#ffffff' ? 'text-white/70' : 'text-slate-500'}`}>
                                   {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
                                   <span className="font-mono text-[9.5px] opacity-75">{formatTime(msg.timestamp)}</span>
                                   {isSelf && (
                                     <span className="flex items-center shrink-0 ml-0.5">
                                       {(!msg.status || msg.status === 'sent') ? (
-                                        <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                                        <Check size={14} strokeWidth={3} className={bubbleTextSelf === '#ffffff' ? "text-white/60" : "text-emerald-700/60"} title="Delivered to Server" />
                                       ) : msg.status === 'delivered' ? (
-                                        <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                                        <CheckCheck size={14} strokeWidth={3} className={bubbleTextSelf === '#ffffff' ? "text-white/80" : "text-emerald-700/80"} title="Delivered to Recipient" />
                                       ) : (
-                                        <CheckCheck size={14} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
+                                        <CheckCheck size={14} strokeWidth={3} className="text-sky-400 font-black" title="Opened" />
                                       )}
                                     </span>
                                   )}
