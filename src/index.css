@@ -53,9 +53,16 @@
 }
 
 @layer base {
-  body {
-    
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+  }
 
+  body {
     @apply bg-paper text-ink font-sans antialiased selection:bg-accent/10 selection:text-accent;
   }
 

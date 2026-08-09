@@ -3586,6 +3586,7 @@ const getRecordAccountNumber = (recordId: string | undefined): string => {
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
   const [viewportHeight, setViewportHeight] = useState('100dvh');
+  const [visualViewportOffsetTop, setVisualViewportOffsetTop] = useState(0);
 
   useEffect(() => {
     const isTelegram = (window as any).Telegram?.WebApp?.initData;
@@ -3601,10 +3602,20 @@ function ExonaApp() {
     } else if (window.visualViewport) {
       const handleResize = () => {
         setViewportHeight(`${window.visualViewport?.height || window.innerHeight}px`);
+        setVisualViewportOffsetTop(window.visualViewport?.offsetTop || 0);
+        window.scrollTo(0, 0);
+      };
+      const handleScroll = () => {
+        setVisualViewportOffsetTop(window.visualViewport?.offsetTop || 0);
+        window.scrollTo(0, 0);
       };
       window.visualViewport.addEventListener('resize', handleResize);
+      window.visualViewport.addEventListener('scroll', handleScroll);
       handleResize();
-      return () => window.visualViewport?.removeEventListener('resize', handleResize);
+      return () => {
+        window.visualViewport?.removeEventListener('resize', handleResize);
+        window.visualViewport?.removeEventListener('scroll', handleScroll);
+      };
     } else {
       const handleResize = () => {
         setViewportHeight(`${window.innerHeight}px`);
@@ -29802,8 +29813,11 @@ function ExonaApp() {
 
   return (
     <div 
-      className="flex flex-col bg-white overflow-hidden overflow-x-hidden w-full fixed inset-0"
-      style={{ height: viewportHeight }}
+      className="flex flex-col bg-white overflow-hidden overflow-x-hidden w-full fixed left-0 right-0"
+      style={{ 
+        height: viewportHeight,
+        top: `${visualViewportOffsetTop}px`
+      }}
     >
       {/* Free Tier Quota Warning banner */}
       {isQuotaExceeded && userDoc?.role === 'admin' && (
