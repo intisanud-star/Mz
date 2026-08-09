@@ -23306,6 +23306,13 @@ function ExonaApp() {
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
                     </button>
+                    <button 
+                      onClick={() => { showNotification('My App feature is coming soon!', 'info'); }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                    >
+                      <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">My App</span>
+                    </button>
                   </div>
                 </div>
               )}
