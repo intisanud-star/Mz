@@ -15110,7 +15110,7 @@ function ExonaApp() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
                     </button>
                     <button 
-                      onClick={() => { showNotification('My App feature is coming soon!', 'info'); }}
+                      onClick={() => setIsManageSettingsOpen(true)}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
                     >
                       <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
@@ -23316,7 +23316,10 @@ function ExonaApp() {
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
                     </button>
                     <button 
-                      onClick={() => { showNotification('My App feature is coming soon!', 'info'); }}
+                      onClick={() => { 
+                        setSelectedSchool(inst as School);
+                        setIsManageSettingsOpen(true);
+                      }}
                       className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
                     >
                       <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
@@ -33739,30 +33742,30 @@ function ExonaApp() {
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-ink/60 backdrop-blur-xl z-[400] flex items-center justify-center p-6 no-print"
+            className="fixed inset-0 bg-white z-[400] flex flex-col no-print"
             onClick={(e) => e.target === e.currentTarget && setIsManageSettingsOpen(false)}
           >
             <motion.div 
-              initial={{ scale: 0.9, y: 20 }} 
-              animate={{ scale: 1, y: 0 }} 
-              exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-xl bg-white rounded-[2.5rem] p-8 relative overflow-hidden flex flex-col max-h-[85vh]"
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: 20 }}
+              className="w-full h-full bg-white relative overflow-hidden flex flex-col"
             >
               <div className="absolute top-0 left-0 right-0 h-[2px] bg-accent/20" />
-              <div className="flex items-center justify-between mb-8 shrink-0">
+              <div className="flex items-center justify-between p-8 border-b border-gray-100 shrink-0">
                 <div>
                   <h3 className="text-2xl font-black text-ink mb-1">Institution Settings</h3>
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">{selectedSchool.name}</p>
                 </div>
                 <button 
                   onClick={() => setIsManageSettingsOpen(false)} 
-                  className="h-10 w-10 bg-gray-50 text-muted rounded-xl flex items-center justify-center hover:bg-gray-100 transition-colors"
+                  className="h-12 w-12 bg-gray-50 text-muted rounded-2xl flex items-center justify-center hover:bg-gray-100 transition-colors"
                 >
-                  <X size={20} />
+                  <X size={24} />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar pr-2 space-y-8">
+              <div className="flex-1 overflow-y-auto no-scrollbar p-8 pt-4 space-y-12 max-w-2xl mx-auto w-full">
                 {/* Pending Approvals Block */}
                 <div>
                   <div className="flex items-center justify-between mb-6">
@@ -33942,6 +33945,53 @@ function ExonaApp() {
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+
+                {/* My App Settings Block */}
+                <div className="border-t border-gray-100 pt-8 pb-12">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-extrabold text-ink">My App Settings</h3>
+                  </div>
+                  <div className="p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-[2rem] space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-ink">Mobile App Access</p>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Allow members to use the standalone mobile app</p>
+                      </div>
+                      <div className="h-6 w-11 bg-indigo-600 rounded-full relative cursor-pointer transition-colors">
+                        <div className="absolute right-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm" />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-ink">Push Notifications</p>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Send instant alerts to mobile devices</p>
+                      </div>
+                      <div className="h-6 w-11 bg-indigo-600 rounded-full relative cursor-pointer transition-colors">
+                        <div className="absolute right-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between opacity-50">
+                      <div>
+                        <p className="text-sm font-bold text-ink">Custom App Branding</p>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Apply institution colors to the mobile app</p>
+                      </div>
+                      <div className="h-6 w-11 bg-gray-200 rounded-full relative cursor-not-allowed">
+                        <div className="absolute left-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm" />
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-indigo-100/30">
+                      <button 
+                        onClick={() => showNotification('Opening Mobile App Dashboard...', 'success')}
+                        className="w-full py-4 bg-white border border-indigo-100 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Smartphone size={14} /> Open Mobile Dashboard
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
