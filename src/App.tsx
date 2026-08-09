@@ -365,7 +365,7 @@ const BrainBattleModal = ({
       {isActive && (
         <motion.div 
           initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }}
-          className="fixed inset-0 bg-white z-[500] flex flex-col h-screen w-screen no-print overflow-hidden"
+          className="fixed inset-0 bg-white z-[500] flex flex-col  no-print overflow-hidden"
         >
           <div className="flex-1 flex flex-col h-full bg-white relative overflow-hidden p-6 sm:p-12">
             {/* Background Glow */}
@@ -2011,7 +2011,7 @@ const PremiumGameModal = ({
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 30 }}
-          className="fixed inset-0 bg-white z-[500] flex flex-col h-screen w-screen overload-no-print no-scrollbar overflow-hidden"
+          className="fixed inset-0 bg-white z-[500] flex flex-col  overload-no-print no-scrollbar overflow-hidden"
         >
           <div className="w-full h-full bg-white flex flex-col overflow-hidden relative">
           {/* Header */}
@@ -3585,6 +3585,38 @@ const getRecordAccountNumber = (recordId: string | undefined): string => {
 
 // --- MAIN DASHBOARD ---
 function ExonaApp() {
+  const [viewportHeight, setViewportHeight] = useState('100dvh');
+
+  useEffect(() => {
+    const isTelegram = (window as any).Telegram?.WebApp?.initData;
+    
+    if (isTelegram && (window as any).Telegram.WebApp) {
+      const tg = (window as any).Telegram.WebApp;
+      const handleTgResize = () => {
+        setViewportHeight(`${tg.viewportHeight}px`);
+        window.scrollTo(0, 0);
+      };
+      tg.onEvent('viewportChanged', handleTgResize);
+      handleTgResize();
+      return () => tg.offEvent('viewportChanged', handleTgResize);
+    } else if (window.visualViewport) {
+      const handleResize = () => {
+        setViewportHeight(`${window.visualViewport?.height || window.innerHeight}px`);
+        window.scrollTo(0, 0);
+      };
+      window.visualViewport.addEventListener('resize', handleResize);
+      handleResize();
+      return () => window.visualViewport?.removeEventListener('resize', handleResize);
+    } else {
+      const handleResize = () => {
+        setViewportHeight(`${window.innerHeight}px`);
+        window.scrollTo(0, 0);
+      };
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }
+  }, []);
+
   const [heldItems, setHeldItems] = useState<{[key: string]: boolean}>({});
   const longPressTimers = useRef<{[key: string]: any}>({});
   const isLongPressActive = useRef<{[key: string]: boolean}>({});
@@ -22131,7 +22163,7 @@ function ExonaApp() {
 
             {/* Scrollable Telegram Channel Post Stream */}
             <div 
-              className="flex-1 overflow-y-auto px-4 py-4 space-y-6 flex flex-col no-scrollbar bg-white min-h-[50vh]"
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-6 flex flex-col no-scrollbar bg-white min-h-0"
             >
               {institutionPosts.length === 0 ? (
                 <div className="my-auto py-20 text-center bg-white/80 backdrop-blur-sm rounded-[2rem] border border-gray-200 shadow-sm p-6 max-w-sm mx-auto">
@@ -29223,7 +29255,7 @@ function ExonaApp() {
 
   if (view === 'splash') {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-white dark:bg-[#0b141a] overflow-hidden relative select-none">
+      <div className="flex  flex-col items-center justify-center bg-white dark:bg-[#0b141a] overflow-hidden relative select-none">
         {/* Centered High-Fidelity Brand Logo exactly like WhatsApp */}
         <div className="flex flex-col items-center justify-center flex-1">
           <motion.div
@@ -29626,7 +29658,10 @@ function ExonaApp() {
       : null;
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white overflow-hidden overflow-x-hidden w-full fixed inset-0">
+    <div 
+      className="flex flex-col bg-white overflow-hidden overflow-x-hidden w-full fixed inset-0"
+      style={{ height: viewportHeight }}
+    >
       {/* Free Tier Quota Warning banner */}
       {isQuotaExceeded && userDoc?.role === 'admin' && (
         <div className="bg-red-600 text-white text-xs font-bold px-4 py-3 text-center flex flex-col sm:flex-row items-center justify-center gap-1.5 z-[999] transition-all relative shadow-lg">
@@ -33614,7 +33649,7 @@ function ExonaApp() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 15 }}
-              className="fixed inset-0 bg-white text-zinc-800 z-[1000] flex flex-col h-screen w-screen overflow-hidden select-none"
+              className="fixed inset-0 bg-white text-zinc-800 z-[1000] flex flex-col  overflow-hidden select-none"
             >
               {/* Sleek Minimalist Top Header */}
               <div className="p-4 sm:p-6 border-b border-zinc-100 flex items-center justify-between bg-white shrink-0">
