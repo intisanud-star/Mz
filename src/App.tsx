@@ -23667,7 +23667,7 @@ function ExonaApp() {
 
               {/* Scrollable Telegram Stream with Textured Background */}
               <div 
-                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 flex flex-col no-scrollbar bg-[#f4f7f9] min-h-[50vh] pb-32"
+                className="flex-1 overflow-y-auto px-4 py-4 space-y-4 flex flex-col no-scrollbar bg-[#f4f7f9] min-h-0"
                 style={{
                   backgroundImage: 'radial-gradient(#d5dde3 1.2px, transparent 1.2px)',
                   backgroundSize: '24px 24px',
@@ -23868,7 +23868,7 @@ function ExonaApp() {
               </div>
 
               {/* Telegram Style Bottom Input Action Bar */}
-              <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex flex-col gap-1 shadow-inner absolute bottom-0 left-0 right-0 z-40">
+              <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex flex-col gap-1 shadow-inner relative w-full z-40">
                 {/* Typing status inside the docked bar */}
                 {!activeChat.isGroup && isOtherTyping && (
                   <div className="px-3 py-1 flex items-center gap-1.5 animate-pulse">
@@ -29625,7 +29625,7 @@ function ExonaApp() {
       : null;
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden overflow-x-hidden">
+    <div className="flex flex-col h-[100dvh] bg-white overflow-hidden overflow-x-hidden w-full fixed inset-0">
       {/* Free Tier Quota Warning banner */}
       {isQuotaExceeded && userDoc?.role === 'admin' && (
         <div className="bg-red-600 text-white text-xs font-bold px-4 py-3 text-center flex flex-col sm:flex-row items-center justify-center gap-1.5 z-[999] transition-all relative shadow-lg">
