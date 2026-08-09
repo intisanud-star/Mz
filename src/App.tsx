@@ -3614,6 +3614,8 @@ function ExonaApp() {
     }
   }, []);
 
+  const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+
   const [heldItems, setHeldItems] = useState<{[key: string]: boolean}>({});
   const longPressTimers = useRef<{[key: string]: any}>({});
   const isLongPressActive = useRef<{[key: string]: boolean}>({});
@@ -10451,7 +10453,7 @@ function ExonaApp() {
           if (view === 'institution-channel' && selectedInstitutionForProfile) {
             await handleSendChannelMessage('Voice Broadcast', 'voice', base64Audio);
           } else if (activeChat) {
-            await handleSendMessage(activeChat.uid, 'Voice Message', activeChat.isGroup, base64Audio);
+            await handleSendMessage(activeChat.uid, 'Voice Message', activeChat.isGroup, base64Audio, undefined, 'voice');
           }
         };
         stream.getTracks().forEach(t => t.stop());
@@ -11330,7 +11332,7 @@ function ExonaApp() {
         showNotification(`${attachmentFileType} uploaded to broadcast!`, 'success');
       } else {
         if (activeChat) {
-          await handleSendMessage(activeChat.uid, `Shared a ${attachmentFileType}: ${file.name}`, activeChat.isGroup, base64);
+          await handleSendMessage(activeChat.uid, `Shared a ${attachmentFileType}: ${file.name}`, activeChat.isGroup, base64, undefined, attachmentFileType);
           showNotification(`${attachmentFileType} uploaded to chat!`, 'success');
         }
       }
@@ -11343,7 +11345,7 @@ function ExonaApp() {
     if (e.target) e.target.value = ''; // Reset input
   };
 
-  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string, replyingTo?: any) => {
+  const handleSendMessage = async (receiverUid: string, text: string, isGroup = false, mediaUrl?: string, replyingTo?: any, mediaType?: string) => {
     if (!user || (!text.trim() && !mediaUrl)) return;
     const chatId = isGroup ? receiverUid : [user.uid, receiverUid].sort().join('_');
     const groupData = isGroup ? chatGroups.find(g => g.id === receiverUid) : null;
@@ -11360,7 +11362,7 @@ function ExonaApp() {
         status: 'sent',
         isGroup: !!isGroup,
         mediaUrl: mediaUrl || null,
-        mediaType: mediaUrl ? 'voice' : null,
+        mediaType: mediaType || (mediaUrl ? 'voice' : null),
         replyingTo: replyingTo ? {
           senderUid: replyingTo.senderUid,
           senderName: chatUsers.find(u => u.uid === replyingTo.senderUid)?.displayName || replyingTo.senderName || 'User',
@@ -22227,7 +22229,13 @@ function ExonaApp() {
                             {!isSelf && (
                               <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-start mt-1">
                                 {post.authorPhoto ? (
-                                  <img src={post.authorPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Avatar" />
+                                  <img 
+                                    src={post.authorPhoto} 
+                                    className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity" 
+                                    referrerPolicy="no-referrer" 
+                                    alt="Avatar" 
+                                    onClick={() => setFullscreenMedia({ url: post.authorPhoto, type: 'image' })}
+                                  />
                                 ) : (
                                   <span className="text-[10px] font-black text-indigo-600">
                                     {(post.authorName || 'I').charAt(0)}
@@ -22237,15 +22245,15 @@ function ExonaApp() {
                             )}
 
                             {/* Speech Bubble */}
-                            <div className={`w-full text-sm rounded-2xl shadow-sm border p-3.5 flex flex-col relative ${isSelf ? 'bg-[#effdde] text-ink rounded-br-sm border-green-200/40' : 'bg-white rounded-bl-sm border-gray-100/80 text-ink'}`}>
-                              {post.replyingTo && (
+                            <div className={hasMedia ? "w-full text-sm flex flex-col relative" : `w-full text-sm rounded-2xl shadow-sm border p-3.5 flex flex-col relative ${isSelf ? 'bg-[#effdde] text-ink rounded-br-sm border-green-200/40' : 'bg-white rounded-bl-sm border-gray-100/80 text-ink'}`}>
+                              {post.replyingTo && !hasMedia && (
                                 <div className="mb-2 w-full bg-black/5 border-l-4 border-indigo-500 rounded-lg p-2 text-[10px]">
                                   <div className="font-black text-indigo-700 uppercase tracking-widest">{post.replyingTo.authorName || 'Replying to'}</div>
                                   <div className="truncate text-ink/80 mt-0.5">{post.replyingTo.content || 'Media'}</div>
                                 </div>
                               )}
                               
-                              {!isSelf && (
+                              {!isSelf && !hasMedia && (
                                 <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">
                                   {post.authorName || 'Coordinator'}
                                 </p>
@@ -22291,7 +22299,15 @@ function ExonaApp() {
 
                               {/* Rich media content if present */}
                               {hasMedia && (
-                                <div className="relative aspect-video bg-gray-50 rounded-xl overflow-hidden mb-2.5 border border-gray-100/50">
+                                <div 
+                                  className="relative aspect-video bg-gray-50 rounded-2xl overflow-hidden mb-2 border border-gray-100/50 cursor-pointer hover:opacity-95 transition-opacity"
+                                  onClick={() => {
+                                    const mediaUrl = post.mediaUrls?.[0] || post.mediaUrl;
+                                    if (mediaUrl) {
+                                      setFullscreenMedia({ url: mediaUrl, type: isVideo ? 'video' : 'image' });
+                                    }
+                                  }}
+                                >
                                   {isVideo ? (
                                     <SecureVideo 
                                       src={post.mediaUrls?.[0] || post.mediaUrl} 
@@ -22315,26 +22331,29 @@ function ExonaApp() {
                               )}
 
                               {/* Chat Body text */}
-                              <div className="flex flex-col">
-                                <p className="text-[13px] md:text-[14px] text-slate-800 font-sans leading-relaxed whitespace-pre-wrap select-text font-normal">
-                                  {post.content}
-                                </p>
+                              {post.content && (
+                                <div className={`flex flex-col ${hasMedia ? 'mt-1.5 bg-white/75 backdrop-blur-sm p-3.5 rounded-2xl border border-gray-150' : ''}`}>
+                                  <p className="text-[13px] md:text-[14px] text-slate-800 font-sans leading-relaxed whitespace-pre-wrap select-text font-normal">
+                                    {post.content}
+                                  </p>
+                                </div>
+                              )}
 
-                                {/* Post linkUrl if any (rendered as simple link instead of a large button) */}
-                                {post.linkUrl && (
-                                  <a 
-                                    href={post.linkUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="text-[11px] font-bold text-indigo-600 hover:underline mt-2 flex items-center gap-1"
-                                  >
-                                    <ExternalLink size={11} />
-                                    <span>Visit Link</span>
-                                  </a>
-                                )}
+                              {/* Post linkUrl if any (rendered as simple link instead of a large button) */}
+                              {post.linkUrl && (
+                                <a 
+                                  href={post.linkUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  className={`text-[11px] font-bold text-indigo-600 hover:underline mt-2 flex items-center gap-1 ${hasMedia ? 'px-1' : ''}`}
+                                >
+                                  <ExternalLink size={11} />
+                                  <span>Visit Link</span>
+                                </a>
+                              )}
 
-                                {/* Subtle chat-aligned metadata at bottom right */}
-                                <div className="self-end flex items-center gap-2 mt-2 pt-1.5 border-t border-slate-50 text-[10px] text-slate-400 font-medium select-none w-full justify-between">
+                              {/* Subtle chat-aligned metadata at bottom right */}
+                              <div className={`self-end flex items-center gap-2 mt-2 pt-1.5 text-[10px] text-slate-400 font-medium select-none w-full justify-between ${hasMedia ? 'px-1' : 'border-t border-slate-50'}`}>
                                   <div className="flex items-center gap-2">
                                     <div className="flex items-center gap-0.5" title="Views">
                                       <Eye size={10} className="opacity-70" />
@@ -22357,7 +22376,6 @@ function ExonaApp() {
                                   </span>
                                 </div>
                               </div>
-                            </div>
 
                             {/* Minimal Round Forward Button */}
                             <button 
@@ -22648,16 +22666,25 @@ function ExonaApp() {
                 </label>
               )}
               
-              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm group/inst-logo z-10">
-                {inst.logo ? (
-                  <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <span className="text-3xl font-black text-accent">{inst.name.charAt(0)}</span>
-                )}
+              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm z-10">
+                <div 
+                  className="h-full w-full cursor-pointer hover:opacity-95 transition-opacity flex items-center justify-center bg-gray-50"
+                  onClick={() => {
+                    if (inst.logo) {
+                      setFullscreenMedia({ url: inst.logo, type: 'image' });
+                    }
+                  }}
+                >
+                  {inst.logo ? (
+                    <img src={inst.logo} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Logo" />
+                  ) : (
+                    <span className="text-3xl font-black text-accent">{inst.name.charAt(0)}</span>
+                  )}
+                </div>
 
                 {canManage && (
-                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/inst-logo:opacity-100 transition-opacity cursor-pointer z-10">
-                    <CameraIcon size={18} />
+                  <label className="absolute bottom-1 right-1 h-7 w-7 bg-indigo-600 border border-white hover:bg-indigo-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-md transition-all active:scale-90" title="Change Logo">
+                    <CameraIcon size={12} />
                     <input 
                       type="file" 
                       className="hidden" 
@@ -23589,7 +23616,16 @@ function ExonaApp() {
                       }
                     }}
                   >
-                    <div className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0 shadow-sm relative group-hover:scale-102 transition-transform">
+                    <div 
+                      className="h-10 w-10 rounded-full overflow-hidden border border-gray-100 bg-white flex items-center justify-center shrink-0 shadow-sm relative cursor-pointer hover:opacity-90 transition-opacity z-10"
+                      onClick={(e) => {
+                        const imgUrl = activeChat.isGroup ? (chatGroups.find(g => g.id === activeChat.uid)?.photoURL || activeChat.photoURL) : activeChat.photoURL;
+                        if (imgUrl) {
+                          e.stopPropagation();
+                          setFullscreenMedia({ url: imgUrl, type: 'image' });
+                        }
+                      }}
+                    >
                       {activeChat.photoURL || chatGroups.find(g => g.id === activeChat.uid)?.photoURL ? (
                         <img 
                           src={activeChat.isGroup ? (chatGroups.find(g => g.id === activeChat.uid)?.photoURL || activeChat.photoURL) : activeChat.photoURL} 
@@ -23721,6 +23757,9 @@ function ExonaApp() {
                 ) : (
                   chatMessages.map((msg) => {
                     const isSelf = msg.senderUid === user?.uid;
+                    const isMsgImage = msg.mediaType === 'image' || msg.mediaUrl?.startsWith('data:image/') || (msg.mediaUrl && !msg.mediaType && msg.text?.includes('Shared a image'));
+                    const isMsgVideo = msg.mediaType === 'video' || msg.mediaUrl?.startsWith('data:video/') || (msg.mediaUrl && !msg.mediaType && msg.text?.includes('Shared a video'));
+                    const isMsgMedia = isMsgImage || isMsgVideo;
                     return (
                       <div key={msg.id} className={`flex w-full ${isSelf ? 'justify-end' : 'justify-start'}`}>
                         <motion.div 
@@ -23738,7 +23777,18 @@ function ExonaApp() {
                           {activeChat.isGroup && !isSelf && (
                             <div className="h-8 w-8 rounded-full overflow-hidden bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm self-start mt-1">
                               {chatUsers.find(u => u.uid === msg.senderUid)?.photoURL || msg.senderPhoto ? (
-                                <img src={chatUsers.find(u => u.uid === msg.senderUid)?.photoURL || msg.senderPhoto} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Avatar" />
+                                <img 
+                                  src={chatUsers.find(u => u.uid === msg.senderUid)?.photoURL || msg.senderPhoto} 
+                                  className="h-full w-full object-cover cursor-pointer hover:opacity-90 transition-opacity" 
+                                  referrerPolicy="no-referrer" 
+                                  alt="Avatar" 
+                                  onClick={() => {
+                                    const url = chatUsers.find(u => u.uid === msg.senderUid)?.photoURL || msg.senderPhoto;
+                                    if (url) {
+                                      setFullscreenMedia({ url, type: 'image' });
+                                    }
+                                  }}
+                                />
                               ) : (
                                 <span className="text-[10px] font-black text-indigo-600">
                                   {(chatUsers.find(u => u.uid === msg.senderUid)?.displayName || msg.senderName || 'U').charAt(0)}
@@ -23748,24 +23798,106 @@ function ExonaApp() {
                           )}
 
                           {/* Speech bubble - Self has light green, other has pure white */}
-                          <div className={`p-3 rounded-2xl shadow-sm text-sm relative border ${
+                          <div className={isMsgMedia ? "relative flex flex-col items-start" : `p-3 rounded-2xl shadow-sm text-sm relative border ${
                             isSelf 
                               ? 'bg-[#effdde] text-ink rounded-tr-none border-green-200/40' 
                               : 'bg-white text-ink rounded-tl-none border-gray-150'
                           }`}>
-                            {msg.replyingTo && (
+                            {msg.replyingTo && !isMsgMedia && (
                               <div className="mb-2 w-full bg-black/5 border-l-4 border-indigo-500 rounded-lg p-2 text-[10px]">
                                 <div className="font-black text-indigo-700 uppercase tracking-widest">{chatUsers.find(u => u.uid === msg.replyingTo?.senderUid)?.displayName || msg.replyingTo?.senderName || 'Replying to'}</div>
                                 <div className="truncate text-ink/80 mt-0.5">{msg.replyingTo.text || msg.replyingTo.content || 'Media'}</div>
                               </div>
                             )}
-                            {activeChat.isGroup && !isSelf && (
+                            {activeChat.isGroup && !isSelf && !isMsgMedia && (
                               <p className="text-[10px] font-black uppercase tracking-wider text-indigo-600 mb-1">
                                 {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || msg.senderName || 'User'}
                               </p>
                             )}
 
-                            {msg.mediaType === 'voice' ? (
+                            {isMsgMedia ? (
+                              <div className="flex flex-col gap-1 w-full max-w-[280px] sm:max-w-xs relative group/media">
+                                {/* Sender name inside group chat for other users */}
+                                {activeChat.isGroup && !isSelf && (
+                                  <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md bg-black/40 text-white backdrop-blur-sm text-[9px] font-bold uppercase tracking-wider">
+                                    {chatUsers.find(u => u.uid === msg.senderUid)?.displayName || msg.senderName || 'User'}
+                                  </div>
+                                )}
+
+                                <div className="relative rounded-2xl overflow-hidden border border-gray-200 shadow-sm bg-gray-50 max-w-full">
+                                  {isMsgVideo ? (
+                                    <div 
+                                      className="relative aspect-video w-full cursor-pointer hover:opacity-95 transition-opacity bg-black flex items-center justify-center"
+                                      onClick={() => setFullscreenMedia({ url: msg.mediaUrl!, type: 'video' })}
+                                    >
+                                      <SecureVideo 
+                                        src={msg.mediaUrl!} 
+                                        className="h-full w-full object-cover pointer-events-none" 
+                                        muted
+                                        playsInline
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                        <div className="h-12 w-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-md group-hover/media:scale-110 transition-transform">
+                                          <Play size={20} fill="currentColor" className="ml-0.5" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <img 
+                                      src={msg.mediaUrl!} 
+                                      className="w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-all" 
+                                      referrerPolicy="no-referrer"
+                                      alt="Chat Media"
+                                      onClick={() => setFullscreenMedia({ url: msg.mediaUrl!, type: 'image' })}
+                                    />
+                                  )}
+
+                                  {/* Absolute timestamp/ticks overlay when there's no text */}
+                                  {(!msg.text || msg.text.startsWith('Shared a image') || msg.text.startsWith('Shared a video')) && (
+                                    <div className="absolute bottom-2 right-2 bg-black/40 text-white backdrop-blur-md px-2 py-0.5 rounded-full flex items-center gap-1.5 text-[9px] font-semibold select-none shadow-sm">
+                                      <span className="font-mono">{formatTime(msg.timestamp)}</span>
+                                      {isSelf && (
+                                        <span className="flex items-center shrink-0">
+                                          {(!msg.status || msg.status === 'sent') ? (
+                                            <Check size={11} strokeWidth={3} className="text-white/60" title="Delivered to Server" />
+                                          ) : msg.status === 'delivered' ? (
+                                            <CheckCheck size={11} strokeWidth={3} className="text-white/80" title="Delivered to Recipient" />
+                                          ) : (
+                                            <CheckCheck size={11} strokeWidth={3} className="text-sky-300 font-black" title="Opened" />
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Caption box if text is present */}
+                                {msg.text && !msg.text.startsWith('Shared a image') && !msg.text.startsWith('Shared a video') && (
+                                  <div className={`p-3 rounded-2xl shadow-sm text-sm border flex flex-col relative w-full ${
+                                    isSelf 
+                                      ? 'bg-[#effdde] text-ink border-green-200/40 rounded-tr-none' 
+                                      : 'bg-white text-ink border-gray-150 rounded-tl-none'
+                                  }`}>
+                                    <p className="whitespace-pre-wrap leading-relaxed font-sans text-[13px]">{msg.text}</p>
+                                    <div className="flex items-center gap-1.5 mt-1.5 justify-end text-[10px] font-semibold text-slate-500">
+                                      {msg.isEdited && <span className="text-[8px] italic mr-1">edited</span>}
+                                      <span className="font-mono text-[9.5px] opacity-75">{formatTime(msg.timestamp)}</span>
+                                      {isSelf && (
+                                        <span className="flex items-center shrink-0 ml-0.5">
+                                          {(!msg.status || msg.status === 'sent') ? (
+                                            <Check size={14} strokeWidth={3} className="text-emerald-700/60" title="Delivered to Server" />
+                                          ) : msg.status === 'delivered' ? (
+                                            <CheckCheck size={14} strokeWidth={3} className="text-emerald-700/80" title="Delivered to Recipient" />
+                                          ) : (
+                                            <CheckCheck size={14} strokeWidth={3} className="text-sky-600 font-black" title="Opened" />
+                                          )}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : msg.mediaType === 'voice' ? (
                               <div className="flex flex-col gap-1.5">
                                 <div className="flex items-center gap-3 min-w-[150px]">
                                   <button 
@@ -29081,8 +29213,16 @@ function ExonaApp() {
                   </div>
 
                   {/* Profile avatar with camera hover overlay */}
-                  <div className="relative group/profile-avatar h-28 w-28 sm:h-32 sm:w-32 shrink-0">
-                    <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-full overflow-hidden border-2 border-white shadow-md flex items-center justify-center bg-gray-50">
+                  <div className="relative h-28 w-28 sm:h-32 sm:w-32 shrink-0">
+                    <div 
+                      className="h-28 w-28 sm:h-32 sm:w-32 rounded-full overflow-hidden border-2 border-white shadow-md flex items-center justify-center bg-gray-50 cursor-pointer hover:opacity-95 transition-opacity"
+                      onClick={() => {
+                        const url = userDoc?.photoURL || user.photoURL;
+                        if (url) {
+                          setFullscreenMedia({ url, type: 'image' });
+                        }
+                      }}
+                    >
                       {isUploadingProfile ? (
                         <div className="h-full w-full bg-white flex flex-col items-center justify-center">
                           <div className="h-6 w-6 border-2 border-ink/20 border-t-ink rounded-full animate-spin" />
@@ -29097,8 +29237,8 @@ function ExonaApp() {
                     </div>
 
                     {!isUploadingProfile && (
-                      <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/profile-avatar:opacity-100 transition-opacity cursor-pointer rounded-full z-20">
-                        <CameraIcon size={20} />
+                      <label className="absolute bottom-0 right-0 h-9 w-9 bg-indigo-600 border border-white hover:bg-indigo-700 text-white rounded-full flex items-center justify-center cursor-pointer shadow-md transition-all active:scale-90" title="Change Avatar">
+                        <CameraIcon size={14} />
                         <input 
                           type="file" 
                           className="hidden" 
@@ -34036,6 +34176,59 @@ function ExonaApp() {
             </motion.div>
           );
         })()}
+      </AnimatePresence>
+
+      {/* Fullscreen Media Lightbox Viewer (WhatsApp style) */}
+      <AnimatePresence>
+        {fullscreenMedia && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setFullscreenMedia(null)}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/95 backdrop-blur-lg select-none"
+          >
+            {/* Top Bar with actions */}
+            <div className="absolute top-0 inset-x-0 h-16 bg-gradient-to-b from-black/60 to-transparent flex items-center justify-between px-4 text-white z-50">
+              <span className="text-[11px] font-bold tracking-widest uppercase opacity-75">Media Viewer</span>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFullscreenMedia(null);
+                }}
+                className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors text-white cursor-pointer active:scale-90"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Media Container */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-[85vh] p-4 flex items-center justify-center relative"
+            >
+              {fullscreenMedia.type === 'video' ? (
+                <SecureVideo 
+                  src={fullscreenMedia.url} 
+                  controls 
+                  autoPlay 
+                  className="max-w-full max-h-[80vh] rounded-lg shadow-2xl object-contain bg-black" 
+                />
+              ) : (
+                <img 
+                  src={fullscreenMedia.url} 
+                  className="max-w-full max-h-[80vh] rounded-lg shadow-2xl object-contain" 
+                  referrerPolicy="no-referrer"
+                  alt="Fullscreen Media"
+                />
+              )}
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
       </div>
     );
