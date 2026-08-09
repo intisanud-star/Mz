@@ -3620,6 +3620,7 @@ function ExonaApp() {
       clearTimeout(longPressTimers.current[id]);
       longPressTimers.current[id] = null;
     }
+    isLongPressActive.current[id] = true;
   }, []);
 
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
