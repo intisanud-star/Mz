@@ -3594,7 +3594,6 @@ function ExonaApp() {
       const tg = (window as any).Telegram.WebApp;
       const handleTgResize = () => {
         setViewportHeight(`${tg.viewportHeight}px`);
-        window.scrollTo(0, 0);
       };
       tg.onEvent('viewportChanged', handleTgResize);
       handleTgResize();
@@ -3602,7 +3601,6 @@ function ExonaApp() {
     } else if (window.visualViewport) {
       const handleResize = () => {
         setViewportHeight(`${window.visualViewport?.height || window.innerHeight}px`);
-        window.scrollTo(0, 0);
       };
       window.visualViewport.addEventListener('resize', handleResize);
       handleResize();
@@ -3610,7 +3608,6 @@ function ExonaApp() {
     } else {
       const handleResize = () => {
         setViewportHeight(`${window.innerHeight}px`);
-        window.scrollTo(0, 0);
       };
       window.addEventListener('resize', handleResize);
       return () => window.removeEventListener('resize', handleResize);
@@ -8638,16 +8635,18 @@ function ExonaApp() {
   const [typingState, setTypingState] = useState<{ [chatId: string]: boolean }>({});
   const [isOnline, setIsOnline] = useState(true);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const channelEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    channelEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
-    if (view === 'chat' && activeChat) {
+    if ((view === 'chat' && activeChat) || (view === 'institution-channel' && selectedInstitutionForProfile)) {
       scrollToBottom();
     }
-  }, [allMessages, view, activeChat]);
+  }, [allMessages, view, activeChat, selectedInstitutionForProfile, viewportHeight, posts]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -22375,6 +22374,7 @@ function ExonaApp() {
                   })()}
                 </>
               )}
+              <div ref={channelEndRef} />
             </div>
 
             {/* Telegram Channel Bottom Input Action Bar */}
@@ -29255,7 +29255,10 @@ function ExonaApp() {
 
   if (view === 'splash') {
     return (
-      <div className="flex  flex-col items-center justify-center bg-white dark:bg-[#0b141a] overflow-hidden relative select-none">
+      <div 
+        className="flex w-screen flex-col items-center justify-center bg-white dark:bg-[#0b141a] overflow-hidden relative select-none"
+        style={{ height: viewportHeight }}
+      >
         {/* Centered High-Fidelity Brand Logo exactly like WhatsApp */}
         <div className="flex flex-col items-center justify-center flex-1">
           <motion.div
