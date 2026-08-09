@@ -15109,6 +15109,15 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
                     </button>
+                    <button 
+                      onClick={() => { showNotification('My App feature is coming soon!', 'info'); }}
+                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                    >
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                        <Smartphone size={20} />
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">My App</span>
+                    </button>
                     {canManageInstitution(selectedSchool) && (
                       <button 
                         onClick={() => setIsCategoryManagerOpen(true)}
