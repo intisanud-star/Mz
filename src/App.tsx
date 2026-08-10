@@ -14439,7 +14439,7 @@ function ExonaApp() {
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md border-b border-gray-100 z-50 h-[56px] flex items-center">
+            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md z-50 h-[56px] flex items-center">
               <div className="w-full px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
@@ -14504,7 +14504,7 @@ function ExonaApp() {
                 </div>
 
                 {/* Sticky Home / Satellite Segmented Control (sticks at top right where Search bar was when scrolling) */}
-                <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 border-b border-gray-100 mb-4 transition-all">
+                <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 mb-4 transition-all">
                   <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
                     <button 
                       onClick={() => setView('feed')}
