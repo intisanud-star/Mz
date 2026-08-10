@@ -14437,16 +14437,16 @@ function ExonaApp() {
       }
       case 'feed': {
         return (
-          <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
+          <div className="w-full h-full flex flex-col bg-white dark:bg-zinc-950 overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md z-50 h-[56px] flex items-center">
+            <div className="absolute top-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl z-50 h-[56px] flex items-center border-b border-slate-100/50 dark:border-zinc-800/50">
               <div className="w-full px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-slate-50 dark:bg-zinc-800/80 shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-100 dark:border-zinc-700/50 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-zinc-700/60 transition-all active:scale-95 cursor-pointer select-none">
-                    <div className="flex gap-[3.5px] items-center justify-center">
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-800 dark:bg-slate-300" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-800 dark:bg-slate-300" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-800 dark:bg-slate-300" />
+                  <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-white dark:bg-zinc-800 shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-slate-100/30 dark:border-zinc-700/30 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-zinc-750 transition-all active:scale-95 cursor-pointer select-none">
+                    <div className="flex gap-[4px] items-center justify-center">
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-950 dark:bg-zinc-100" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-950 dark:bg-zinc-100" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-slate-950 dark:bg-zinc-100" />
                     </div>
                   </div>
                 </div>
@@ -14509,18 +14509,18 @@ function ExonaApp() {
                   <Search className="absolute left-1/2 -translate-x-[40px] top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
                 </div>
 
-                {/* Sticky Home / Satellite Segmented Control (sticks at top right where Search bar was when scrolling) */}
-                <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 mb-4 transition-all">
-                  <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
+                {/* Sticky Home / Satellite Segmented Control */}
+                <div className="sticky top-0 z-40 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 mb-4 transition-all">
+                  <div className="flex items-center bg-slate-100 dark:bg-zinc-900 p-1.5 rounded-2xl w-full border border-slate-200/10 dark:border-zinc-800/20">
                     <button 
                       onClick={() => setView('feed')}
-                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200/20 dark:border-zinc-700/50' : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
                     >
                       All
                     </button>
                     <button 
                       onClick={() => setView('videos')}
-                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
+                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200/20 dark:border-zinc-700/50' : 'text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-100'}`}
                     >
                       Satellite
                     </button>
@@ -14535,8 +14535,8 @@ function ExonaApp() {
                         onClick={() => setSchoolFilter(tab)}
                         className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider border transition-all cursor-pointer ${
                           schoolFilter === tab
-                            ? 'bg-[#E6F3FC] dark:bg-[#123147] text-[#1D6FA3] dark:text-[#58B2F0] border-[#BDDCF4] dark:border-[#224A6D] shadow-xs'
-                            : 'bg-white dark:bg-zinc-900 border-slate-200/80 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/50'
+                            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-transparent shadow-xs'
+                            : 'bg-slate-50/80 dark:bg-zinc-900 border-slate-200/60 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800/50'
                         }`}
                       >
                         {tab === 'all' ? 'All' : tab === 'institutions' ? 'Institution' : tab === 'chats' ? 'Chat' : 'Group'}
@@ -34159,7 +34159,7 @@ function ExonaApp() {
             className={`fixed bottom-3 left-0 right-0 z-50 flex items-center justify-center px-3.5 no-print select-none pointer-events-none ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
           >
             <div className="flex items-center gap-2 max-w-md w-full pointer-events-auto">
-              <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex items-center justify-between flex-1 relative">
+              <div className="bg-white/80 dark:bg-zinc-900/85 backdrop-blur-2xl border border-slate-200/40 dark:border-zinc-800/60 shadow-[0_12px_40px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.3)] rounded-full px-2 py-1.5 flex items-center justify-between flex-1 relative">
               
                {/* Floating Workspace & Tools submenu above Middle Button */}
               <AnimatePresence>
@@ -34177,7 +34177,7 @@ function ExonaApp() {
                       animate={{ opacity: 1, y: 0, scale: 1, x: '-50%' }}
                       exit={{ opacity: 0, y: 12, scale: 0.92, x: '-50%' }}
                       transition={{ type: 'spring', damping: 22, stiffness: 320 }}
-                      className="absolute bottom-[72px] left-1/2 z-50 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-3xl p-3 shadow-2xl flex items-center gap-3 no-print min-w-[230px] border-b-4 border-b-[#2481CC]"
+                      className="absolute bottom-[72px] left-1/2 z-50 bg-white/80 dark:bg-zinc-900/85 backdrop-blur-2xl border border-slate-200/40 dark:border-zinc-800/60 rounded-3xl p-3 shadow-2xl flex items-center gap-3 no-print min-w-[230px] border-b-4 border-b-[#2481CC]"
                     >
                       {/* Sub-icon 1: Workspace */}
                       <button
@@ -34237,20 +34237,20 @@ function ExonaApp() {
                 {(view === 'profile' && !showProfileSettings) && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
-                    className="absolute inset-x-1.5 inset-y-0.5 bg-[#E6F3FC] dark:bg-[#123147] rounded-full shadow-xs shadow-sky-600/5 z-0"
+                    className="absolute inset-x-1.5 inset-y-0.5 bg-slate-100 dark:bg-zinc-850 rounded-full border border-slate-200/40 dark:border-zinc-750/50 shadow-xs z-0"
                     transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <UserIcon 
                     size={20} 
-                    className={`transition-colors duration-200 ${(view === 'profile' && !showProfileSettings) ? 'text-[#1D6FA3] dark:text-[#58B2F0]' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
+                    className={`transition-colors duration-200 ${(view === 'profile' && !showProfileSettings) ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
                     fill={(view === 'profile' && !showProfileSettings) ? 'currentColor' : 'none'} 
-                    fillOpacity={(view === 'profile' && !showProfileSettings) ? 0.3 : 0} 
+                    fillOpacity={(view === 'profile' && !showProfileSettings) ? 0.25 : 0} 
                     strokeWidth={(view === 'profile' && !showProfileSettings) ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    (view === 'profile' && !showProfileSettings) ? 'text-[#1D6FA3] dark:text-[#58B2F0] font-black' : 'text-slate-500 dark:text-zinc-400 font-medium group-hover:text-slate-800 dark:group-hover:text-zinc-200'
+                    (view === 'profile' && !showProfileSettings) ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 dark:text-zinc-500 font-semibold group-hover:text-slate-800 dark:group-hover:text-zinc-200'
                   }`}>
                     Profile
                   </span>
@@ -34268,20 +34268,20 @@ function ExonaApp() {
                 {view === 'schools' && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
-                    className="absolute inset-x-1.5 inset-y-0.5 bg-[#E6F3FC] dark:bg-[#123147] rounded-full shadow-xs shadow-sky-600/5 z-0"
+                    className="absolute inset-x-1.5 inset-y-0.5 bg-slate-100 dark:bg-zinc-850 rounded-full border border-slate-200/40 dark:border-zinc-750/50 shadow-xs z-0"
                     transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <ShoppingBag 
                     size={20} 
-                    className={`transition-colors duration-200 ${view === 'schools' ? 'text-[#1D6FA3] dark:text-[#58B2F0]' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
+                    className={`transition-colors duration-200 ${view === 'schools' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
                     fill={view === 'schools' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'schools' ? 0.3 : 0} 
+                    fillOpacity={view === 'schools' ? 0.25 : 0} 
                     strokeWidth={view === 'schools' ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    view === 'schools' ? 'text-[#1D6FA3] dark:text-[#58B2F0] font-black' : 'text-slate-500 dark:text-zinc-400 font-medium group-hover:text-slate-800 dark:group-hover:text-zinc-200'
+                    view === 'schools' ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 dark:text-zinc-500 font-semibold group-hover:text-slate-800 dark:group-hover:text-zinc-200'
                   }`}>
                     Shop
                   </span>
@@ -34299,20 +34299,20 @@ function ExonaApp() {
                 {view === 'hub' && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
-                    className="absolute inset-x-1.5 inset-y-0.5 bg-[#E6F3FC] dark:bg-[#123147] rounded-full shadow-xs shadow-sky-600/5 z-0"
+                    className="absolute inset-x-1.5 inset-y-0.5 bg-slate-100 dark:bg-zinc-850 rounded-full border border-slate-200/40 dark:border-zinc-750/50 shadow-xs z-0"
                     transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <LayoutGrid 
                     size={20} 
-                    className={`transition-colors duration-200 ${view === 'hub' ? 'text-[#1D6FA3] dark:text-[#58B2F0]' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
+                    className={`transition-colors duration-200 ${view === 'hub' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
                     fill={view === 'hub' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'hub' ? 0.3 : 0} 
+                    fillOpacity={view === 'hub' ? 0.25 : 0} 
                     strokeWidth={view === 'hub' ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    view === 'hub' ? 'text-[#1D6FA3] dark:text-[#58B2F0] font-black' : 'text-slate-500 dark:text-zinc-400 font-medium group-hover:text-slate-800 dark:group-hover:text-zinc-200'
+                    view === 'hub' ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 dark:text-zinc-500 font-semibold group-hover:text-slate-800 dark:group-hover:text-zinc-200'
                   }`}>
                     Hub
                   </span>
@@ -34330,20 +34330,20 @@ function ExonaApp() {
                 {view === 'feed' && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
-                    className="absolute inset-x-1.5 inset-y-0.5 bg-[#E6F3FC] dark:bg-[#123147] rounded-full shadow-xs shadow-sky-600/5 z-0"
+                    className="absolute inset-x-1.5 inset-y-0.5 bg-slate-100 dark:bg-zinc-850 rounded-full border border-slate-200/40 dark:border-zinc-750/50 shadow-xs z-0"
                     transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
                   <MessageSquare 
                     size={20} 
-                    className={`transition-colors duration-200 ${view === 'feed' ? 'text-[#1D6FA3] dark:text-[#58B2F0]' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
+                    className={`transition-colors duration-200 ${view === 'feed' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-800 dark:group-hover:text-zinc-200'}`}
                     fill={view === 'feed' ? 'currentColor' : 'none'} 
-                    fillOpacity={view === 'feed' ? 0.3 : 0} 
+                    fillOpacity={view === 'feed' ? 0.25 : 0} 
                     strokeWidth={view === 'feed' ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    view === 'feed' ? 'text-[#1D6FA3] dark:text-[#58B2F0] font-black' : 'text-slate-500 dark:text-zinc-400 font-medium group-hover:text-slate-800 dark:group-hover:text-zinc-200'
+                    view === 'feed' ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 dark:text-zinc-500 font-semibold group-hover:text-slate-800 dark:group-hover:text-zinc-200'
                   }`}>
                     Charts
                   </span>
@@ -34366,7 +34366,7 @@ function ExonaApp() {
                 {((view === 'profile' && showProfileSettings) || view === 'login') && (
                   <motion.div 
                     layoutId="floating-nav-pill" 
-                    className="absolute inset-x-1.5 inset-y-0.5 bg-[#E6F3FC] dark:bg-[#123147] rounded-full shadow-xs shadow-sky-600/5 z-0"
+                    className="absolute inset-x-1.5 inset-y-0.5 bg-slate-100 dark:bg-zinc-850 rounded-full border border-slate-200/40 dark:border-zinc-750/50 shadow-xs z-0"
                     transition={{ type: 'spring', damping: 25, stiffness: 350 }}
                   />
                 )}
@@ -34374,14 +34374,14 @@ function ExonaApp() {
                   <Settings 
                     size={20} 
                     className={`transition-colors duration-200 ${
-                      (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-[#1D6FA3] dark:text-[#58B2F0]' : 'text-slate-500 dark:text-zinc-400 group-hover:text-slate-800 dark:group-hover:text-zinc-200'
+                      (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-slate-900 dark:text-white' : 'text-slate-400 dark:text-zinc-500 group-hover:text-slate-800 dark:group-hover:text-zinc-200'
                     }`}
                     fill={(view === 'profile' && showProfileSettings) || view === 'login' ? 'currentColor' : 'none'} 
-                    fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.3 : 0} 
+                    fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.25 : 0} 
                     strokeWidth={(view === 'profile' && showProfileSettings) || view === 'login' ? 2.5 : 2.0} 
                   />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                    (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-[#1D6FA3] dark:text-[#58B2F0] font-black' : 'text-slate-500 dark:text-zinc-400 font-medium group-hover:text-slate-800 dark:group-hover:text-zinc-200'
+                    (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-slate-900 dark:text-white font-black' : 'text-slate-400 dark:text-zinc-500 font-semibold group-hover:text-slate-800 dark:group-hover:text-zinc-200'
                   }`}>
                     Settings
                   </span>
@@ -34397,18 +34397,18 @@ function ExonaApp() {
               }}
               className={`h-[60px] w-[60px] shrink-0 rounded-full flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-[0_12px_36px_rgba(0,0,0,0.12)] border ${
                 view === 'search'
-                  ? 'bg-[#E6F3FC] dark:bg-[#123147] text-[#1D6FA3] dark:text-[#58B2F0] border-[#C3E2FA] dark:border-[#1E4563] shadow-md shadow-sky-600/10 scale-105'
+                  ? 'bg-slate-950 dark:bg-white text-white dark:text-slate-950 border-slate-950 dark:border-white shadow-md scale-105'
                   : 'bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl border-slate-200/90 dark:border-zinc-800 text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-850 active:scale-95'
               }`}
               title="Search"
             >
               <Search 
                 size={20} 
-                className={`transition-colors duration-200 ${view === 'search' ? 'text-[#1D6FA3] dark:text-[#58B2F0]' : 'text-slate-500 dark:text-zinc-400'}`}
+                className={`transition-colors duration-200 ${view === 'search' ? 'text-white dark:text-slate-950' : 'text-slate-500 dark:text-zinc-400'}`}
                 strokeWidth={view === 'search' ? 2.5 : 2.0} 
               />
               <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
-                view === 'search' ? 'text-[#1D6FA3] dark:text-[#58B2F0] font-black' : 'text-slate-500 dark:text-zinc-400 font-medium'
+                view === 'search' ? 'text-white dark:text-slate-950 font-black' : 'text-slate-500 dark:text-zinc-400 font-semibold'
               }`}>
                 Search
               </span>
