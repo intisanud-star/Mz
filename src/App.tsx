@@ -14442,7 +14442,9 @@ function ExonaApp() {
             <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md z-50 h-[56px] flex items-center">
               <div className="w-full px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
+                  <div className="flex items-center justify-center bg-slate-50 dark:bg-zinc-800/60 border border-slate-100 dark:border-zinc-700/50 rounded-xl px-4.5 py-1.5 shadow-xs hover:bg-slate-100 dark:hover:bg-zinc-700/60 transition-colors cursor-pointer select-none">
+                    <span className="text-slate-600 dark:text-slate-400 font-extrabold text-xs tracking-widest leading-none">...</span>
+                  </div>
                 </div>
                 
                 <div className="flex items-center gap-2 text-ink">
