@@ -15306,88 +15306,128 @@ function ExonaApp() {
         const bubbleColorOther = customStyle.bubbleColorOther || currentTheme.bubbleColorOther;
         const directChatDisappearingDuration = customStyle.disappearingDuration || 0;
 
+        const followersCount = selectedUserProfileDoc?.followers?.length ?? selectedUserProfileDoc?.followersCount ?? 0;
+        const followingCount = selectedUserProfileDoc?.following?.length ?? selectedUserProfileDoc?.followingCount ?? 0;
+
         return (
-          <div className="w-full max-w-xl mx-auto py-8 px-4 pb-32">
-            {/* Top Bar with Back Button */}
-            <div className="flex items-center justify-between mb-6">
-              <button 
-                onClick={() => setView('feed')}
-                className="h-10 w-10 sm:h-12 sm:w-12 bg-white border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-sm"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            </div>
-
-            {/* Cover Picture Block */}
-            <div className="relative h-32 sm:h-36 bg-gray-50 rounded-3xl overflow-hidden mb-6 border border-gray-100/50 flex items-center justify-center">
-              {selectedUserProfileDoc?.coverURL ? (
-                <img src={selectedUserProfileDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
-              ) : (
-                <div className="h-full w-full bg-gray-50 flex items-center justify-center">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-muted/30">Exona Cover Banner</span>
-                </div>
-              )}
-            </div>
-
-            {/* Profile Stats Row */}
-            <div className="flex items-center gap-8 mb-6">
-                <div className="flex flex-col items-center">
-                  <p className="text-sm font-black text-ink">{profilePosts.length}</p>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Posts</p>
-                </div>
-              <div className="flex flex-col items-center cursor-pointer">
-                <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.followers?.length ?? selectedUserProfileDoc?.followersCount ?? 0}</p>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Followers</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <p className="text-sm font-black text-ink">{selectedUserProfileDoc?.following?.length ?? selectedUserProfileDoc?.followingCount ?? 0}</p>
-                <p className="text-[10px] font-bold text-muted uppercase tracking-widest">Following</p>
-              </div>
-            </div>
-
-            {/* Previous View Profile Info Row */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-ink mb-1">{selectedUserProfile.name}</h2>
-                <div className="flex items-center gap-2">
-                  <p className="text-ink text-[14px] font-semibold">@{selectedUserProfileDoc?.username || selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
-                </div>
-                <button
-                    onClick={() => {
-                        setActiveChat({
-                            uid: selectedUserProfile.uid,
-                            displayName: selectedUserProfile.name,
-                            photoURL: selectedUserProfile.photo
-                        });
-                        setView('chat');
-                    }}
-                    className="mt-3 px-4 py-2 bg-black text-white text-[12px] font-bold rounded-full hover:bg-gray-800 transition-all flex items-center gap-2"
-                 >
-                    Message
-                 </button>
-              </div>
-              <div className="h-20 w-20 rounded-full overflow-hidden border border-gray-100 shrink-0">
-                {selectedUserProfile.photo ? (
-                  <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+          <div className="flex flex-col bg-card pb-32">
+            {/* Header / Cover area */}
+            <div className="relative h-48 bg-gray-50 flex items-center justify-center border-b border-gray-100">
+              <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
+                {selectedUserProfileDoc?.coverURL ? (
+                  <img src={selectedUserProfileDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
                 ) : (
-                  <div className="h-full w-full bg-white border border-gray-100 flex items-center justify-center text-ink font-bold text-2xl">
-                    {selectedUserProfile.name?.charAt(0)}
+                  <div className="h-full w-full bg-gray-50 flex items-center justify-center">
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted/30">Exona Cover Banner</span>
                   </div>
                 )}
               </div>
+
+              <button 
+                onClick={() => setView('feed')}
+                className="absolute top-6 left-6 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10 shadow-sm"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              
+              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm z-10">
+                <div 
+                  className="h-full w-full cursor-pointer hover:opacity-95 transition-opacity flex items-center justify-center bg-gray-50"
+                  onClick={() => {
+                    if (selectedUserProfile.photo) {
+                      setFullscreenMedia({ url: selectedUserProfile.photo, type: 'image' });
+                    }
+                  }}
+                >
+                  {selectedUserProfile.photo ? (
+                    <img src={selectedUserProfile.photo} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Profile" />
+                  ) : (
+                    <span className="text-3xl font-black text-accent">{selectedUserProfile.name?.charAt(0)}</span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Chat Settings & Customization Card inside Profile */}
-            {user && user.uid !== selectedUserProfile.uid && (
-              <div className="mb-8 p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-3xl space-y-6">
-                <div>
-                  <h3 className="text-xs font-black text-ink tracking-wide uppercase flex items-center gap-2">
-                    <Clock size={14} className="text-indigo-600" /> Chat Preferences
-                  </h3>
-                  <p className="text-[10px] text-muted font-bold tracking-tight uppercase mt-0.5">Personalize your 1-on-1 conversations</p>
+            <div className="px-6 pt-16">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex-1 min-w-0 pr-4">
+                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate">{selectedUserProfile.name}</h2>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent bg-accent/5 px-2 py-0.5 rounded-full">User</span>
+                    <p className="text-ink text-[14px] font-semibold">@{selectedUserProfileDoc?.username || selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
+                  </div>
+                  <p className="text-[14px] text-muted leading-relaxed whitespace-pre-wrap">{selectedUserProfileDoc?.bio || "No bio provided."}</p>
                 </div>
+                
+                <div className="flex flex-col gap-2 shrink-0">
+                  {user && user.uid !== selectedUserProfile.uid && (
+                    <button
+                      onClick={() => {
+                          setActiveChat({
+                              uid: selectedUserProfile.uid,
+                              displayName: selectedUserProfile.name,
+                              photoURL: selectedUserProfile.photo
+                          });
+                          setView('chat');
+                      }}
+                      className="px-8 py-3 rounded-2xl text-sm font-bold bg-black text-white hover:bg-gray-800 transition-all flex items-center gap-2 justify-center"
+                    >
+                      <MessageCircle size={16} /> Message
+                    </button>
+                  )}
+                </div>
+              </div>
 
-                {/* Disappearing Messages Section */}
+              {/* Stats / Info */}
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                <div className="p-4 bg-gray-50 rounded-2xl">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Posts</p>
+                  <p className="text-xl font-black text-ink">{profilePosts.length}</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-2xl">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Followers</p>
+                  <p className="text-xl font-black text-ink">{followersCount}</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-2xl">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-1">Following</p>
+                  <p className="text-xl font-black text-ink">{followingCount}</p>
+                </div>
+              </div>
+
+              {/* External Links / App Actions */}
+              <div className="mb-10">
+                <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
+                  Integrations & Links
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button 
+                    onClick={() => { showNotification('Opening Personal App...', 'info'); }}
+                    className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                  >
+                    <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-widest">My App</span>
+                  </button>
+                  <button 
+                    onClick={() => { showNotification('Opening Websites...', 'info'); }}
+                    className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                  >
+                    <Globe size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                    <span className="text-xs font-black uppercase tracking-widest">Websites & Places</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat Settings & Customization Card inside Profile */}
+              {user && user.uid !== selectedUserProfile.uid && (
+                <div className="mb-10 p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-3xl space-y-6">
+                  <div>
+                    <h3 className="text-xs font-black text-ink tracking-wide uppercase flex items-center gap-2">
+                      <Clock size={14} className="text-indigo-600" /> Chat Preferences
+                    </h3>
+                    <p className="text-[10px] text-muted font-bold tracking-tight uppercase mt-0.5">Personalize your 1-on-1 conversations</p>
+                  </div>
+
+                  {/* Disappearing Messages Section */}
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Disappearing Messages</label>
                   <div className="grid grid-cols-5 gap-2">
@@ -15707,6 +15747,7 @@ function ExonaApp() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         );
       }
