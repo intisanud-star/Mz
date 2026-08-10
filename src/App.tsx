@@ -3846,7 +3846,7 @@ function ExonaApp() {
 
     // Fast-track initial transitions so cold boots show instant menus
     // Also fast-track instant fullscreen iframe views like schools and videos for a snappy experience
-    if (renderedView === 'splash' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass' || view === 'brainb' || view === 'cinema' || view === 'workout') {
+    if (renderedView === 'splash' || view === 'feed' || view === 'chat' || view === 'profile' || view === 'search' || view === 'schools' || view === 'videos' || view === 'hub' || view === 'reels' || view === 'nexclass' || view === 'brainb' || view === 'cinema' || view === 'workout') {
       setRenderedView(view);
       return;
     }
@@ -24429,7 +24429,7 @@ function ExonaApp() {
               {/* Telegram Header */}
               <div className="h-14 bg-white border-b border-gray-200 px-4 flex items-center justify-between shrink-0 shadow-sm z-50">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <button onClick={() => setActiveChat(null)} className="p-1 hover:bg-gray-100 rounded-full transition-colors text-slate-600 shrink-0">
+                  <button onClick={() => { setActiveChat(null); setSchoolFilter('all'); setView('feed'); }} className="p-1 hover:bg-gray-100 rounded-full transition-colors text-slate-600 shrink-0">
                     <ChevronLeft size={24} />
                   </button>
                   
