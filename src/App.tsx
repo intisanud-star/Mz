@@ -15361,19 +15361,36 @@ function ExonaApp() {
                 
                 <div className="flex flex-col gap-2 shrink-0">
                   {user && user.uid !== selectedUserProfile.uid && (
-                    <button
-                      onClick={() => {
-                          setActiveChat({
-                              uid: selectedUserProfile.uid,
-                              displayName: selectedUserProfile.name,
-                              photoURL: selectedUserProfile.photo
-                          });
-                          setView('chat');
-                      }}
-                      className="px-8 py-3 rounded-2xl text-sm font-bold bg-black text-white hover:bg-gray-800 transition-all flex items-center gap-2 justify-center"
-                    >
-                      <MessageCircle size={16} /> Message
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {userDoc?.following?.includes(selectedUserProfile.uid) ? (
+                        <button
+                          onClick={() => handleUnfollowUser(selectedUserProfile.uid)}
+                          className="px-6 py-3 rounded-2xl text-sm font-bold bg-gray-100 text-ink hover:bg-gray-200 transition-all flex items-center gap-2 justify-center"
+                        >
+                          <UserCheck size={16} /> Following
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleFollowUser(selectedUserProfile.uid)}
+                          className="px-6 py-3 rounded-2xl text-sm font-bold bg-[#2481CC] text-white hover:bg-[#1E6FB0] transition-all flex items-center gap-2 justify-center"
+                        >
+                          <UserPlus size={16} /> Follow
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                            setActiveChat({
+                                uid: selectedUserProfile.uid,
+                                displayName: selectedUserProfile.name,
+                                photoURL: selectedUserProfile.photo
+                            });
+                            setView('chat');
+                        }}
+                        className="px-4 py-3 rounded-2xl text-sm font-bold bg-black text-white hover:bg-gray-800 transition-all flex items-center gap-2 justify-center"
+                      >
+                        <MessageCircle size={16} />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -33587,7 +33604,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'user-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
