@@ -8471,8 +8471,8 @@ function ExonaApp() {
   const [showProfileSettings, setShowProfileSettings] = useState(false);
   const [settingsDisplayName, setSettingsDisplayName] = useState('');
   const [isSavingSettingsName, setIsSavingSettingsName] = useState(false);
-  const [showChatSection, setShowChatSection] = useState(false);
-  const [showGroupSection, setShowGroupSection] = useState(false);
+  const [showChatSection, setShowChatSection] = useState(true);
+  const [showGroupSection, setShowGroupSection] = useState(true);
 
   useEffect(() => {
     if (user) {
