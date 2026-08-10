@@ -8824,7 +8824,7 @@ function ExonaApp() {
       setIsOnline(true);
     };
     const handleOffline = () => {
-      setIsOnline(true);
+      setIsOnline(false);
     };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -9055,6 +9055,26 @@ function ExonaApp() {
   const isRecentlyActive = (institutionId: string) => {
     const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
     return posts.some(p => p.schoolId === institutionId && (p.timestamp?.seconds * 1000 || 0) > twentyFourHoursAgo);
+  };
+
+  const getUserLastSeenStatus = (uid: string) => {
+    const userMessages = allMessages.filter(m => m.senderUid === uid);
+    if (userMessages.length > 0) {
+      const lastMsg = userMessages.reduce((latest, current) => {
+        if (!latest.timestamp) return current;
+        if (!current.timestamp) return latest;
+        return (current.timestamp?.seconds || 0) > (latest.timestamp?.seconds || 0) ? current : latest;
+      });
+      if (lastMsg && lastMsg.timestamp) {
+        const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+        const msgTime = (lastMsg.timestamp?.seconds || 0) * 1000;
+        if (msgTime > twoMinutesAgo) {
+          return { isOnline: true, text: 'Online' };
+        }
+        return { isOnline: false, text: `Last seen ${formatTime(lastMsg.timestamp)}` };
+      }
+    }
+    return { isOnline: false, text: 'Offline' };
   };
 
   const [isUploadingProfile, setIsUploadingProfile] = useState(false);
@@ -13748,7 +13768,7 @@ function ExonaApp() {
     const otherUser = !chat.isGroup ? (connectedUsers.find(u => u.uid === chat.otherUid) || chatUsers.find(u => u.uid === chat.otherUid) || { uid: chat.otherUid, displayName: 'User', photoURL: null }) : null;
     const displayName = chat.isGroup ? group?.name : (otherUser?.displayName || (otherUser as any)?.name || 'User');
     const photoURL = chat.isGroup ? group?.photoURL : (otherUser?.photoURL || (otherUser as any)?.photo);
-    const isOnline = isRecentlyActive(chat.otherUid);
+    const isOnline = chat.isGroup ? false : getUserLastSeenStatus(chat.otherUid).isOnline;
     const lastMsgTxt = chat.lastMessage?.content || 'Sent a message';
     const unreadCount = allMessages.filter(m => m.chatId === chat.lastMessage.chatId && m.receiverUid === (chat.isGroup ? chat.otherUid : user?.uid) && m.status !== 'read').length;
     const isLastMessageSelf = chat.lastMessage?.senderUid === user?.uid || chat.lastMessage?.authorUid === user?.uid;
@@ -24619,7 +24639,7 @@ function ExonaApp() {
                       ) : (
                         <span className="text-sm font-black text-indigo-600">{(activeChat.displayName || 'User').charAt(0)}</span>
                       )}
-                      {!activeChat.isGroup && isRecentlyActive(activeChat.uid) && (
+                      {!activeChat.isGroup && getUserLastSeenStatus(activeChat.uid).isOnline && (
                         <div className="absolute top-0 right-0 h-2.5 w-2.5 bg-green-500 rounded-full border-2 border-white animate-pulse" />
                       )}
                     </div>
@@ -24636,7 +24656,9 @@ function ExonaApp() {
                         ) : isOtherTyping ? (
                           <p className="text-[10px] text-accent font-black animate-pulse uppercase tracking-widest mt-0.5 leading-none">Typing...</p>
                         ) : (
-                          <p className="text-[10px] text-green-500 font-bold uppercase tracking-tight mt-0.5 leading-none">Online</p>
+                          <p className={`text-[10px] font-bold uppercase tracking-tight mt-0.5 leading-none ${getUserLastSeenStatus(activeChat.uid).isOnline ? 'text-green-500' : 'text-slate-400'}`}>
+                            {getUserLastSeenStatus(activeChat.uid).text}
+                          </p>
                         )}
                       </div>
                     </div>
