@@ -14522,18 +14522,18 @@ function ExonaApp() {
                 </div>
 
                 <div className="block">
-                  <div className="flex overflow-x-auto no-scrollbar gap-2 px-4 sm:px-6 md:px-8 mb-4">
-                    {['all', 'institutions', 'chats', 'groups', 'archived'].map(tab => (
+                  <div className="flex overflow-x-auto no-scrollbar gap-2 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 mb-4">
+                    {['all', 'institutions', 'chats', 'groups'].map(tab => (
                       <button
                         key={tab}
                         onClick={() => setSchoolFilter(tab)}
-                        className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all ${
+                        className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
                           schoolFilter === tab
                             ? 'bg-[#2481CC] text-white shadow-sm'
-                            : 'bg-gray-100 text-slate-500 hover:bg-gray-200'
+                            : 'bg-slate-100 dark:bg-zinc-800/80 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-zinc-700/80'
                         }`}
                       >
-                        {tab === 'all' ? 'All' : tab === 'institutions' ? 'Institution' : tab === 'chats' ? 'Chat' : tab === 'groups' ? 'Group' : 'Archived'}
+                        {tab === 'all' ? 'All' : tab === 'institutions' ? 'Institution' : tab === 'chats' ? 'Chat' : 'Group'}
                       </button>
                     ))}
                   </div>
