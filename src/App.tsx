@@ -25,7 +25,7 @@ import {
   Cloud, CloudUpload, CloudDownload, Files, Folder, FolderPlus, FolderOpen, FilePlus, FileMinus,
   PanelRightOpen, PanelRightClose,
   Calculator, FileBarChart, IdCard, Gift, ArrowUpDown, CheckCheck, Printer,
-  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit, Dumbbell, Pin, Timer
+  Banknote, Receipt, TableProperties, LayoutList, PenTool, HardDrive, FileJson, Activity, ThumbsUp, Radio, ShoppingBag, Clapperboard, Film, BrainCircuit, Dumbbell, Pin, Timer, Archive
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14522,13 +14522,28 @@ function ExonaApp() {
                 </div>
 
                 <div className="block">
-              <div className="divide-y divide-gray-100 -mx-4 sm:-mx-6 md:-mx-8">
+                  <div className="flex overflow-x-auto no-scrollbar gap-2 px-4 sm:px-6 md:px-8 mb-4">
+                    {['all', 'institutions', 'chats', 'groups', 'archived'].map(tab => (
+                      <button
+                        key={tab}
+                        onClick={() => setSchoolFilter(tab)}
+                        className={`shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all ${
+                          schoolFilter === tab
+                            ? 'bg-[#2481CC] text-white shadow-sm'
+                            : 'bg-gray-100 text-slate-500 hover:bg-gray-200'
+                        }`}
+                      >
+                        {tab === 'all' ? 'All' : tab === 'institutions' ? 'Institution' : tab === 'chats' ? 'Chat' : tab === 'groups' ? 'Group' : 'Archived'}
+                      </button>
+                    ))}
+                  </div>
+              <div className="-mx-4 sm:-mx-6 md:-mx-8">
                 <AnimatePresence mode="popLayout">
                   {(() => {
                     const filteredSchoolsAndPlaces = [...schools, ...places]
                       .filter(s => s.name.toLowerCase().includes(globalSearch.toLowerCase()))
                       .filter(s => {
-                        if (schoolFilter === 'all') return true;
+                        if (schoolFilter === 'all' || schoolFilter === 'institutions') return true;
                         if (schoolFilter === 'school') return s.type === 'school';
                         if (schoolFilter === 'place') return s.type === 'place';
                         return (
@@ -14615,6 +14630,17 @@ function ExonaApp() {
                               No groups found
                             </div>
                           )}
+                        </div>
+                      );
+                    }
+
+                    if (schoolFilter === 'archived') {
+                      return (
+                        <div className="py-20 text-center text-muted text-sm">
+                          <div className="h-12 w-12 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-slate-300 mx-auto mb-3">
+                            <Archive size={20} />
+                          </div>
+                          No archived items found
                         </div>
                       );
                     }
