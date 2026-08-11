@@ -2761,15 +2761,32 @@ const COUNTRIES = [
 ];
 
 const formatTime = (timestamp: any) => {
-  if (!timestamp) return 'Just now';
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-  
-  if (diff < 60) return 'Just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (!timestamp) {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  try {
+    const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : (timestamp instanceof Date ? timestamp : new Date(timestamp));
+    if (isNaN(date.getTime())) {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    const now = new Date();
+    
+    // Check if it's today
+    if (date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    // Check if it's yesterday
+    const yesterday = new Date();
+    yesterday.setDate(now.getDate() - 1);
+    if (date.getDate() === yesterday.getDate() && date.getMonth() === yesterday.getMonth() && date.getFullYear() === yesterday.getFullYear()) {
+      return 'Yesterday';
+    }
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+  } catch (e) {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
 };
 
 // --- HELPERS ---
@@ -22353,7 +22370,7 @@ function ExonaApp() {
         const latestInst = [...schools, ...places].find(s => s.id === inst.id) || inst;
         // Helper to format timestamps gracefully, resolving Firestore Timestamps and raw dates properly
         const parsePostDate = (timestamp: any) => {
-          if (!timestamp) return null;
+          if (!timestamp) return new Date();
           if (timestamp instanceof Date) return timestamp;
           if (typeof timestamp.toDate === 'function') return timestamp.toDate();
           if (timestamp.seconds && typeof timestamp.seconds === 'number') {
@@ -22361,7 +22378,7 @@ function ExonaApp() {
           }
           const parsed = new Date(timestamp);
           if (!isNaN(parsed.getTime())) return parsed;
-          return null;
+          return new Date();
         };
 
         const rawInstitutionPosts = posts
@@ -33990,7 +34007,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'reels'].includes(view)) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'reels'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
