@@ -880,7 +880,7 @@ const BrainBattleModal = ({
                                   telegramId: userDoc?.telegramId || null,
                                   score: score + (isCorrect ? 10 : 0),
                                   totalQuestions: questions.length,
-                                  timestamp: serverTimestamp(),
+                                  timestamp: new Date(),
                                   uid: user?.uid || null,
                                   finishedOnTime: true
                                 });
@@ -1861,7 +1861,7 @@ const PremiumGameModal = ({
       score: calculatedScore,
       totalQuestions: gameConfig.questions.length,
       timeLeft: leftSecs,
-      timestamp: serverTimestamp(),
+      timestamp: new Date(),
     };
 
     try {
@@ -1925,7 +1925,7 @@ const PremiumGameModal = ({
         entryFeeCoins: Number(editEntryFeeCoins) || 0,
         questions: editQuestions,
         isActive: true,
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
       };
 
       if (gId) {
@@ -4392,7 +4392,7 @@ function ExonaApp() {
               mediaUrls: mediaUrl ? [mediaUrl] : [],
               mediaUrl: mediaUrl || null,
               mediaType: mediaType || null,
-              timestamp: serverTimestamp(),
+              timestamp: new Date(),
               isOfficial: false,
               schoolId: inst.id,
               likes: 0,
@@ -4628,7 +4628,7 @@ function ExonaApp() {
             balance: item.balance || 0,
             parentNumber: item.parentNumber || '',
             schoolId: selectedSchool.id,
-            timestamp: serverTimestamp(),
+            timestamp: new Date(),
             addedBy: userDoc?.displayName || user.email || 'Admin',
             addedByUid: user.uid,
             type: recordTab === 'all' ? 'general' : recordTab,
@@ -4666,7 +4666,7 @@ function ExonaApp() {
             schoolId: selectedSchool.id,
             addedBy: userDoc?.displayName || user.email || 'Admin',
             addedByUid: user.uid,
-            timestamp: serverTimestamp()
+            timestamp: new Date()
           });
           addedCount++;
         }
@@ -6288,7 +6288,7 @@ function ExonaApp() {
         userPhoto: userDoc?.photoURL || user.photoURL || '',
         type: 'achievement',
         content: `Just scored ${score} points in the Exona Brain Battle! 🏆 Can you beat me?`,
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         likes: [],
         comments: [],
         category: 'battle'
@@ -6317,7 +6317,7 @@ function ExonaApp() {
             telegramId: userDoc?.telegramId || null,
             score: battleScore,
             totalQuestions: currentBattleQuestions.length,
-            timestamp: serverTimestamp(),
+            timestamp: new Date(),
             uid: user?.uid || null,
             finishedOnTime: false,
             timedOut: true
@@ -8303,7 +8303,7 @@ function ExonaApp() {
         type: settlementStep === 'exona' ? 'exona-bank' : 'other-bank',
         bankName: settlementStep === 'exona' ? 'Exona Bank' : selectedSettlementBank,
         status: 'completed', // Direct settlement is instant
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         authorUid: user.uid,
         schoolId: selectedSchool.id,
         recipientId: `${recipientAccount} (${verifiedName})`,
@@ -8902,8 +8902,16 @@ function ExonaApp() {
     const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string, isGroup: boolean } } = {};
     allMessages.forEach(msg => {
       const existing = chatsMap[msg.chatId];
-      const msgTime = (msg.timestamp?.seconds || Date.now() / 1000);
-      if (!existing || msgTime > (existing.lastMessage.timestamp?.seconds || 0)) {
+      const getSecs = (m) => {
+        if (!m || !m.timestamp) return Date.now() / 1000;
+        if (m.timestamp.seconds) return m.timestamp.seconds;
+        if (typeof m.timestamp.toMillis === 'function') return m.timestamp.toMillis() / 1000;
+        if (m.timestamp instanceof Date) return m.timestamp.getTime() / 1000;
+        const parsed = new Date(m.timestamp);
+        return !isNaN(parsed.getTime()) ? parsed.getTime() / 1000 : Date.now() / 1000;
+      };
+      const msgTime = getSecs(msg);
+      if (!existing || msgTime > getSecs(existing.lastMessage)) {
         const isGroup = msg.isGroup || false;
         const otherUid = isGroup ? msg.chatId : (msg.participants.find(p => p !== user.uid) || user.uid);
         chatsMap[msg.chatId] = { lastMessage: msg, otherUid, isGroup };
@@ -8925,9 +8933,7 @@ function ExonaApp() {
       }
     });
 
-    return Object.values(chatsMap).sort((a, b) => 
-      ((b.lastMessage.timestamp?.seconds || Date.now() / 1000) - (a.lastMessage.timestamp?.seconds || Date.now() / 1000))
-    );
+    return Object.values(chatsMap).sort((a, b) => getSecs(b.lastMessage) - getSecs(a.lastMessage));
   }, [allMessages, user?.uid, chatGroups]);
 
   useEffect(() => {
@@ -9201,7 +9207,7 @@ function ExonaApp() {
 
       await addDoc(collection(db, `users/${targetUid}/notifications`), {
         ...sanitizedNotification,
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         isRead: false
       });
     } catch (error) {
@@ -10065,7 +10071,7 @@ function ExonaApp() {
           creatorUid: user.uid,
           members: [user.uid, ...(newSchool.educationalLevels || [])],
           admins: [user.uid],
-          timestamp: serverTimestamp(),
+          timestamp: new Date(),
           photoURL: logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(newSchool.name)}&background=random`
         };
         await setDoc(groupRef, groupData);
@@ -10125,7 +10131,7 @@ function ExonaApp() {
           creatorUid: user.uid,
           followers: [user.uid],
           replyPermission: newSchool.replyPermission || 'everyone',
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         };
 
         batch.set(doc(db, collectionName, schoolId), institutionData);
@@ -10140,7 +10146,7 @@ function ExonaApp() {
             creatorUid: user.uid,
             members: [user.uid],
             admins: [user.uid],
-            timestamp: serverTimestamp(),
+            timestamp: new Date(),
             photoURL: logoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(newSchool.name)}&background=random`,
             institutionId: schoolId
           };
@@ -10340,7 +10346,7 @@ function ExonaApp() {
           type: recordTab,
           visibility: (typeof newRecord.visibility === 'string' && newRecord.visibility) ? newRecord.visibility : 'private',
           sharedWith: (newRecord.sharedWith || '').split(',').map(e => e.trim()).filter(e => e),
-          timestamp: serverTimestamp(),
+          timestamp: new Date(),
           subFolder: newRecord.subFolder || '',
           photoURL: newRecord.photoURL || ''
         });
@@ -10466,7 +10472,7 @@ function ExonaApp() {
           date: newAttendance.date || new Date().toISOString().split('T')[0],
           time: newAttendance.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           addedBy: user.displayName || 'Anonymous',
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
         showNotification('Record added successfully', 'success');
       }
@@ -10505,7 +10511,7 @@ function ExonaApp() {
         category: newRoutine.category.trim() || '',
         institutionId: selectedSchool.id,
         creatorUid: user.uid,
-        timestamp: serverTimestamp()
+        timestamp: new Date()
       });
       showNotification('Daily routine added');
       setNewRoutine({ title: '', activity: '', category: '', timeSlot: '', notes: '' });
@@ -10760,7 +10766,7 @@ function ExonaApp() {
         receiverUid,
         participants: [user.uid, receiverUid],
         status: 'ringing',
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         type: 'audio',
         chatId: [user.uid, receiverUid].sort().join('_')
       };
@@ -10866,7 +10872,7 @@ function ExonaApp() {
           type: 'debit',
           currency: 'stars',
           description,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
 
         return { success: true };
@@ -10915,7 +10921,7 @@ function ExonaApp() {
           type: 'credit',
           currency: 'excoins',
           description,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
       });
       showNotification(`Received ${amount} Excoins`, 'success');
@@ -10949,7 +10955,7 @@ function ExonaApp() {
           type: 'debit',
           currency: 'excoins',
           description,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
         return { success: true };
       });
@@ -11101,7 +11107,7 @@ function ExonaApp() {
           type: 'debit',
           currency: 'excoins',
           description: `${kindTitle} Entry Access: ${c.name} (${burnShare} EX Burned, ${ownerShare} EX to Owner)`,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
 
         // 2. Credit ownerShare to institution owner if different and exists
@@ -11128,7 +11134,7 @@ function ExonaApp() {
             type: 'credit',
             currency: 'excoins',
             description: `Earned ${ownerShare} EX from Classroom/Hub Entry Admission (${c.name}) by ${userDoc?.displayName || user.email || 'Member'}`,
-            timestamp: serverTimestamp()
+            timestamp: new Date()
           });
         }
 
@@ -11214,7 +11220,7 @@ function ExonaApp() {
           type: 'debit',
           currency: 'stars',
           description: `Converted ${starsToDeduct} Stars to ${excoinsToReceive} Excoin(s)`,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
 
         const historyRef2 = doc(collection(db, `wallets/${user.uid}/history`));
@@ -11223,7 +11229,7 @@ function ExonaApp() {
           type: 'credit',
           currency: 'excoins',
           description: `Received from Star conversion`,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
       });
       showNotification(`Successfully converted to ${excoinsToReceive} Excoin(s)`, 'success');
@@ -11264,7 +11270,7 @@ function ExonaApp() {
           type: 'credit',
           currency: 'stars',
           description,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
       });
       
@@ -11313,7 +11319,7 @@ function ExonaApp() {
           type: 'credit',
           currency: 'stars',
           description: 'Daily Treasury Allowance',
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
       });
       
@@ -11443,7 +11449,7 @@ function ExonaApp() {
           type: 'debit',
           currency: 'excoins',
           description: `Direct wallet transfer to ${wealthVerifiedRecipient.displayName}. Note: ${wealthTransferNote || 'None'}`,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
 
         transaction.set(rHistRef, {
@@ -11451,7 +11457,7 @@ function ExonaApp() {
           type: 'credit',
           currency: 'excoins',
           description: `Direct wallet transfer from ${userDoc?.displayName || user.email || 'Exona Peer'}. Note: ${wealthTransferNote || 'None'}`,
-          timestamp: serverTimestamp()
+          timestamp: new Date()
         });
       });
 
@@ -11546,7 +11552,7 @@ function ExonaApp() {
         receiverUid: isGroup ? null : (receiverUid || null),
         participants: isGroup ? (groupData?.members || [user.uid]) : [user.uid, receiverUid].filter(u => u),
         text: (text || '').trim().slice(0, 5000),
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         chatId: chatId || 'unknown',
         status: 'sent',
         isGroup: !!isGroup,
@@ -11592,7 +11598,7 @@ function ExonaApp() {
         mediaUrls: mediaData ? [mediaData] : [],
         mediaUrl: mediaData || null,
         mediaType: type || null,
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         isOfficial,
         schoolId: activeInst.id,
         likes: 0,
@@ -11661,7 +11667,7 @@ function ExonaApp() {
         creatorUid: user.uid,
         members: [user.uid, ...newGroupData.members],
         admins: [user.uid],
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         photoURL: newGroupData.photoURL?.trim() || `https://ui-avatars.com/api/?name=${encodeURIComponent(newGroupData.name)}&background=random`
       };
       await addDoc(collection(db, 'chatGroups'), groupData);
@@ -11843,7 +11849,7 @@ function ExonaApp() {
         mediaType,
         note: noteText || '',
         bgColor: bgColor || 'from-indigo-600 to-purple-600',
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         schoolId: schoolId || null,
         viewers: []
@@ -11960,7 +11966,7 @@ function ExonaApp() {
         mediaUrls,
         mediaUrl: mediaUrls.length > 0 ? mediaUrls[0] : null, // Fallback for components still using mediaUrl
         mediaType: mediaType || null,
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         isOfficial,
         schoolId
       };
@@ -11971,7 +11977,7 @@ function ExonaApp() {
           mediaUrls,
           mediaUrl: mediaUrls.length > 0 ? mediaUrls[0] : null,
           mediaType: mediaType || null,
-          timestamp: serverTimestamp(),
+          timestamp: new Date(),
         }, { merge: true });
       } else {
         await addDoc(collection(db, 'posts'), {
@@ -12184,7 +12190,7 @@ function ExonaApp() {
         likedBy: [],
         commentsCount: 0,
         reshares: 0,
-        timestamp: serverTimestamp(),
+        timestamp: new Date(),
         isOfficial: false
       });
       // Increment reshare count on original post
@@ -22788,7 +22794,7 @@ function ExonaApp() {
             </div>
 
             {/* Telegram Channel Bottom Input Action Bar */}
-            <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex items-center gap-2 shadow-inner">
+            <div className="shrink-0 bg-white border-t border-gray-200 p-3 pb-24 flex items-center gap-2 shadow-inner">
               {!isFollowing && !canManage ? (
                 /* JOIN Channel Accent Overlay */
                 <button 
@@ -24939,7 +24945,7 @@ function ExonaApp() {
               </div>
 
               {/* Telegram Style Bottom Input Action Bar */}
-              <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex flex-col gap-1 shadow-inner relative w-full z-40">
+              <div className="shrink-0 bg-white border-t border-gray-200 p-3 pb-24 flex flex-col gap-1 shadow-inner relative w-full z-40">
                 {/* Typing status inside the docked bar */}
                 {!activeChat.isGroup && isOtherTyping && (
                   <div className="px-3 py-1 flex items-center gap-1.5 animate-pulse">
@@ -27655,7 +27661,7 @@ function ExonaApp() {
                                 size: file.size,
                                 url: '#', // In real app, upload to storage
                                 ownerUid: user.uid,
-                                timestamp: serverTimestamp(),
+                                timestamp: new Date(),
                                 category: file.type.startsWith('image/') ? 'image' : 'document'
                               });
                               showNotification('File metadata saved to cloud');
@@ -28180,7 +28186,7 @@ function ExonaApp() {
                                     await updateDoc(doc(db, 'cloudFiles', editingFileId), {
                                       name: title + '.md',
                                       size: new Blob([editorContent]).size,
-                                      timestamp: serverTimestamp(),
+                                      timestamp: new Date(),
                                       content: editorContent
                                     });
                                     showNotification('Document updated successfully');
@@ -28191,7 +28197,7 @@ function ExonaApp() {
                                       size: new Blob([editorContent]).size,
                                       url: '#',
                                       ownerUid: user.uid,
-                                      timestamp: serverTimestamp(),
+                                      timestamp: new Date(),
                                       category: 'document',
                                       content: editorContent
                                     });
@@ -29208,7 +29214,7 @@ function ExonaApp() {
                               institutionName,
                               requesterUid: user?.uid,
                               status: 'pending',
-                              timestamp: serverTimestamp()
+                              timestamp: new Date()
                             });
                             
                             // Also update institution status
@@ -33984,7 +33990,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['institution-channel', 'institution-profile', 'school-feed', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'reels'].includes(view)) ? null : activeInstForBroadcast ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
