@@ -3708,6 +3708,7 @@ function ExonaApp() {
 
   useEffect(() => {
     const isTelegram = (window as any).Telegram?.WebApp?.initData;
+    const isIframe = window.self !== window.top;
     
     if (isTelegram && (window as any).Telegram.WebApp) {
       const tg = (window as any).Telegram.WebApp;
@@ -3717,7 +3718,7 @@ function ExonaApp() {
       tg.onEvent('viewportChanged', handleTgResize);
       handleTgResize();
       return () => tg.offEvent('viewportChanged', handleTgResize);
-    } else if (window.visualViewport) {
+    } else if (window.visualViewport && !isIframe) {
       const handleResize = () => {
         setViewportHeight(`${window.visualViewport?.height || window.innerHeight}px`);
         setVisualViewportOffsetTop(window.visualViewport?.offsetTop || 0);
@@ -3736,9 +3737,11 @@ function ExonaApp() {
       };
     } else {
       const handleResize = () => {
-        setViewportHeight(`${window.innerHeight}px`);
+        setViewportHeight(isIframe ? '100%' : `${window.innerHeight}px`);
+        setVisualViewportOffsetTop(0);
       };
       window.addEventListener('resize', handleResize);
+      handleResize();
       return () => window.removeEventListener('resize', handleResize);
     }
   }, []);
