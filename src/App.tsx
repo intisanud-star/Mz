@@ -8900,8 +8900,6 @@ function ExonaApp() {
   const recentChats = useMemo(() => {
     if (!user) return [];
     const chatsMap: { [chatId: string]: { lastMessage: any, otherUid: string, isGroup: boolean } } = {};
-    allMessages.forEach(msg => {
-      const existing = chatsMap[msg.chatId];
       const getSecs = (m) => {
         if (!m || !m.timestamp) return Date.now() / 1000;
         if (m.timestamp.seconds) return m.timestamp.seconds;
@@ -8910,6 +8908,8 @@ function ExonaApp() {
         const parsed = new Date(m.timestamp);
         return !isNaN(parsed.getTime()) ? parsed.getTime() / 1000 : Date.now() / 1000;
       };
+    allMessages.forEach(msg => {
+      const existing = chatsMap[msg.chatId];
       const msgTime = getSecs(msg);
       if (!existing || msgTime > getSecs(existing.lastMessage)) {
         const isGroup = msg.isGroup || false;
