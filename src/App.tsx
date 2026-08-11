@@ -22811,7 +22811,7 @@ function ExonaApp() {
             </div>
 
             {/* Telegram Channel Bottom Input Action Bar */}
-            <div className="shrink-0 bg-white border-t border-gray-200 p-3 pb-24 flex items-center gap-2 shadow-inner">
+            <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex items-center gap-2 shadow-inner">
               {!isFollowing && !canManage ? (
                 /* JOIN Channel Accent Overlay */
                 <button 
@@ -24962,7 +24962,7 @@ function ExonaApp() {
               </div>
 
               {/* Telegram Style Bottom Input Action Bar */}
-              <div className="shrink-0 bg-white border-t border-gray-200 p-3 pb-24 flex flex-col gap-1 shadow-inner relative w-full z-40">
+              <div className="shrink-0 bg-white border-t border-gray-200 p-3 flex flex-col gap-1 shadow-inner relative w-full z-40">
                 {/* Typing status inside the docked bar */}
                 {!activeChat.isGroup && isOtherTyping && (
                   <div className="px-3 py-1 flex items-center gap-1.5 animate-pulse">
