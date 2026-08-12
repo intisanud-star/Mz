@@ -23310,6 +23310,39 @@ function ExonaApp() {
                 </div>
               </div>
 
+              {/* Institution App - Available to anyone */}
+              {inst.customApp?.url && (
+                <div className="mb-10">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
+                    Institution App
+                  </p>
+                  <button 
+                    onClick={() => { 
+                      setSelectedSchool(inst as School);
+                      if (inst.customApp?.url) {
+                        setActiveCustomApp(inst.customApp);
+                        setCustomAppCloseView(view);
+                        setView('customApp');
+                      }
+                    }}
+                    className="flex items-center gap-3.5 px-6 py-4 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 hover:border-indigo-200/50 text-indigo-950 rounded-3xl transition-all group w-full max-w-sm"
+                  >
+                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+                      {inst.customApp?.iconUrl ? (
+                        <img src={inst.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Smartphone size={18} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+                      )}
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-xs font-black uppercase tracking-widest truncate">{inst.customApp?.name || 'My App'}</p>
+                      <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">Tap to Launch Application</p>
+                    </div>
+                    <ChevronRight size={16} className="text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />
+                  </button>
+                </div>
+              )}
+
               {/* Admin & Member Quick Actions */}
               {(canManage || isFollowing || inst.followers?.includes(user?.uid || '')) && (
                 <div className="mb-10">
@@ -23331,27 +23364,17 @@ function ExonaApp() {
                       <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
                     </button>
-                    {(canManage || inst.customApp?.url) && (
+                    {canManage && !inst.customApp?.url && (
                       <button 
                         onClick={() => { 
                           setSelectedSchool(inst as School);
-                          if (inst.customApp?.url) {
-                            setActiveCustomApp(inst.customApp);
-                            setCustomAppCloseView(view);
-                            setView('customApp');
-                          } else {
-                            setIsManageSettingsOpen(true);
-                          }
+                          setIsManageSettingsOpen(true);
                         }}
                         className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
                       >
-                        {inst.customApp?.iconUrl ? (
-                          <img src={inst.customApp.iconUrl} alt="" className="h-[18px] w-[18px] object-cover rounded-md group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-                        ) : (
-                          <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                        )}
+                        <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
                         <span className="text-xs font-black uppercase tracking-widest">
-                          {inst.customApp?.name || 'My App'}
+                          Set Custom App
                         </span>
                       </button>
                     )}
