@@ -30471,14 +30471,18 @@ function ExonaApp() {
           setView('feed');
           return null;
         }
+        let appUrl = activeCustomApp.url.trim();
+        if (!/^https?:\/\//i.test(appUrl)) {
+          appUrl = `https://${appUrl}`;
+        }
         return (
           <ShopIframeView 
             onClose={() => setView((customAppCloseView as any) || 'feed')}
-            iframeUrl={activeCustomApp.url}
+            iframeUrl={appUrl}
             title={activeCustomApp.name}
             bgColor="bg-white"
             isDark={false}
-            hideHeader={false}
+            hideHeader={true}
           />
         );
       }
