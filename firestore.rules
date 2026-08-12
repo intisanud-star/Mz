@@ -196,7 +196,7 @@ service cloud.firestore {
              data.type in ['credit', 'debit'] &&
              data.currency in ['stars', 'excoins'] &&
              data.description is string && data.description.size() <= 500 &&
-             data.timestamp == request.time;
+             data.get('timestamp', null) != null;
     }
 
     function isValidUser(data) {
@@ -213,8 +213,8 @@ service cloud.firestore {
     function isValidPost(data) {
       return isVerified() && 
              data.get('authorUid', '') == request.auth.uid &&
-             data.get('content', '') is string && data.get('content', '').size() > 0 && data.get('content', '').size() <= 10000 &&
-             data.get('timestamp', null) == request.time &&
+             data.get('content', '') is string && data.get('content', '').size() <= 10000 &&
+             (data.get('content', '').size() > 0 || data.get('mediaUrl', null) != null || data.get('mediaUrls', []).size() > 0) &&
              data.get('likes', 0) == 0 &&
              data.get('likedBy', []) is list && data.get('likedBy', []).size() == 0 &&
              data.get('commentsCount', 0) == 0 &&
@@ -239,7 +239,7 @@ service cloud.firestore {
                 exists(/databases/$(database)/documents/chatGroups/$(data.get('chatId', ''))) &&
                 request.auth.uid in get(/databases/$(database)/documents/chatGroups/$(data.get('chatId', ''))).data.get('members', []))
              ) &&
-             (data.get('mediaType', null) == 'voice' || (data.get('text', '') is string && data.get('text', '').size() > 0 && data.get('text', '').size() < 5000));
+             (data.get('mediaType', null) == 'voice' || data.get('mediaUrl', null) != null || (data.get('text', '') is string && data.get('text', '').size() > 0 && data.get('text', '').size() < 5000));
     }
 
     function isValidCall(data) {
@@ -286,7 +286,7 @@ service cloud.firestore {
              data.get('ownerUid', '') == request.auth.uid &&
              data.get('name', '') is string && data.get('name', '').size() > 0 && data.get('name', '').size() <= 255 &&
              data.get('url', '') is string && data.get('url', '').size() > 0 && data.get('url', '').size() <= 2048 &&
-             data.get('timestamp', null) == request.time;
+             data.get('timestamp', null) != null;
     }
 
     function isValidDailyRoutine(data) {
@@ -298,7 +298,7 @@ service cloud.firestore {
              (!('category' in data) || (data.get('category', '') is string && data.get('category', '').size() <= 100)) &&
              (!('timeSlot' in data) || (data.get('timeSlot', '') is string && data.get('timeSlot', '').size() <= 100)) &&
              (!('notes' in data) || (data.get('notes', '') is string && data.get('notes', '').size() <= 1000)) &&
-             data.get('timestamp', null) == request.time;
+             data.get('timestamp', null) != null;
     }
 
     function isValidStaffParticipation(data) {
@@ -308,7 +308,7 @@ service cloud.firestore {
                data.get('status', '') in ['present', 'absent', 'late'] &&
                data.get('date', '') is string &&
                (!('time' in data) || (data.get('time', '') is string && data.get('time', '').size() <= 50)) &&
-               data.get('timestamp', null) == request.time;
+               data.get('timestamp', null) != null;
     }
 
     // ===============================================================
@@ -489,7 +489,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                     request.resource.data.get('requesterUid', '') == request.auth.uid &&
                     request.resource.data.get('status', '') == 'pending' &&
-                    request.resource.data.get('timestamp', null) == request.time;
+                    request.resource.data.get('timestamp', null) != null;
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
@@ -558,7 +558,7 @@ service cloud.firestore {
       allow read, list: if true;
       allow create: if isAuthenticated() && 
                     request.resource.data.uid == request.auth.uid &&
-                    request.resource.data.timestamp == request.time;
+                    request.resource.data.get('timestamp', null) != null;
       allow update: if isAuthenticated() && (
         resource.data.uid == request.auth.uid || 
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['amount', 'status']) ||
@@ -571,7 +571,7 @@ service cloud.firestore {
       allow read, get, list: if isAuthenticated();
       allow create: if isAuthenticated() && 
                     (request.resource.data.buyerUid == request.auth.uid || request.resource.data.sellerUid == request.auth.uid) &&
-                    request.resource.data.timestamp == request.time;
+                    request.resource.data.get('timestamp', null) != null;
       allow update: if isAuthenticated() && (
         resource.data.buyerUid == request.auth.uid || 
         resource.data.sellerUid == request.auth.uid || 
