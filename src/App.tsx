@@ -7925,7 +7925,11 @@ function ExonaApp() {
           updated.name !== selectedSchool.name || 
           updated.photoUrl !== selectedSchool.photoUrl || 
           (updated.followers || []).length !== (selectedSchool.followers || []).length ||
-          (updated.administrativeViewers || []).length !== (selectedSchool.administrativeViewers || []).length;
+          (updated.administrativeViewers || []).length !== (selectedSchool.administrativeViewers || []).length ||
+          updated.hideRecords !== selectedSchool.hideRecords ||
+          updated.hideParticipation !== selectedSchool.hideParticipation ||
+          updated.hideCustomApp !== selectedSchool.hideCustomApp ||
+          JSON.stringify(updated.customApp) !== JSON.stringify(selectedSchool.customApp);
         if (hasChanged) {
           setSelectedSchool(updated as any);
         }
@@ -34154,11 +34158,14 @@ function ExonaApp() {
                         role="switch"
                         aria-checked={selectedSchool.hideRecords || false}
                         onClick={async () => {
+                          const nextVal = !(selectedSchool.hideRecords || false);
+                          setSelectedSchool(prev => prev ? { ...prev, hideRecords: nextVal } : null);
                           try {
                             const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
-                            await updateDoc(refDoc, { hideRecords: !(selectedSchool.hideRecords || false) });
+                            await updateDoc(refDoc, { hideRecords: nextVal });
                             showNotification('Records visibility updated', 'success');
                           } catch (error) {
+                            setSelectedSchool(prev => prev ? { ...prev, hideRecords: !nextVal } : null);
                             showNotification('Failed to update records visibility', 'error');
                           }
                         }}
@@ -34184,11 +34191,14 @@ function ExonaApp() {
                         role="switch"
                         aria-checked={selectedSchool.hideParticipation || false}
                         onClick={async () => {
+                          const nextVal = !(selectedSchool.hideParticipation || false);
+                          setSelectedSchool(prev => prev ? { ...prev, hideParticipation: nextVal } : null);
                           try {
                             const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
-                            await updateDoc(refDoc, { hideParticipation: !(selectedSchool.hideParticipation || false) });
+                            await updateDoc(refDoc, { hideParticipation: nextVal });
                             showNotification('Participation visibility updated', 'success');
                           } catch (error) {
+                            setSelectedSchool(prev => prev ? { ...prev, hideParticipation: !nextVal } : null);
                             showNotification('Failed to update participation visibility', 'error');
                           }
                         }}
@@ -34214,11 +34224,14 @@ function ExonaApp() {
                         role="switch"
                         aria-checked={selectedSchool.hideCustomApp || false}
                         onClick={async () => {
+                          const nextVal = !(selectedSchool.hideCustomApp || false);
+                          setSelectedSchool(prev => prev ? { ...prev, hideCustomApp: nextVal } : null);
                           try {
                             const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
-                            await updateDoc(refDoc, { hideCustomApp: !(selectedSchool.hideCustomApp || false) });
+                            await updateDoc(refDoc, { hideCustomApp: nextVal });
                             showNotification('App visibility updated', 'success');
                           } catch (error) {
+                            setSelectedSchool(prev => prev ? { ...prev, hideCustomApp: !nextVal } : null);
                             showNotification('Failed to update app visibility', 'error');
                           }
                         }}
