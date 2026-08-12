@@ -8078,11 +8078,13 @@ function ExonaApp() {
   };
 
   useEffect(() => {
-    if (!user) return;
     const urlParams = new URLSearchParams(window.location.search);
     const classId = urlParams.get('classId');
     const groupId = urlParams.get('groupId');
     const app = urlParams.get('app') || urlParams.get('workspaceApp');
+    
+    // Allow videos/satellite to be opened without login
+    if (!user && app !== 'videos') return;
     
     if (classId) {
       const newParams = new URLSearchParams(window.location.search);
@@ -25319,7 +25321,6 @@ function ExonaApp() {
         );
       }
       case 'videos': {
-        if (!user) { setView('login'); return null; }
         return (
           <ShopIframeView 
             onClose={() => setView('feed')} 
