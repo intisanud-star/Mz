@@ -13374,28 +13374,56 @@ function ExonaApp() {
 
     setIsSearchingUsers(true);
     try {
-      const qName = query(
+      const queryLower = queryText.toLowerCase();
+      const queryCapitalized = queryText.charAt(0).toUpperCase() + queryText.slice(1).toLowerCase();
+
+      const qNameExact = query(
         collection(db, 'users'),
         where('displayName', '>=', queryText),
         where('displayName', '<=', queryText + '\uf8ff'),
         limit(20)
       );
 
-      const qEmail = query(
+      const qNameLower = query(
         collection(db, 'users'),
-        where('email', '>=', queryText.toLowerCase()),
-        where('email', '<=', queryText.toLowerCase() + '\uf8ff'),
+        where('displayName', '>=', queryLower),
+        where('displayName', '<=', queryLower + '\uf8ff'),
         limit(20)
       );
 
-      const [snapName, snapEmail] = await Promise.all([
-        getDocs(qName),
-        getDocs(qEmail)
+      const qNameCap = query(
+        collection(db, 'users'),
+        where('displayName', '>=', queryCapitalized),
+        where('displayName', '<=', queryCapitalized + '\uf8ff'),
+        limit(20)
+      );
+
+      const qEmail = query(
+        collection(db, 'users'),
+        where('email', '>=', queryLower),
+        where('email', '<=', queryLower + '\uf8ff'),
+        limit(20)
+      );
+      
+      const qUsername = query(
+        collection(db, 'users'),
+        where('username', '>=', queryLower),
+        where('username', '<=', queryLower + '\uf8ff'),
+        limit(20)
+      );
+
+      const snaps = await Promise.all([
+        getDocs(qNameExact),
+        getDocs(qNameLower),
+        getDocs(qNameCap),
+        getDocs(qEmail),
+        getDocs(qUsername)
       ]);
 
       const resultsMap = new Map<string, UserDoc>();
-      snapName.forEach(doc => resultsMap.set(doc.id, doc.data() as UserDoc));
-      snapEmail.forEach(doc => resultsMap.set(doc.id, doc.data() as UserDoc));
+      snaps.forEach(snap => {
+        snap.forEach(doc => resultsMap.set(doc.id, doc.data() as UserDoc));
+      });
 
       const results = Array.from(resultsMap.values()).filter(u => u.uid !== user?.uid);
       setGlobalSearchResults(results);
