@@ -1494,6 +1494,9 @@ interface Place {
     accountName: string;
   }[];
   customApp?: CustomAppConfig;
+  hideRecords?: boolean;
+  hideParticipation?: boolean;
+  hideCustomApp?: boolean;
 }
 
 interface Post {
@@ -1628,6 +1631,9 @@ interface School {
     accountName: string;
   }[];
   customApp?: CustomAppConfig;
+  hideRecords?: boolean;
+  hideParticipation?: boolean;
+  hideCustomApp?: boolean;
 }
 
 const PremiumGameModal = ({
@@ -15272,24 +15278,28 @@ function ExonaApp() {
                     {isManager || isAdmin ? 'Quick Management' : 'Workspace & Devices'}
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <button 
-                      onClick={() => handleNavigateToData('records')}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                        <Database size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Records</span>
-                    </button>
-                    <button 
-                      onClick={() => handleNavigateToData('attendance')}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                        <Calendar size={20} />
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
-                    </button>
+                    {!selectedSchool.hideRecords && (
+                      <button 
+                        onClick={() => handleNavigateToData('records')}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <Database size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Records</span>
+                      </button>
+                    )}
+                    {!selectedSchool.hideParticipation && (
+                      <button 
+                        onClick={() => handleNavigateToData('attendance')}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                          <Calendar size={20} />
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.attendance}</span>
+                      </button>
+                    )}
                     <button 
                       onClick={() => setView('daily-routine')}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
@@ -15299,29 +15309,31 @@ function ExonaApp() {
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
                     </button>
-                    <button 
-                      onClick={() => {
-                        if (selectedSchool.customApp?.url) {
-                          setActiveCustomApp(selectedSchool.customApp);
-                          setCustomAppCloseView(view);
-                          setView('customApp');
-                        } else {
-                          setIsManageSettingsOpen(true);
-                        }
-                      }}
-                      className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
-                    >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden">
-                        {selectedSchool.customApp?.iconUrl ? (
-                          <img src={selectedSchool.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
-                        ) : (
-                          <Smartphone size={20} />
-                        )}
-                      </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                        {selectedSchool.customApp?.name || 'My App'}
-                      </span>
-                    </button>
+                    {!selectedSchool.hideCustomApp && (
+                      <button 
+                        onClick={() => {
+                          if (selectedSchool.customApp?.url) {
+                            setActiveCustomApp(selectedSchool.customApp);
+                            setCustomAppCloseView(view);
+                            setView('customApp');
+                          } else {
+                            setIsManageSettingsOpen(true);
+                          }
+                        }}
+                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+                      >
+                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden">
+                          {selectedSchool.customApp?.iconUrl ? (
+                            <img src={selectedSchool.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                          ) : (
+                            <Smartphone size={20} />
+                          )}
+                        </div>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                          {selectedSchool.customApp?.name || 'My App'}
+                        </span>
+                      </button>
+                    )}
                     {canManageInstitution(selectedSchool) && (
                       <button 
                         onClick={() => setIsCategoryManagerOpen(true)}
@@ -23311,7 +23323,7 @@ function ExonaApp() {
               </div>
 
               {/* Institution App - Available to anyone */}
-              {inst.customApp?.url && (
+              {inst.customApp?.url && !inst.hideCustomApp && (
                 <div className="mb-10">
                   <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
                     Institution App
@@ -23670,7 +23682,7 @@ function ExonaApp() {
 
         // 6. Custom Apps
         const filteredApps = [...schools, ...places]
-          .filter(inst => inst.customApp)
+          .filter(inst => inst.customApp && !inst.hideCustomApp)
           .map(inst => inst.customApp)
           .filter(app => {
             if (!app || !query) return false;
@@ -34122,6 +34134,105 @@ function ExonaApp() {
                         </div>
                       ))
                     )}
+                  </div>
+                </div>
+
+                {/* Quick Management Visibility Toggles */}
+                <div className="border-t border-gray-100 pt-8">
+                  <div className="mb-6">
+                    <h3 className="text-lg font-extrabold text-ink mb-1">Quick Management Settings</h3>
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Customize which buttons are visible to members in the workspace</p>
+                  </div>
+                  <div className="p-6 bg-gray-50/50 border border-gray-100 rounded-3xl space-y-6">
+                    {/* Records Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 pr-4">
+                        <p className="text-xs font-bold text-ink">I don't want to see records</p>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Click ON to hide the Records button. Switch OFF to bring it back.</p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={selectedSchool.hideRecords || false}
+                        onClick={async () => {
+                          try {
+                            const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
+                            await updateDoc(refDoc, { hideRecords: !(selectedSchool.hideRecords || false) });
+                            showNotification('Records visibility updated', 'success');
+                          } catch (error) {
+                            showNotification('Failed to update records visibility', 'error');
+                          }
+                        }}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          selectedSchool.hideRecords ? 'bg-indigo-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            selectedSchool.hideRecords ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Participation Toggle */}
+                    <div className="flex items-center justify-between border-t border-gray-100/60 pt-6">
+                      <div className="flex-1 pr-4">
+                        <p className="text-xs font-bold text-ink">I don't want to see participation</p>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Click ON to hide the Participation button. Switch OFF to bring it back.</p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={selectedSchool.hideParticipation || false}
+                        onClick={async () => {
+                          try {
+                            const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
+                            await updateDoc(refDoc, { hideParticipation: !(selectedSchool.hideParticipation || false) });
+                            showNotification('Participation visibility updated', 'success');
+                          } catch (error) {
+                            showNotification('Failed to update participation visibility', 'error');
+                          }
+                        }}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          selectedSchool.hideParticipation ? 'bg-indigo-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            selectedSchool.hideParticipation ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* My App Toggle */}
+                    <div className="flex items-center justify-between border-t border-gray-100/60 pt-6">
+                      <div className="flex-1 pr-4">
+                        <p className="text-xs font-bold text-ink">I don't want to see my app</p>
+                        <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Click ON to hide the custom app button and launch banner. Switch OFF to bring it back.</p>
+                      </div>
+                      <button
+                        role="switch"
+                        aria-checked={selectedSchool.hideCustomApp || false}
+                        onClick={async () => {
+                          try {
+                            const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
+                            await updateDoc(refDoc, { hideCustomApp: !(selectedSchool.hideCustomApp || false) });
+                            showNotification('App visibility updated', 'success');
+                          } catch (error) {
+                            showNotification('Failed to update app visibility', 'error');
+                          }
+                        }}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          selectedSchool.hideCustomApp ? 'bg-indigo-600' : 'bg-gray-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            selectedSchool.hideCustomApp ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
