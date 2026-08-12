@@ -15311,8 +15311,12 @@ function ExonaApp() {
                       }}
                       className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
                     >
-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                        <Smartphone size={20} />
+                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden">
+                        {selectedSchool.customApp?.iconUrl ? (
+                          <img src={selectedSchool.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Smartphone size={20} />
+                        )}
                       </div>
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                         {selectedSchool.customApp?.name || 'My App'}
@@ -23341,7 +23345,11 @@ function ExonaApp() {
                         }}
                         className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
                       >
-                        <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                        {inst.customApp?.iconUrl ? (
+                          <img src={inst.customApp.iconUrl} alt="" className="h-[18px] w-[18px] object-cover rounded-md group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+                        ) : (
+                          <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                        )}
                         <span className="text-xs font-black uppercase tracking-widest">
                           {inst.customApp?.name || 'My App'}
                         </span>
@@ -34272,7 +34280,7 @@ function ExonaApp() {
 
       {/* Bottom Nav */}
       <AnimatePresence mode="wait">
-        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'reels'].includes(view) || activeChat !== null) ? null : activeInstForBroadcast ? (
+        {isStandalone ? null : (isPremiumGameOpen || isBrainBattleActive) ? null : (['chat', 'institution-channel', 'institution-profile', 'workspace', 'videos', 'records', 'attendance', 'classroom', 'daily-routine', 'reels'].includes(view) || activeChat !== null) ? null : (activeInstForBroadcast && schoolFeedTab !== 'manage') ? (
           <motion.div 
             key="broadcast-bar"
             initial={{ y: 80, opacity: 0, x: '-50%' }}
