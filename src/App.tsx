@@ -12227,14 +12227,16 @@ function ExonaApp() {
     
     setIsUploadingAppIcon(true);
     try {
-      const storageRef = ref(storage, `customApps/${user.uid}_${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
-      setCustomAppIconUrl(url);
-      showNotification('App icon uploaded successfully', 'success');
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImage(file, 400, 0.7);
+        setCustomAppIconUrl(compressed);
+        showNotification('App icon processed successfully', 'success');
+      } else {
+        showNotification('Please select an image file', 'error');
+      }
     } catch (error) {
-      console.error('Error uploading icon:', error);
-      showNotification('Failed to upload icon', 'error');
+      console.error('Error processing icon:', error);
+      showNotification('Failed to process icon', 'error');
     } finally {
       setIsUploadingAppIcon(false);
     }
