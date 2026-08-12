@@ -1464,6 +1464,14 @@ const BrainBattleModal = ({
 
 // --- TYPES ---
 
+interface CustomAppConfig {
+  name: string;
+  url: string;
+  username: string;
+  iconUrl?: string;
+  description?: string;
+}
+
 interface Place {
   id: string;
   name: string;
@@ -1485,6 +1493,7 @@ interface Place {
     accountNumber: string;
     accountName: string;
   }[];
+  customApp?: CustomAppConfig;
 }
 
 interface Post {
@@ -1618,6 +1627,7 @@ interface School {
     accountNumber: string;
     accountName: string;
   }[];
+  customApp?: CustomAppConfig;
 }
 
 const PremiumGameModal = ({
@@ -3793,7 +3803,8 @@ function ExonaApp() {
   const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
   const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
   const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
-  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema' | 'workout'>('splash');
+  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema' | 'workout' | 'customApp'>('splash');
+  const [activeCustomApp, setActiveCustomApp] = useState<CustomAppConfig | null>(null);
   const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
@@ -8228,6 +8239,15 @@ function ExonaApp() {
   const [isAddingBank, setIsAddingBank] = useState(false);
   const [settlements, setSettlements] = useState<any[]>([]);
 
+  // Custom App states
+  const [customAppName, setCustomAppName] = useState('');
+  const [customAppUrl, setCustomAppUrl] = useState('');
+  const [customAppUsername, setCustomAppUsername] = useState('');
+  const [customAppIconUrl, setCustomAppIconUrl] = useState('');
+  const [customAppDescription, setCustomAppDescription] = useState('');
+  const [isSavingCustomApp, setIsSavingCustomApp] = useState(false);
+  const [isUploadingAppIcon, setIsUploadingAppIcon] = useState(false);
+
   useEffect(() => {
     if (!selectedSchool) return;
 
@@ -12188,6 +12208,71 @@ function ExonaApp() {
       showNotification('Failed to update name', 'error');
     } finally {
       setIsSavingSettingsName(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isManageSettingsOpen && selectedSchool) {
+      setCustomAppName(selectedSchool.customApp?.name || '');
+      setCustomAppUrl(selectedSchool.customApp?.url || '');
+      setCustomAppUsername(selectedSchool.customApp?.username || '');
+      setCustomAppIconUrl(selectedSchool.customApp?.iconUrl || '');
+      setCustomAppDescription(selectedSchool.customApp?.description || '');
+    }
+  }, [isManageSettingsOpen, selectedSchool]);
+
+  const handleAppIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user) return;
+    const file = e.target.files[0];
+    
+    setIsUploadingAppIcon(true);
+    try {
+      const storageRef = ref(storage, `customApps/${user.uid}_${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setCustomAppIconUrl(url);
+      showNotification('App icon uploaded successfully', 'success');
+    } catch (error) {
+      console.error('Error uploading icon:', error);
+      showNotification('Failed to upload icon', 'error');
+    } finally {
+      setIsUploadingAppIcon(false);
+    }
+  };
+
+  const handleSaveCustomApp = async () => {
+    if (!selectedSchool || !user) return;
+    
+    if (!customAppName.trim() || !customAppUrl.trim() || !customAppUsername.trim()) {
+      showNotification('Please fill in app name, URL, and username', 'error');
+      return;
+    }
+
+    let cleanedUsername = customAppUsername.trim().toLowerCase();
+    if (cleanedUsername.startsWith('@')) {
+      cleanedUsername = cleanedUsername.substring(1);
+    }
+    cleanedUsername = cleanedUsername.replace(/[^a-z0-9_.-]/g, '');
+
+    setIsSavingCustomApp(true);
+    try {
+      const collectionName = selectedSchool.type === 'school' ? 'schools' : 'places';
+      const refDoc = doc(db, collectionName, selectedSchool.id);
+      await updateDoc(refDoc, {
+        customApp: {
+          name: customAppName.trim(),
+          url: customAppUrl.trim(),
+          username: cleanedUsername,
+          iconUrl: customAppIconUrl,
+          description: customAppDescription.trim()
+        }
+      });
+      showNotification('App settings saved successfully!', 'success');
+    } catch (error) {
+      console.error('Error saving app settings:', error);
+      showNotification('Failed to save app settings', 'error');
+    } finally {
+      setIsSavingCustomApp(false);
     }
   };
 
@@ -23529,12 +23614,26 @@ function ExonaApp() {
           );
         });
 
+        // 6. Custom Apps
+        const filteredApps = [...schools, ...places]
+          .filter(inst => inst.customApp)
+          .map(inst => inst.customApp)
+          .filter(app => {
+            if (!app || !query) return false;
+            return (
+              (app.name || '').toLowerCase().includes(query) ||
+              (app.username || '').toLowerCase().includes(query) ||
+              (app.description || '').toLowerCase().includes(query)
+            );
+          });
+
         const hasAnyResults = 
           filteredInstitutions.length > 0 ||
           filteredGroups.length > 0 ||
           combinedPeopleResults.length > 0 ||
           filteredPosts.length > 0 ||
-          filteredClassrooms.length > 0;
+          filteredClassrooms.length > 0 ||
+          filteredApps.length > 0;
 
         // Open Classroom helper
         const handleOpenClassroomInSearch = async (classData: any) => {
@@ -23568,6 +23667,7 @@ function ExonaApp() {
         const totalGroupCount = filteredGroups.length;
         const totalPostCount = filteredPosts.length;
         const totalClassroomCount = filteredClassrooms.length;
+        const totalAppCount = filteredApps.length;
 
         // Categories with counts
         const searchCategories = [
@@ -23576,7 +23676,8 @@ function ExonaApp() {
           { id: 'institutions', label: 'Institutions', icon: GraduationCap, count: totalInstCount },
           { id: 'groups', label: 'Groups', icon: MessageSquare, count: totalGroupCount },
           { id: 'posts', label: 'Posts', icon: Send, count: totalPostCount },
-          { id: 'classrooms', label: 'Classrooms', icon: BookOpen, count: totalClassroomCount }
+          { id: 'classrooms', label: 'Classrooms', icon: BookOpen, count: totalClassroomCount },
+          { id: 'apps', label: 'Apps', icon: Smartphone, count: totalAppCount }
         ];
 
         return (
@@ -23736,6 +23837,50 @@ function ExonaApp() {
                               <div className="text-left flex-1 min-w-0">
                                 <p className="text-[14px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
                                 <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{inst.type || 'institution'}</p>
+                              </div>
+                            </div>
+                            <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Apps Section */}
+                  {(searchCategory === 'all' || searchCategory === 'apps') && filteredApps.length > 0 && (
+                    <section className="bg-white/50 p-1.5 rounded-[2.2rem]">
+                      <div className="flex items-center justify-between px-3 mb-3">
+                        <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Apps</p>
+                        {searchCategory === 'all' && totalAppCount > 4 && (
+                          <button 
+                            onClick={() => setSearchCategory('apps' as any)}
+                            className="text-[10px] font-bold text-indigo-650 hover:underline uppercase tracking-wider"
+                          >
+                            See All ({totalAppCount})
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {filteredApps.slice(0, searchCategory === 'all' ? 4 : undefined).map((app, idx) => (
+                          <button 
+                            key={idx}
+                            onClick={() => {
+                              setActiveCustomApp(app);
+                              setView('customApp');
+                            }}
+                            className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex items-center gap-4 min-w-0 flex-1">
+                              <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden border border-gray-150 shrink-0">
+                                {app.iconUrl ? (
+                                  <img src={app.iconUrl} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <Smartphone size={18} />
+                                )}
+                              </div>
+                              <div className="text-left flex-1 min-w-0">
+                                <p className="text-[14px] font-bold text-ink tracking-tight truncate">{app.name}</p>
+                                <p className="text-[10px] text-muted font-medium uppercase tracking-widest truncate">@{app.username}</p>
                               </div>
                             </div>
                             <ChevronRight size={14} className="text-muted group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -30298,6 +30443,22 @@ function ExonaApp() {
           </div>
         );
       }
+      case 'customApp': {
+        if (!activeCustomApp) {
+          setView('feed');
+          return null;
+        }
+        return (
+          <ShopIframeView 
+            onClose={() => setView('feed')}
+            iframeUrl={activeCustomApp.url}
+            title={activeCustomApp.name}
+            bgColor="bg-white"
+            isDark={false}
+            hideHeader={false}
+          />
+        );
+      }
       default: return null;
     }
   };
@@ -33909,45 +34070,90 @@ function ExonaApp() {
                 {/* My App Settings Block */}
                 <div className="border-t border-gray-100 pt-8 pb-12">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-extrabold text-ink">My App Settings</h3>
+                    <h3 className="text-lg font-extrabold text-ink">{customAppName || 'My App'} Settings</h3>
                   </div>
                   <div className="p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-[2rem] space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-ink">Mobile App Access</p>
-                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Allow members to use the standalone mobile app</p>
-                      </div>
-                      <div className="h-6 w-11 bg-indigo-600 rounded-full relative cursor-pointer transition-colors">
-                        <div className="absolute right-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm" />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-bold text-ink">Push Notifications</p>
-                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Send instant alerts to mobile devices</p>
-                      </div>
-                      <div className="h-6 w-11 bg-indigo-600 rounded-full relative cursor-pointer transition-colors">
-                        <div className="absolute right-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm" />
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Icon</label>
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 bg-white border border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
+                          {isUploadingAppIcon ? (
+                            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                          ) : customAppIconUrl ? (
+                            <img src={customAppIconUrl} alt="App Icon" className="w-full h-full object-cover" />
+                          ) : (
+                            <Smartphone size={24} className="text-gray-300" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="inline-flex items-center justify-center h-10 px-4 bg-white border border-gray-200 text-xs font-bold text-ink rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <span>Upload Picture</span>
+                            <input type="file" accept="image/*" className="hidden" onChange={handleAppIconUpload} disabled={isUploadingAppIcon} />
+                          </label>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between opacity-50">
-                      <div>
-                        <p className="text-sm font-bold text-ink">Custom App Branding</p>
-                        <p className="text-[10px] text-muted font-bold uppercase tracking-widest">Apply institution colors to the mobile app</p>
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Name</label>
+                      <input 
+                        type="text" 
+                        value={customAppName} 
+                        onChange={(e) => setCustomAppName(e.target.value)} 
+                        placeholder="My Awesome App" 
+                        className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Search Username</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">@</span>
+                        <input 
+                          type="text" 
+                          value={customAppUsername} 
+                          onChange={(e) => setCustomAppUsername(e.target.value)} 
+                          placeholder="myapp123" 
+                          className="w-full h-12 pl-8 pr-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+                        />
                       </div>
-                      <div className="h-6 w-11 bg-gray-200 rounded-full relative cursor-not-allowed">
-                        <div className="absolute left-1 top-1 h-4 w-4 bg-white rounded-full shadow-sm" />
-                      </div>
+                      <p className="text-[10px] text-muted font-medium mt-1">Users can find your app by searching this name in the global feed.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">URL Place (Website Link)</label>
+                      <input 
+                        type="url" 
+                        value={customAppUrl} 
+                        onChange={(e) => setCustomAppUrl(e.target.value)} 
+                        placeholder="https://example.com" 
+                        className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Description</label>
+                      <textarea 
+                        value={customAppDescription} 
+                        onChange={(e) => setCustomAppDescription(e.target.value)} 
+                        placeholder="What does your app do?" 
+                        className="w-full h-24 p-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors resize-none" 
+                      />
                     </div>
 
                     <div className="pt-4 border-t border-indigo-100/30">
                       <button 
-                        onClick={() => showNotification('Opening Mobile App Dashboard...', 'success')}
-                        className="w-full py-4 bg-white border border-indigo-100 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
+                        onClick={handleSaveCustomApp}
+                        disabled={isSavingCustomApp}
+                        className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                       >
-                        <Smartphone size={14} /> Open Mobile Dashboard
+                        {isSavingCustomApp ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Smartphone size={16} /> Save App Settings
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

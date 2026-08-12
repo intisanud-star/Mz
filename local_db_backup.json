@@ -1,13 +1,13 @@
 {
   "users": {
     "tg_6076405772": {
-      "chat_id": "6076405772",
-      "email": "6076405772@telegram.bot",
-      "uid": "tg_6076405772",
-      "source": "telegram",
       "displayName": "Musty_ne",
+      "chat_id": "6076405772",
+      "source": "telegram",
+      "join_date": "2026-04-29T08:04:44.200Z",
       "username": "Musty_ne",
-      "join_date": "2026-04-29T08:04:44.200Z"
+      "uid": "tg_6076405772",
+      "email": "6076405772@telegram.bot"
     }
   },
   "broadcasts": {
@@ -16,48 +16,48 @@
       "apiBaseUrl": "https://ais-dev-v7ogtvzuc33sr2m3jydxdd-538663974620.europe-west2.run.app"
     },
     "br_1777451941586": {
-      "stats": {
-        "failed": 0,
-        "delivered": 2,
-        "total": 2
-      },
-      "timestamp": "2026-04-29T08:39:01.620Z",
-      "id": "br_1777451941586",
+      "type": "image",
       "message": "A full community centre for you",
-      "type": "image"
-    },
-    "br_1777456552963": {
+      "id": "br_1777451941586",
       "stats": {
         "failed": 0,
         "total": 2,
         "delivered": 2
       },
+      "timestamp": "2026-04-29T08:39:01.620Z"
+    },
+    "br_1777456552963": {
       "timestamp": "2026-04-29T09:55:52.996Z",
+      "id": "br_1777456552963",
+      "stats": {
+        "failed": 0,
+        "total": 2,
+        "delivered": 2
+      },
       "message": "Exonapp is a multi-functional digital ecosystem that empowers institutions and individuals to manage financial transactions, records, documents, education, attendance, and engagement activities in one smart platform.",
-      "type": "image",
-      "id": "br_1777456552963"
+      "type": "image"
     },
     "br_1777456726578": {
-      "message": "Exonapp is a multi-functional digital ecosystem that\r\n\r\n \r\nempowers institutions and individuals to manage financial transactions, records, documents, education, \r\n\r\n\r\nattendance, and engagement activities in one smart platform.",
       "id": "br_1777456726578",
+      "type": "image",
+      "timestamp": "2026-04-29T09:58:46.611Z",
       "stats": {
-        "total": 2,
         "delivered": 2,
+        "total": 2,
         "failed": 0
       },
-      "type": "image",
-      "timestamp": "2026-04-29T09:58:46.611Z"
+      "message": "Exonapp is a multi-functional digital ecosystem that\r\n\r\n \r\nempowers institutions and individuals to manage financial transactions, records, documents, education, \r\n\r\n\r\nattendance, and engagement activities in one smart platform."
     },
     "br_1779824919155": {
+      "stats": {
+        "failed": 0,
+        "delivered": 3,
+        "total": 3
+      },
+      "id": "br_1779824919155",
       "type": "image",
       "timestamp": "2026-05-26T19:48:39.196Z",
-      "message": "Get ready to hit Eid Mubarak brain battle game and reward",
-      "stats": {
-        "total": 3,
-        "delivered": 3,
-        "failed": 0
-      },
-      "id": "br_1779824919155"
+      "message": "Get ready to hit Eid Mubarak brain battle game and reward"
     }
   },
   "schools": {},
