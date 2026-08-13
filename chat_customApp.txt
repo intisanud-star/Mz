@@ -1,0 +1,91 @@
+37:import CustomAppSandbox from './components/CustomAppSandbox';
+1467:interface CustomAppConfig {
+1496:  customApp?: CustomAppConfig;
+1499:  hideCustomApp?: boolean;
+1633:  customApp?: CustomAppConfig;
+1636:  hideCustomApp?: boolean;
+3812:  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema' | 'workout' | 'customApp'>('splash');
+3813:  const [activeCustomApp, setActiveCustomApp] = useState<CustomAppConfig | null>(null);
+3814:  const [customAppCloseView, setCustomAppCloseView] = useState<string>('feed');
+4949:  const [customApps, setCustomApps] = useState<any[]>(() => {
+7931:          updated.hideCustomApp !== selectedSchool.hideCustomApp ||
+7932:          JSON.stringify(updated.customApp) !== JSON.stringify(selectedSchool.customApp);
+8254:  const [customAppName, setCustomAppName] = useState('');
+8255:  const [customAppUrl, setCustomAppUrl] = useState('');
+8256:  const [customAppUsername, setCustomAppUsername] = useState('');
+8257:  const [customAppIconUrl, setCustomAppIconUrl] = useState('');
+8258:  const [customAppDescription, setCustomAppDescription] = useState('');
+8259:  const [isSavingCustomApp, setIsSavingCustomApp] = useState(false);
+12227:      setCustomAppName(selectedSchool.customApp?.name || '');
+12228:      setCustomAppUrl(selectedSchool.customApp?.url || '');
+12229:      setCustomAppUsername(selectedSchool.customApp?.username || '');
+12230:      setCustomAppIconUrl(selectedSchool.customApp?.iconUrl || '');
+12231:      setCustomAppDescription(selectedSchool.customApp?.description || '');
+12243:        setCustomAppIconUrl(compressed);
+12256:  const handleSaveCustomApp = async () => {
+12259:    if (!customAppName.trim() || !customAppUrl.trim() || !customAppUsername.trim()) {
+12264:    let cleanedUsername = customAppUsername.trim().toLowerCase();
+12270:    setIsSavingCustomApp(true);
+12275:        customApp: {
+12276:          name: customAppName.trim(),
+12277:          url: customAppUrl.trim(),
+12279:          iconUrl: customAppIconUrl,
+12280:          description: customAppDescription.trim()
+12288:      setIsSavingCustomApp(false);
+12920:    const qApps = query(collection(db, 'workspaceCustomApps'));
+12928:      setCustomApps(apps);
+15316:                    {!selectedSchool.hideCustomApp && (
+15319:                          if (selectedSchool.customApp?.url) {
+15320:                            setActiveCustomApp(selectedSchool.customApp);
+15321:                            setCustomAppCloseView(view);
+15322:                            setView('customApp');
+15330:                          {selectedSchool.customApp?.iconUrl ? (
+15331:                            <img src={selectedSchool.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+15337:                          {selectedSchool.customApp?.name || 'My App'}
+23330:              {inst.customApp?.url && !inst.hideCustomApp && (
+23338:                      if (inst.customApp?.url) {
+23339:                        setActiveCustomApp(inst.customApp);
+23340:                        setCustomAppCloseView(view);
+23341:                        setView('customApp');
+23347:                      {inst.customApp?.iconUrl ? (
+23348:                        <img src={inst.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+23354:                      <p className="text-xs font-black uppercase tracking-widest truncate">{inst.customApp?.name || 'My App'}</p>
+23383:                    {canManage && !inst.customApp?.url && (
+23689:          .filter(inst => inst.customApp && !inst.hideCustomApp)
+23690:          .map(inst => inst.customApp)
+23938:                              setActiveCustomApp(app);
+23939:                              setView('customApp');
+26955:        customApps.forEach((cApp: any) => {
+26975:              customApps={customApps}
+26976:              setCustomApps={setCustomApps}
+26996:        const selectedCustomApp = customApps.find(app => app.id === activeWorkspaceTool);
+26997:        if (selectedCustomApp) {
+26999:            <CustomAppSandbox
+27000:              app={selectedCustomApp}
+27010:              setCustomApps={setCustomApps}
+30516:      case 'customApp': {
+30517:        if (!activeCustomApp) {
+30521:        let appUrl = activeCustomApp.url.trim();
+30527:            onClose={() => setView((customAppCloseView as any) || 'feed')}
+30529:            title={activeCustomApp.name}
+34225:                        aria-checked={selectedSchool.hideCustomApp || false}
+34227:                          const nextVal = !(selectedSchool.hideCustomApp || false);
+34228:                          setSelectedSchool(prev => prev ? { ...prev, hideCustomApp: nextVal } : null);
+34231:                            await updateDoc(refDoc, { hideCustomApp: nextVal });
+34234:                            setSelectedSchool(prev => prev ? { ...prev, hideCustomApp: !nextVal } : null);
+34239:                          selectedSchool.hideCustomApp ? 'bg-indigo-600' : 'bg-gray-200'
+34244:                            selectedSchool.hideCustomApp ? 'translate-x-5' : 'translate-x-0'
+34255:                    <h3 className="text-lg font-extrabold text-ink">{customAppName || 'My App'} Settings</h3>
+34264:                          ) : customAppIconUrl ? (
+34265:                            <img src={customAppIconUrl} alt="App Icon" className="w-full h-full object-cover" />
+34283:                        value={customAppName} 
+34284:                        onChange={(e) => setCustomAppName(e.target.value)} 
+34296:                          value={customAppUsername} 
+34297:                          onChange={(e) => setCustomAppUsername(e.target.value)} 
+34309:                        value={customAppUrl} 
+34310:                        onChange={(e) => setCustomAppUrl(e.target.value)} 
+34319:                        value={customAppDescription} 
+34320:                        onChange={(e) => setCustomAppDescription(e.target.value)} 
+34328:                        onClick={handleSaveCustomApp}
+34329:                        disabled={isSavingCustomApp}
+34332:                        {isSavingCustomApp ? (

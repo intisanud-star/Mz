@@ -23685,17 +23685,28 @@ function ExonaApp() {
         });
 
         // 6. Custom Apps
-        const filteredApps = [...schools, ...places]
-          .filter(inst => inst.customApp && !inst.hideCustomApp)
-          .map(inst => inst.customApp)
-          .filter(app => {
-            if (!app || !query) return false;
-            return (
-              (app.name || '').toLowerCase().includes(query) ||
-              (app.username || '').toLowerCase().includes(query) ||
-              (app.description || '').toLowerCase().includes(query)
-            );
-          });
+        const formattedWorkspaceApps = customApps.map(app => ({
+          name: app.name,
+          url: app.appUrl || '',
+          username: app.id,
+          iconUrl: app.iconUrl,
+          description: app.description,
+          isWorkspaceApp: true
+        }));
+
+        const filteredApps = [
+          ...[...schools, ...places]
+            .filter(inst => inst.customApp && !inst.hideCustomApp)
+            .map(inst => inst.customApp),
+          ...formattedWorkspaceApps
+        ].filter(app => {
+          if (!app || !query) return false;
+          return (
+            (app.name || '').toLowerCase().includes(query) ||
+            (app.username || '').toLowerCase().includes(query) ||
+            (app.description || '').toLowerCase().includes(query)
+          );
+        });
 
         const hasAnyResults = 
           filteredInstitutions.length > 0 ||
@@ -23935,8 +23946,13 @@ function ExonaApp() {
                           <button 
                             key={idx}
                             onClick={() => {
-                              setActiveCustomApp(app);
-                              setView('customApp');
+                              if ((app as any).isWorkspaceApp) {
+                                setActiveWorkspaceTool(app.username);
+                                setView('workspace');
+                              } else {
+                                setActiveCustomApp(app);
+                                setView('customApp');
+                              }
                             }}
                             className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
                           >

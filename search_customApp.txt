@@ -1,0 +1,497 @@
+32-import Markdown from 'react-markdown';
+33-import { PDFDocument } from 'pdf-lib';
+34-import SmartDocumentCreator from './components/SmartDocumentCreator';
+35-import ExonaFileShare from './components/ExonaFileShare';
+36-import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
+37:import CustomAppSandbox from './components/CustomAppSandbox';
+38-import ExcoinP2PCentre from './components/ExcoinP2PCentre';
+39-import { YoutubeBroadcasts } from './components/YoutubeBroadcasts';
+40-import { BroadcastFeed } from './components/BroadcastFeed';
+41-import { WorldMarketplace } from './components/WorldMarketplace';
+42-import { UserShopItemsTab } from './components/UserShopItemsTab';
+--
+1462-};
+1463-
+1464-
+1465-// --- TYPES ---
+1466-
+1467:interface CustomAppConfig {
+1468-  name: string;
+1469-  url: string;
+1470-  username: string;
+1471-  iconUrl?: string;
+1472-  description?: string;
+--
+1491-  bankAccounts?: {
+1492-    bankName: string;
+1493-    accountNumber: string;
+1494-    accountName: string;
+1495-  }[];
+1496:  customApp?: CustomAppConfig;
+1497-  hideRecords?: boolean;
+1498-  hideParticipation?: boolean;
+1499:  hideCustomApp?: boolean;
+1500-}
+1501-
+1502-interface Post {
+1503-  id: string;
+1504-  authorUid: string;
+--
+1628-  bankAccounts?: {
+1629-    bankName: string;
+1630-    accountNumber: string;
+1631-    accountName: string;
+1632-  }[];
+1633:  customApp?: CustomAppConfig;
+1634-  hideRecords?: boolean;
+1635-  hideParticipation?: boolean;
+1636:  hideCustomApp?: boolean;
+1637-}
+1638-
+1639-const PremiumGameModal = ({
+1640-  isOpen,
+1641-  onClose,
+--
+3807-  const [uploadingHubAppId, setUploadingHubAppId] = useState<string | null>(null);
+3808-  const [helpSearchQuery, setHelpSearchQuery] = useState('');
+3809-  const [feedTab, setFeedTab] = useState<'institutions' | 'broadcasts'>('institutions');
+3810-  const [broadcastSubTab, setBroadcastSubTab] = useState<'for-you' | 'following' | 'groups'>('for-you');
+3811-  const [fallbackPostLikes, setFallbackPostLikes] = useState<{[postId: string]: { likes: number, likedBy: string[] }}>({});
+3812:  const [view, setView] = useState<'splash' | 'login' | 'feed' | 'records' | 'finance' | 'schools' | 'tools' | 'penalty' | 'profile' | 'user-profile' | 'institution-profile' | 'institution-channel' | 'admin' | 'school-feed' | 'attendance' | 'chat' | 'notifications' | 'search' | 'onboarding' | 'workspace' | 'daily-routine' | 'classroom' | 'videos' | 'hub' | 'reels' | 'nexclass' | 'brainb' | 'cinema' | 'workout' | 'customApp'>('splash');
+3813:  const [activeCustomApp, setActiveCustomApp] = useState<CustomAppConfig | null>(null);
+3814:  const [customAppCloseView, setCustomAppCloseView] = useState<string>('feed');
+3815-  const [activeAttachmentMenu, setActiveAttachmentMenu] = useState<'broadcast' | 'chat' | null>(null);
+3816-  const [showFABs, setShowFABs] = useState(true);
+3817-  const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
+3818-  const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
+3819-  const lastScrollTop = useRef(0);
+--
+4944-      } catch (e) {}
+4945-    }
+4946-    return ['app-center', 'editor', 'pdf', 'file-share', 'storage', 'e-test', 'finance', 'videos'];
+4947-  });
+4948-
+4949:  const [customApps, setCustomApps] = useState<any[]>(() => {
+4950-    const saved = localStorage.getItem('exonasoft_custom_workspace_apps');
+4951-    if (saved) {
+4952-      try {
+4953-        const parsed = JSON.parse(saved);
+4954-        if (Array.isArray(parsed)) return parsed;
+--
+7926-          updated.photoUrl !== selectedSchool.photoUrl || 
+7927-          (updated.followers || []).length !== (selectedSchool.followers || []).length ||
+7928-          (updated.administrativeViewers || []).length !== (selectedSchool.administrativeViewers || []).length ||
+7929-          updated.hideRecords !== selectedSchool.hideRecords ||
+7930-          updated.hideParticipation !== selectedSchool.hideParticipation ||
+7931:          updated.hideCustomApp !== selectedSchool.hideCustomApp ||
+7932:          JSON.stringify(updated.customApp) !== JSON.stringify(selectedSchool.customApp);
+7933-        if (hasChanged) {
+7934-          setSelectedSchool(updated as any);
+7935-        }
+7936-      }
+7937-    }
+--
+8249-  const [newAccountName, setNewAccountName] = useState('');
+8250-  const [isAddingBank, setIsAddingBank] = useState(false);
+8251-  const [settlements, setSettlements] = useState<any[]>([]);
+8252-
+8253-  // Custom App states
+8254:  const [customAppName, setCustomAppName] = useState('');
+8255:  const [customAppUrl, setCustomAppUrl] = useState('');
+8256:  const [customAppUsername, setCustomAppUsername] = useState('');
+8257:  const [customAppIconUrl, setCustomAppIconUrl] = useState('');
+8258:  const [customAppDescription, setCustomAppDescription] = useState('');
+8259:  const [isSavingCustomApp, setIsSavingCustomApp] = useState(false);
+8260-  const [isUploadingAppIcon, setIsUploadingAppIcon] = useState(false);
+8261-
+8262-  useEffect(() => {
+8263-    if (!selectedSchool) return;
+8264-
+--
+12222-    }
+12223-  };
+12224-
+12225-  useEffect(() => {
+12226-    if (isManageSettingsOpen && selectedSchool) {
+12227:      setCustomAppName(selectedSchool.customApp?.name || '');
+12228:      setCustomAppUrl(selectedSchool.customApp?.url || '');
+12229:      setCustomAppUsername(selectedSchool.customApp?.username || '');
+12230:      setCustomAppIconUrl(selectedSchool.customApp?.iconUrl || '');
+12231:      setCustomAppDescription(selectedSchool.customApp?.description || '');
+12232-    }
+12233-  }, [isManageSettingsOpen, selectedSchool]);
+12234-
+12235-  const handleAppIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+12236-    if (!e.target.files || !e.target.files[0] || !user) return;
+--
+12238-    
+12239-    setIsUploadingAppIcon(true);
+12240-    try {
+12241-      if (file.type.startsWith('image/')) {
+12242-        const compressed = await compressImage(file, 400, 0.7);
+12243:        setCustomAppIconUrl(compressed);
+12244-        showNotification('App icon processed successfully', 'success');
+12245-      } else {
+12246-        showNotification('Please select an image file', 'error');
+12247-      }
+12248-    } catch (error) {
+--
+12251-    } finally {
+12252-      setIsUploadingAppIcon(false);
+12253-    }
+12254-  };
+12255-
+12256:  const handleSaveCustomApp = async () => {
+12257-    if (!selectedSchool || !user) return;
+12258-    
+12259:    if (!customAppName.trim() || !customAppUrl.trim() || !customAppUsername.trim()) {
+12260-      showNotification('Please fill in app name, URL, and username', 'error');
+12261-      return;
+12262-    }
+12263-
+12264:    let cleanedUsername = customAppUsername.trim().toLowerCase();
+12265-    if (cleanedUsername.startsWith('@')) {
+12266-      cleanedUsername = cleanedUsername.substring(1);
+12267-    }
+12268-    cleanedUsername = cleanedUsername.replace(/[^a-z0-9_.-]/g, '');
+12269-
+12270:    setIsSavingCustomApp(true);
+12271-    try {
+12272-      const collectionName = selectedSchool.type === 'school' ? 'schools' : 'places';
+12273-      const refDoc = doc(db, collectionName, selectedSchool.id);
+12274-      await updateDoc(refDoc, {
+12275:        customApp: {
+12276:          name: customAppName.trim(),
+12277:          url: customAppUrl.trim(),
+12278-          username: cleanedUsername,
+12279:          iconUrl: customAppIconUrl,
+12280:          description: customAppDescription.trim()
+12281-        }
+12282-      });
+12283-      showNotification('App settings saved successfully!', 'success');
+12284-    } catch (error) {
+12285-      console.error('Error saving app settings:', error);
+12286-      showNotification('Failed to save app settings', 'error');
+12287-    } finally {
+12288:      setIsSavingCustomApp(false);
+12289-    }
+12290-  };
+12291-
+12292-  const handleResharePost = async (post: Post) => {
+12293-    if (!user) { setView('login'); return; }
+--
+12915-
+12916-  // 3.5 Workspace Custom Apps Listener (global, syncs custom apps in real-time with Firestore)
+12917-  useEffect(() => {
+12918-    if (isQuotaExceeded || !user) return;
+12919-
+12920:    const qApps = query(collection(db, 'workspaceCustomApps'));
+12921-    const unsubApps = onSnapshot(qApps, (snap) => {
+12922-      const apps = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+12923-      apps.sort((a: any, b: any) => {
+12924-        const timeA = a.createdAt || '';
+12925-        const timeB = b.createdAt || '';
+12926-        return timeA < timeB ? 1 : -1;
+12927-      });
+12928:      setCustomApps(apps);
+12929-      localStorage.setItem('exonasoft_custom_workspace_apps', JSON.stringify(apps));
+12930-      
+12931-      try {
+12932-        const savedEnabled = localStorage.getItem('exonasoft_enabled_workspace_apps');
+12933-        const enabledIds = savedEnabled ? JSON.parse(savedEnabled) : [];
+--
+15311-                      <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+15312-                        <Activity size={20} />
+15313-                      </div>
+15314-                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">{labels.routine}</span>
+15315-                    </button>
+15316:                    {!selectedSchool.hideCustomApp && (
+15317-                      <button 
+15318-                        onClick={() => {
+15319:                          if (selectedSchool.customApp?.url) {
+15320:                            setActiveCustomApp(selectedSchool.customApp);
+15321:                            setCustomAppCloseView(view);
+15322:                            setView('customApp');
+15323-                          } else {
+15324-                            setIsManageSettingsOpen(true);
+15325-                          }
+15326-                        }}
+15327-                        className="flex flex-col items-center gap-3 p-6 bg-gray-50 rounded-2xl border border-transparent hover:border-gray-100 transition-all group"
+15328-                      >
+15329-                        <div className="h-12 w-12 bg-white rounded-xl flex items-center justify-center text-accent group-hover:scale-110 transition-transform overflow-hidden">
+15330:                          {selectedSchool.customApp?.iconUrl ? (
+15331:                            <img src={selectedSchool.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+15332-                          ) : (
+15333-                            <Smartphone size={20} />
+15334-                          )}
+15335-                        </div>
+15336-                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+15337:                          {selectedSchool.customApp?.name || 'My App'}
+15338-                        </span>
+15339-                      </button>
+15340-                    )}
+15341-                    {canManageInstitution(selectedSchool) && (
+15342-                      <button 
+--
+23325-                  <p className="text-xl font-black text-ink">{institutionMedia.length.toLocaleString()}</p>
+23326-                </div>
+23327-              </div>
+23328-
+23329-              {/* Institution App - Available to anyone */}
+23330:              {inst.customApp?.url && !inst.hideCustomApp && (
+23331-                <div className="mb-10">
+23332-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
+23333-                    Institution App
+23334-                  </p>
+23335-                  <button 
+23336-                    onClick={() => { 
+23337-                      setSelectedSchool(inst as School);
+23338:                      if (inst.customApp?.url) {
+23339:                        setActiveCustomApp(inst.customApp);
+23340:                        setCustomAppCloseView(view);
+23341:                        setView('customApp');
+23342-                      }
+23343-                    }}
+23344-                    className="flex items-center gap-3.5 px-6 py-4 bg-indigo-50/50 hover:bg-indigo-50 border border-indigo-100/50 hover:border-indigo-200/50 text-indigo-950 rounded-3xl transition-all group w-full max-w-sm"
+23345-                  >
+23346-                    <div className="h-10 w-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+23347:                      {inst.customApp?.iconUrl ? (
+23348:                        <img src={inst.customApp.iconUrl} alt="" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+23349-                      ) : (
+23350-                        <Smartphone size={18} className="text-indigo-600 group-hover:scale-110 transition-transform" />
+23351-                      )}
+23352-                    </div>
+23353-                    <div className="flex-1 text-left min-w-0">
+23354:                      <p className="text-xs font-black uppercase tracking-widest truncate">{inst.customApp?.name || 'My App'}</p>
+23355-                      <p className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">Tap to Launch Application</p>
+23356-                    </div>
+23357-                    <ChevronRight size={16} className="text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />
+23358-                  </button>
+23359-                </div>
+--
+23378-                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+23379-                    >
+23380-                      <Calendar size={18} className="text-accent group-hover:scale-110 transition-transform" />
+23381-                      <span className="text-xs font-black uppercase tracking-widest">{instLabels.attendance}</span>
+23382-                    </button>
+23383:                    {canManage && !inst.customApp?.url && (
+23384-                      <button 
+23385-                        onClick={() => { 
+23386-                          setSelectedSchool(inst as School);
+23387-                          setIsManageSettingsOpen(true);
+23388-                        }}
+--
+23684-          );
+23685-        });
+23686-
+23687-        // 6. Custom Apps
+23688-        const filteredApps = [...schools, ...places]
+23689:          .filter(inst => inst.customApp && !inst.hideCustomApp)
+23690:          .map(inst => inst.customApp)
+23691-          .filter(app => {
+23692-            if (!app || !query) return false;
+23693-            return (
+23694-              (app.name || '').toLowerCase().includes(query) ||
+23695-              (app.username || '').toLowerCase().includes(query) ||
+--
+23933-                      <div className="grid grid-cols-1 gap-2.5">
+23934-                        {filteredApps.slice(0, searchCategory === 'all' ? 4 : undefined).map((app, idx) => (
+23935-                          <button 
+23936-                            key={idx}
+23937-                            onClick={() => {
+23938:                              setActiveCustomApp(app);
+23939:                              setView('customApp');
+23940-                            }}
+23941-                            className="w-full p-4 rounded-3xl border border-gray-100 bg-card hover:border-accent/15 hover:shadow-sm transition-all group flex items-center justify-between gap-4 text-left"
+23942-                          >
+23943-                            <div className="flex items-center gap-4 min-w-0 flex-1">
+23944-                              <div className="h-11 w-11 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-all overflow-hidden border border-gray-150 shrink-0">
+--
+26950-            }
+26951-          }
+26952-        });
+26953-
+26954-        // Add custom apps if enabled
+26955:        customApps.forEach((cApp: any) => {
+26956-          if (enabledAppIds.includes(cApp.id)) {
+26957-            workspaceFeatures.push({
+26958-              id: cApp.id,
+26959-              name: cApp.name,
+26960-              description: cApp.description,
+--
+26970-            <WorkspaceAppCenter
+26971-              onClose={() => setView('feed')}
+26972-              showNotification={showNotification}
+26973-              enabledAppIds={enabledAppIds}
+26974-              setEnabledAppIds={setEnabledAppIds}
+26975:              customApps={customApps}
+26976:              setCustomApps={setCustomApps}
+26977-              userDoc={userDoc}
+26978-              onLaunchApp={(id) => {
+26979-                if (id === 'finance') {
+26980-                  handleWalletClick();
+26981-                } else if (id === 'videos') {
+--
+26991-            />
+26992-          );
+26993-        }
+26994-
+26995-        // Custom App Sandbox Route
+26996:        const selectedCustomApp = customApps.find(app => app.id === activeWorkspaceTool);
+26997:        if (selectedCustomApp) {
+26998-          return (
+26999:            <CustomAppSandbox
+27000:              app={selectedCustomApp}
+27001-              onClose={() => {
+27002-                if (isStandalone) {
+27003-                  // If standalone, we can either return to list or stay
+27004-                  setActiveWorkspaceTool(null);
+27005-                } else {
+27006-                  setActiveWorkspaceTool('app-center');
+27007-                }
+27008-              }}
+27009-              showNotification={showNotification}
+27010:              setCustomApps={setCustomApps}
+27011-            />
+27012-          );
+27013-        }
+27014-
+27015-        if (activeWorkspaceTool === 'e-test') {
+--
+30511-              </div>
+30512-            )}
+30513-          </div>
+30514-        );
+30515-      }
+30516:      case 'customApp': {
+30517:        if (!activeCustomApp) {
+30518-          setView('feed');
+30519-          return null;
+30520-        }
+30521:        let appUrl = activeCustomApp.url.trim();
+30522-        if (!/^https?:\/\//i.test(appUrl)) {
+30523-          appUrl = `https://${appUrl}`;
+30524-        }
+30525-        return (
+30526-          <ShopIframeView 
+30527:            onClose={() => setView((customAppCloseView as any) || 'feed')}
+30528-            iframeUrl={appUrl}
+30529:            title={activeCustomApp.name}
+30530-            bgColor="bg-white"
+30531-            isDark={false}
+30532-            hideHeader={true}
+30533-          />
+30534-        );
+--
+34220-                        <p className="text-xs font-bold text-ink">I don't want to see my app</p>
+34221-                        <p className="text-[10px] text-muted font-bold uppercase tracking-wider">Click ON to hide the custom app button and launch banner. Switch OFF to bring it back.</p>
+34222-                      </div>
+34223-                      <button
+34224-                        role="switch"
+34225:                        aria-checked={selectedSchool.hideCustomApp || false}
+34226-                        onClick={async () => {
+34227:                          const nextVal = !(selectedSchool.hideCustomApp || false);
+34228:                          setSelectedSchool(prev => prev ? { ...prev, hideCustomApp: nextVal } : null);
+34229-                          try {
+34230-                            const refDoc = doc(db, selectedSchool.type === 'school' ? 'schools' : 'places', selectedSchool.id);
+34231:                            await updateDoc(refDoc, { hideCustomApp: nextVal });
+34232-                            showNotification('App visibility updated', 'success');
+34233-                          } catch (error) {
+34234:                            setSelectedSchool(prev => prev ? { ...prev, hideCustomApp: !nextVal } : null);
+34235-                            showNotification('Failed to update app visibility', 'error');
+34236-                          }
+34237-                        }}
+34238-                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+34239:                          selectedSchool.hideCustomApp ? 'bg-indigo-600' : 'bg-gray-200'
+34240-                        }`}
+34241-                      >
+34242-                        <span
+34243-                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+34244:                            selectedSchool.hideCustomApp ? 'translate-x-5' : 'translate-x-0'
+34245-                          }`}
+34246-                        />
+34247-                      </button>
+34248-                    </div>
+34249-                  </div>
+34250-                </div>
+34251-
+34252-                {/* My App Settings Block */}
+34253-                <div className="border-t border-gray-100 pt-8 pb-12">
+34254-                  <div className="flex items-center justify-between mb-6">
+34255:                    <h3 className="text-lg font-extrabold text-ink">{customAppName || 'My App'} Settings</h3>
+34256-                  </div>
+34257-                  <div className="p-6 bg-indigo-50/10 border border-indigo-100/60 rounded-[2rem] space-y-6">
+34258-                    <div>
+34259-                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Icon</label>
+34260-                      <div className="flex items-center gap-4">
+34261-                        <div className="h-16 w-16 bg-white border border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
+34262-                          {isUploadingAppIcon ? (
+34263-                            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+34264:                          ) : customAppIconUrl ? (
+34265:                            <img src={customAppIconUrl} alt="App Icon" className="w-full h-full object-cover" />
+34266-                          ) : (
+34267-                            <Smartphone size={24} className="text-gray-300" />
+34268-                          )}
+34269-                        </div>
+34270-                        <div className="flex-1">
+--
+34278-
+34279-                    <div>
+34280-                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Name</label>
+34281-                      <input 
+34282-                        type="text" 
+34283:                        value={customAppName} 
+34284:                        onChange={(e) => setCustomAppName(e.target.value)} 
+34285-                        placeholder="My Awesome App" 
+34286-                        className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+34287-                      />
+34288-                    </div>
+34289-
+--
+34291-                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Search Username</label>
+34292-                      <div className="relative">
+34293-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">@</span>
+34294-                        <input 
+34295-                          type="text" 
+34296:                          value={customAppUsername} 
+34297:                          onChange={(e) => setCustomAppUsername(e.target.value)} 
+34298-                          placeholder="myapp123" 
+34299-                          className="w-full h-12 pl-8 pr-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+34300-                        />
+34301-                      </div>
+34302-                      <p className="text-[10px] text-muted font-medium mt-1">Users can find your app by searching this name in the global feed.</p>
+--
+34304-
+34305-                    <div>
+34306-                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">URL Place (Website Link)</label>
+34307-                      <input 
+34308-                        type="url" 
+34309:                        value={customAppUrl} 
+34310:                        onChange={(e) => setCustomAppUrl(e.target.value)} 
+34311-                        placeholder="https://example.com" 
+34312-                        className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+34313-                      />
+34314-                    </div>
+34315-
+34316-                    <div>
+34317-                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Description</label>
+34318-                      <textarea 
+34319:                        value={customAppDescription} 
+34320:                        onChange={(e) => setCustomAppDescription(e.target.value)} 
+34321-                        placeholder="What does your app do?" 
+34322-                        className="w-full h-24 p-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors resize-none" 
+34323-                      />
+34324-                    </div>
+34325-
+34326-                    <div className="pt-4 border-t border-indigo-100/30">
+34327-                      <button 
+34328:                        onClick={handleSaveCustomApp}
+34329:                        disabled={isSavingCustomApp}
+34330-                        className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+34331-                      >
+34332:                        {isSavingCustomApp ? (
+34333-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+34334-                        ) : (
+34335-                          <>
+34336-                            <Smartphone size={16} /> Save App Settings
+34337-                          </>
