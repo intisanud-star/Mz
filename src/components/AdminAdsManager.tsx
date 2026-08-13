@@ -116,7 +116,7 @@ export default function AdminAdsManager({ showNotification }: { showNotification
   );
 }
 
-function AdAdminCard({ ad, onUpdateStatus }: { ad: any, onUpdateStatus: (id: string, status: string) => void }) {
+function AdAdminCard({ ad, onUpdateStatus }: { ad: any, onUpdateStatus: (id: string, status: string) => void, key?: string }) {
   return (
     <div className="border border-gray-150 rounded-2xl p-5 flex flex-col sm:flex-row gap-5 items-start">
       {ad.mediaUrl ? (

@@ -14,7 +14,7 @@ import {
   ClipboardList, CheckCircle2, XCircle, Compass, Check, Camera, Circle, Phone,
   Mic, Play, Pause, PhoneOff, StopCircle, RefreshCw,
   SearchCheck, CalendarCheck2,
-  Building2, MapPin, Lock,
+  Building2, MapPin, Lock, Megaphone,
   Globe, Zap, Mail, Facebook, Twitter, Instagram, Github, Chrome, Palette, HelpCircle, Info, Coffee, Rocket, Terminal, Code2, Monitor, Smartphone, Tablet, Github as GithubIcon, Laptop, Coffee as CoffeeIcon,
   Sun, Moon, Book, Award, Star, BarChart3, Briefcase, HeartHandshake, ShieldCheck, Zap as ZapIcon, Fingerprint as FingerprintIcon,
   FileCode, FileImage, FileAudio, FileVideo, FileArchive, FilePieChart,
@@ -33,6 +33,8 @@ import Markdown from 'react-markdown';
 import { PDFDocument } from 'pdf-lib';
 import SmartDocumentCreator from './components/SmartDocumentCreator';
 import ExonaFileShare from './components/ExonaFileShare';
+import AdminAdsManager from './components/AdminAdsManager';
+import AdsManagerModal from './components/AdsManagerModal';
 import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
 import CustomAppSandbox from './components/CustomAppSandbox';
 import ExcoinP2PCentre from './components/ExcoinP2PCentre';
@@ -3816,6 +3818,9 @@ function ExonaApp() {
   const [showFABs, setShowFABs] = useState(true);
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
   const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
+  const [activeAds, setActiveAds] = useState<any[]>([]);
+  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'ads'>('dashboard');
+  const [isAdsManagerOpen, setIsAdsManagerOpen] = useState(false);
   const lastScrollTop = useRef(0);
   const [exonaAiInput, setExonaAiInput] = useState('');
   const [exonaAiChat, setExonaAiChat] = useState<Array<{ sender: 'user' | 'ai', text: string, timestamp: Date }>>([
@@ -14627,9 +14632,13 @@ function ExonaApp() {
                 </motion.div>
               )}
             </div>
-          </div>
-        );
-      }
+          </>
+        ) : (
+          <AdminAdsManager showNotification={showNotification} />
+        )}
+      </div>
+    );
+  }
       case 'feed': {
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
@@ -15177,6 +15186,7 @@ function ExonaApp() {
                   })()}
                 </AnimatePresence>
               </div>
+            </div>
             </div>
             </div>
             </div>
