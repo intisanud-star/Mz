@@ -8222,6 +8222,18 @@ function ExonaApp() {
     return unsubscribe;
   }, [user?.uid, selectedSchool?.id, isQuotaExceeded, view]);
 
+  // Active Ads Listener
+  useEffect(() => {
+    if (isQuotaExceeded) return;
+    const qAds = query(collection(db, 'ads'), where('status', 'in', ['active', 'approved']));
+    const unsubAds = onSnapshot(qAds, (snap) => {
+      setActiveAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.warn("Could not fetch ads:", error);
+    });
+    return () => unsubAds();
+  }, [isQuotaExceeded]);
+
   useEffect(() => {
     if (!selectedSchool) return;
     const updated = schools.find(s => s.id === selectedSchool.id) || places.find(p => p.id === selectedSchool.id);
@@ -13107,6 +13119,18 @@ function ExonaApp() {
     return () => container.removeEventListener('scroll', handleScroll);
   }, [isLoadingMore, hasMorePosts, view]);
 
+  // Active Ads Listener
+  useEffect(() => {
+    if (isQuotaExceeded) return;
+    const qAds = query(collection(db, 'ads'), where('status', 'in', ['active', 'approved']));
+    const unsubAds = onSnapshot(qAds, (snap) => {
+      setActiveAds(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+      console.warn("Could not fetch ads:", error);
+    });
+    return () => unsubAds();
+  }, [isQuotaExceeded]);
+
   useEffect(() => {
     if (!selectedSchool) return;
 
@@ -14167,8 +14191,25 @@ function ExonaApp() {
                   System Statistics & Oversight
                 </motion.p>
               </div>
+
+              <div className="flex bg-gray-100 p-1 rounded-2xl shrink-0 overflow-x-auto custom-scrollbar self-start md:self-auto">
+                <button
+                  onClick={() => setAdminActiveTab('dashboard')}
+                  className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${adminActiveTab === 'dashboard' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink hover:bg-gray-200'}`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setAdminActiveTab('ads')}
+                  className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${adminActiveTab === 'ads' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink hover:bg-gray-200'}`}
+                >
+                  Ad Campaigns
+                </button>
+              </div>
             </div>
 
+            {adminActiveTab === 'dashboard' ? (
+              <>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
               {[
                 { label: 'Total Schools', value: schoolCount, color: 'accent' },
@@ -14855,6 +14896,39 @@ function ExonaApp() {
                     if (schoolFilter === 'all') {
                       return (
                         <div className="flex flex-col gap-2 w-full pt-1">
+                          {activeAds.length > 0 && (
+                            <div className="mb-6 px-4 sm:px-6">
+                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 font-sans">SPONSORED</div>
+                              <div 
+                                className="bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-4 flex gap-4 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all active:scale-95"
+                                onClick={() => {
+                                  const ad = activeAds[0];
+                                  if (ad.targetType === 'institution') {
+                                    const inst = [...schools, ...places].find(s => s.id === ad.targetId);
+                                    if (inst) {
+                                      setSelectedInstitutionForProfile(inst);
+                                      setView('institution-channel');
+                                    }
+                                  } else {
+                                    handleUserClick(ad.creatorUid);
+                                  }
+                                }}
+                              >
+                                {activeAds[0].mediaUrl ? (
+                                  <img src={activeAds[0].mediaUrl} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-xl bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0">
+                                    <Megaphone size={24} />
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1">{activeAds[0].title}</h4>
+                                  <p className="text-[11px] font-medium text-slate-600 line-clamp-2 leading-snug">{activeAds[0].description}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {filteredSchoolsAndPlaces.length > 0 && (
                             <div className="mb-6">
                               <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-4 sm:px-6 font-sans">INSTITUTIONS</div>
@@ -15106,7 +15180,6 @@ function ExonaApp() {
             </div>
             </div>
             </div>
-          </div>
         );
       }
       case 'school-feed': {
@@ -33942,6 +34015,14 @@ function ExonaApp() {
       {HelpCentreModal()}
       {LegalModal()}
       {DataStorageModal()}
+      <AdsManagerModal
+        isOpen={isAdsManagerOpen}
+        onClose={() => setIsAdsManagerOpen(false)}
+        user={user}
+        showNotification={showNotification}
+        schools={schools}
+        places={places}
+      />
       {InsufficientStarsAlert()}
 
       {/* Category Manager Modal */}
