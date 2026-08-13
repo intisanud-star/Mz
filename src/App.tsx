@@ -30246,7 +30246,8 @@ function ExonaApp() {
                       { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-500', onClick: () => setIsSecurityModalOpen(true) },
                       { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
                       { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-500', onClick: () => setIsThemeModalOpen(true) },
-                      { icon: Database, label: 'Data & Storage', desc: 'Manage your personal data', color: 'emerald-500', onClick: () => setIsDataStorageModalOpen(true) }
+                      { icon: Database, label: 'Data & Storage', desc: 'Manage your personal data', color: 'emerald-500', onClick: () => setIsDataStorageModalOpen(true) },
+                      { icon: Megaphone, label: 'Promote & Ads Manager', desc: 'Apply for and manage your ad campaigns', color: 'indigo-500', onClick: () => setIsAdsManagerOpen(true) }
                     ].map((item, i) => (
                       <button 
                         key={i} 
@@ -30461,6 +30462,13 @@ function ExonaApp() {
                             >
                               <Pencil size={11} />
                               Edit Profile / Bio
+                            </button>
+                            <button
+                              onClick={() => setIsAdsManagerOpen(true)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-150 rounded-full text-indigo-700 text-[11px] font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-sm"
+                            >
+                              <Megaphone size={11} />
+                              Promote / Apply for Ads
                             </button>
                           </div>
 
