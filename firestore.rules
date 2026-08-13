@@ -651,6 +651,13 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /ads/{adId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+    match /verification_requests/{requestId} {
+      allow read, write: if isAuthenticated();
+    }
     match /marketplace_reshares/{reshareId} {
       allow read, write: if true;
     }

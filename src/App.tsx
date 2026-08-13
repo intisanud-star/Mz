@@ -35,6 +35,8 @@ import SmartDocumentCreator from './components/SmartDocumentCreator';
 import ExonaFileShare from './components/ExonaFileShare';
 import AdminAdsManager from './components/AdminAdsManager';
 import AdsManagerModal from './components/AdsManagerModal';
+import VerificationRequestModal from './components/VerificationRequestModal';
+import AdminVerificationManager from './components/AdminVerificationManager';
 import WorkspaceAppCenter, { getAppIcon } from './components/WorkspaceAppCenter';
 import CustomAppSandbox from './components/CustomAppSandbox';
 import ExcoinP2PCentre from './components/ExcoinP2PCentre';
@@ -3819,8 +3821,9 @@ function ExonaApp() {
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
   const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
   const [activeAds, setActiveAds] = useState<any[]>([]);
-  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'ads'>('dashboard');
+  const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'ads' | 'verifications'>('dashboard');
   const [isAdsManagerOpen, setIsAdsManagerOpen] = useState(false);
+  const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
   const lastScrollTop = useRef(0);
   const [exonaAiInput, setExonaAiInput] = useState('');
   const [exonaAiChat, setExonaAiChat] = useState<Array<{ sender: 'user' | 'ai', text: string, timestamp: Date }>>([
@@ -14210,6 +14213,12 @@ function ExonaApp() {
                 >
                   Ad Campaigns
                 </button>
+                <button
+                  onClick={() => setAdminActiveTab('verifications')}
+                  className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${adminActiveTab === 'verifications' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-ink hover:bg-gray-200'}`}
+                >
+                  Verifications
+                </button>
               </div>
             </div>
 
@@ -14633,8 +14642,10 @@ function ExonaApp() {
               )}
             </div>
           </>
-        ) : (
+        ) : adminActiveTab === 'ads' ? (
           <AdminAdsManager showNotification={showNotification} />
+        ) : (
+          <AdminVerificationManager showNotification={showNotification} />
         )}
       </div>
     );
@@ -28768,6 +28779,7 @@ function ExonaApp() {
           { id: 'reports', name: 'Report Center', description: 'Generate financial and operational reports', icon: FileBarChart, color: 'purple-600' },
           { id: 'secret-key', name: 'Secret Keys', description: 'Manage access keys for the institution portal', icon: Lock, color: 'indigo-600' },
           { id: 'daily-routine', name: labels.routine, description: 'Manage institutional activity schedule', icon: Activity, color: 'cyan-600' },
+          { id: 'verify-badge', name: 'Request Verification', description: 'Apply for an official verification checkmark badge for your institution', icon: ShieldCheck, color: 'blue-500' },
         ];
 
         if (activeTool === 'export-attendance') {
@@ -29627,6 +29639,10 @@ function ExonaApp() {
                         setView('daily-routine');
                         return;
                       }
+                      if (tool.id === 'verify-badge') {
+                        setIsVerificationModalOpen(true);
+                        return;
+                      }
                       if (tool.id === 'brain-battle') {
                         setView('brainb');
                       } else if (tool.id === 'exona-premium') {
@@ -30247,7 +30263,8 @@ function ExonaApp() {
                       { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
                       { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-500', onClick: () => setIsThemeModalOpen(true) },
                       { icon: Database, label: 'Data & Storage', desc: 'Manage your personal data', color: 'emerald-500', onClick: () => setIsDataStorageModalOpen(true) },
-                      { icon: Megaphone, label: 'Promote & Ads Manager', desc: 'Apply for and manage your ad campaigns', color: 'indigo-500', onClick: () => setIsAdsManagerOpen(true) }
+                      { icon: Megaphone, label: 'Promote & Ads Manager', desc: 'Apply for and manage your ad campaigns', color: 'indigo-500', onClick: () => setIsAdsManagerOpen(true) },
+                      { icon: ShieldCheck, label: 'Request Verification', desc: 'Apply for a verified checkmark badge', color: 'blue-500', onClick: () => setIsVerificationModalOpen(true) }
                     ].map((item, i) => (
                       <button 
                         key={i} 
@@ -30469,6 +30486,13 @@ function ExonaApp() {
                             >
                               <Megaphone size={11} />
                               Promote / Apply for Ads
+                            </button>
+                            <button
+                              onClick={() => setIsVerificationModalOpen(true)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-150 rounded-full text-blue-700 text-[11px] font-extrabold uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-sm"
+                            >
+                              <ShieldCheck size={11} />
+                              Request Verification
                             </button>
                           </div>
 
@@ -34036,6 +34060,14 @@ function ExonaApp() {
       <AdsManagerModal
         isOpen={isAdsManagerOpen}
         onClose={() => setIsAdsManagerOpen(false)}
+        user={user}
+        showNotification={showNotification}
+        schools={schools}
+        places={places}
+      />
+      <VerificationRequestModal
+        isOpen={isVerificationModalOpen}
+        onClose={() => setIsVerificationModalOpen(false)}
         user={user}
         showNotification={showNotification}
         schools={schools}
