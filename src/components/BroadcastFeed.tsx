@@ -528,7 +528,7 @@ export const BroadcastFeed: React.FC<BroadcastFeedProps> = ({
                           </button>
                           
                           {/* Real blue verified checkmark badge like Instagram */}
-                          {(item.type === 'broadcast' || post.isOfficial || post.authorRole === 'admin') && (
+                          {(post.isOfficial) && (
                             <CheckCircle2 size={13} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />
                           )}
                         </div>

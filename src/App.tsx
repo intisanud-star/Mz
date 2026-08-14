@@ -11672,7 +11672,7 @@ function ExonaApp() {
         mediaUrl: mediaData || null,
         mediaType: type || null,
         timestamp: serverTimestamp(),
-        isOfficial,
+        isOfficial: activeInst.isOfficial || false,
         schoolId: activeInst.id,
         likes: 0,
         likedBy: [],
@@ -12040,7 +12040,7 @@ function ExonaApp() {
         mediaUrl: mediaUrls.length > 0 ? mediaUrls[0] : null, // Fallback for components still using mediaUrl
         mediaType: mediaType || null,
         timestamp: new Date(),
-        isOfficial,
+        isOfficial: activeInst?.isOfficial || false,
         schoolId
       };
   
@@ -15229,7 +15229,10 @@ function ExonaApp() {
                       )}
                     </div>
                     <div>
-                      <h2 className="font-bold text-ink text-sm leading-tight truncate max-w-[150px] sm:max-w-xs">{selectedSchool.name}</h2>
+                      <h2 className="font-bold text-ink text-sm leading-tight truncate max-w-[150px] sm:max-w-xs flex items-center gap-1">
+                        {selectedSchool.name}
+                        {selectedSchool.isOfficial && <CheckCircle2 size={13} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                      </h2>
                       <p className="text-[10px] text-green-500 font-bold uppercase tracking-tight">Online</p>
                     </div>
                   </div>
@@ -15665,7 +15668,10 @@ function ExonaApp() {
             <div className="px-6 pt-16">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1 min-w-0 pr-4">
-                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate">{selectedUserProfile.name}</h2>
+                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate flex items-center gap-2">
+                    {selectedUserProfile.name}
+                    {selectedUserProfileDoc?.isVerified && <CheckCircle2 size={24} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                  </h2>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent bg-accent/5 px-2 py-0.5 rounded-full">User</span>
                     <p className="text-ink text-[14px] font-semibold">@{selectedUserProfileDoc?.username || selectedUserProfile.name?.toLowerCase().replace(/\s+/g, '') || 'user'}</p>
@@ -17981,7 +17987,10 @@ function ExonaApp() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-ink truncate">{inst.name}</h3>
+                          <h3 className="font-bold text-ink truncate flex items-center gap-1">
+                            {inst.name}
+                            {inst.isOfficial && <CheckCircle2 size={12} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                          </h3>
                           <p className="text-[10px] text-muted uppercase tracking-wider font-bold truncate">
                             {inst.type === 'school' ? 'Educational' : 'Operations'}
                           </p>
@@ -22773,6 +22782,7 @@ function ExonaApp() {
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-black text-ink truncate group-hover:text-indigo-600 transition-colors leading-tight flex items-center gap-1">
                       {latestInst.name}
+                      {latestInst.isOfficial && <CheckCircle2 size={13} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
                     </h3>
                     <p className="text-[10px] text-muted font-bold tracking-tight uppercase leading-none mt-0.5">
                       {latestInst.followers?.length || 0} subscribers • broadcast
@@ -23359,7 +23369,10 @@ function ExonaApp() {
             <div className="px-6 pt-16">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex-1 min-w-0 pr-4">
-                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate">{inst.name}</h2>
+                  <h2 className="text-3xl font-black text-ink mb-1 tracking-tight truncate flex items-center gap-2">
+                    {inst.name}
+                    {inst.isOfficial && <CheckCircle2 size={24} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                  </h2>
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent bg-accent/5 px-2 py-0.5 rounded-full">{inst.type}</span>
                     {inst.type === 'place' && (inst as Place).category && (
@@ -24010,7 +24023,10 @@ function ExonaApp() {
                                 )}
                               </div>
                               <div className="text-left flex-1 min-w-0">
-                                <p className="text-[14px] font-bold text-ink tracking-tight truncate">{inst.name}</p>
+                                <p className="text-[14px] font-bold text-ink tracking-tight truncate flex items-center gap-1">
+                                  {inst.name}
+                                  {inst.isOfficial && <CheckCircle2 size={12} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                                </p>
                                 <p className="text-[10px] text-muted font-medium uppercase tracking-widest">{inst.type || 'institution'}</p>
                               </div>
                             </div>
@@ -28807,7 +28823,10 @@ function ExonaApp() {
                         onClick={() => setSelectedSchool(inst as any)}
                         className="p-6 bg-white border border-gray-100 rounded-3xl hover:border-orange-200 transition-all text-left group"
                       >
-                        <h4 className="font-bold text-ink mb-1">{inst.name}</h4>
+                        <h4 className="font-bold text-ink mb-1 flex items-center gap-1">
+                          {inst.name}
+                          {inst.isOfficial && <CheckCircle2 size={12} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                        </h4>
                         <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{inst.type}</p>
                       </button>
                     ))}
@@ -29085,7 +29104,10 @@ function ExonaApp() {
                         onClick={() => setSelectedSchool(inst as any)}
                         className="p-6 bg-white border border-gray-100 rounded-3xl hover:border-blue-200 transition-all text-left group"
                       >
-                        <h4 className="font-bold text-ink mb-1">{inst.name}</h4>
+                        <h4 className="font-bold text-ink mb-1 flex items-center gap-1">
+                          {inst.name}
+                          {inst.isOfficial && <CheckCircle2 size={12} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                        </h4>
                         <p className="text-[10px] font-bold text-muted uppercase tracking-widest">{inst.type}</p>
                       </button>
                     ))}
@@ -30465,7 +30487,10 @@ function ExonaApp() {
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -10 }}
                         >
-                          <h2 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2 tracking-tight">{user.displayName}</h2>
+                          <h2 className="text-3xl sm:text-4xl font-extrabold text-ink mb-2 tracking-tight flex items-center gap-2">
+                            {user.displayName}
+                            {userDoc?.isVerified && <CheckCircle2 size={24} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                          </h2>
                           {userDoc?.bio ? (
                             <p className="text-sm text-muted mb-4 font-semibold leading-relaxed">{userDoc.bio}</p>
                           ) : (
@@ -31395,7 +31420,10 @@ function ExonaApp() {
                                   <span className="text-[10px] font-black text-indigo-600">{inst.name.charAt(0)}</span>
                                 )}
                               </div>
-                              <span className="text-xs font-bold text-ink truncate">{inst.name}</span>
+                              <span className="text-xs font-bold text-ink truncate flex items-center gap-1">
+                                {inst.name}
+                                {inst.isOfficial && <CheckCircle2 size={10} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                              </span>
                             </div>
                             <div className={`h-5 w-5 rounded-md border flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-gray-300 bg-white'}`}>
                               {isSelected && <Check size={12} strokeWidth={3} />}
