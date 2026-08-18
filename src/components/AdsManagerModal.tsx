@@ -52,6 +52,19 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
     }
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (ev.target?.result) {
+          setAdMediaUrl(ev.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmitAd = async () => {
     if (!adTitle.trim() || !adDescription.trim()) {
       showNotification('Please provide a title and description for your ad', 'error');
@@ -200,18 +213,34 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ad Image URL (Optional)</label>
-                    <div className="flex items-center gap-2">
-                      <div className="h-12 w-12 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shrink-0">
-                        <ImageIcon size={20} />
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ad Image (Optional)</label>
+                    <div className="flex items-center gap-4">
+                      <div className="h-20 w-20 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 shrink-0 overflow-hidden">
+                        {adMediaUrl ? (
+                          <img src={adMediaUrl} alt="Ad Preview" className="h-full w-full object-cover" />
+                        ) : (
+                          <ImageIcon size={28} />
+                        )}
                       </div>
-                      <input 
-                        type="url"
-                        value={adMediaUrl}
-                        onChange={(e) => setAdMediaUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="flex-1 h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-indigo-500"
-                      />
+                      <div className="flex-1">
+                        <label className="inline-flex items-center justify-center h-10 px-4 bg-white border border-gray-200 text-xs font-bold text-ink rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                          <span>Upload Picture</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleImageUpload} 
+                          />
+                        </label>
+                        <div className="mt-2 text-[10px] text-muted">Or enter URL manually:</div>
+                        <input 
+                          type="url"
+                          value={adMediaUrl}
+                          onChange={(e) => setAdMediaUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full h-8 px-3 mt-1 bg-white border border-gray-200 rounded-lg text-xs font-semibold outline-none focus:border-indigo-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

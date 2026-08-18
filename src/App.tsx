@@ -3821,6 +3821,7 @@ function ExonaApp() {
   const [hideBottomNavInShop, setHideBottomNavInShop] = useState(false);
   const [isExonaAiModalOpen, setIsExonaAiModalOpen] = useState(false);
   const [activeAds, setActiveAds] = useState<any[]>([]);
+  const [dismissedAdIds, setDismissedAdIds] = useState<string[]>([]);
   const [adminActiveTab, setAdminActiveTab] = useState<'dashboard' | 'ads' | 'verifications'>('dashboard');
   const [isAdsManagerOpen, setIsAdsManagerOpen] = useState(false);
   const [isVerificationModalOpen, setIsVerificationModalOpen] = useState(false);
@@ -15166,15 +15167,27 @@ function ExonaApp() {
                     };
 
                     if (schoolFilter === 'all') {
+                      const visibleAds = activeAds.filter(ad => !dismissedAdIds.includes(ad.id));
                       return (
                         <div className="flex flex-col gap-2 w-full pt-1">
-                          {activeAds.length > 0 && (
-                            <div className="mb-6 px-4 sm:px-6">
-                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 font-sans">SPONSORED</div>
+                          {visibleAds.length > 0 && (
+                            <div className="mb-6 px-4 sm:px-6 relative">
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] font-sans">SPONSORED</div>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDismissedAdIds(prev => [...prev, visibleAds[0].id]);
+                                  }}
+                                  className="text-slate-400 hover:text-slate-600 transition-colors p-1"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
                               <div 
                                 className="bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-4 flex gap-4 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all active:scale-95"
                                 onClick={() => {
-                                  const ad = activeAds[0];
+                                  const ad = visibleAds[0];
                                   if (ad.targetType === 'institution') {
                                     const inst = [...schools, ...places].find(s => s.id === ad.targetId);
                                     if (inst) {
@@ -15186,16 +15199,16 @@ function ExonaApp() {
                                   }
                                 }}
                               >
-                                {activeAds[0].mediaUrl ? (
-                                  <img src={activeAds[0].mediaUrl} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
+                                {visibleAds[0].mediaUrl ? (
+                                  <img src={visibleAds[0].mediaUrl} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-200 shadow-sm" />
                                 ) : (
-                                  <div className="w-16 h-16 rounded-xl bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0">
+                                  <div className="w-16 h-16 rounded-xl bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-200">
                                     <Megaphone size={24} />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1">{activeAds[0].title}</h4>
-                                  <p className="text-[11px] font-medium text-slate-600 line-clamp-2 leading-snug">{activeAds[0].description}</p>
+                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1">{visibleAds[0].title}</h4>
+                                  <p className="text-[11px] font-medium text-slate-600 line-clamp-2 leading-snug">{visibleAds[0].description}</p>
                                 </div>
                               </div>
                             </div>
