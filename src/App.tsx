@@ -7145,6 +7145,122 @@ function ExonaApp() {
     </AnimatePresence>
   );
 
+  const UserAppModal = () => (
+    <AnimatePresence>
+      {isUserAppModalOpen && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-ink/60 backdrop-blur-xl p-4 sm:p-6 transition-all duration-500">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="bg-white rounded-[2.5rem] p-6 sm:p-10 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar relative"
+          >
+            <button 
+              onClick={() => setIsUserAppModalOpen(false)}
+              className="absolute top-6 right-6 h-10 w-10 bg-gray-50 text-muted rounded-full flex items-center justify-center hover:bg-gray-100 hover:text-ink transition-colors"
+            >
+              <X size={20} />
+            </button>
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-16 w-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                <Smartphone size={32} />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-ink tracking-tight">Personal App</h2>
+                <p className="text-sm font-bold text-muted">Integrate your external application</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Icon</label>
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 bg-gray-50 border border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
+                    {isUploadingUserAppIcon ? (
+                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                    ) : userCustomAppIconUrl ? (
+                      <img src={userCustomAppIconUrl} alt="App Icon" className="w-full h-full object-cover" />
+                    ) : (
+                      <Smartphone size={24} className="text-gray-300" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className="inline-flex items-center justify-center h-10 px-4 bg-white border border-gray-200 text-xs font-bold text-ink rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                      <span>Upload Picture</span>
+                      <input type="file" accept="image/*" className="hidden" onChange={handleUserAppIconUpload} disabled={isUploadingUserAppIcon} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Name</label>
+                <input 
+                  type="text" 
+                  value={userCustomAppName} 
+                  onChange={(e) => setUserCustomAppName(e.target.value)} 
+                  placeholder="My Awesome App" 
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent focus:bg-white transition-colors" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App URL</label>
+                <input 
+                  type="url" 
+                  value={userCustomAppUrl} 
+                  onChange={(e) => setUserCustomAppUrl(e.target.value)} 
+                  placeholder="https://yourapp.com" 
+                  className="w-full h-12 px-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent focus:bg-white transition-colors" 
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Internal Username (Slug)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold">@</span>
+                  <input 
+                    type="text" 
+                    value={userCustomAppUsername} 
+                    onChange={(e) => setUserCustomAppUsername(e.target.value)} 
+                    placeholder="yourapp_name" 
+                    className="w-full h-12 pl-8 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent focus:bg-white transition-colors" 
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Description</label>
+                <textarea 
+                  value={userCustomAppDescription} 
+                  onChange={(e) => setUserCustomAppDescription(e.target.value)} 
+                  placeholder="A short description of your app..." 
+                  className="w-full h-24 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent focus:bg-white transition-colors resize-none" 
+                />
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <button 
+                  onClick={handleSaveUserCustomApp}
+                  disabled={isSavingUserCustomApp}
+                  className="w-full h-12 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isSavingUserCustomApp ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Save size={16} /> Save App Settings
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  );
+
   const SecurityModal = () => (
     <AnimatePresence>
       {isSecurityModalOpen && (
@@ -8277,6 +8393,17 @@ function ExonaApp() {
   const [customAppIconUrl, setCustomAppIconUrl] = useState('');
   const [customAppDescription, setCustomAppDescription] = useState('');
   const [isSavingCustomApp, setIsSavingCustomApp] = useState(false);
+
+  // User's personal custom app states
+  const [isUserAppModalOpen, setIsUserAppModalOpen] = useState(false);
+  const [userCustomAppName, setUserCustomAppName] = useState('');
+  const [userCustomAppUrl, setUserCustomAppUrl] = useState('');
+  const [userCustomAppUsername, setUserCustomAppUsername] = useState('');
+  const [userCustomAppIconUrl, setUserCustomAppIconUrl] = useState('');
+  const [userCustomAppDescription, setUserCustomAppDescription] = useState('');
+  const [isSavingUserCustomApp, setIsSavingUserCustomApp] = useState(false);
+  const [isUploadingUserAppIcon, setIsUploadingUserAppIcon] = useState(false);
+
   const [isUploadingAppIcon, setIsUploadingAppIcon] = useState(false);
 
   useEffect(() => {
@@ -12252,6 +12379,73 @@ function ExonaApp() {
     }
   }, [isManageSettingsOpen, selectedSchool]);
 
+  useEffect(() => {
+    if (isUserAppModalOpen && userDoc) {
+      setUserCustomAppName(userDoc.customApp?.name || '');
+      setUserCustomAppUrl(userDoc.customApp?.url || '');
+      setUserCustomAppUsername(userDoc.customApp?.username || '');
+      setUserCustomAppIconUrl(userDoc.customApp?.iconUrl || '');
+      setUserCustomAppDescription(userDoc.customApp?.description || '');
+    }
+  }, [isUserAppModalOpen, userDoc]);
+
+  const handleUserAppIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !user) return;
+    const file = e.target.files[0];
+    
+    setIsUploadingUserAppIcon(true);
+    try {
+      if (file.type.startsWith('image/')) {
+        const compressed = await compressImage(file, 400, 0.7);
+        setUserCustomAppIconUrl(compressed);
+        showNotification('App icon processed successfully', 'success');
+      } else {
+        showNotification('Please select an image file', 'error');
+      }
+    } catch (error) {
+      console.error('Error processing icon:', error);
+      showNotification('Failed to process icon', 'error');
+    } finally {
+      setIsUploadingUserAppIcon(false);
+    }
+  };
+
+  const handleSaveUserCustomApp = async () => {
+    if (!user) return;
+    
+    if (!userCustomAppName.trim() || !userCustomAppUrl.trim() || !userCustomAppUsername.trim()) {
+      showNotification('Please fill in app name, URL, and username', 'error');
+      return;
+    }
+
+    let cleanedUsername = userCustomAppUsername.trim().toLowerCase();
+    if (cleanedUsername.startsWith('@')) {
+      cleanedUsername = cleanedUsername.substring(1);
+    }
+    cleanedUsername = cleanedUsername.replace(/[^a-z0-9_.-]/g, '');
+
+    setIsSavingUserCustomApp(true);
+    try {
+      const refDoc = doc(db, 'users', user.uid);
+      await updateDoc(refDoc, {
+        customApp: {
+          name: userCustomAppName.trim(),
+          url: userCustomAppUrl.trim(),
+          username: cleanedUsername,
+          iconUrl: userCustomAppIconUrl,
+          description: userCustomAppDescription.trim()
+        }
+      });
+      showNotification('Personal App configuration saved!', 'success');
+      setIsUserAppModalOpen(false);
+    } catch (err) {
+      console.error("Error saving user app:", err);
+      showNotification('Failed to save App settings', 'error');
+    } finally {
+      setIsSavingUserCustomApp(false);
+    }
+  };
+
   const handleAppIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0] || !user) return;
     const file = e.target.files[0];
@@ -15737,13 +15931,19 @@ function ExonaApp() {
                   Integrations & Links
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <button 
-                    onClick={() => { showNotification('Opening Personal App...', 'info'); }}
-                    className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
-                  >
-                    <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
-                    <span className="text-xs font-black uppercase tracking-widest">My App</span>
-                  </button>
+                  {selectedUserProfileDoc?.customApp?.url && (
+                    <button 
+                      onClick={() => {
+                        setActiveCustomApp(selectedUserProfileDoc.customApp as CustomAppConfig);
+                        setCustomAppCloseView('user-profile');
+                        setView('customApp');
+                      }}
+                      className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
+                    >
+                      <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">{selectedUserProfileDoc.customApp.name || 'My App'}</span>
+                    </button>
+                  )}
                   <button 
                     onClick={() => { showNotification('Opening Websites...', 'info'); }}
                     className="flex items-center gap-2 px-6 py-4 bg-white border border-gray-100 text-ink hover:border-accent/20 rounded-2xl transition-all group"
@@ -30281,6 +30481,7 @@ function ExonaApp() {
                   <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
                   <div className="grid grid-cols-1 gap-3">
                     {[
+                      { icon: Smartphone, label: 'My Personal App', desc: 'Add or manage your external app', color: 'indigo-500', onClick: () => setIsUserAppModalOpen(true) },
                       { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-500', onClick: () => setIsSecurityModalOpen(true) },
                       { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
                       { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-500', onClick: () => setIsThemeModalOpen(true) },
@@ -34080,6 +34281,7 @@ function ExonaApp() {
       )}
 
       {ExonWealthModal()}
+      {UserAppModal()}
       {SecurityModal()}
       {NotificationsModal()}
       {HelpCentreModal()}
