@@ -15985,11 +15985,21 @@ function ExonaApp() {
 
               {/* External Links / App Actions */}
               <div className="mb-10">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em] mb-4 ml-1">
-                  Integrations & Links
-                </p>
+                <div className="flex items-center justify-between mb-4 ml-1 pr-1">
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.3em]">
+                    Integrations & Links
+                  </p>
+                  {user?.uid === selectedUserProfile.uid && selectedUserProfileDoc?.customApp?.url && (
+                    <button 
+                      onClick={() => setIsUserAppModalOpen(true)}
+                      className="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline"
+                    >
+                      Manage App
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-3">
-                  {selectedUserProfileDoc?.customApp?.url && (
+                  {selectedUserProfileDoc?.customApp?.url ? (
                     <button 
                       onClick={() => {
                         setActiveCustomApp(selectedUserProfileDoc.customApp as CustomAppConfig);
@@ -16000,6 +16010,14 @@ function ExonaApp() {
                     >
                       <Smartphone size={18} className="text-accent group-hover:scale-110 transition-transform" />
                       <span className="text-xs font-black uppercase tracking-widest">{selectedUserProfileDoc.customApp.name || 'My App'}</span>
+                    </button>
+                  ) : (user?.uid === selectedUserProfile.uid) && (
+                    <button 
+                      onClick={() => setIsUserAppModalOpen(true)}
+                      className="flex items-center gap-2 px-6 py-4 bg-indigo-50 border border-indigo-100/60 text-indigo-600 hover:border-indigo-200 rounded-2xl transition-all group"
+                    >
+                      <Plus size={18} className="group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black uppercase tracking-widest">Add Custom App</span>
                     </button>
                   )}
                   <button 
