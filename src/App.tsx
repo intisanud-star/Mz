@@ -35095,14 +35095,26 @@ function ExonaApp() {
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
-                  <UserIcon 
-                    size={20} 
-                    className={`transition-colors duration-200 ${(view === 'profile' && !showProfileSettings) ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
-                    fill={(view === 'profile' && !showProfileSettings) ? 'currentColor' : 'none'} 
-                    fillOpacity={(view === 'profile' && !showProfileSettings) ? 0.3 : 0} 
-                    strokeWidth={(view === 'profile' && !showProfileSettings) ? 2.5 : 2.0} 
-                  />
-                  <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                  {userDoc?.photoURL || user?.photoURL ? (
+                    <img 
+                      src={userDoc?.photoURL || user?.photoURL} 
+                      alt="Profile" 
+                      className={`h-5 w-5 rounded-full object-cover transition-all duration-200 ${(view === 'profile' && !showProfileSettings) ? 'ring-2 ring-white/50' : 'ring-1 ring-slate-200 group-hover:ring-slate-300'}`}
+                    />
+                  ) : (userDoc?.displayName || user?.displayName) ? (
+                    <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-black uppercase transition-all duration-200 ${(view === 'profile' && !showProfileSettings) ? 'bg-white/20 text-white ring-2 ring-white/50' : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200 group-hover:text-slate-800 ring-1 ring-slate-200 group-hover:ring-slate-300'}`}>
+                      {(userDoc?.displayName || user?.displayName || 'U').charAt(0)}
+                    </div>
+                  ) : (
+                    <UserIcon 
+                      size={20} 
+                      className={`transition-colors duration-200 ${(view === 'profile' && !showProfileSettings) ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`}
+                      fill={(view === 'profile' && !showProfileSettings) ? 'currentColor' : 'none'} 
+                      fillOpacity={(view === 'profile' && !showProfileSettings) ? 0.3 : 0} 
+                      strokeWidth={(view === 'profile' && !showProfileSettings) ? 2.5 : 2.0} 
+                    />
+                  )}
+                  <span className={`text-[10px] mt-[1px] tracking-tight transition-colors duration-200 ${
                     (view === 'profile' && !showProfileSettings) ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
                   }`}>
                     Profile
