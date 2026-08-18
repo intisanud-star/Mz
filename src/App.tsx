@@ -14892,6 +14892,64 @@ function ExonaApp() {
               }}
             >
               <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+                {/* Network / Friends Row */}
+                {userDoc && (
+                  <div className="mb-4">
+                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 items-center">
+                      {/* You */}
+                      <button 
+                        onClick={() => {
+                          setSelectedUserProfile({
+                            uid: userDoc.uid,
+                            name: userDoc.displayName,
+                            photo: userDoc.photoURL || ''
+                          });
+                          setView('user-profile');
+                        }}
+                        className="flex flex-col items-center gap-1.5 shrink-0 group relative active:scale-95 transition-transform"
+                      >
+                        <div className="relative">
+                          <div className="h-16 w-16 rounded-full overflow-hidden border-[2.5px] border-[#2481CC] p-[2px]">
+                            <img src={userDoc.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userDoc.uid}`} className="w-full h-full rounded-full object-cover" />
+                          </div>
+                          <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-100">
+                             <div className="bg-[#2481CC] text-white text-[9px] font-black min-w-[20px] px-1 h-5 rounded-full flex items-center justify-center">
+                                {userDoc.followers?.length || 0}
+                             </div>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold text-ink max-w-[64px] truncate">You</span>
+                      </button>
+
+                      {/* Friends */}
+                      {connectedUsers.map(friend => (
+                        <button 
+                          key={friend.uid}
+                          onClick={() => {
+                            setSelectedUserProfile({
+                              uid: friend.uid,
+                              name: friend.displayName,
+                              photo: friend.photoURL || ''
+                            });
+                            setView('user-profile');
+                          }}
+                          className="flex flex-col items-center gap-1.5 shrink-0 group active:scale-95 transition-transform"
+                        >
+                          <div className="h-16 w-16 rounded-full overflow-hidden border border-gray-200 p-[2px] group-hover:border-[#2481CC] transition-colors relative">
+                            <img src={friend.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${friend.uid}`} className="w-full h-full rounded-full object-cover" />
+                            <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-100 scale-90">
+                               <div className="bg-gray-100 text-muted text-[8px] font-black min-w-[18px] px-1 h-4 rounded-full flex items-center justify-center border border-white">
+                                  {friend.followers?.length || 0}
+                               </div>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-medium text-muted group-hover:text-ink max-w-[64px] truncate">{friend.displayName.split(' ')[0]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Search Bar (Moving on scroll, positioned on top of Home & Satellite) */}
                 <div className="relative group min-w-0 w-full mb-3 flex items-center justify-center">
                   <input 
