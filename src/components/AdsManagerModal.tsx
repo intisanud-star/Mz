@@ -52,16 +52,49 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (ev.target?.result) {
-          setAdMediaUrl(ev.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
+              const maxWidth = 800; // max width/height for ads
+              
+              if (width > height) {
+                if (width > maxWidth) {
+                  height *= maxWidth / width;
+                  width = maxWidth;
+                }
+              } else {
+                if (height > maxWidth) {
+                  width *= maxWidth / height;
+                  height = maxWidth;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx?.drawImage(img, 0, 0, width, height);
+              resolve(canvas.toDataURL('image/jpeg', 0.7)); // compress to 70% quality JPEG
+            };
+            img.onerror = error => reject(error);
+          };
+          reader.onerror = error => reject(error);
+        });
+        
+        setAdMediaUrl(compressedBase64);
+      } catch (error) {
+        console.error('Error compressing image:', error);
+        showNotification('Failed to process image. Please try a smaller one.', 'error');
+      }
     }
   };
 
