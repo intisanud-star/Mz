@@ -3243,9 +3243,10 @@ const FeedPost = ({
             <div className="flex items-center gap-1.5 flex-wrap">
               <button 
                 onClick={() => onUserClick?.({ uid: post.authorUid, name: post.authorName, photo: post.authorPhoto })}
-                className="text-[14.5px] font-black text-zinc-900 hover:text-blue-600 transition-colors tracking-tight text-left leading-normal"
+                className="text-[14.5px] font-black text-zinc-900 hover:text-blue-600 transition-colors tracking-tight text-left leading-normal flex items-center gap-1"
               >
                 {post.authorName}
+                {(post as any).authorIsVerified && <CheckCircle2 size={14} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
               </button>
               {post.authorRole === 'admin' && <Shield size={12} className="text-blue-600 fill-blue-500/10 shrink-0" />}
               
@@ -11794,6 +11795,7 @@ function ExonaApp() {
         authorName: isOfficial ? activeInst.name : (user.displayName || 'Anonymous'),
         authorPhoto: isOfficial ? activeInst.logo : (user.photoURL || ''),
         authorRole: userDoc?.role || 'user',
+        authorIsVerified: userDoc?.isVerified || false,
         schoolName: activeInst.name,
         content: text,
         mediaUrls: mediaData ? [mediaData] : [],
@@ -12162,6 +12164,7 @@ function ExonaApp() {
         authorName: isOfficial && activeInst ? activeInst.name : (user.displayName || 'Anonymous'),
         authorPhoto: isOfficial && activeInst ? activeInst.logo : (user.photoURL || ''),
         authorRole: userDoc?.role || 'user',
+        authorIsVerified: userDoc?.isVerified || false,
         schoolName: isOfficial && activeInst ? activeInst.name : 'Horizon Network',
         content,
         mediaUrls,
@@ -12515,6 +12518,7 @@ function ExonaApp() {
         authorUid: user.uid,
         authorName: user.displayName,
         authorPhoto: user.photoURL,
+        authorIsVerified: userDoc?.isVerified || false,
         content: `Reshared: ${post.content.slice(0, 50)}...`,
         resharedFrom: {
           id: post.id,
@@ -14946,7 +14950,10 @@ function ExonaApp() {
                                </div>
                             </div>
                           </div>
-                          <span className="text-[10px] font-medium text-muted group-hover:text-ink max-w-[64px] truncate">{friend.displayName.split(' ')[0]}</span>
+                          <span className="text-[10px] font-medium text-muted group-hover:text-ink max-w-[64px] truncate flex items-center gap-0.5 justify-center">
+                            {friend.displayName.split(' ')[0]}
+                            {(friend as any).isVerified && <CheckCircle2 size={10} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                          </span>
                         </button>
                       ))}
 
@@ -24314,6 +24321,7 @@ function ExonaApp() {
                               <div className="text-left flex-1 min-w-0">
                                 <p className="text-[14px] font-bold text-ink tracking-tight truncate flex items-center gap-1.5">
                                   <span>{result.displayName || 'Anonymous User'}</span>
+                                  {result.isVerified && <CheckCircle2 size={14} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
                                   {result.role === 'admin' && <BadgeCheck size={14} className="text-accent shrink-0" />}
                                 </p>
                                 <p className="text-[10px] text-muted font-medium truncate">@{result.displayName?.toLowerCase().replace(/\s+/g, '') || 'username'}</p>
