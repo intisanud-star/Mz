@@ -1,6 +1,6 @@
 {
   "name": "Exona",
-  "description": "A comprehensive institutional management and community platform featuring a premium World Marketplace, AI-powered attendance scanning from paper, secure records, and global trading features.",
+  "description": "A premium multi-purpose social, institutional, and trade ecosystem. ExonaApp integrates secure social networking, real-time messaging, custom web app launchers, dynamic marketplaces, game integrations, AI paper scanning, and community management, serving as a unified daily hub.",
   "requestFramePermissions": ["microphone", "camera", "geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
