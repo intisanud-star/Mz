@@ -2691,6 +2691,9 @@ interface UserDoc {
   photoURL?: string;
   coverURL?: string;
   role?: 'admin' | 'user';
+  isVerified?: boolean;
+  isOfficial?: boolean;
+  verifiedCategory?: string;
   schoolId?: string;
   following?: string[];
   followers?: string[];
@@ -8680,7 +8683,14 @@ function ExonaApp() {
     if (user) {
       setSettingsDisplayName(user.displayName || '');
     }
-  }, [user, showProfileSettings]);
+    if (showProfileSettings && userDoc) {
+      setUserCustomAppName(userDoc.customApp?.name || '');
+      setUserCustomAppUrl(userDoc.customApp?.url || '');
+      setUserCustomAppUsername(userDoc.customApp?.username || '');
+      setUserCustomAppIconUrl(userDoc.customApp?.iconUrl || '');
+      setUserCustomAppDescription(userDoc.customApp?.description || '');
+    }
+  }, [user, showProfileSettings, userDoc]);
   const [profileActiveTab, setProfileActiveTab] = useState<'broadcasts' | 'wealth' | 'institutions' | 'shop'>('broadcasts');
   const [userProfileTab, setUserProfileTab] = useState<'broadcasts' | 'shop'>('broadcasts');
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'blue' | 'purple'>('light');
@@ -14259,8 +14269,11 @@ function ExonaApp() {
           
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-0.5">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[15.5px] font-semibold text-slate-900 truncate font-sans tracking-tight">{displayName}</span>
+                {otherUser && (otherUser as any).isVerified && !chat.isGroup && (
+                  <CheckCircle2 size={14} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />
+                )}
                 {chat.isGroup && (
                   <span className="text-[9px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wide shrink-0">Group</span>
                 )}
@@ -14991,7 +15004,13 @@ function ExonaApp() {
                                  </div>
                               </div>
                             </div>
-                            <span className="text-[10px] font-medium text-muted group-hover:text-ink max-w-[64px] truncate">{ad.title}</span>
+                            <span className="text-[10px] font-medium text-muted group-hover:text-ink max-w-[64px] truncate flex items-center justify-center gap-0.5">
+                              {ad.title}
+                              {ad.creatorUid && (() => {
+                                const adCreator = [...connectedUsers, ...chatUsers].find(u => u.uid === ad.creatorUid);
+                                return adCreator?.isVerified ? <CheckCircle2 size={10} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" /> : null;
+                              })()}
+                            </span>
                           </button>
                           <button 
                             onClick={(e) => {
@@ -15264,7 +15283,13 @@ function ExonaApp() {
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1">{premiumAds[0].title}</h4>
+                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1 flex items-center gap-1">
+                                    {premiumAds[0].title}
+                                    {premiumAds[0].creatorUid && (() => {
+                                      const adCreator = [...connectedUsers, ...chatUsers].find(u => u.uid === premiumAds[0].creatorUid);
+                                      return adCreator?.isVerified ? <CheckCircle2 size={12} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" /> : null;
+                                    })()}
+                                  </h4>
                                   <p className="text-[11px] font-medium text-slate-600 line-clamp-2 leading-snug">{premiumAds[0].description}</p>
                                 </div>
                               </div>
@@ -30626,12 +30651,92 @@ function ExonaApp() {
                   </div>
                 </section>
 
+                {/* My App Settings Block */}
+                <section>
+                  <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">{userCustomAppName || 'My App'} Settings</h3>
+                  <div className="bg-indigo-50/10 border border-indigo-100/60 rounded-[2rem] p-6 space-y-6 shadow-sm mb-12">
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Icon</label>
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 bg-white border border-gray-200 rounded-2xl flex items-center justify-center overflow-hidden shrink-0">
+                          {isUploadingUserAppIcon ? (
+                            <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                          ) : userCustomAppIconUrl ? (
+                            <img src={userCustomAppIconUrl} alt="App Icon" className="w-full h-full object-cover" />
+                          ) : (
+                            <Smartphone size={24} className="text-gray-300" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="inline-flex items-center justify-center h-10 px-4 bg-white border border-gray-200 text-xs font-bold text-ink rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <span>Upload Picture</span>
+                            <input type="file" accept="image/*" className="hidden" onChange={handleUserAppIconUpload} disabled={isUploadingUserAppIcon} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Name</label>
+                      <input 
+                        type="text" 
+                        value={userCustomAppName} 
+                        onChange={(e) => setUserCustomAppName(e.target.value)} 
+                        placeholder="My Awesome App" 
+                        className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">Search Username</label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">@</span>
+                        <input 
+                          type="text" 
+                          value={userCustomAppUsername} 
+                          onChange={(e) => setUserCustomAppUsername(e.target.value)} 
+                          placeholder="myapp123" 
+                          className="w-full h-12 pl-8 pr-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted font-medium mt-1">Users can find your app by searching this name in the global feed.</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-muted uppercase tracking-widest mb-2">App Web URL</label>
+                      <input 
+                        type="url" 
+                        value={userCustomAppUrl} 
+                        onChange={(e) => setUserCustomAppUrl(e.target.value)} 
+                        placeholder="https://example.com" 
+                        className="w-full h-12 px-4 bg-white border border-gray-200 rounded-xl text-sm font-semibold outline-none focus:border-accent transition-colors" 
+                      />
+                      <p className="text-[10px] text-muted font-medium mt-1">This must be an HTTPS link to your application.</p>
+                    </div>
+
+                    <div className="pt-2">
+                      <button 
+                        onClick={handleSaveUserCustomApp}
+                        disabled={isSavingUserCustomApp}
+                        className="w-full h-12 bg-[#2481CC] text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#1E71B3] transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 shadow-md shadow-[#2481CC]/20"
+                      >
+                        {isSavingUserCustomApp ? (
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <Smartphone size={16} /> Save App Settings
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
                 {/* Workspace Settings */}
                 <section>
                   <h3 className="text-[10px] font-bold text-muted uppercase tracking-[0.4em] mb-6 px-2">Workspace Settings</h3>
                   <div className="grid grid-cols-1 gap-3">
                     {[
-                      { icon: Smartphone, label: 'My Personal App', desc: 'Add or manage your external app', color: 'indigo-500', onClick: () => setIsUserAppModalOpen(true) },
                       { icon: Shield, label: 'Security & Privacy', desc: 'Manage your account protection', color: 'blue-500', onClick: () => setIsSecurityModalOpen(true) },
                       { icon: Bell, label: 'Notification Center', desc: 'Configure your alert preferences', color: 'orange-500', onClick: () => setIsNotificationsModalOpen(true) },
                       { icon: Sparkles, label: 'Appearance', desc: `Current: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`, color: 'purple-500', onClick: () => setIsThemeModalOpen(true) },
@@ -35276,7 +35381,7 @@ function ExonaApp() {
                 </div>
               </button>
 
-              {/* Icon 5: SETTINGS */}
+              {/* Icon 5: PROFILE/SETTINGS */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -35297,19 +35402,31 @@ function ExonaApp() {
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
-                  <Settings 
-                    size={20} 
-                    className={`transition-colors duration-200 ${
-                      (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
-                    }`}
-                    fill={(view === 'profile' && showProfileSettings) || view === 'login' ? 'currentColor' : 'none'} 
-                    fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.3 : 0} 
-                    strokeWidth={(view === 'profile' && showProfileSettings) || view === 'login' ? 2.5 : 2.0} 
-                  />
+                  {user ? (
+                    <div className={`h-5 w-5 rounded-full overflow-hidden mb-0.5 ${(view === 'profile' && showProfileSettings) ? 'ring-2 ring-white/50' : 'ring-1 ring-slate-200 group-hover:ring-slate-300'}`}>
+                      {user.photoURL ? (
+                        <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase">
+                          {user.displayName?.charAt(0) || 'U'}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <Settings 
+                      size={20} 
+                      className={`transition-colors duration-200 ${
+                        (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
+                      }`}
+                      fill={(view === 'profile' && showProfileSettings) || view === 'login' ? 'currentColor' : 'none'} 
+                      fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.3 : 0} 
+                      strokeWidth={(view === 'profile' && showProfileSettings) || view === 'login' ? 2.5 : 2.0} 
+                    />
+                  )}
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
                     (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
                   }`}>
-                    Settings
+                    {user ? 'Profile' : 'Settings'}
                   </span>
                 </div>
               </button>
