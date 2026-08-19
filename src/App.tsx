@@ -30118,10 +30118,10 @@ function ExonaApp() {
       case 'create-institution': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full max-w-3xl mx-auto py-10 px-4 sm:px-6 md:px-8 pb-32">
-            {/* Elegant Header with Back Button */}
-            <div className="flex items-center justify-between mb-10 pb-6 border-b border-gray-150">
-              <div className="flex items-center gap-4">
+          <div className="w-full max-w-2xl mx-auto py-6 px-4 sm:px-6 md:px-8 pb-32">
+            {/* Elegant Header with Back Button (Notice Center Style) */}
+            <div className="mb-8 flex items-center justify-between gap-4 pb-6 border-b border-gray-100">
+              <div className="flex items-center gap-3">
                 <button 
                   onClick={() => {
                     setEditingSchool(null);
@@ -30130,17 +30130,20 @@ function ExonaApp() {
                     setSelectedFile(null);
                     setView('tools');
                   }}
-                  className="h-11 w-11 bg-white border border-gray-150 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all shadow-xs hover:border-gray-350 cursor-pointer active:scale-95"
+                  className="h-10 w-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-muted hover:text-ink hover:bg-gray-50 transition-all shadow-sm active:scale-95 cursor-pointer"
                   title="Return to Hub"
                 >
-                  <ChevronLeft size={22} />
+                  <ChevronLeft size={20} />
                 </button>
+                <div className="h-12 w-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shrink-0">
+                  <Library size={24} />
+                </div>
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight font-display">
+                  <h2 className="text-3xl font-bold text-ink tracking-tight font-display">
                     {editingSchool ? 'Refine Workspace' : 'Institution Designer'}
-                  </h1>
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mt-1">
-                    {editingSchool ? 'Modify your institutional profile & units' : 'Design and provision a new community workspace'}
+                  </h2>
+                  <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
+                    {editingSchool ? 'MODIFY YOUR INSTITUTIONAL PROFILE & UNITS' : 'DESIGN AND PROVISION A NEW COMMUNITY WORKSPACE'}
                   </p>
                 </div>
               </div>
@@ -34361,7 +34364,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'user-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search', 'notifications'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'user-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search', 'notifications', 'create-institution'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
