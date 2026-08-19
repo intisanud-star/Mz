@@ -27227,10 +27227,17 @@ function ExonaApp() {
       case 'notifications': {
         if (!user) { setView('login'); return null; }
         return (
-          <div className="w-full max-w-xl mx-auto py-8">
-            <div className="px-4 mb-8 flex items-center justify-between">
+          <div className="w-full max-w-2xl mx-auto py-6 px-4 sm:px-6 md:px-8 pb-32">
+            <div className="mb-8 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center">
+                <button 
+                  onClick={() => setView('feed')}
+                  className="h-10 w-10 bg-white border border-gray-100 rounded-xl flex items-center justify-center text-muted hover:text-ink hover:bg-gray-50 transition-all shadow-sm active:scale-95 cursor-pointer"
+                  title="Back to Feed"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div className="h-12 w-12 bg-accent/10 text-accent rounded-2xl flex items-center justify-center shrink-0">
                   <Bell size={24} />
                 </div>
                 <div>
@@ -27257,7 +27264,7 @@ function ExonaApp() {
             </div>
 
             {/* Filters */}
-            <div className="px-4 mb-6 space-y-4">
+            <div className="mb-6 space-y-4">
               <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
                 {(['all', 'message', 'like', 'comment', 'follower_request'] as const).map(f => (
                   <button
@@ -34354,7 +34361,7 @@ function ExonaApp() {
       </AnimatePresence>
 
       {/* Top Navigation */}
-      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'user-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search'].includes(view) && (
+      {!isStandalone && !isPremiumGameOpen && !isBrainBattleActive && !['feed', 'schools', 'workspace', 'tools', 'profile', 'videos', 'institution-channel', 'school-feed', 'institution-profile', 'user-profile', 'chat', 'records', 'finance', 'attendance', 'classroom', 'daily-routine', 'hub', 'reels', 'nexclass', 'brainb', 'cinema', 'workout', 'search', 'notifications'].includes(view) && (
         <header className="pt-2 sm:pt-3 bg-card/85 backdrop-blur-xl sticky top-0 z-40 border-b border-gray-100 no-print">
           {/* Top brand bar (WhatsApp style branding with measured spacing) */}
           <div className="px-4 sm:px-6 h-12 flex items-center justify-between w-full">
@@ -35381,7 +35388,7 @@ function ExonaApp() {
                 </div>
               </button>
 
-              {/* Icon 5: PROFILE/SETTINGS */}
+              {/* Icon 5: SETTINGS */}
               <button 
                 onClick={() => {
                   setActiveChat(null);
@@ -35402,31 +35409,19 @@ function ExonaApp() {
                   />
                 )}
                 <div className="relative z-10 flex flex-col items-center justify-center">
-                  {user ? (
-                    <div className={`h-5 w-5 rounded-full overflow-hidden mb-0.5 ${(view === 'profile' && showProfileSettings) ? 'ring-2 ring-white/50' : 'ring-1 ring-slate-200 group-hover:ring-slate-300'}`}>
-                      {user.photoURL ? (
-                        <img src={user.photoURL} alt="Profile" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase">
-                          {user.displayName?.charAt(0) || 'U'}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <Settings 
-                      size={20} 
-                      className={`transition-colors duration-200 ${
-                        (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
-                      }`}
-                      fill={(view === 'profile' && showProfileSettings) || view === 'login' ? 'currentColor' : 'none'} 
-                      fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.3 : 0} 
-                      strokeWidth={(view === 'profile' && showProfileSettings) || view === 'login' ? 2.5 : 2.0} 
-                    />
-                  )}
+                  <Settings 
+                    size={20} 
+                    className={`transition-colors duration-200 ${
+                      (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'
+                    }`}
+                    fill={(view === 'profile' && showProfileSettings) || view === 'login' ? 'currentColor' : 'none'} 
+                    fillOpacity={(view === 'profile' && showProfileSettings) || view === 'login' ? 0.3 : 0} 
+                    strokeWidth={(view === 'profile' && showProfileSettings) || view === 'login' ? 2.5 : 2.0} 
+                  />
                   <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
                     (view === 'profile' && showProfileSettings) || view === 'login' ? 'text-white font-black' : 'text-slate-500 font-medium group-hover:text-slate-800'
                   }`}>
-                    {user ? 'Profile' : 'Settings'}
+                    Settings
                   </span>
                 </div>
               </button>
