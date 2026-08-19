@@ -14925,7 +14925,10 @@ function ExonaApp() {
                              </div>
                           </div>
                         </div>
-                        <span className="text-[10px] font-bold text-ink max-w-[64px] truncate">You</span>
+                        <span className="text-[10px] font-bold text-ink max-w-[64px] truncate flex items-center gap-0.5 justify-center">
+                          You
+                          {(userDoc as any)?.isVerified && <CheckCircle2 size={10} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                        </span>
                       </button>
 
                       {/* Friends */}
@@ -15312,7 +15315,10 @@ function ExonaApp() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center justify-between gap-2 mb-0.5">
-                                            <span className="text-[15.5px] font-semibold text-slate-900 truncate font-sans tracking-tight">{school.name}</span>
+                                            <div className="flex items-center gap-1 min-w-0">
+                                              <span className="text-[15.5px] font-semibold text-slate-900 truncate font-sans tracking-tight">{school.name}</span>
+                                              {school.isOfficial && <CheckCircle2 size={14} className="text-[#0095f6] fill-[#0095f6] text-white shrink-0" />}
+                                            </div>
                                             {announcementTime && (
                                               <span className="text-[12px] text-slate-400 font-medium shrink-0 font-sans">{announcementTime}</span>
                                             )}
