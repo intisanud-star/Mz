@@ -14846,7 +14846,8 @@ function ExonaApp() {
     );
   }
       case 'feed': {
-        const visibleAds = activeAds.filter(ad => !dismissedAdIds.includes(ad.id));
+        const premiumAds = activeAds.filter(ad => ad.tier !== 'normal' && !dismissedAdIds.includes(ad.id));
+        const normalAds = activeAds.filter(ad => ad.tier === 'normal' && !dismissedAdIds.includes(ad.id));
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
@@ -14949,8 +14950,8 @@ function ExonaApp() {
                         </button>
                       ))}
 
-                      {/* Remaining Ads when there are multiple ads */}
-                      {visibleAds.slice(1).map(ad => (
+                      {/* Normal Ads (Network Row) */}
+                      {normalAds.map(ad => (
                         <div key={ad.id} className="relative group shrink-0">
                           <button 
                             onClick={() => {
@@ -14964,30 +14965,30 @@ function ExonaApp() {
                                 handleUserClick(ad.creatorUid);
                               }
                             }}
-                            className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform"
+                            className="flex flex-col items-center gap-1.5 shrink-0 active:scale-95 transition-transform group"
                           >
-                            <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-dashed border-[#2481CC] p-[2px] relative bg-blue-50/40">
+                            <div className="h-16 w-16 rounded-full overflow-hidden border border-gray-200 p-[2px] group-hover:border-[#2481CC] transition-colors relative">
                               {ad.mediaUrl ? (
                                 <img src={ad.mediaUrl} alt="" className="w-full h-full rounded-full object-cover" />
                               ) : (
-                                <div className="w-full h-full rounded-full bg-blue-100 text-[#2481CC] flex items-center justify-center">
+                                <div className="w-full h-full rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
                                   <Megaphone size={20} />
                                 </div>
                               )}
-                              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-blue-100">
-                                <div className="bg-gradient-to-r from-[#2481CC] to-[#1E6FB0] text-white text-[8px] font-black px-1.5 h-4 rounded-full flex items-center justify-center uppercase tracking-wider">
-                                  Ad
-                                </div>
+                              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm border border-gray-100 scale-90">
+                                 <div className="bg-gray-100 text-muted text-[8px] font-black min-w-[18px] px-1 h-4 rounded-full flex items-center justify-center border border-white uppercase">
+                                    Ad
+                                 </div>
                               </div>
                             </div>
-                            <span className="text-[10px] font-bold text-[#2481CC] max-w-[64px] truncate">{ad.title}</span>
+                            <span className="text-[10px] font-medium text-muted group-hover:text-ink max-w-[64px] truncate">{ad.title}</span>
                           </button>
                           <button 
                             onClick={(e) => {
                               e.stopPropagation();
                               setDismissedAdIds(prev => [...prev, ad.id]);
                             }}
-                            className="absolute -top-1 -right-1 bg-white/95 hover:bg-white text-slate-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-200 z-10 transition-colors"
+                            className="absolute -top-1 -right-1 bg-white/95 hover:bg-white text-slate-400 hover:text-red-500 rounded-full p-0.5 shadow-sm border border-gray-200 z-10 opacity-0 group-hover:opacity-100 transition-all"
                             title="Dismiss Ad"
                           >
                             <X size={12} />
@@ -15216,14 +15217,14 @@ function ExonaApp() {
                     if (schoolFilter === 'all') {
                       return (
                         <div className="flex flex-col gap-2 w-full pt-1">
-                          {visibleAds.length > 0 && (
+                          {premiumAds.length > 0 && (
                             <div className="mb-6 px-4 sm:px-6 relative">
                               <div className="flex items-center justify-between mb-3">
                                 <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] font-sans">SPONSORED</div>
                                 <button 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setDismissedAdIds(prev => [...prev, visibleAds[0].id]);
+                                    setDismissedAdIds(prev => [...prev, premiumAds[0].id]);
                                   }}
                                   className="text-slate-400 hover:text-slate-600 transition-colors p-1"
                                 >
@@ -15233,7 +15234,7 @@ function ExonaApp() {
                               <div 
                                 className="bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-4 flex gap-4 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all active:scale-95"
                                 onClick={() => {
-                                  const ad = visibleAds[0];
+                                  const ad = premiumAds[0];
                                   if (ad.targetType === 'institution') {
                                     const inst = [...schools, ...places].find(s => s.id === ad.targetId);
                                     if (inst) {
@@ -15245,16 +15246,16 @@ function ExonaApp() {
                                   }
                                 }}
                               >
-                                {visibleAds[0].mediaUrl ? (
-                                  <img src={visibleAds[0].mediaUrl} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-200 shadow-sm" />
+                                {premiumAds[0].mediaUrl ? (
+                                  <img src={premiumAds[0].mediaUrl} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0 border border-gray-200 shadow-sm" />
                                 ) : (
                                   <div className="w-16 h-16 rounded-xl bg-indigo-100 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-200">
                                     <Megaphone size={24} />
                                   </div>
                                 )}
                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1">{visibleAds[0].title}</h4>
-                                  <p className="text-[11px] font-medium text-slate-600 line-clamp-2 leading-snug">{visibleAds[0].description}</p>
+                                  <h4 className="text-[13px] font-black text-indigo-900 truncate mb-1">{premiumAds[0].title}</h4>
+                                  <p className="text-[11px] font-medium text-slate-600 line-clamp-2 leading-snug">{premiumAds[0].description}</p>
                                 </div>
                               </div>
                             </div>

@@ -22,6 +22,7 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
 
   // Form State
   const [adTargetType, setAdTargetType] = useState<'profile' | 'institution'>('profile');
+  const [adTier, setAdTier] = useState<'premium' | 'normal'>('premium');
   const [selectedInstitutionId, setSelectedInstitutionId] = useState('');
   const [adTitle, setAdTitle] = useState('');
   const [adDescription, setAdDescription] = useState('');
@@ -114,6 +115,7 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
         creatorUid: user.uid,
         creatorName: user.displayName,
         targetType: adTargetType,
+        tier: adTier,
         targetId: adTargetType === 'institution' ? selectedInstitutionId : user.uid,
         title: adTitle.trim(),
         description: adDescription.trim(),
@@ -132,6 +134,7 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
       setAdDescription('');
       setAdMediaUrl('');
       setSelectedInstitutionId('');
+      setAdTier('premium');
       setIsCreating(false);
       
       fetchMyAds();
@@ -220,6 +223,24 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
                       </select>
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ad Tier</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => setAdTier('premium')}
+                        className={`h-12 border rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${adTier === 'premium' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-slate-600 hover:bg-gray-50'}`}
+                      >
+                        Premium Ad (Feed)
+                      </button>
+                      <button 
+                        onClick={() => setAdTier('normal')}
+                        className={`h-12 border rounded-xl flex items-center justify-center text-xs font-bold transition-colors ${adTier === 'normal' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-gray-200 text-slate-600 hover:bg-gray-50'}`}
+                      >
+                        Normal Ad (Network)
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ad Title</label>
@@ -338,6 +359,7 @@ export default function AdsManagerModal({ isOpen, onClose, user, showNotificatio
                             </div>
                             <p className="text-xs text-muted font-medium truncate mb-2">{ad.description}</p>
                             <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                              <span>Tier: <strong className={ad.tier === 'normal' ? "text-emerald-500" : "text-amber-500"}>{ad.tier === 'normal' ? 'Normal' : 'Premium'}</strong></span>
                               <span>Target: {ad.targetType}</span>
                               <span>Clicks: {ad.clicks || 0}</span>
                             </div>

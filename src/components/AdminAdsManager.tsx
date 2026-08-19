@@ -143,6 +143,7 @@ function AdAdminCard({ ad, onUpdateStatus }: { ad: any, onUpdateStatus: (id: str
         <p className="text-sm text-muted font-medium">{ad.description}</p>
         
         <div className="flex flex-wrap items-center gap-4 pt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50">
+          <span>Tier: <strong className={ad.tier === 'normal' ? "text-emerald-600" : "text-amber-600"}>{ad.tier === 'normal' ? 'Normal Ad' : 'Premium Ad'}</strong></span>
           <span>Target Type: <strong className="text-gray-600">{ad.targetType}</strong></span>
           <span>Target ID: <strong className="text-gray-600">{ad.targetId}</strong></span>
           <span>Creator: <strong className="text-gray-600">{ad.creatorName || ad.creatorUid}</strong></span>
