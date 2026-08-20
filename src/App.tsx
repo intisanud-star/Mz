@@ -15979,7 +15979,7 @@ function ExonaApp() {
         return (
           <div className="flex flex-col bg-card pb-32">
             {/* Header / Cover area */}
-            <div className="relative h-48 bg-gray-50 flex items-center justify-center border-b border-gray-100">
+            <div className="relative h-[30vh] sm:h-64 bg-gray-50 flex items-center justify-center border-b border-gray-100 -mx-4 sm:-mx-6 md:-mx-8">
               <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
                 {selectedUserProfileDoc?.coverURL ? (
                   <img src={selectedUserProfileDoc.coverURL} className="h-full w-full object-cover" referrerPolicy="no-referrer" alt="Cover" />
@@ -15992,12 +15992,12 @@ function ExonaApp() {
 
               <button 
                 onClick={() => setView('feed')}
-                className="absolute top-6 left-6 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10 shadow-sm"
+                className="absolute top-4 sm:top-6 left-4 sm:left-6 md:left-8 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10 shadow-sm"
               >
                 <ChevronLeft size={20} />
               </button>
               
-              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm z-10">
+              <div className="absolute -bottom-12 left-4 sm:left-6 md:left-8 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm z-10">
                 <div 
                   className="h-full w-full cursor-pointer hover:opacity-95 transition-opacity flex items-center justify-center bg-gray-50"
                   onClick={() => {
@@ -23683,7 +23683,7 @@ function ExonaApp() {
         return (
           <div className="flex flex-col bg-card pb-32">
             {/* Header / Cover area */}
-            <div className="relative h-48 bg-gray-50 flex items-center justify-center border-b border-gray-100">
+            <div className="relative h-[30vh] sm:h-64 bg-gray-50 flex items-center justify-center border-b border-gray-100 -mx-4 sm:-mx-6 md:-mx-8">
               {/* Cover Image Wrapper with overflow-hidden */}
               <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
                 {inst.coverURL && (
@@ -23693,13 +23693,13 @@ function ExonaApp() {
 
               <button 
                 onClick={() => setView('feed')}
-                className="absolute top-6 left-6 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10 shadow-sm"
+                className="absolute top-4 sm:top-6 left-4 sm:left-6 md:left-8 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-2xl flex items-center justify-center text-muted hover:text-ink transition-all z-10 shadow-sm"
               >
                 <ChevronLeft size={20} />
               </button>
 
               {canManage && (
-                <label className="absolute top-6 right-6 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full flex items-center justify-center text-muted hover:text-ink hover:scale-105 active:scale-95 cursor-pointer shadow-sm transition-all z-10" title="Upload Cover Image">
+                <label className="absolute top-4 sm:top-6 right-4 sm:right-6 md:right-8 h-12 w-12 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-full flex items-center justify-center text-muted hover:text-ink hover:scale-105 active:scale-95 cursor-pointer shadow-sm transition-all z-10" title="Upload Cover Image">
                   <CameraIcon size={18} />
                   <input 
                     type="file" 
@@ -23710,7 +23710,7 @@ function ExonaApp() {
                 </label>
               )}
               
-              <div className="absolute -bottom-12 left-6 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm z-10">
+              <div className="absolute -bottom-12 left-4 sm:left-6 md:left-8 h-24 w-24 rounded-3xl bg-white border-4 border-white flex items-center justify-center overflow-hidden shadow-sm z-10">
                 <div 
                   className="h-full w-full cursor-pointer hover:opacity-95 transition-opacity flex items-center justify-center bg-gray-50"
                   onClick={() => {
