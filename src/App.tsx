@@ -15109,7 +15109,7 @@ function ExonaApp() {
                 )}
 
                 {/* Search Bar (Moving on scroll, positioned on top of Home & Satellite) */}
-                <div className="min-w-0 w-full mb-5.5 px-4 sm:px-6 md:px-8">
+                <div className="min-w-0 w-full mb-6 px-4 sm:px-6 md:px-8">
                   <div className="relative group w-full">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
                     <input 
