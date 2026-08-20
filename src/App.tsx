@@ -9555,6 +9555,71 @@ function ExonaApp() {
     setTimeout(() => setNotification(null), 4000);
   };
 
+  // Sync newPostContent with localStorage draft on context change
+  useEffect(() => {
+    const activeInstId = (view === 'school-feed' && selectedSchool && canManageInstitution(selectedSchool))
+      ? selectedSchool.id
+      : (view === 'institution-profile' && selectedInstitutionForProfile && canManageInstitution(selectedInstitutionForProfile))
+        ? selectedInstitutionForProfile.id
+        : null;
+
+    if (isPostModalOpen) {
+      if (editingPost) {
+        const savedEditDraft = localStorage.getItem(`exona_edit_post_draft_${editingPost.id}`);
+        if (savedEditDraft !== null && savedEditDraft !== editingPost.content) {
+          setNewPostContent(savedEditDraft);
+          showNotification('Unsaved changes restored', 'info');
+        }
+      } else {
+        const savedNewDraft = localStorage.getItem('exona_post_draft');
+        if (savedNewDraft) {
+          setNewPostContent(savedNewDraft);
+          showNotification('Draft restored', 'info');
+        } else {
+          setNewPostContent('');
+        }
+      }
+    } else if (activeInstId) {
+      const savedInstDraft = localStorage.getItem(`exona_inst_draft_${activeInstId}`);
+      setNewPostContent(savedInstDraft || '');
+    } else {
+      setNewPostContent('');
+    }
+  }, [isPostModalOpen, editingPost, view, selectedSchool, selectedInstitutionForProfile]);
+
+  // Auto-save draft on content change
+  useEffect(() => {
+    const activeInstId = (view === 'school-feed' && selectedSchool && canManageInstitution(selectedSchool))
+      ? selectedSchool.id
+      : (view === 'institution-profile' && selectedInstitutionForProfile && canManageInstitution(selectedInstitutionForProfile))
+        ? selectedInstitutionForProfile.id
+        : null;
+
+    if (isPostModalOpen) {
+      if (editingPost) {
+        if (newPostContent !== editingPost.content) {
+          if (newPostContent === '') {
+            localStorage.removeItem(`exona_edit_post_draft_${editingPost.id}`);
+          } else {
+            localStorage.setItem(`exona_edit_post_draft_${editingPost.id}`, newPostContent);
+          }
+        }
+      } else {
+        if (newPostContent === '') {
+          localStorage.removeItem('exona_post_draft');
+        } else {
+          localStorage.setItem('exona_post_draft', newPostContent);
+        }
+      }
+    } else if (activeInstId) {
+      if (newPostContent === '') {
+        localStorage.removeItem(`exona_inst_draft_${activeInstId}`);
+      } else {
+        localStorage.setItem(`exona_inst_draft_${activeInstId}`, newPostContent);
+      }
+    }
+  }, [newPostContent, isPostModalOpen, editingPost, view, selectedSchool, selectedInstitutionForProfile]);
+
   /**
    * Compresses a base64 data URL to fit within Firestore limit rules.
    */
@@ -12204,6 +12269,21 @@ function ExonaApp() {
         await setDoc(doc(db, 'users', user.uid), { postsCount: increment(1) }, { merge: true });
       }
       
+      // Clear saved drafts from localStorage upon successful broadcast
+      const activeInstId = (view === 'school-feed' && selectedSchool && canManageInstitution(selectedSchool))
+        ? selectedSchool.id
+        : (view === 'institution-profile' && selectedInstitutionForProfile && canManageInstitution(selectedInstitutionForProfile))
+          ? selectedInstitutionForProfile.id
+          : null;
+
+      if (isEditing && editingPost) {
+        localStorage.removeItem(`exona_edit_post_draft_${editingPost.id}`);
+      } else if (activeInstId) {
+        localStorage.removeItem(`exona_inst_draft_${activeInstId}`);
+      } else {
+        localStorage.removeItem('exona_post_draft');
+      }
+
       setNewPostContent('');
       setPreviewPostUrls([]);
       setSelectedPostFiles([]);
@@ -15029,23 +15109,25 @@ function ExonaApp() {
                 )}
 
                 {/* Search Bar (Moving on scroll, positioned on top of Home & Satellite) */}
-                <div className="relative group min-w-0 w-full mb-3 flex items-center justify-center px-4 sm:px-6 md:px-8">
-                  <input 
-                    type="text" 
-                    placeholder="Search" 
-                    value={globalSearch}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setGlobalSearch(val);
-                      handleSearchUsers(val);
-                      setView('search');
-                    }}
-                    onFocus={() => {
-                      setView('search');
-                    }}
-                    className="w-full text-center placeholder:text-center pl-10 pr-10 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-sm" 
-                  />
-                  <Search className="absolute left-1/2 -translate-x-[40px] top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
+                <div className="min-w-0 w-full mb-3 px-4 sm:px-6 md:px-8">
+                  <div className="relative group w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Search chat" 
+                      value={globalSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGlobalSearch(val);
+                        handleSearchUsers(val);
+                        setView('search');
+                      }}
+                      onFocus={() => {
+                        setView('search');
+                      }}
+                      className="w-full text-left placeholder:text-left pl-11 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-sm" 
+                    />
+                  </div>
                 </div>
 
                 {/* Sticky Home / Satellite Segmented Control (sticks at top right where Search bar was when scrolling) */}
