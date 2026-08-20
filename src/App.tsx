@@ -35185,10 +35185,10 @@ function ExonaApp() {
             }}
             exit={{ y: 60, opacity: 0 }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className={`fixed bottom-3 left-0 right-0 z-50 flex items-center justify-center px-3.5 no-print select-none pointer-events-none ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
+            className={`fixed bottom-0 left-0 right-0 z-50 flex items-center justify-center no-print select-none pointer-events-none ${(hideBottomNavInShop && view === 'schools') ? 'pointer-events-none' : ''}`}
           >
-            <div className="flex items-center gap-2 max-w-md w-full pointer-events-auto">
-              <div className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 shadow-[0_12px_36px_rgba(0,0,0,0.12)] rounded-full px-2 py-1.5 flex items-center justify-between flex-1 relative">
+            <div className="w-full pointer-events-auto">
+              <div className="bg-white/95 backdrop-blur-2xl border-t border-slate-200/90 px-4 py-2 sm:px-6 flex items-center justify-between relative w-full">
               
                {/* Floating Workspace & Tools submenu above Middle Button */}
               <AnimatePresence>
