@@ -35497,25 +35497,29 @@ function ExonaApp() {
             </div>
 
             {/* Independent Floating Search Button */}
-            <a
-              href="https://brainb.exonaapp.com"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
               onClick={() => {
                 setActiveChat(null);
+                setView('brainb');
               }}
-              className="h-[60px] w-[60px] shrink-0 rounded-full flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-[0_12px_36px_rgba(0,0,0,0.12)] border bg-white/95 backdrop-blur-2xl border-slate-200/90 text-slate-500 hover:text-slate-800 hover:bg-slate-50 active:scale-95 no-underline"
+              className={`h-[60px] w-[60px] shrink-0 rounded-full flex flex-col items-center justify-center transition-all duration-200 cursor-pointer shadow-[0_12px_36px_rgba(0,0,0,0.12)] border ${
+                view === 'brainb'
+                  ? 'bg-gradient-to-r from-[#2481CC] to-[#1D6FA3] text-white border-[#2481CC] shadow-md shadow-[#2481CC]/30 scale-105'
+                  : 'bg-white/95 backdrop-blur-2xl border-slate-200/90 text-slate-500 hover:text-slate-800 hover:bg-slate-50 active:scale-95'
+              }`}
               title="BrainB"
             >
               <Search 
                 size={20} 
-                className="transition-colors duration-200 text-slate-500"
-                strokeWidth={2.0} 
+                className={`transition-colors duration-200 ${view === 'brainb' ? 'text-white' : 'text-slate-500'}`}
+                strokeWidth={view === 'brainb' ? 2.5 : 2.0} 
               />
-              <span className="text-[10px] tracking-tight transition-colors duration-200 text-slate-500 font-medium">
+              <span className={`text-[10px] tracking-tight transition-colors duration-200 ${
+                view === 'brainb' ? 'text-white font-black' : 'text-slate-500 font-medium'
+              }`}>
                 BrainB
               </span>
-            </a>
+            </button>
           </div>
         </motion.div>
         )}
