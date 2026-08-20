@@ -14911,11 +14911,11 @@ function ExonaApp() {
                 lastScrollTop.current = currentScrollTop;
               }}
             >
-              <div className="w-full pt-3 px-4 sm:px-6 md:px-8 max-w-4xl mx-auto">
+              <div className="w-full pt-3 max-w-4xl mx-auto">
                 {/* Network / Friends Row */}
                 {userDoc && (
                   <div className="mb-4">
-                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 items-center">
+                    <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 items-center px-4 sm:px-6 md:px-8">
                       {/* You */}
                       <button 
                         onClick={() => {
@@ -15029,7 +15029,7 @@ function ExonaApp() {
                 )}
 
                 {/* Search Bar (Moving on scroll, positioned on top of Home & Satellite) */}
-                <div className="relative group min-w-0 w-full mb-3 flex items-center justify-center">
+                <div className="relative group min-w-0 w-full mb-3 flex items-center justify-center px-4 sm:px-6 md:px-8">
                   <input 
                     type="text" 
                     placeholder="Search" 
@@ -15049,7 +15049,7 @@ function ExonaApp() {
                 </div>
 
                 {/* Sticky Home / Satellite Segmented Control (sticks at top right where Search bar was when scrolling) */}
-                <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 mb-4 transition-all">
+                <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md py-2.5 px-4 sm:px-6 md:px-8 mb-4 transition-all">
                   <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
                     <button 
                       onClick={() => setView('feed')}
@@ -15067,7 +15067,7 @@ function ExonaApp() {
                 </div>
 
                 <div className="block">
-                  <div className="flex overflow-x-auto no-scrollbar gap-2 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8 mb-4">
+                  <div className="flex overflow-x-auto no-scrollbar gap-2 px-4 sm:px-6 md:px-8 mb-4">
                     {['all', 'institutions', 'chats', 'groups'].map(tab => (
                       <button
                         key={tab}
@@ -15082,7 +15082,7 @@ function ExonaApp() {
                       </button>
                     ))}
                   </div>
-              <div className="-mx-4 sm:-mx-6 md:-mx-8">
+              <div className="w-full">
                 <AnimatePresence mode="popLayout">
                   {(() => {
                     const filteredSchoolsAndPlaces = [...schools, ...places]
@@ -15247,8 +15247,8 @@ function ExonaApp() {
                       return (
                         <div className="flex flex-col gap-2 w-full pt-1">
                           {premiumAds.length > 0 && (
-                            <div className="mb-6 px-4 sm:px-6 relative">
-                              <div className="flex items-center justify-between mb-3">
+                            <div className="mb-6 relative">
+                              <div className="flex items-center justify-between mb-3 px-4 sm:px-6 md:px-8">
                                 <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] font-sans">SPONSORED</div>
                                 <button 
                                   onClick={(e) => {
@@ -15261,7 +15261,7 @@ function ExonaApp() {
                                 </button>
                               </div>
                               <div 
-                                className="bg-gradient-to-r from-indigo-50 to-white border border-indigo-100 rounded-2xl p-4 flex gap-4 cursor-pointer hover:shadow-md hover:border-indigo-200 transition-all active:scale-95"
+                                className="bg-gradient-to-r from-indigo-50 to-white border-y border-indigo-100 p-4 px-4 sm:px-6 md:px-8 flex gap-4 cursor-pointer hover:bg-indigo-50 transition-all active:bg-indigo-100"
                                 onClick={() => {
                                   const ad = premiumAds[0];
                                   if (ad.targetType === 'institution') {
@@ -15298,7 +15298,7 @@ function ExonaApp() {
 
                           {filteredSchoolsAndPlaces.length > 0 && (
                             <div className="mb-6">
-                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-4 sm:px-6 font-sans">INSTITUTIONS</div>
+                              <div className="text-[10px] font-extrabold text-[#94a3b8] uppercase tracking-[0.2em] mb-3 px-4 sm:px-6 md:px-8 font-sans">INSTITUTIONS</div>
                               <div className="space-y-1">
                                 {filteredSchoolsAndPlaces.map(school => {
                                   const latestAnnouncement = posts.find(p => p.schoolId === school.id && p.authorUid === school.creatorUid);
@@ -15311,7 +15311,7 @@ function ExonaApp() {
                                       animate={{ opacity: 1, y: 0 }}
                                       exit={{ opacity: 0, scale: 0.96 }}
                                       transition={{ duration: 0.2 }}
-                                      className="py-3 px-4 sm:px-6 hover:bg-slate-50 active:bg-slate-100/80 rounded-xl flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
+                                      className="py-3 px-4 sm:px-6 md:px-8 hover:bg-slate-50 active:bg-slate-100/80 flex items-center justify-between group transition-all duration-150 cursor-pointer relative select-none"
                                       onMouseDown={() => startPress(school.id)}
                                       onMouseUp={() => endPress(school.id, () => {
                                         setSelectedInstitutionForProfile(school);
@@ -15400,7 +15400,7 @@ function ExonaApp() {
                             <div className="mb-6">
                               <button 
                                 onClick={() => setShowChatSection(!showChatSection)} 
-                                className="w-full flex items-center justify-between mb-3 px-4 sm:px-6 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
+                                className="w-full flex items-center justify-between mb-3 px-4 sm:px-6 md:px-8 py-1.5 hover:bg-slate-50 transition-colors cursor-pointer group/header"
                                 title={showChatSection ? "Hide Chats" : "Show Chats"}
                               >
                                 <div className="flex items-center gap-2">
@@ -15423,7 +15423,7 @@ function ExonaApp() {
                             <div className="mb-6">
                               <button 
                                 onClick={() => setShowGroupSection(!showGroupSection)} 
-                                className="w-full flex items-center justify-between mb-3 px-4 sm:px-6 py-1.5 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer group/header"
+                                className="w-full flex items-center justify-between mb-3 px-4 sm:px-6 md:px-8 py-1.5 hover:bg-slate-50 transition-colors cursor-pointer group/header"
                                 title={showGroupSection ? "Hide Groups" : "Show Groups"}
                               >
                                 <div className="flex items-center gap-2">
