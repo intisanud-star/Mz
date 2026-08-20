@@ -14948,55 +14948,31 @@ function ExonaApp() {
         return (
           <div className="w-full h-full flex flex-col bg-white overflow-hidden relative">
             {/* Perfectly Constant, Stationary Header */}
-            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md z-50 flex flex-col pb-3 border-b border-gray-100/40">
-              <div className="h-[56px] w-full flex items-center">
-                <div className="w-full px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-ink">
-                    <button 
-                      onClick={() => setView('notifications')}
-                      className="relative p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
-                    >
-                      <Bell size={20} />
-                      {unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1 right-1 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
-                          {unreadNotificationsCount}
-                        </span>
-                      )}
-                    </button>
-                    <button 
-                      onClick={() => setView('create-institution')}
-                      className="p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
-                      title="Create Institution"
-                    >
-                      <Plus size={20} />
-                    </button>
-                  </div>
+            <div className="absolute top-0 left-0 right-0 bg-white/95 backdrop-blur-md z-50 h-[56px] flex items-center">
+              <div className="w-full px-4 sm:px-6 md:px-8 max-w-4xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[23px] font-extrabold tracking-tight text-[#2481CC] font-sans select-none">ExonaApp</span>
                 </div>
-              </div>
-
-              {/* Constant Search Bar */}
-              <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8">
-                <div className="relative group w-full">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
-                  <input 
-                    type="text" 
-                    placeholder="Search chat" 
-                    value={globalSearch}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setGlobalSearch(val);
-                      handleSearchUsers(val);
-                      setView('search');
-                    }}
-                    onFocus={() => {
-                      setView('search');
-                    }}
-                    className="w-full text-left placeholder:text-left pl-11 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-sm" 
-                  />
+                
+                <div className="flex items-center gap-2 text-ink">
+                  <button 
+                    onClick={() => setView('notifications')}
+                    className="relative p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
+                  >
+                    <Bell size={20} />
+                    {unreadNotificationsCount > 0 && (
+                      <span className="absolute top-1 right-1 h-4 min-w-[16px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center ring-2 ring-white select-none">
+                        {unreadNotificationsCount}
+                      </span>
+                    )}
+                  </button>
+                  <button 
+                    onClick={() => setView('create-institution')}
+                    className="p-2 rounded-xl hover:bg-gray-50 transition-colors text-muted hover:text-ink cursor-pointer"
+                    title="Create Institution"
+                  >
+                    <Plus size={20} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -15004,7 +14980,7 @@ function ExonaApp() {
             {/* Scrollable Timeline Box */}
             <div 
               ref={view === 'feed' ? scrollContainerRef : undefined}
-              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[110px]"
+              className="flex-1 overflow-y-auto no-scrollbar w-full pb-32 pt-[56px]"
               onScroll={(e) => {
                 const currentScrollTop = e.currentTarget.scrollTop;
                 if (currentScrollTop > lastScrollTop.current + 8 && currentScrollTop > 40) {
@@ -15132,23 +15108,29 @@ function ExonaApp() {
                   </div>
                 )}
 
-                {/* Home / Satellite Segmented Control (scrolls up normally now) */}
-                <div className="px-4 sm:px-6 md:px-8 mb-4 transition-all">
-                  <div className="flex items-center bg-gray-100 p-1 rounded-2xl w-full">
-                    <button 
-                      onClick={() => setView('feed')}
-                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'feed' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                    >
-                      All
-                    </button>
-                    <button 
-                      onClick={() => setView('videos')}
-                      className={`flex-1 text-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${view === 'videos' ? 'bg-white text-[#2481CC] font-bold shadow-sm' : 'text-slate-500 hover:text-ink'}`}
-                    >
-                      Satellite
-                    </button>
+                {/* Search Bar (Moving on scroll, positioned on top of Home & Satellite) */}
+                <div className="min-w-0 w-full mb-3 px-4 sm:px-6 md:px-8">
+                  <div className="relative group w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none" size={15} />
+                    <input 
+                      type="text" 
+                      placeholder="Search chat" 
+                      value={globalSearch}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGlobalSearch(val);
+                        handleSearchUsers(val);
+                        setView('search');
+                      }}
+                      onFocus={() => {
+                        setView('search');
+                      }}
+                      className="w-full text-left placeholder:text-left pl-11 pr-4 py-2.5 bg-gray-50 hover:bg-gray-100/30 border border-transparent focus:bg-white focus:border-accent/40 rounded-2xl outline-none transition-all text-[11px] font-bold uppercase tracking-wider placeholder:text-slate-400 text-ink shadow-sm" 
+                    />
                   </div>
                 </div>
+
+
 
                 <div className="block">
                   <div className="flex overflow-x-auto no-scrollbar gap-2 px-4 sm:px-6 md:px-8 mb-4">
