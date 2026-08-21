@@ -16286,7 +16286,7 @@ function ExonaApp() {
         return (
           <ShopIframeView 
             onClose={() => setView('feed')} 
-            iframeUrl="https://shopping-time-400371160094.europe-west2.run.app" 
+            iframeUrl="https://shoppingtime.exonaapp.com" 
             title="Shop"
             hideHeader={true}
           />
